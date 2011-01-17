@@ -1,0 +1,90 @@
+#ifndef INCLUDE_KMER_HPP
+#define INCLUDE_KMER_HPP
+
+#include <stdio.h>
+#include <stdint.h>
+#include "hash.hpp"
+#include <cassert>
+#include <cstring>
+
+
+
+//for debug
+
+char *int2bin(uint32_t a, char *buffer, int buf_size);
+
+
+
+
+class Kmer {
+ public:
+
+  Kmer();
+  Kmer(const Kmer& o);
+  explicit Kmer(const char *s); 
+  
+
+  Kmer& operator=(const Kmer& o);
+  
+  void set_deleted();
+
+  bool operator<(const Kmer& o) const;
+
+  bool operator==(const Kmer& o) const;
+
+  bool operator!=(const Kmer& o) const {
+    return !(*this == o);
+  }
+
+  void set_kmer(const char *s);
+
+  uint32_t hash() const;
+
+  
+
+  Kmer twin() const;
+
+  Kmer getLink(const size_t index) const;
+
+  Kmer forwardBase(const char b) const;
+
+  Kmer backwardBase(const char b) const;
+  
+  void printBinary() const;
+  
+  void toString(char * s) const;
+
+  // static functions
+  static void set_k(unsigned int _k);
+
+
+  static const unsigned int MAX_K = 48;
+  static unsigned int k;
+
+ private:
+  static unsigned int k_bytes;
+  static unsigned int k_longs;
+  static unsigned int k_modmask;
+
+  // data fields
+  union {
+    uint8_t bytes[MAX_K/4];
+    uint32_t longs[MAX_K/16];
+  };
+
+
+  // private functions
+  void shiftRight(int shift);
+
+  void shiftLeft(int shift);
+};
+
+
+struct KmerHash {
+  size_t operator()(const Kmer &km) const {
+    return km.hash();
+  }
+};
+
+
+#endif //KMER_HPP
