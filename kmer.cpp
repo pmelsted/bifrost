@@ -1,10 +1,10 @@
 #include "kmer.hpp"
 
 char *int2bin(uint32_t a, char *buffer, int buf_size) {
-    buffer += (buf_size - 1);
+  //buffer += (buf_size - 1);
 
-    for (int i = 31; i >= 0; i--) {
-        *buffer-- = (a & 1) + '0';
+    for (int i = 7; i >= 0; i--) {
+        *buffer++ = (a & 1) + '0';
         a >>= 1;
     }
 
@@ -93,8 +93,8 @@ bool Kmer::operator<(const Kmer& o) const {
 }
 
 bool Kmer::operator==(const Kmer& o) const {
-  return longs[0]==o.longs[0] && longs[1] == o.longs[1] && longs[2] == o.longs[2];
-  //return memcmp(bytes,o.bytes,MAX_K/4)==0;
+  
+  return memcmp(bytes,o.bytes,MAX_K/4)==0;
   /*
   for (int i = 0; i < k_bytes-1; ++i) {
       if (bytes[i] != o.bytes[i]) {
@@ -202,13 +202,13 @@ Kmer Kmer::getLink(const size_t index) const {
 
 
 Kmer Kmer::forwardBase(const char b) const {
- //  char tmp[1024];
-//   this->toString(tmp);
-//   printf("forward\n%s\n",tmp);
-//   printf("adding %c\n",b);
+  //  char tmp[1024];
+  //this->toString(tmp);
+  //printf("\n\nforward\n%s\n",tmp);
+  // printf("adding %c\n",b);
 
   int s = 2*((k+3) % 4);
-  // printf("shift used %d\n",s);
+  //printf("shift used %d\n",s);
 
   Kmer km(*this);
   //printf("before "); km.printBinary();
@@ -224,9 +224,9 @@ Kmer Kmer::forwardBase(const char b) const {
   case 'G': km.bytes[k_bytes-1] |= 0x02 << s; break;
   case 'T': km.bytes[k_bytes-1] |= 0x03 << s; break;
   }
- //  printf("after  "); km.printBinary();
-//   km.toString(tmp);
-//   printf("%s\n",tmp);
+  //printf("after  "); km.printBinary();
+  //km.toString(tmp);
+  //printf("%s\n\n",tmp);
   return km;
 }
 
@@ -264,14 +264,12 @@ Kmer Kmer::backwardBase(const char b) const {
 }
 
 void Kmer::printBinary() const {
-  char buff[33]; buff[32] = '\0';
+  char buff[9]; buff[8] = '\0';
   printf("binary:");
-  int2bin(longs[0],buff,32);
-  printf(" %s",buff);
-  int2bin(longs[1],buff,32);
-  printf(" %s",buff);
-  int2bin(longs[2],buff,32);
-  printf(" %s",buff);
+  for (int i = 0; i < Kmer::k_bytes; i++) {
+    int2bin(bytes[i],buff,8);
+    printf("%s",buff);
+  }
   printf("\n");
 }
 
@@ -303,14 +301,12 @@ void Kmer::toString(char * s) const {
 
 void Kmer::shiftLeft(int shift) {
   if (shift>0) {
-    if (shift < 32 ) {
-      longs[2] <<= shift;
-      longs[2] |= longs[1] >> (32-shift);
-      
-      longs[1] <<= shift;
-      longs[1] |= longs[0] >> (32-shift);
-      
-      longs[0] <<= shift;
+    if (shift < 8 ) {
+      for (int i = Kmer::k_bytes-1; i > 0; i--) {
+	bytes[i] <<= shift;
+	bytes[i] |= (uint8_t) (bytes[i-1] >> (8-shift));
+      }
+      bytes[0] <<= shift;
     } else {
       // we should never need this!
       assert(0);
@@ -320,19 +316,16 @@ void Kmer::shiftLeft(int shift) {
 
 void Kmer::shiftRight(int shift) {
   if (shift >0) {
-    if (shift < 32) {
-      longs[0] >>= shift;
-      longs[0] |= longs[1] << (32-shift);
-      
-      longs[1] >>= shift;
-      longs[1] |= longs[2] << (32-shift);
-      
-      longs[2] >>= shift;
-      
+    if (shift < 8) {
+      for (int i = 0; i < Kmer::k_bytes-1; i++) {
+	bytes[i] >>= shift;
+	bytes[i] |= (uint8_t) ( bytes[i+1] << (8-shift));
+      }
+      bytes[Kmer::k_bytes-1] >>= shift;
     } else {
       // bad
       assert(0);
-      }
+    }
   }
 }
 
@@ -342,7 +335,7 @@ void Kmer::set_k(unsigned int _k) {
   assert(k_bytes == 0); // we can only call this once
   k = _k;
   k_bytes = (_k+3)/4;
-  k_longs = (_k+15)/16;
+  //  k_longs = (_k+15)/16;
   k_modmask = (1 << (2*((k%4)?k%4:4)) )-1;
   
   //printf("k: %d, k_bytes: %d\n",k,k_bytes);
@@ -352,5 +345,5 @@ void Kmer::set_k(unsigned int _k) {
 
 unsigned int Kmer::k = 0;
 unsigned int Kmer::k_bytes = 0;
-unsigned int Kmer::k_longs = 0;
+//unsigned int Kmer::k_longs = 0;
 unsigned int Kmer::k_modmask = 0;

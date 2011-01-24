@@ -13,7 +13,7 @@
 #include "kseq.h"
 
 // initialize kseq structures
-KSEQ_INIT(gzFile, gzread);
+//KSEQ_INIT(gzFile, gzread);
 
 using namespace std;
 

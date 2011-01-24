@@ -1,6 +1,10 @@
 #ifndef INCLUDE_KMER_HPP
 #define INCLUDE_KMER_HPP
 
+#ifndef MAX_KMER_SIZE
+ #define MAX_KMER_SIZE 32
+#endif
+
 #include <stdio.h>
 #include <stdint.h>
 #include "hash.hpp"
@@ -58,18 +62,18 @@ class Kmer {
   static void set_k(unsigned int _k);
 
 
-  static const unsigned int MAX_K = 48;
+  static const unsigned int MAX_K = MAX_KMER_SIZE;
   static unsigned int k;
 
  private:
   static unsigned int k_bytes;
-  static unsigned int k_longs;
+  //  static unsigned int k_longs;
   static unsigned int k_modmask;
 
   // data fields
   union {
     uint8_t bytes[MAX_K/4];
-    uint32_t longs[MAX_K/16];
+    //uint32_t longs[MAX_K/16];
   };
 
 

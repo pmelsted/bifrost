@@ -9,8 +9,11 @@
 #include <sys/stat.h>
 
 
-#include "google/sparse_hash_map"
+#include <functional>
 
+
+#include "google/sparse_hash_map"
+#include "google/sparsehash/sparsehashtable.h"
 #include "fastq.hpp"
 #include "kmer.hpp"
 #include "bloom_filter.hpp"
@@ -23,6 +26,60 @@ struct ProgramOptions {
   int k;
   int nkmers;
   vector<string> files;
+};
+
+struct KmerIntPair {
+  KmerIntPair() {};
+  KmerIntPair(const Kmer &km, unsigned int k);
+
+  char v[sizeof(Kmer)+sizeof(char)];
+  unsigned int GetVal() const;
+  void SetVal(const unsigned int k);
+  const Kmer& GetKey() const;
+  void SetKey(const Kmer& km);
+
+  static const size_t KmerOffset;
+  static const size_t IntOffset;
+};
+
+
+const size_t KmerIntPair::KmerOffset = 0;
+const size_t KmerIntPair::IntOffset = sizeof(Kmer);
+
+KmerIntPair::KmerIntPair(const Kmer &km, unsigned int val) {
+  SetKey(km);
+  SetVal(val);
+}
+
+void KmerIntPair::SetVal(unsigned int val) {
+  char val8 = (val > 0xFF) ?  0xFF : (char)val;
+  //memcpy(&this->v + KmerIntPair::IntOffset, &val8, sizeof(uint8_t));
+  this->v[KmerIntPair::IntOffset] = val8;
+}
+
+unsigned int KmerIntPair::GetVal() const {
+  //uint8_t tmp = *reinterpret_cast<const uint8_t*>(this+KmerIntPair::IntOffset);
+  return this->v[KmerIntPair::IntOffset];
+}
+
+const Kmer& KmerIntPair::GetKey() const {
+  return *reinterpret_cast<const Kmer*>(this + KmerIntPair::KmerOffset);
+}
+
+void KmerIntPair::SetKey(const Kmer& km) {
+  memcpy(this, &km, sizeof(Kmer));
+}
+
+struct SelectKmerKey {
+  const Kmer& operator()(const KmerIntPair &p) const {
+    return p.GetKey();
+  }
+};
+
+struct SetKmerKey {
+  void operator()(KmerIntPair *value, const Kmer& km) {
+    memcpy(value + KmerIntPair::KmerOffset, &km, sizeof(Kmer));
+  }
 };
 
 void PrintUsage() {
@@ -67,16 +124,56 @@ void ParseOptions(int argc, char **argv, ProgramOptions &opt) {
   }
 }
 
+  typedef google::sparse_hashtable<KmerIntPair, Kmer, KmerHash, SelectKmerKey, SetKmerKey, std::equal_to<Kmer>, std::allocator<KmerIntPair> > hmap_t;
+
+void debugKmer(const ProgramOptions &opt) {
+  const char *s = "TCACAGTGTTGAACCTTTGTTTGGATGGAGCAGTTAGTGTTGAACCTTTGTTTGGATGGAGCAGTTAGTGTTGAACCTTTGTTTGGATGGAGCAGTTAGTGTTGAACCTTTGTTTGGATGGAGCAGTT";
+  char tmp[1024];
+  int len = string(s).size();
+
+  Kmer::set_k(opt.k);
+  size_t k = opt.k;
+
+  hmap_t kmap;
+  Kmer km(s);
+  hmap_t::iterator it;
+  cerr << s << endl;
+  for (int i = 0; i <= len-k; i++) {
+    if (i > 0) {
+      km = km.forwardBase(s[i+k-1]);
+    }
+    km.toString(tmp); cerr << tmp;
+
+    it = kmap.find(km);
+    if (it!= kmap.end()) {
+      cerr << " found " << it->GetVal();
+      it->SetVal(it->GetVal()+1);
+      cerr << " -> " << it->GetVal() << endl;
+    } else {
+      kmap.insert(KmerIntPair(km,1));
+      cerr << " inserted " << endl; // << kmap.find(km)->GetVal() << endl;
+    }
+  }
+  cerr << endl << endl;
+
+  for (it = kmap.begin(); it != kmap.end(); ++it) {
+    km = it->GetKey(); km.toString(tmp);
+    cerr << tmp << " " << it->GetVal() << endl;;
+  }
+
+  
+}
 
 void CountBF(const ProgramOptions &opt) {
   Kmer::set_k(opt.k);
   size_t k = Kmer::k;
 
-  typedef sparse_hash_map<Kmer, uint32_t, KmerHash> hmap_t;
+  //typedef sparse_hash_map<Kmer, uint32_t, KmerHash> hmap_t;
+
 
   hmap_t kmap;
 
-  bloom_filter BF(opt.nkmers, (size_t) 4, (unsigned long) time(NULL));
+  bloom_filter BF(opt.nkmers, (size_t) 4, (unsigned long) 42); // (unsigned long) time(NULL));
 
   char name[8196],s[8196];
   size_t name_len,len;
@@ -97,7 +194,7 @@ void CountBF(const ProgramOptions &opt) {
       Kmer rep = (km < tw) ? km : tw;
       if (BF.contains(rep)) {
 	// has no effect if already in map
-	pair<hmap_t::iterator,bool> ref = kmap.insert(make_pair(rep,0));
+	pair<hmap_t::iterator,bool> ref = kmap.insert(KmerIntPair(rep,0));
       } else {
 	BF.insert(rep);
       }
@@ -109,13 +206,16 @@ void CountBF(const ProgramOptions &opt) {
     }
   }
 
+  cerr << "re-open all files" << endl;
   // close all files, reopen and get accurate counts;
   FQ.reopen();
   hmap_t::iterator it;
 
   while (FQ.read_next(name, &name_len, s, &len, NULL) >= 0) {
+    //cerr << "read " << len << " characters" << endl;
     Kmer km(s);
     for (size_t i = 0; i <= len-k; ++i) {
+      
       if (i > 0) {
 	km = km.forwardBase(s[i+k-1]);
       }
@@ -124,12 +224,16 @@ void CountBF(const ProgramOptions &opt) {
 
       it = kmap.find(rep);
       if (it != kmap.end()) {
-	it->second += 1; // add 1 count
+	//cerr << "Val before: " <<  it->GetVal();
+	it->SetVal(it->GetVal()+1); // add 1 to count
+	//cerr << ", after: " << it->GetVal() << endl;
       }
     }
   }
   
   FQ.close();
+
+  cerr << "closed all files" << endl;
 
   // the hash map needs an invalid key to mark as deleted
   Kmer km_del;
@@ -138,7 +242,7 @@ void CountBF(const ProgramOptions &opt) {
   size_t n_del =0 ;
 
   for(it = kmap.begin(); it != kmap.end(); ) {
-    if (it->second <= 1) {
+    if (it->GetVal() <= 1) {
       hmap_t::iterator del(it);
       ++it;
       // remove k-mer that got through the bloom filter
@@ -155,11 +259,17 @@ void CountBF(const ProgramOptions &opt) {
 }
 
 
+
+
 int main(int argc, char **argv) {
+
+  cerr << "sizeof(kmer) " << sizeof(Kmer) << ", sizeof(pair) " << sizeof(KmerIntPair) << endl;
+
   //parse command line options
   ProgramOptions opt;
   ParseOptions(argc,argv,opt);
 
   //call main function
   CountBF(opt);
+  //debugKmer(opt);
 }
