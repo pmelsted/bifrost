@@ -23,8 +23,8 @@ using namespace std;
 using google::sparse_hash_map;
 
 struct ProgramOptions {
-  int k;
-  int nkmers;
+  size_t k;
+  size_t nkmers;
   vector<string> files;
 };
 
@@ -59,7 +59,7 @@ void KmerIntPair::SetVal(unsigned int val) {
 
 unsigned int KmerIntPair::GetVal() const {
   //uint8_t tmp = *reinterpret_cast<const uint8_t*>(this+KmerIntPair::IntOffset);
-  return this->v[KmerIntPair::IntOffset];
+  return (uint8_t)this->v[KmerIntPair::IntOffset];
 }
 
 const Kmer& KmerIntPair::GetKey() const {
@@ -178,10 +178,14 @@ void CountBF(const ProgramOptions &opt) {
   char name[8196],s[8196];
   size_t name_len,len;
 
-  size_t n_read = 0;
-  
+  uint64_t n_read = 0;
+  uint64_t num_kmers = 0;  
+  uint64_t filtered_kmers = 0;
+  uint64_t total_cov = 0;
+
+
   FastqFile FQ(opt.files);
-  size_t num_kmers = 0;
+
   while (FQ.read_next(name, &name_len, s, &len, NULL) >= 0) {
     // add code to handle N's
     Kmer km(s);
@@ -226,6 +230,7 @@ void CountBF(const ProgramOptions &opt) {
       if (it != kmap.end()) {
 	//cerr << "Val before: " <<  it->GetVal();
 	it->SetVal(it->GetVal()+1); // add 1 to count
+	total_cov += 1;
 	//cerr << ", after: " << it->GetVal() << endl;
       }
     }
@@ -253,9 +258,15 @@ void CountBF(const ProgramOptions &opt) {
     }
   }
 
-  cerr << "processed " << num_kmers << " kmers in " << n_read << endl;
-  cerr << "found " << kmap.size() << " unique kmers, removed " << n_del << endl;
-  
+  total_cov -= n_del;
+
+  cout << "processed " << num_kmers << " kmers in " << n_read  << " reads"<< endl;
+  cout << "found " << kmap.size() << " non-filtered kmers, removed " << n_del << endl;
+  filtered_kmers = num_kmers - total_cov;
+    
+  cout << "total coverage " << total_cov << ", estimated number of kmers " << filtered_kmers << endl;
+  cout << "average coverage " << (total_cov / ((double) kmap.size())) << endl;
+  cout << num_kmers << endl  << filtered_kmers << endl << kmap.size() << endl;
 }
 
 
@@ -263,7 +274,7 @@ void CountBF(const ProgramOptions &opt) {
 
 int main(int argc, char **argv) {
 
-  cerr << "sizeof(kmer) " << sizeof(Kmer) << ", sizeof(pair) " << sizeof(KmerIntPair) << endl;
+  //cerr << "sizeof(kmer) " << sizeof(Kmer) << ", sizeof(pair) " << sizeof(KmerIntPair) << endl;
 
   //parse command line options
   ProgramOptions opt;
