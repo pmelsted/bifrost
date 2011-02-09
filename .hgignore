@@ -5,3 +5,5 @@ syntax: glob
 old/
 tests/
 prof
+BFCounter
+Naive

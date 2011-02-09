@@ -16,7 +16,6 @@
 #include "google/sparsehash/sparsehashtable.h"
 #include "fastq.hpp"
 #include "kmer.hpp"
-#include "bloom_filter.hpp"
 #include "hash.hpp"
 
 using namespace std;
@@ -83,7 +82,7 @@ struct SetKmerKey {
 };
 
 void PrintUsage() {
-  cerr << "Usage: BFCounter k nkmers fasta [fasta ...]" << endl;
+  cerr << "Usage: Naive k nkmers fasta [fasta ...]" << endl;
 }
 
 void ParseOptions(int argc, char **argv, ProgramOptions &opt) {
@@ -172,7 +171,7 @@ void CountBF(const ProgramOptions &opt) {
 
 
   hmap_t kmap;
-  bloom_filter BF(opt.nkmers, (size_t) 4, (unsigned long) 42); // (unsigned long) time(NULL));
+
 
 
   char name[8196],s[8196];
@@ -182,9 +181,11 @@ void CountBF(const ProgramOptions &opt) {
   uint64_t num_kmers = 0;  
   uint64_t filtered_kmers = 0;
   uint64_t total_cov = 0;
+  uint64_t n_del = 0;
 
 
   FastqFile FQ(opt.files);
+  hmap_t::iterator it;
 
   while (FQ.read_next(name, &name_len, s, &len, NULL) >= 0) {
     // add code to handle N's
@@ -196,11 +197,13 @@ void CountBF(const ProgramOptions &opt) {
       }
       Kmer tw = km.twin();
       Kmer rep = (km < tw) ? km : tw;
-      if (BF.contains(rep)) {
-	// has no effect if already in map
-	pair<hmap_t::iterator,bool> ref = kmap.insert(KmerIntPair(rep,0));
+      
+      it = kmap.find(rep);
+      if (it != kmap.end()) {
+	it->SetVal(it->GetVal()+1);
+	total_cov += 1;
       } else {
-	BF.insert(rep);
+	pair<hmap_t::iterator,bool> ref = kmap.insert(KmerIntPair(rep,1));
       }
     }
     ++n_read;
@@ -210,55 +213,8 @@ void CountBF(const ProgramOptions &opt) {
     }
   }
 
-  cerr << "re-open all files" << endl;
-  // close all files, reopen and get accurate counts;
-  FQ.reopen();
-  hmap_t::iterator it;
-
-  while (FQ.read_next(name, &name_len, s, &len, NULL) >= 0) {
-    //cerr << "read " << len << " characters" << endl;
-    Kmer km(s);
-    for (size_t i = 0; i <= len-k; ++i) {
-      
-      if (i > 0) {
-	km = km.forwardBase(s[i+k-1]);
-      }
-      Kmer tw = km.twin();
-      Kmer rep = (km < tw) ? km : tw;
-
-      it = kmap.find(rep);
-      if (it != kmap.end()) {
-	//cerr << "Val before: " <<  it->GetVal();
-	it->SetVal(it->GetVal()+1); // add 1 to count
-	total_cov += 1;
-	//cerr << ", after: " << it->GetVal() << endl;
-      }
-    }
-  }
-  
-  FQ.close();
-
   cerr << "closed all files" << endl;
 
-  // the hash map needs an invalid key to mark as deleted
-  Kmer km_del;
-  km_del.set_deleted();
-  kmap.set_deleted_key(km_del);
-  size_t n_del =0 ;
-
-  for(it = kmap.begin(); it != kmap.end(); ) {
-    if (it->GetVal() <= 1) {
-      hmap_t::iterator del(it);
-      ++it;
-      // remove k-mer that got through the bloom filter
-      kmap.erase(del);
-      ++n_del;
-    } else {
-      ++it;
-    }
-  }
-
-  total_cov -= n_del;
 
   cout << "processed " << num_kmers << " kmers in " << n_read  << " reads"<< endl;
   cout << "found " << kmap.size() << " non-filtered kmers, removed " << n_del << endl;
