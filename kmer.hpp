@@ -42,7 +42,7 @@ class Kmer {
 
   void set_kmer(const char *s);
 
-  uint32_t hash() const;
+  uint64_t hash() const;
 
   
 

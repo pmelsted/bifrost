@@ -26,7 +26,7 @@
 #include <limits>
 #include <string>
 #include <vector>
-
+#include <stdint.h>
 
 static const std::size_t bits_per_char = 0x08;    // 8 bits in 1 char(unsigned)
 static const unsigned char bit_mask[bits_per_char] = {
@@ -45,7 +45,7 @@ class bloom_filter
 {
 protected:
 
-   typedef unsigned int bloom_type;
+   typedef uint64_t bloom_type;
    typedef unsigned char cell_type;
 
 public:

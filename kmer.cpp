@@ -131,13 +131,15 @@ void Kmer::set_kmer(const char *s)  {
   }
 }
 
-uint32_t Kmer::hash() const {
+uint64_t Kmer::hash() const {
   //this->printBinary();
   //for (int i = 0; i < k_bytes; ++i) {
   //printf("%02X ",bytes[i]);
   //}
   //printf("\n");
-  return SuperFastHash((const char*)bytes,k_bytes);
+  uint64_t ret;
+  MurmurHash3_x64_64((const void*)bytes,k_bytes,0,&ret);
+  return ret;
 }
 
 

@@ -124,7 +124,7 @@ void ParseOptions(int argc, char **argv, ProgramOptions &opt) {
   }
 }
 
-  typedef google::sparse_hashtable<KmerIntPair, Kmer, KmerHash, SelectKmerKey, SetKmerKey, std::equal_to<Kmer>, std::allocator<KmerIntPair> > hmap_t;
+typedef google::sparse_hashtable<KmerIntPair, Kmer, KmerHash, SelectKmerKey, SetKmerKey, std::equal_to<Kmer>, std::allocator<KmerIntPair> > hmap_t;
 
 void debugKmer(const ProgramOptions &opt) {
   const char *s = "TCACAGTGTTGAACCTTTGTTTGGATGGAGCAGTTAGTGTTGAACCTTTGTTTGGATGGAGCAGTTAGTGTTGAACCTTTGTTTGGATGGAGCAGTTAGTGTTGAACCTTTGTTTGGATGGAGCAGTT";
@@ -172,7 +172,8 @@ void CountBF(const ProgramOptions &opt) {
 
 
   hmap_t kmap;
-  bloom_filter BF(opt.nkmers, (size_t) 4, (unsigned long) 42); // (unsigned long) time(NULL));
+  
+  bloom_filter BF(opt.nkmers, (size_t) 4, (unsigned long) time(NULL));
 
 
   char name[8196],s[8196];
@@ -260,13 +261,13 @@ void CountBF(const ProgramOptions &opt) {
 
   total_cov -= n_del;
 
-  cout << "processed " << num_kmers << " kmers in " << n_read  << " reads"<< endl;
-  cout << "found " << kmap.size() << " non-filtered kmers, removed " << n_del << endl;
+  cerr << "processed " << num_kmers << " kmers in " << n_read  << " reads"<< endl;
+  cerr << "found " << kmap.size() << " non-filtered kmers, removed " << n_del << endl;
   filtered_kmers = num_kmers - total_cov;
     
-  cout << "total coverage " << total_cov << ", estimated number of kmers " << filtered_kmers << endl;
-  cout << "average coverage " << (total_cov / ((double) kmap.size())) << endl;
-  cout << num_kmers << endl  << filtered_kmers << endl << kmap.size() << endl;
+  cerr << "total coverage " << total_cov << ", estimated number of kmers " << filtered_kmers << endl;
+  cerr << "average coverage " << (total_cov / ((double) kmap.size())) << endl;
+  cerr << num_kmers << endl  << filtered_kmers << endl << kmap.size() << endl;
 }
 
 
