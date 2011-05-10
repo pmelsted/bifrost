@@ -4,6 +4,7 @@ syntax: glob
 \#*
 old/
 tests/
+dist/
 prof
 BFCounter
 Naive

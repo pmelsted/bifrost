@@ -1,7 +1,6 @@
 CC = g++
 CXX = g++
-## fix this before release
-INCLUDES = -I/home/pmelsted/include/
+INCLUDES = -I.
 CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES)
 LDFLAGS =
 LDLIBS  = -lm -lz
