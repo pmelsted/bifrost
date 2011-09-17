@@ -1,4 +1,5 @@
-#include "kmer.hpp"
+
+#include "Kmer.hpp"
 
 char *int2bin(uint32_t a, char *buffer, int buf_size) {
   //buffer += (buf_size - 1);
@@ -109,7 +110,7 @@ bool Kmer::operator==(const Kmer& o) const {
 }
 
 void Kmer::set_kmer(const char *s)  {
-  int i,j,l;
+  size_t i,j,l;
   //printf("%s\n",s);
   memset(bytes,0,MAX_K/4);
 
@@ -154,7 +155,7 @@ Kmer Kmer::twin() const {
 //     printf("original"); this->printBinary();
 //     printf("before  "); km.printBinary();
     
-  for (int i = 0; i < k_bytes; i++) {
+  for (size_t i = 0; i < k_bytes; i++) {
     km.bytes[i] = ~bytes[i];
   }
   // printf("~       "); km.printBinary();
@@ -167,7 +168,7 @@ Kmer Kmer::twin() const {
   //printf("shift   ");    km.printBinary();
 
   uint8_t tmp;
-  for (int i = 0; i < k_bytes/2; ++i) {
+  for (size_t i = 0; i < k_bytes/2; ++i) {
     tmp = km.bytes[i];
     km.bytes[i] = base_swap[km.bytes[k_bytes-1-i]];
     km.bytes[k_bytes-1-i] = base_swap[tmp];
@@ -238,7 +239,7 @@ Kmer Kmer::backwardBase(const char b) const {
 //   printf("backward\n%s\n",tmp);
 //   printf("adding %c\n",b);
 
-  int s= 2*((k+3)%4);
+  //size_t s= 2*((k+3)%4);
   //printf("shift used %d\n",s);
 
   Kmer km(*this);
@@ -268,7 +269,7 @@ Kmer Kmer::backwardBase(const char b) const {
 void Kmer::printBinary() const {
   char buff[9]; buff[8] = '\0';
   printf("binary:");
-  for (int i = 0; i < Kmer::k_bytes; i++) {
+  for (size_t i = 0; i < Kmer::k_bytes; i++) {
     int2bin(bytes[i],buff,8);
     printf("%s",buff);
   }
@@ -276,7 +277,7 @@ void Kmer::printBinary() const {
 }
 
 void Kmer::toString(char * s) const {
-  int i,j,l;
+  size_t i,j,l;
   
   for (i = 0; i < k; i++) {
     j = i % 4;
@@ -304,7 +305,7 @@ void Kmer::toString(char * s) const {
 void Kmer::shiftLeft(int shift) {
   if (shift>0) {
     if (shift < 8 ) {
-      for (int i = Kmer::k_bytes-1; i > 0; i--) {
+      for (size_t i = Kmer::k_bytes-1; i > 0; i--) {
 	bytes[i] <<= shift;
 	bytes[i] |= (uint8_t) (bytes[i-1] >> (8-shift));
       }
@@ -319,7 +320,7 @@ void Kmer::shiftLeft(int shift) {
 void Kmer::shiftRight(int shift) {
   if (shift >0) {
     if (shift < 8) {
-      for (int i = 0; i < Kmer::k_bytes-1; i++) {
+      for (size_t i = 0; i < Kmer::k_bytes-1; i++) {
 	bytes[i] >>= shift;
 	bytes[i] |= (uint8_t) ( bytes[i+1] << (8-shift));
       }

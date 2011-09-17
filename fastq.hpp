@@ -9,13 +9,12 @@
 #include <vector>
 #include <string>
 
-
+#include "Common.hpp"
 #include "kseq.h"
 
 // initialize kseq structures
 //KSEQ_INIT(gzFile, gzread);
 
-using namespace std;
 
 class FastqFile {
  public:

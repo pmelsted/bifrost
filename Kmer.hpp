@@ -1,5 +1,5 @@
-#ifndef INCLUDE_KMER_HPP
-#define INCLUDE_KMER_HPP
+#ifndef BFC_KMER_HPP
+#define BFC_KMER_HPP
 
 #ifndef MAX_KMER_SIZE
  #define MAX_KMER_SIZE 32
@@ -7,10 +7,10 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include "hash.hpp"
 #include <cassert>
 #include <cstring>
 
+#include "hash.hpp"
 
 
 //for debug
@@ -91,4 +91,4 @@ struct KmerHash {
 };
 
 
-#endif //KMER_HPP
+#endif // BFC_KMER_HPP
