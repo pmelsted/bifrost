@@ -24,7 +24,7 @@ class FastqFile {
 
   void close();
   void reopen();
-  int read_next(char *read, size_t *read_len, char *seq, size_t *seq_len, unsigned int *file_id);
+  int read_next(char *read, size_t *read_len, char *seq, size_t *seq_len, unsigned int *file_id, char* qual = 0);
 
   
  private:

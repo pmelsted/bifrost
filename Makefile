@@ -1,12 +1,16 @@
+
+# This affects the memory usage of the program
+# we use 1 byte for every 4 bp in kmers. Ideally
+# this parameter should be a multiple of 4.
+# Actual maximum kmer size is 1 less.
+MAX_KMER_SIZE = 32
+
 CC = g++
 CXX = g++
 INCLUDES = -I.
-CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=32 -fPIC
+CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) -fPIC
 LDFLAGS =
 LDLIBS  = -lm -lz
-
-
-
 
 all: CXXFLAGS += -O3
 all: target
@@ -20,8 +24,6 @@ profile: CXXFLAGS += -p -g -O2
 profile: LDFLAGS += -p -g
 profile: clean
 profile: target
-
-naive: Naive
 
 target: BFCounter
 
@@ -45,9 +47,7 @@ fastq.o: fastq.hpp fastq.cpp
 kmer.o: kmer.hpp kmer.cpp
 bloom_filter.o: bloom_filter.hpp bloom_filter.cpp
 hash.o: hash.hpp hash.cpp	
-Naive.o: Naive.cpp
 
 clean:
 	rm -rf *.o
 	rm -rf BFCounter
-	rm -rf Naive
