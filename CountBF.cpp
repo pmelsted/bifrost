@@ -77,7 +77,7 @@ void CountBF_ParseOptions(int argc, char **argv, CountBF_ProgramOptions &opt) {
 
   int option_index = 0;
   int c;
-
+  stringstream ss;
   while (true) {
     c = getopt_long(argc,argv,opt_string, long_options, &option_index);
 
@@ -98,7 +98,8 @@ void CountBF_ParseOptions(int argc, char **argv, CountBF_ProgramOptions &opt) {
       opt.output = optarg;
       break;
     case 'n': 
-      opt.nkmers = atoi(optarg);
+      ss << optarg;
+      ss >> opt.nkmers;
       break;
     case 'b':
       opt.bf = atoi(optarg);
