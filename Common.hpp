@@ -3,7 +3,7 @@
 
 using namespace std;
 
-#define BFC_VERSION "BFCounter 0.2"
+#define BFC_VERSION "BFGraph 0.1"
 #define BFC_BUG_EMAIL "pmelsted@gmail.com"
 
 #endif // BFC_COMMON_HPP

@@ -25,29 +25,27 @@ profile: LDFLAGS += -p -g
 profile: clean
 profile: target
 
-target: BFCounter
+target: BFGraph
 
-OBJECTS =  CountBF.o DumpBF.o Kmer.o KmerIntPair.o hash.o bloom_filter.o fastq.o 
+OBJECTS =   Kmer.o KmerIntPair.o hash.o fastq.o FilterReads.o BuildContigs.o SimplifyGraph.o
 
 testread: testread.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(LDFLAGS) $(LDLIBS) $(OBJECTS) testread.o -o testread
 
-BFCounter: BFCounter.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(LDFLAGS) $(LDLIBS) $(OBJECTS) BFCounter.o -o BFCounter
-
-Naive: Naive.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(LDFLAGS) $(LDLIBS) $(OBJECTS) Naive.o -o Naive
+BFGraph: BFGraph.o $(OBJECTS)
+	$(CC) $(INCLUDES) $(LDFLAGS) $(LDLIBS) $(OBJECTS) BFGraph.o -o BFGraph
 
 
-BFCounter.o: BFCounter.cpp
-CountBF.o: CountBF.cpp
-DumpBF.o: DumpBF.cpp
+BFGraph.o: BFGraph.cpp
+FilterReads.o: FilterReads.cpp  BloomFilter.hpp
+BuildContigs.o: BuildContigs.cpp  BloomFilter.hpp
+SimplifyGraph.o: SimplifyGraph.cpp
 KmerIntPair.o: KmerIntPair.cpp
 fastq.o: fastq.hpp fastq.cpp 
 kmer.o: kmer.hpp kmer.cpp
-bloom_filter.o: bloom_filter.hpp bloom_filter.cpp
+#BloomFilter.o: BloomFilter.hpp
 hash.o: hash.hpp hash.cpp	
 
 clean:
 	rm -rf *.o
-	rm -rf BFCounter
+	rm -rf BFGraph

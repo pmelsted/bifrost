@@ -4,12 +4,12 @@ syntax: glob
 \#*
 .\#*
 old/
-tests/
+test*
 dist/
 debug/
 gmon.out
 *.dSYM/*
 prof
-BFCounter
+BFGraph
 Naive
 TODO
