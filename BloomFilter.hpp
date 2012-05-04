@@ -9,6 +9,8 @@
 using namespace libdivide;
 using namespace std;
 
+static const unsigned char mask[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
+ 
 class BloomFilter {
 private:
   unsigned char* table_;
@@ -36,11 +38,15 @@ public:
   bool contains(T x)  {
     uint64_t id;
     uint64_t hash;
+    uint64_t hash0; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_  , &hash0);
+    hash0 = (hash0<<1)>>1 + 1; // odd number
+    uint64_t hash1; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+1, &hash1);
     for (uint64_t i = 0; i < k_; i++) {
-      MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+i, &hash);
+      //MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+i, &hash);
+      hash = hash0 * i + hash1;
       id = hash - (hash / fast_div_) * size_; // equal to hash % size;
-      assert(id == (hash % size_));
-      if ((table_[id >> 3] & (1 << (id & 0x07))) == 0) {
+      //assert(id == (hash % size_));
+      if ((table_[id >> 3] & mask[id & 0x07]) == 0) {
 	return false;      
       }
     }
@@ -51,11 +57,15 @@ public:
   void insert(T x) {
     uint64_t id;
     uint64_t hash;
+    uint64_t hash0; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_  , &hash0);
+    hash0 = (hash0<<1)>>1 + 1; // odd number
+    uint64_t hash1; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+1, &hash1);
     for(uint64_t i = 0; i < k_; i++) {
-      MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+i,&hash);
+      //MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+i,&hash);
+      hash = hash0 * i + hash1;
       id = hash - (hash / fast_div_) * size_;
-      assert(id == (hash % size_));
-      table_[id>>3] |= (1 << (id & 0x07));
+      //assert(id == (hash % size_));
+      table_[id>>3] |= mask[id & 0x07];
     }
   }
 
