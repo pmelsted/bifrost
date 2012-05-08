@@ -1,6 +1,8 @@
 #ifndef BFC_COMMON_HPP
 #define BFC_COMMON_HPP
 
+#include <cassert>
+
 using namespace std;
 
 #define BFC_VERSION "BFGraph 0.1"
