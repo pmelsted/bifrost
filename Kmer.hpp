@@ -47,6 +47,7 @@ class Kmer {
   
 
   Kmer twin() const;
+  Kmer rep() const;
 
   Kmer getLink(const size_t index) const;
 

@@ -144,6 +144,15 @@ uint64_t Kmer::hash() const {
 }
 
 
+Kmer Kmer::rep() const {
+  Kmer tw = twin();
+  if (tw < *this) {
+    return tw;
+  } else {
+    return *this;
+  }
+}
+
 Kmer Kmer::twin() const {
     
   Kmer km(*this);

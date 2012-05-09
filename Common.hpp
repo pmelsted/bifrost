@@ -2,6 +2,7 @@
 #define BFC_COMMON_HPP
 
 #include <cassert>
+#include <stdint.h>
 
 using namespace std;
 

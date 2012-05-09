@@ -21,7 +21,7 @@ public:
 
 
   size_t size() const { return _length; }
-  Kmer GetKmer(size_t offset) const;
+  Kmer getKmer(size_t offset) const;
   string toString() const;
   void toString(char *s) const;
   void toString(char *s, size_t offset, size_t length) const;

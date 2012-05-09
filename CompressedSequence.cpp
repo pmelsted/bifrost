@@ -59,11 +59,13 @@ CompressedSequence& CompressedSequence::operator=(const CompressedSequence& o) {
 }
   
 CompressedSequence::CompressedSequence(const char *s) {
-  setSequence(s,strlen(s));
+  if (s != NULL) {
+    setSequence(s,strlen(s));
+  }
 }
 
 CompressedSequence::CompressedSequence(const string& s) {
-  setSequence(s, s.size());
+  setSequence(s.c_str(), s.size());
 }
 
 CompressedSequence::CompressedSequence(const Kmer &km) {
@@ -189,7 +191,7 @@ void CompressedSequence::toString(char *s, size_t offset, size_t length) const {
   s[length] = 0; // 0-terminated string
 }
 
-Kmer CompressedSequence::GetKmer(size_t offset) const {
+Kmer CompressedSequence::getKmer(size_t offset) const {
   char s[Kmer::MAX_K+1];	
   toString(&s[0]);
   return Kmer(s);
