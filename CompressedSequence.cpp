@@ -50,11 +50,11 @@ CompressedSequence::~CompressedSequence() {
 
 
 CompressedSequence::CompressedSequence(const CompressedSequence& o) {
-  setSequence(o,o._length);
+  setSequence(o,0,o._length);
 }
 
 CompressedSequence& CompressedSequence::operator=(const CompressedSequence& o) {
-  setSequence(o,o._length);
+  setSequence(o,0,o._length);
   return *this;
 }
   
@@ -79,9 +79,9 @@ const char CompressedSequence::operator[](size_t index) const {
   return bases[idx];
 }
 
-void CompressedSequence::setSequence(const CompressedSequence &o, size_t length, size_t offset, bool reversed) {
-  setSequence(o,0,length,offset,reversed);
-}
+//void CompressedSequence::setSequence(const CompressedSequence &o, size_t length, size_t offset, bool reversed) {
+//  setSequence(o,0,length,offset,reversed);
+//}
 
 void CompressedSequence::setSequence(const CompressedSequence &o, size_t start, size_t length, size_t offset, bool reversed) {
   assert( o._length + start <= length);

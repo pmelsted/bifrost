@@ -12,7 +12,6 @@ public:
   Contig(const char *s) : seq(s),cov(0) {}
   ~Contig();
 
-private:
   uint32_t *cov;
   CompressedSequence seq;
   // TODO: do we store the links here?

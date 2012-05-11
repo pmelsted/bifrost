@@ -93,6 +93,7 @@ public:
     // read table
     if (fread(table_, sizeof(unsigned char), size_>>3, fp) != size_) return false;
     // done
+    return true;
   }
 
 

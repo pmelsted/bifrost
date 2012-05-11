@@ -14,17 +14,37 @@ KmerMapper::~KmerMapper() {
 }
 
 ContigRef KmerMapper::addContig(const string &s) {
-  addContig(s.c_str());
+  return addContig(s.c_str());
 }
 
 ContigRef KmerMapper::addContig(const char *s) {
   // check that it doesn't map, our responsibility or not?
   ContigRef cr;
   cr.ref.contig = new Contig(s);
-  // add to the map
-  
-  
+   
+  uint32_t id = (uint32_t) contigs.size();
+  contigs.push_back(cr);
 
+  size_t len = cr.ref.contig->seq.size()-Kmer::k;
+  int direction;
+  bool last = false;
+  size_t pos;
+  for (pos = 0; pos < len; pos += stride) {
+    if (pos == len-1) {
+      last = true;
+    }
+    Kmer km(s+pos);
+    Kmer rep = km.rep();
+    direction = (km == rep) ? 1 : -1;
+    map.insert(make_pair(rep,ContigRef(id,direction*pos)));    
+  }
+  if (!last) {
+    pos = len-1;
+    Kmer km(s+pos);
+    Kmer rep = km.rep();
+    direction = (km == rep) ? 1 : -1;
+    map.insert(make_pair(rep,ContigRef(id,direction*pos)));  
+  }
   return cr;
 }
 
@@ -40,9 +60,12 @@ ContigRef KmerMapper::find(const Kmer km) {
   assert(!cr.isContig); // cannot be a pointer
   
   ContigRef a = find_rep(cr);
-  it->second = a; // shorten the tree
+  it->second = a; // shorten the tree for future reference
   
-  a.ref.idpos.pos *= dir; // modify the copy
+  if (dir == -1) {
+    a.ref.idpos.pos += Kmer::k-1; 
+    a.ref.idpos.pos *= -1; // modify the copy
+  }
   return a;
 }
 
@@ -61,8 +84,8 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   assert(contigs[a_id].isContig && contigs[b_id].isContig);
 
   // fix this mess
-  CompressedSequence &sa = (contigs[a_id].ref)->contig.seq;
-  CompressedSequence &sb = (contigs[b_id].ref)->contig.seq;
+  CompressedSequence &sa = contigs[a_id].ref.contig->seq;
+  CompressedSequence &sb = contigs[b_id].ref.contig->seq;
 
   int direction = 0;
   if(sa.getKmer(sa.size()-Kmer::k) == sb.getKmer(0)) {
@@ -76,14 +99,13 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
 
   Contig *joined = new Contig(0); // allocate new contig
   joined->seq.reserveLength(sa.size()+sb.size());
-  joined->seq.setSequence(sa,0,sa.size());
-  //TODO: fix bug for reversed
-  joined->seq.setSequence(sb,sa.size(),sb.size() + 0000000); //copy sequences
+  joined->seq.setSequence(sa,0,sa.size()-Kmer::k + 1,0,true); // copy from a, except matching part, keep orientation of a
+  joined->seq.setSequence(sb,sa.size(),sb.size(),0,direction==-1); // copy from b, reverse if neccessary
 
   ContigRef cr;
   cr.ref.contig = joined;
   uint32_t id = (uint32_t) contigs.size();
-  contigs.push_back(cr); // add to set
+  contigs.push_back(cr); // add to contigs set, is now at position id
   
   // invalidated old contigs
   delete contigs[a_id].ref.contig;
@@ -92,8 +114,30 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   contigs[a_id] = ContigRef(id,0);
   contigs[b_id] = ContigRef(id,sa.size()); 
 
+  // TODO: fix stride issues, release k-mers, might improve memory
+
+
   return ContigRef(id,0); // points to newly created contig
 }
+
+
+ContigRef KmerMapper::getContig(const size_t id) const {
+  ContigRef a = contigs[id];
+  if (!a.isContig) {
+    a = find_rep(a);
+    a = contigs[a.ref.idpos.id];
+  }
+  return a;
+}
+
+ContigRef KmerMapper::getContig(const ContigRef ref) const {
+  if (ref.isContig) {
+    return ref;
+  } else {
+    return getContig(ref.ref.idpos.id);
+  }
+}
+
 
 /* Will we need this at all?
 ContigRef KmerMapper::extendContig(ContigRef a, const string &s) {
@@ -111,7 +155,7 @@ ContigRef KmerMapper::extendContig(ContigRef a, const char *s) {
 // post: if a.isContig is false, then r.isContig is false and
 //       m.contig[a.ref.idpos.id].isContig is true, otherwise r == a
 // Finds the contigref just before the contig pointer
-ContigRef KmerMapper::find_rep(ContigRef a) {
+ContigRef KmerMapper::find_rep(ContigRef a) const {
   uint32_t id;
   ContigRef b = a;
   if (a.isContig) {

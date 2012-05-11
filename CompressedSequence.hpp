@@ -27,7 +27,7 @@ public:
   void toString(char *s, size_t offset, size_t length) const;
   string toString(size_t offset, size_t length) const;
 
-  void setSequence(const CompressedSequence &o, size_t length, size_t offset = 0, bool reversed=false);
+  //  void setSequence(const CompressedSequence &o, size_t length, size_t offset = 0, bool reversed=false);
   void setSequence(const CompressedSequence &o, size_t start, size_t length, size_t offset = 0, bool reversed = false);
   void setSequence(const char *s, size_t length, size_t offset = 0, bool reversed=false);;
   void setSequence(const string &s, size_t length, size_t offset = 0, bool reversed=false);
