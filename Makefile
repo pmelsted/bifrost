@@ -33,7 +33,7 @@ testread: testread.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(LDFLAGS) $(LDLIBS) $(OBJECTS) testread.o -o testread
 
 BFGraph: BFGraph.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(LDFLAGS) $(LDLIBS) $(OBJECTS) BFGraph.o -o BFGraph
+	$(CC) $(INCLUDES) $(OBJECTS) BFGraph.o $(LDFLAGS) $(LDLIBS) -o BFGraph
 
 
 BFGraph.o: BFGraph.cpp

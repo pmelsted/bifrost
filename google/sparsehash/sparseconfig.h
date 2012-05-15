@@ -7,7 +7,7 @@
 #define GOOGLE_NAMESPACE ::google
 
 /* the location of the header defining hash functions */
-#define HASH_FUN_H <ext/hash_fun.h>
+#define HASH_FUN_H <backward/hash_fun.h>
 
 /* the namespace of the hash<> function */
 #define HASH_NAMESPACE __gnu_cxx
