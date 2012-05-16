@@ -1,5 +1,6 @@
 
 #include "Kmer.hpp"
+#include "hash.cpp"
 
 char *int2bin(uint32_t a, char *buffer, int buf_size) {
   //buffer += (buf_size - 1);
