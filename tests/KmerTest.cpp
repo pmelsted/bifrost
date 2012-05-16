@@ -55,7 +55,7 @@ void makeKmerString(char *s, unsigned int i) {
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         cout << "usage: KmerTest <k>\n Where k is kmer size" << endl;
-        return 0;
+        return 1;
     }
 
     // Read k from argument and set kmer size
@@ -89,19 +89,19 @@ int main(int argc, char *argv[]) {
             if (Kp < K) {
                 if (strcmp(last, real) >= 0) {
                     cout << "Kmer with string: " << last << " is less than kmer with string: " << real << endl;
-                    return 0;
+                    return 1;
                 }
             } else {
                 if (strcmp(last, real) < 0) {
                     cout << "Kmer with string: " << last << " is greater or equal than kmer with string: " << real << endl;
-                    return 0;
+                    return 1;
                 }
             }
 
             if (Kp == K) {
                 if (strcmp(last, real) != 0) {
                     cout << "Kmer with string: " << last << " is equal to kmer with string: " << real << endl;
-                    return 0;
+                    return 1;
                 }
             }
         }
@@ -110,7 +110,7 @@ int main(int argc, char *argv[]) {
         K.toString(fromkmer);
         if (strcmp(real, fromkmer) != 0) {
             cout << "Was expecting the base string to be: " << real << " but got: " << fromkmer << endl;
-            return 0;
+            return 1;
         }
 
         // Verify toString from this kmer's twin
@@ -120,7 +120,7 @@ int main(int argc, char *argv[]) {
         if (strcmp(fromkmer, realtwin) != 0) {
             cout << "Was expecting twin to be: " << realtwin << " but got: " << fromkmer << endl;
             cout << "The base string was: " << real << endl;
-            return 0;
+            return 1;
         }
         
         for(j=0; j<4; j++) { 
@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
             FW.toString(fromkmer);
             if ((strncmp(&real[1], fromkmer, k-1) != 0) || (letters[j] != fromkmer[k-1])) {
                 printf("Was expecting the forward base to be: %s%c  but got: %s \n", &real[1], letters[j], fromkmer);
-                return 0;
+                return 1;
             }
         }
         
@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
             if ((strncmp(real, &fromkmer[1], k-1) != 0) || (letters[j] != fromkmer[0])) {
                 real[k-1] = '\0';
                 printf("Was expecting the backward base to be: %c%s  but got: %s \n", letters[j], real, fromkmer);
-                return 0;
+                return 1;
             }
         }
         index++;
