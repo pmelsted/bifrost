@@ -67,44 +67,49 @@ int main(int argc, char *argv[]) {
     char *real = (char *) malloc((k + 1) * sizeof(char));
     char *fromkmer = (char *) malloc((k + 1) * sizeof(char));
     char *realtwin = (char *) malloc((k + 1) * sizeof(char));
+    char *tmp = (char *) malloc((k + 1) * sizeof(char));
     char *last = (char *) malloc((k + 1) * sizeof(char));
     char letters[] = {'A', 'C', 'G', 'T'};
-    for(index=0; index <k; index++)
+    for(index=0; index <k; index++) {
         real[index] = 'A';
+    }
     real[k] = '\0';
+    strcpy(last,real);
     index = 0;
     Kmer K, Kp, TWIN, FW, BACK;
     while (index < limit) {
-
-        if (index > 0) {
-            Kp = K;
-            strcpy(last, real);
-        }
-
         makeKmerString(real, index);
         K = Kmer(real);
 
-        if (index > 0) {
+	if (false && k < 8) { // this has been checked for k = 1,..,7
+	  if (index > 0) {
             // Verify the operators
-            if (Kp < K) {
+	    for (unsigned int i2 = 0; i2 < index; i2++) {
+	      makeKmerString(last,i2);
+	      Kp = Kmer(last);
+	      
+	      if (Kp < K) {
                 if (strcmp(last, real) >= 0) {
-                    cout << "Kmer with string: " << last << " is less than kmer with string: " << real << endl;
-                    return 1;
+		  cout << "Kmer with string: " << last << " is less than kmer with string: " << real << endl;
+		  return 1;
                 }
-            } else {
+	      } else {
                 if (strcmp(last, real) < 0) {
-                    cout << "Kmer with string: " << last << " is greater or equal than kmer with string: " << real << endl;
-                    return 1;
+		  cout << "Kmer with string: " << last << " is greater or equal than kmer with string: " << real << endl;
+		  return 1;
                 }
-            }
-
-            if (Kp == K) {
+	      }
+	      
+	      
+	      if (Kp == K) {
                 if (strcmp(last, real) != 0) {
-                    cout << "Kmer with string: " << last << " is equal to kmer with string: " << real << endl;
-                    return 1;
+		  cout << "Kmer with string: " << last << " is equal to kmer with string: " << real << endl;
+		  return 1;
                 }
-            }
-        }
+	      }
+	    }
+	  }
+	}
 
         // Verify toString from this kmer
         K.toString(fromkmer);
@@ -118,10 +123,17 @@ int main(int argc, char *argv[]) {
         TWIN.toString(fromkmer);
         twinString(real, realtwin, k);
         if (strcmp(fromkmer, realtwin) != 0) {
-            cout << "Was expecting twin to be: " << realtwin << " but got: " << fromkmer << endl;
-            cout << "The base string was: " << real << endl;
-            return 1;
+	  cout << "Was expecting twin to be: " << realtwin << " but got: " << fromkmer << endl;
+	  cout << "The base string was: " << real << endl;
+	  return 1;
         }
+	Kmer tw2(realtwin);
+	assert(TWIN == tw2);
+	assert(memcmp(&TWIN,&tw2,sizeof(Kmer)) == 0);
+	Kmer tw3 = TWIN.twin();
+	assert(tw3 == K);
+	assert(memcmp(&K,&tw3,sizeof(Kmer)) == 0);
+	
         
         for(j=0; j<4; j++) { 
             // Verify toString from this kmer's forward bases
@@ -131,6 +143,15 @@ int main(int argc, char *argv[]) {
                 printf("Was expecting the forward base to be: %s%c  but got: %s \n", &real[1], letters[j], fromkmer);
                 return 1;
             }
+	    strncpy(tmp,real+1,k-1);
+	    tmp[k-1] = letters[j];
+	    Kmer fw2(tmp);
+	    if (fw2 != FW) {
+	      printf("index: %d, j: %d\n, tmp %s, real %s",index,j,tmp,real);
+	      return 1;
+	    }
+	    assert(memcmp(&fw2,&FW,sizeof(Kmer)) == 0);
+	    assert(FW.backwardBase(real[0]) == K);
         }
         
         for(j=0; j<4; j++) { 
@@ -142,6 +163,12 @@ int main(int argc, char *argv[]) {
                 printf("Was expecting the backward base to be: %c%s  but got: %s \n", letters[j], real, fromkmer);
                 return 1;
             }
+	    strncpy(tmp+1,real,k-1);
+	    tmp[0] = letters[j];
+	    Kmer bw2(tmp);
+	    assert(bw2 == BACK);
+	    assert(memcmp(&bw2,&BACK,sizeof(Kmer)) == 0);
+	    assert(BACK.forwardBase(real[k-1]) == K);
         }
         index++;
     }

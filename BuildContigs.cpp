@@ -340,6 +340,7 @@ void BuildContigs(int argc, char** argv) {
 //       if s is not NULL the sequence of the contig is stored in s
 pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
   //TODO: add string return option
+  assert(bf.contains(km.rep()));
   vector<char> v;
   if (s != NULL) {
     char t[Kmer::MAX_K+1];
