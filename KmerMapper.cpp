@@ -1,6 +1,6 @@
 #include "KmerMapper.hpp"
 #include <cmath>
-
+#include <iostream>
 
 KmerMapper::~KmerMapper() {
   vector<ContigRef>::iterator it,it_end;
@@ -25,32 +25,32 @@ ContigRef KmerMapper::addContig(const char *s) {
   uint32_t id = (uint32_t) contigs.size();
   contigs.push_back(cr);
 
-  size_t len = cr.ref.contig->seq.size()-Kmer::k;
-  int direction;
+  size_t len = cr.ref.contig->seq.size()-Kmer::k+1;
   bool last = false;
   size_t pos;
+  int32_t ipos;
   for (pos = 0; pos < len; pos += stride) {
     if (pos == len-1) {
       last = true;
     }
     Kmer km(s+pos);
     Kmer rep = km.rep();
-    direction = (km == rep) ? 1 : -1;
-    map.insert(make_pair(rep,ContigRef(id,direction*pos)));    
+
+    ipos  = (km == rep) ? (int32_t) pos : -((int32_t)(pos+Kmer::k-1));
+    map.insert(make_pair(rep,ContigRef(id,ipos)));    
   }
   if (!last) {
     pos = len-1;
     Kmer km(s+pos);
     Kmer rep = km.rep();
-    direction = (km == rep) ? 1 : -1;
-    map.insert(make_pair(rep,ContigRef(id,direction*pos)));  
+    ipos  = (km == rep) ? (int32_t) pos : -((int32_t)(pos+Kmer::k-1));
+    map.insert(make_pair(rep,ContigRef(id,ipos)));  
   }
   return cr;
 }
 
 ContigRef KmerMapper::find(const Kmer km) {
   Kmer rep = km.rep();
-  int dir = (rep == km) ? 1 : -1;
   iterator it = map.find(km.rep());
   if (it == map.end()) {
     return ContigRef();
@@ -61,11 +61,7 @@ ContigRef KmerMapper::find(const Kmer km) {
   
   ContigRef a = find_rep(cr);
   it->second = a; // shorten the tree for future reference
-  
-  if (dir == -1) {
-    a.ref.idpos.pos += Kmer::k-1; 
-    a.ref.idpos.pos *= -1; // modify the copy
-  }
+
   return a;
 }
 
@@ -135,6 +131,32 @@ ContigRef KmerMapper::getContig(const ContigRef ref) const {
     return ref;
   } else {
     return getContig(ref.ref.idpos.id);
+  }
+}
+
+void KmerMapper::printContig(const size_t id) {
+  if (id >= contigs.size()) {
+    cerr << "invalid reference " << id << endl;
+  } else {
+    ContigRef a = contigs[id];
+    if (a.isContig) {
+      string s = a.ref.contig->seq.toString();
+      cout << "contig " << id << ": length "  << s.size() << endl << s << endl;
+      cout << "kmers mapping: " << endl;
+      const char *t = s.c_str();
+      char tmp[Kmer::MAX_K+1];
+      for (int i = 0; i < s.length()-Kmer::k+1; i++) {
+	Kmer km(t+i);
+	if (!find(km).isEmpty()) {
+	  km.rep().toString(tmp);
+	  ContigRef km_rep = find(km);
+	  cout << string(i,' ') << tmp << " -> (" << km_rep.ref.idpos.id << ", " << km_rep.ref.idpos.pos << ")"  << endl;
+	}
+      }
+    } else {
+      ContigRef rep = find_rep(a);
+      cout << "-> (" << rep.ref.idpos.id << ", " << rep.ref.idpos.pos << ")" << endl;
+    }
   }
 }
 

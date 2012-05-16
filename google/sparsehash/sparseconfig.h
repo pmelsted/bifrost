@@ -7,7 +7,12 @@
 #define GOOGLE_NAMESPACE ::google
 
 /* the location of the header defining hash functions */
+
+#if (__GNUC__ > 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ >= 3))
 #define HASH_FUN_H <backward/hash_fun.h>
+#else 
+#define HASH_FUN_H <ext/hash_fun.h>
+#endif
 
 /* the namespace of the hash<> function */
 #define HASH_NAMESPACE __gnu_cxx

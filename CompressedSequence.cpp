@@ -49,7 +49,7 @@ CompressedSequence::~CompressedSequence() {
 }
 
 
-CompressedSequence::CompressedSequence(const CompressedSequence& o) {
+CompressedSequence::CompressedSequence(const CompressedSequence& o) : _length(0),_capacity(0),_data(0) {
   setSequence(o,0,o._length);
 }
 
@@ -58,17 +58,17 @@ CompressedSequence& CompressedSequence::operator=(const CompressedSequence& o) {
   return *this;
 }
   
-CompressedSequence::CompressedSequence(const char *s) {
+CompressedSequence::CompressedSequence(const char *s) : _length(0),_capacity(0),_data(0) {
   if (s != NULL) {
     setSequence(s,strlen(s));
   }
 }
 
-CompressedSequence::CompressedSequence(const string& s) {
+CompressedSequence::CompressedSequence(const string& s) : _length(0),_capacity(0),_data(0) {
   setSequence(s.c_str(), s.size());
 }
 
-CompressedSequence::CompressedSequence(const Kmer &km) {
+CompressedSequence::CompressedSequence(const Kmer &km) : _length(0),_capacity(0),_data(0) {
   setSequence(km, Kmer::k);
 }
 
@@ -112,7 +112,7 @@ void CompressedSequence::setSequence(const CompressedSequence &o, size_t start, 
       r_index++;
     }
   }
-
+  _length = offset+length;
 }
 
 
@@ -131,6 +131,7 @@ void CompressedSequence::_resize_and_copy(size_t new_cap, size_t copy_limit) {
     memcpy(new_data,_data,bytes);
     delete[] _data;
     _data = new_data;
+    _capacity = new_cap;
   }
 }
 
@@ -144,8 +145,9 @@ void CompressedSequence::setSequence(const char *s, size_t length, size_t offset
     size_t j = index % 4;
     _data[i] &= ~(0x03 << (2*j)); // set bits to 0, default
     uint8_t c = reversed ? bases[0x03-bits[(uint8_t)*(s+length+offset-index-1)]] : *(s+index);
-    _data[i] |= (bits[c] << (2*j)); break;
+    _data[i] |= (bits[c] << (2*j));
   }
+  _length = offset+length;
 }
 
 void CompressedSequence::setSequence(const string &s, size_t length, size_t offset, bool reversed) {

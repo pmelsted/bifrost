@@ -36,7 +36,7 @@ typedef google::sparse_hash_map<Kmer, ContigRef, KmerHash> hmap_contig_t;
   typedef hmap_contig_t::iterator iterator;
   typedef hmap_contig_t::const_iterator const_iterator;
 
-  KmerMapper(size_t init = 1000) : contigs(init), map(init) {stride = Kmer::k;}
+  KmerMapper(size_t init = 1000) :  map(init) {stride = Kmer::k; contigs.reserve(init);}
   ~KmerMapper();
 
   ContigRef addContig(const string &s);
@@ -50,9 +50,13 @@ typedef google::sparse_hash_map<Kmer, ContigRef, KmerHash> hmap_contig_t;
   //const_iterator end() { return map.end(); }
 
   size_t stride; // store every stride-th kmer  
+  const size_t size() const {
+    return map.size();
+  }
 
   ContigRef getContig(const size_t id) const;
   ContigRef getContig(const ContigRef ref) const;
+  void printContig(const size_t id);
 private:
   ContigRef find_rep(ContigRef a) const;
 

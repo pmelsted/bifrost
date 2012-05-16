@@ -194,8 +194,11 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   vector<Kmer> reps;
 
   //
+  cerr << "starting real work" << endl;
 
   while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
+    // discard N's
+    n_read++;
     kmers.clear();
     reps.clear();
 
@@ -215,37 +218,53 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 	ContigRef cr = mapper.find(km);
 
 	if (cr.isEmpty()) {
-	  // ok, we need to add it
-	  string seq, seq_fw(k,0), seq_bw(k,0);
-	  pair<Kmer, size_t> p_fw,p_bw;
-	  p_fw = find_contig_forward(bf,kmers[i],&seq_fw);
-	  p_bw = find_contig_forward(bf,kmers[i].twin(),&seq_bw);
+	  // ok, didn't find the k-mer, search for it
 
-	  if (p_bw.second > 1) {
-	    seq.reserve(seq_bw.size() + seq_fw.size() - k);
-	    // copy reverse part of seq_bw not including k
-	    // TODO: refactor this to util package
-	    for (int j = seq_bw.size()-k-1; j>=0; j--) {
-	      char c = seq_bw[j];
-	      char cc = 'N';
-	      switch (c) {
-	      case 'A': cc = 'T'; break;
-	      case 'C': cc = 'G'; break;
-	      case 'G': cc = 'C'; break;
-	      case 'T': cc = 'A'; break;
+	  pair<Kmer, size_t> p_fw,p_bw;
+	  p_fw = find_contig_forward(bf,kmers[i],NULL);
+	  
+	  ContigRef cr_end = mapper.find(p_fw.first);
+	  if (cr_end.isEmpty()) {
+	    
+	    string seq, seq_fw(k,0), seq_bw(k,0);
+	    // 
+	    p_fw = find_contig_forward(bf,kmers[i],&seq_fw);
+	    p_bw = find_contig_forward(bf,kmers[i].twin(),&seq_bw);
+	    ContigRef cr_tw_end = mapper.find(p_bw.first);
+	    assert(cr_tw_end.isEmpty());
+
+	    if (p_bw.second > 1) {
+	      seq.reserve(seq_bw.size() + seq_fw.size() - k);
+	      // copy reverse part of seq_bw not including k
+	      // TODO: refactor this to util package
+	      for (int j = seq_bw.size()-k-1; j>=0; j--) {
+		char c = seq_bw[j];
+		char cc = 'N';
+		switch (c) {
+		case 'A': cc = 'T'; break;
+		case 'C': cc = 'G'; break;
+		case 'G': cc = 'C'; break;
+		case 'T': cc = 'A'; break;
+		}
+		seq.push_back(cc);
 	      }
-	      seq.push_back(cc);
+	      // append seq_fw
+	      seq += seq_fw;
+	    } else {
+	      seq = seq_fw;
 	    }
-	    // append seq_fw
-	    seq += seq_fw;
-	  } else {
-	    seq = seq_fw;
+	    mapper.addContig(seq);
+	    cerr << seq.size() << endl;
+	    ContigRef found = mapper.find(kmers[i]);
+	    if (!found.isEmpty()) {
+	      mapper.printContig(found.ref.idpos.id);
+	    }
 	  }
-	  mapper.addContig(seq);
 
 	  // jump over contig
 	  i += p_fw.second;
 	} else {
+	  //cerr << "found" << endl;
 	  // already found
 	  // how much can we jump ahead?
 	  Contig *contig = mapper.getContig(cr).ref.contig;
@@ -263,8 +282,10 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 	}
       }     
     }
+    
   }
-
+  
+  cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size()<< endl;
   
   /*
     outline of algorithm
@@ -306,6 +327,8 @@ void BuildContigs(int argc, char** argv) {
     BuildContigs_PrintSummary(opt);
   }
 
+  BuildContigs_Normal(opt);
+
 }
 
 
@@ -336,7 +359,8 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
     size_t fw_count = 0;
     int j = -1;
     for (int i = 0; i < 4; i++) {
-      if (bf.contains(end.forwardBase(alpha[i]).rep())) {
+      Kmer fw_rep = end.forwardBase(alpha[i]).rep();
+      if (bf.contains(fw_rep)) {
 	j = i;
 	fw_count++;
 	if (fw_count > 1) {
@@ -353,7 +377,8 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
 
     size_t bw_count = 0;
     for (int i = 0; i < 4; i++) {
-      if (bf.contains(fw.backwardBase(alpha[j]).rep())) {
+      Kmer bw_rep = fw.backwardBase(alpha[i]).rep();
+      if (bf.contains(bw_rep)) {
 	bw_count++;
 	if (bw_count > 1) {
 	  break;
