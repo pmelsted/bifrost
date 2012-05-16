@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Read k from argument and set kmer size
-    unsigned int k = atoi(argv[1]), index = 0, limit = (int) pow(4, k);
+    unsigned int k = atoi(argv[1]), index = 0, limit = (unsigned int) ( 1 << (2*k));
     int j;
     Kmer::set_k(k);
 
@@ -72,11 +72,17 @@ int main(int argc, char *argv[]) {
         real[index] = 'A';
     real[k] = '\0';
     index = 0;
-    Kmer K, TWIN, FW, BACK;
+    Kmer K,Kp, TWIN, FW, BACK;
     while (index < limit) {
         makeKmerString(real, index++);
-
+	if (index > 0) {
+	  Kp = K;
+	}
         K = Kmer(real);
+
+	if (index > 0) {
+	  assert ( Kp < K);
+	}
 
         // Check the kmer
         K.toString(fromkmer);

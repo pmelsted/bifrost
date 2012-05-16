@@ -356,6 +356,7 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
   const char alpha[4] = {'A','C','G','T'};
 
   while (true) {
+    assert(bf.contains(end.rep()));
     size_t fw_count = 0;
     int j = -1;
     for (int i = 0; i < 4; i++) {
@@ -374,6 +375,8 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
     }
     
     fw = end.forwardBase(alpha[j]);
+    assert(0 <= j && j < 4);
+    assert(bf.contains(fw.rep()));
 
     size_t bw_count = 0;
     for (int i = 0; i < 4; i++) {
@@ -386,6 +389,7 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
       }
     }
 
+    assert(bw_count >= 1);
     if (bw_count != 1) {
       break;
     }
