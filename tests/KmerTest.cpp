@@ -67,31 +67,53 @@ int main(int argc, char *argv[]) {
     char *real = (char *) malloc((k + 1) * sizeof(char));
     char *fromkmer = (char *) malloc((k + 1) * sizeof(char));
     char *realtwin = (char *) malloc((k + 1) * sizeof(char));
+    char *last = (char *) malloc((k + 1) * sizeof(char));
     char letters[] = {'A', 'C', 'G', 'T'};
     for(index=0; index <k; index++)
         real[index] = 'A';
     real[k] = '\0';
     index = 0;
-    Kmer K,Kp, TWIN, FW, BACK;
+    Kmer K, Kp, TWIN, FW, BACK;
     while (index < limit) {
-        makeKmerString(real, index++);
-	if (index > 0) {
-	  Kp = K;
-	}
+
+        if (index > 0) {
+            Kp = K;
+            strcpy(last, real);
+        }
+
+        makeKmerString(real, index);
         K = Kmer(real);
 
-	if (index > 0) {
-	  assert ( Kp < K);
-	}
+        if (index > 0) {
+            // Verify the operators
+            if (Kp < K) {
+                if (strcmp(last, real) >= 0) {
+                    cout << "Kmer with string: " << last << " is less than kmer with string: " << real << endl;
+                    return 0;
+                }
+            } else {
+                if (strcmp(last, real) < 0) {
+                    cout << "Kmer with string: " << last << " is greater or equal than kmer with string: " << real << endl;
+                    return 0;
+                }
+            }
 
-        // Check the kmer
+            if (Kp == K) {
+                if (strcmp(last, real) != 0) {
+                    cout << "Kmer with string: " << last << " is equal to kmer with string: " << real << endl;
+                    return 0;
+                }
+            }
+        }
+
+        // Verify toString from this kmer
         K.toString(fromkmer);
         if (strcmp(real, fromkmer) != 0) {
             cout << "Was expecting the base string to be: " << real << " but got: " << fromkmer << endl;
             return 0;
         }
 
-        // Check the twin kmer
+        // Verify toString from this kmer's twin
         TWIN = K.twin();
         TWIN.toString(fromkmer);
         twinString(real, realtwin, k);
@@ -102,7 +124,7 @@ int main(int argc, char *argv[]) {
         }
         
         for(j=0; j<4; j++) { 
-            // Check the forward base
+            // Verify toString from this kmer's forward bases
             FW = K.forwardBase(letters[j]);
             FW.toString(fromkmer);
             if ((strncmp(&real[1], fromkmer, k-1) != 0) || (letters[j] != fromkmer[k-1])) {
@@ -112,7 +134,7 @@ int main(int argc, char *argv[]) {
         }
         
         for(j=0; j<4; j++) { 
-            // Check the backward base
+            // Verify toString from this kmer's backward bases
             BACK = K.backwardBase(letters[j]);
             BACK.toString(fromkmer);
             if ((strncmp(real, &fromkmer[1], k-1) != 0) || (letters[j] != fromkmer[0])) {
@@ -121,6 +143,7 @@ int main(int argc, char *argv[]) {
                 return 0;
             }
         }
+        index++;
     }
 
     cout << "All tests completed successfully" << endl;
