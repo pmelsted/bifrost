@@ -203,12 +203,15 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     reps.clear();
 
     Kmer km(s);
-    kmers.push_back(km);
     for (size_t i = 0; i <= len-k; i++) {
-      km = km.forwardBase(s[i+k-1]);
+      if (i > 0 ) {
+	km = km.forwardBase(s[i+k-1]);
+      }
       kmers.push_back(km);
       reps.push_back(km.rep());
     }
+    
+
     size_t i = 0;
     while (i < kmers.size()) {
       
@@ -237,7 +240,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 	      seq.reserve(seq_bw.size() + seq_fw.size() - k);
 	      // copy reverse part of seq_bw not including k
 	      // TODO: refactor this to util package
-	      for (int j = seq_bw.size()-k-1; j>=0; j--) {
+	      for (int j = seq_bw.size()-1; j>=k; j--) {
 		char c = seq_bw[j];
 		char cc = 'N';
 		switch (c) {
@@ -254,16 +257,21 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 	      seq = seq_fw;
 	    }
 	    mapper.addContig(seq);
-	    cerr << seq.size() << endl;
-	    ContigRef found = mapper.find(kmers[i]);
+	    
+	    //cerr << seq.size() << endl;
+	    ContigRef found = mapper.find(p_bw.first);
+	    assert(!found.isEmpty());
 	    if (!found.isEmpty()) {
 	      mapper.printContig(found.ref.idpos.id);
 	    }
 	  }
 
 	  // jump over contig
-	  i += p_fw.second;
+	  //i += p_fw.second;
+	  i++; // simple but inefficient
 	} else {
+	  i++;
+	  
 	  //cerr << "found" << endl;
 	  // already found
 	  // how much can we jump ahead?
@@ -279,6 +287,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 	    assert(-pos >= k-1);
 	    i += 2 - (pos + k); // jump over contig
 	  }
+	  
 	}
       }     
     }
@@ -301,6 +310,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
       - implement greedy strategy
    
    */
+
+  
 }
 
 

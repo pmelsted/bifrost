@@ -212,7 +212,7 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
 	km = km.forwardBase(s[i+k-1]);
       }
       Kmer tw = km.twin();
-      Kmer rep = (km < tw) ? km : tw;
+      Kmer rep = km.rep();
       if (BF.contains(rep)) {
 	// has no effect if already in map
 	// implement
@@ -238,6 +238,8 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
   FQ.reopen();
   hmap_t::iterator it;
 
+  
+  // we can remove this step
   while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
     Kmer km(s);
     for (size_t i = 0; i <= len-k; ++i) {
@@ -246,7 +248,7 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
       }
 
       Kmer tw = km.twin();
-      Kmer rep = (km < tw) ? km : tw;
+      Kmer rep = km.rep();
       if (!BF.contains(rep)) {
 	cout << "Error!"; exit(1);
       }

@@ -87,12 +87,13 @@ public:
     if (fread(&size_, sizeof(size_), 1, fp) != 1) return false;
     if (fread(&seed_, sizeof(seed_), 1, fp) != 1) return false;
     if (fread(&k_,    sizeof(k_),    1, fp) != 1) return false;
-    
+
     // allocate memory
     init_table();
     // read table
     if (fread(table_, sizeof(unsigned char), size_>>3, fp) != (size_>>3)) return false;
     // done
+
     return true;
   }
 
