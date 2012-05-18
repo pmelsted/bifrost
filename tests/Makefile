@@ -1,7 +1,7 @@
 CC = g++
 CXX = g++
 INCLUDES = -I.
-CXXFLAGS = -std=c++0x -Wall -Wextra -pedantic $(INCLUDES)
+CXXFLAGS = -Wall -Wextra -pedantic $(INCLUDES)
 
 
 OBJECTS = ../Kmer.o ../hash.o
@@ -9,7 +9,7 @@ OBJECTS = ../Kmer.o ../hash.o
 all: CXXFLAGS += -O3
 all: target
 
-target: KmerTest KmerTestExtended
+target: KmerTest KmerTestExtended CompressedSequenceTest
 
 debug: CXXFLAGS += -g -O0
 debug: LDFLAGS += -g
@@ -21,12 +21,18 @@ KmerTest: KmerTest.o
 KmerTestExtended: KmerTestExtended.o 
 	$(CC) $(INCLUDES) $(OBJECTS) KmerTestExtended.o -o KmerTestExtended
 
-KmerTest.o: ../Kmer.o ../hash.o
-KmerTestExtended.o: ../Kmer.o ../hash.o
+CompressedSequenceTest: CompressedSequenceTest.o
+	$(CC) $(INCLUDES) $(OBJECTS) CompressedSequenceTest.o -o CompressedSequenceTest
+
+KmerTest.o: Kmer.o hash.o
+KmerTestExtended.o: Kmer.o hash.o
+CompressedSequenceTest.o: Kmer.o hash.o CompressedSequence.o
+
 Kmer.o: ../Kmer.hpp ../Kmer.cpp
 hash.o: ../hash.hpp ../hash.cpp
+CompressedSequence.o: ../Common.hpp ../CompressedSequence.hpp ../CompressedSequence.cpp
 
 
 clean:
 	rm -rf *.o
-	rm -rf KmerTest KmerTestExtended
+	rm -rf KmerTest KmerTestExtended CompressedSequenceTest

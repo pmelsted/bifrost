@@ -31,7 +31,8 @@ int main(int argc, char *argv[]) {
     char *last = (char *) malloc((k + 1) * sizeof(char));
     char *twin = (char *) malloc((k + 1) * sizeof(char));
     char letters[] = {'A', 'C', 'G', 'T'};
-    map<int, int> baseKey = {{'A',0}, {'C',1}, {'G',2}, {'T',3}};
+    map<int, int> baseKey;
+	baseKey['A'] = 0; baseKey['C'] = 1; baseKey['G'] = 2; baseKey['T'] = 3;
 
     // Initialize the strings
     for(j=0; j<k; j++)
