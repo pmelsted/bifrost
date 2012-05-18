@@ -33,15 +33,15 @@ int main(int argc, char *argv[]) {
     //map<int, int> baseKey = {{'A',0}, {'C',1}, {'G',2}, {'T',3}};
 
     Kmer K1, K2;
-	//CompressedSequence C1, C2;
+	CompressedSequence C1;
 
 	K1 = Kmer(s);
 	K1.toString(tmp1);
 	
-	//C1 = CompressedSequence(s);
-	//C1.toString(tmp2);
+	C1 = CompressedSequence(s);
+	C1.toString(tmp2);
 
-	cout << "From Kmer:" << tmp1 << endl;
-	cout << "From CompressedSequence:" << tmp2 << endl;
+	cout << "From Kmer: " << tmp1 << endl;
+	cout << "From CompressedSequence: " << tmp2 << endl;
     return 0;
 }
