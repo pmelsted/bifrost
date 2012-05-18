@@ -29,7 +29,7 @@ public:
 
   //  void setSequence(const CompressedSequence &o, size_t length, size_t offset = 0, bool reversed=false);
   void setSequence(const CompressedSequence &o, size_t start, size_t length, size_t offset = 0, bool reversed = false);
-  void setSequence(const char *s, size_t length, size_t offset = 0, bool reversed=false);;
+  void setSequence(const char *s, size_t length, size_t offset = 0, bool reversed=false);
   void setSequence(const string &s, size_t length, size_t offset = 0, bool reversed=false);
   void setSequence(const Kmer &km, size_t length, size_t offset = 0, bool reversed=false);
   
