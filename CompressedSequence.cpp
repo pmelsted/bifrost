@@ -199,4 +199,8 @@ Kmer CompressedSequence::getKmer(size_t offset) const {
   return Kmer(s);
 }
 
-
+CompressedSequence CompressedSequence::rev() const {
+	CompressedSequence r;
+	r.setSequence(*this, 0, _length, 0, true);
+	return r;
+}

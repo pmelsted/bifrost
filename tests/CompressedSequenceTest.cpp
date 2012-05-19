@@ -23,25 +23,24 @@ int main(int argc, char *argv[]) {
 	char *s = argv[1];
 	std::cout << s << std::endl;
 	
-	char *tmp1 = (char *) malloc(k * sizeof(char));;
+	//char *tmp1 = (char *) malloc(k * sizeof(char));;
 	char *tmp2 = (char *) malloc(k * sizeof(char));;
+	//char *tmp3 = (char *) malloc(k * sizeof(char));;
+	char *tmp3 = new char[k];
 
 
-    Kmer::set_k(k);
 
     //char letters[] = {'A', 'C', 'G', 'T'};
-    //map<int, int> baseKey = {{'A',0}, {'C',1}, {'G',2}, {'T',3}};
 
-    Kmer K1, K2;
-	CompressedSequence C1;
-
-	K1 = Kmer(s);
-	K1.toString(tmp1);
-	
+	CompressedSequence C1, C2;
 	C1 = CompressedSequence(s);
 	C1.toString(tmp2);
+	C2 = C1.rev();
+	C2.toString(tmp3);
 
-	cout << "From Kmer: " << tmp1 << endl;
 	cout << "From CompressedSequence: " << tmp2 << endl;
+	
+	cout << "From rev: " << tmp3 << endl;
+
     return 0;
 }

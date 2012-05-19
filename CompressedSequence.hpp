@@ -22,6 +22,7 @@ public:
 
   size_t size() const { return _length; }
   Kmer getKmer(size_t offset) const;
+  CompressedSequence rev() const;
   string toString() const;
   void toString(char *s) const;
   void toString(char *s, size_t offset, size_t length) const;
