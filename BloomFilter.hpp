@@ -42,7 +42,7 @@ public:
     uint64_t id;
     uint64_t hash;
     uint64_t hash0; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_  , &hash0);
-    hash0 = (hash0<<1)>>1 + 1; // odd number
+    hash0 |= 1; // odd number
     uint64_t hash1; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+1, &hash1);
     for (uint64_t i = 0; i < k_; i++) {
       //MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+i, &hash);
@@ -61,7 +61,7 @@ public:
     uint64_t id;
     uint64_t hash;
     uint64_t hash0; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_  , &hash0);
-    hash0 = (hash0<<1)>>1 + 1; // odd number
+    hash0 |= 1; // odd number
     uint64_t hash1; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+1, &hash1);
     for(uint64_t i = 0; i < k_; i++) {
       //MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+i,&hash);
@@ -124,7 +124,7 @@ private:
     } else {
       k_ = k+1;
     }
-    cout << "k="<<k_<<", fpp="<<fpp(bits,k) << endl;
+    cout << "k="<<k_<<", fpp="<<fpp(bits,k_) << endl;
   }
 
   double fpp(size_t bits, size_t k) {

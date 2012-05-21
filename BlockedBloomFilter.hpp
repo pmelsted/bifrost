@@ -18,12 +18,11 @@ private:
   uint64_t size_;
   uint64_t blocks;
   size_t k_;
-  divider<uint64_t> fast_div_;
   divider<uint64_t> block_div_;
 public:
-  BlockedBloomFilter() : seed_(0), size_(0), table_(NULL), k_(0), fast_div_() {}
+  BlockedBloomFilter() : seed_(0), size_(0), table_(NULL), k_(0), block_div_() {}
 
-  BlockedBloomFilter(size_t num, size_t bits, uint32_t seed) : seed_(seed), size_(0), table_(NULL), fast_div_(), block_div_(){
+  BlockedBloomFilter(size_t num, size_t bits, uint32_t seed) : seed_(seed), size_(0), table_(NULL),  block_div_(){
     cout << "num="<<num << ", bits="<<bits;
     size_ = rndup(bits*num);
     blocks = 1 + (size_ >> 9);
@@ -50,8 +49,7 @@ public:
     for (uint64_t i = 0; i < k_; i++) {
       //MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+i, &hash);
       hash = hash0 * i + hash1;
-      id = hash - (hash / fast_div_) * (1 << 9); // equal to hash % 512;
-      assert(id == (hash % 512));
+      id = hash & 0x1ff; // equal to hash % 512;
       if ((table_[block + (id >> 3)] & mask[id & 0x07]) == 0) {
 	return false;      
       }
@@ -72,8 +70,7 @@ public:
     for(uint64_t i = 0; i < k_; i++) {
       //MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+i,&hash);
       hash = hash0 * i + hash1;
-      id = hash - (hash / fast_div_) * (1 << 9); // equal to hash % 512;
-      assert(id == (hash % 512));
+      id = hash & 0x1ff; // equal to hash % 512;
       table_[block + (id >> 3)] |= mask[id & 0x07];
     }
   }
@@ -119,7 +116,6 @@ private:
   }
 
   void init_table() {
-    fast_div_ = libdivide::divider<uint64_t>(1 << 9);
     block_div_ = libdivide::divider<uint64_t>(blocks);
     table_ = new unsigned char[size_>>3];
     memset(table_, 0, size_ >> 3);
