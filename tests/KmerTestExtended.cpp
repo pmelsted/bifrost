@@ -27,9 +27,10 @@ int main(int argc, char *argv[]) {
     Kmer::set_k(k);
 
     // Allocate strings to use
-    char *s = (char *) malloc((k + 1) * sizeof(char));
-    char *last = (char *) malloc((k + 1) * sizeof(char));
-    char *twin = (char *) malloc((k + 1) * sizeof(char));
+    char *s = new char[k+1];
+    char *t = new char[k+1];
+    char *last = new char[k+1];
+    char *twin = new char[k+1];
     char letters[] = {'A', 'C', 'G', 'T'};
     map<int, int> baseKey;
 	baseKey['A'] = 0; baseKey['C'] = 1; baseKey['G'] = 2; baseKey['T'] = 3;
@@ -39,7 +40,7 @@ int main(int argc, char *argv[]) {
         s[j] = last[j] = 'A';
     s[k] = last[k] = '\0';
 
-    Kmer K, Kp, Ktwin;
+    Kmer K, BACK, FW, Kp, Ktwin;
 
     // Offset the random feeder with time
     srand(time(NULL));
@@ -83,6 +84,27 @@ int main(int argc, char *argv[]) {
                     cout << "Kmer with string: " << last << " is equal to kmer with string: " << s << endl;
                     return 1;
                 }
+            }
+        }
+        
+		for(j=0; j<4; j++) { 
+            // Verify toString from this kmer's forward bases
+            FW = K.forwardBase(letters[j]);
+            FW.toString(t);
+            if ((strncmp(&s[1], t, k-1) != 0) || (letters[j] != t[k-1])) {
+                printf("Was expecting the forward base to be: %s%c  but got: %s \n", &s[1], letters[j], t);
+                return 1;
+            }
+        }
+        
+		for(j=0; j<4; j++) { 
+            // Verify toString from this kmer's backward bases
+            BACK = K.backwardBase(letters[j]);
+            BACK.toString(t);
+            if ((strncmp(s, &t[1], k-1) != 0) || (letters[j] != t[0])) {
+                s[k-1] = '\0';
+                printf("Was expecting the backward base to be: %c%s  but got: %s \n", letters[j], s, t);
+                return 1;
             }
         }
     }

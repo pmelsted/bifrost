@@ -1,3 +1,5 @@
 KmerTest
 KmerTestExtended
 CompressedSequenceTest
+BloomFilterTest
+BlockedBloomFilterTest
