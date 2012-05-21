@@ -27,7 +27,7 @@ profile: target
 
 target: BFGraph
 
-OBJECTS =   Kmer.o KmerIntPair.o hash.o fastq.o FilterReads.o BuildContigs.o SimplifyGraph.o KmerMapper.o CompressedSequence.o Contig.o
+OBJECTS =   Kmer.o KmerIterator.o KmerIntPair.o hash.o fastq.o FilterReads.o BuildContigs.o SimplifyGraph.o KmerMapper.o CompressedSequence.o Contig.o
 
 testread: testread.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(LDFLAGS) $(LDLIBS) $(OBJECTS) testread.o -o testread
@@ -43,6 +43,7 @@ SimplifyGraph.o: SimplifyGraph.cpp
 KmerIntPair.o: KmerIntPair.cpp
 fastq.o: fastq.hpp fastq.cpp 
 kmer.o: kmer.hpp kmer.cpp
+KmerIterator.o: KmerIterator.hpp KmerIterator.cpp
 KmerMapper.o: KmerMapper.cpp KmerMapper.hpp
 CompressedSequence.o: CompressedSequence.cpp CompressedSequence.hpp
 Contig.o: Contig.cpp Contig.hpp

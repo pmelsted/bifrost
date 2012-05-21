@@ -26,7 +26,7 @@ public:
   BlockedBloomFilter(size_t num, size_t bits, uint32_t seed) : seed_(seed), size_(0), table_(NULL), fast_div_(), block_div_(){
     cout << "num="<<num << ", bits="<<bits;
     size_ = rndup(bits*num);
-	blocks = 1 + (size_ >> 9);
+    blocks = 1 + (size_ >> 9);
     cout <<", size=" << size_ << " , blocks=" << blocks << endl;
 
     init_table();
@@ -42,10 +42,10 @@ public:
     uint64_t id;
     uint64_t hash;
     uint64_t block; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+2, &block);
-	block = block - (block / block_div_) * (blocks); // block % blocks 
-	block *= (1 << 6);
+    block = block - (block / block_div_) * (blocks); // block % blocks 
+    block <<= 6; // 64 bytes per block;
     uint64_t hash0; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_, &hash0);
-    hash0 = (hash0<<1)>>1 + 1; // odd number
+    hash0 |= 1; 
     uint64_t hash1; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+1, &hash1);
     for (uint64_t i = 0; i < k_; i++) {
       //MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+i, &hash);
@@ -64,10 +64,10 @@ public:
     uint64_t id;
     uint64_t hash;
     uint64_t block; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+2, &block);
-	block = block - (block / block_div_) * (blocks); // block % blocks 
-	block *= (1 << 6);
+    block = block - (block / block_div_) * (blocks); // block % blocks 
+    block <<= 6;
     uint64_t hash0; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_  , &hash0);
-    hash0 = (hash0<<1)>>1 + 1; // odd number, why not hash0 |= 1?
+    hash0 |= 1; // odd number
     uint64_t hash1; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+1, &hash1);
     for(uint64_t i = 0; i < k_; i++) {
       //MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+i,&hash);
@@ -121,8 +121,8 @@ private:
   void init_table() {
     fast_div_ = libdivide::divider<uint64_t>(1 << 9);
     block_div_ = libdivide::divider<uint64_t>(blocks);
-	table_ = new unsigned char[size_>>3];
-	memset(table_, 0, size_ >> 3);
+    table_ = new unsigned char[size_>>3];
+    memset(table_, 0, size_ >> 3);
   }
 
   void init_k(size_t bits) {
@@ -132,7 +132,7 @@ private:
     } else {
       k_ = k+1;
     }
-    cout << "k="<<k_<<", fpp="<<fpp(bits,k) << endl; // why not fpp(bits,k_) ?
+    cout << "k="<<k_<<", fpp="<<fpp(bits,k_) << endl; // why not fpp(bits,k_) ?
   }
 
   double fpp(size_t bits, size_t k) {

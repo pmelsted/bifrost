@@ -1,3 +1,6 @@
+#ifndef BFG_BLOOMFILTER_HPP
+#define BFG_BLOOMFILTER_HPP
+
 #include <cmath>
 #include <cstring>
 #include "hash.hpp"
@@ -13,18 +16,18 @@ static const unsigned char mask[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40,
  
 class BloomFilter {
 private:
-  unsigned char* table_;
-  uint32_t seed_;
-  uint64_t size_;
-  size_t k_;
-  divider<uint64_t> fast_div_;
+  unsigned char* table_; // bit array
+  uint32_t seed_;        // for hash functions
+  uint64_t size_;        // number of bits, table_ has (size_/8) number of bytes
+  size_t k_;             // number of hash functions
+  divider<uint64_t> fast_div_; // fast division
 public:
   BloomFilter() : seed_(0), size_(0), table_(NULL), k_(0), fast_div_() {}
 
-  BloomFilter(size_t num, size_t bits, uint32_t seed) : seed_(seed), size_(0), table_(NULL), fast_div_(){
-    cout << "num="<<num << ", bits="<<bits;
+  BloomFilter(size_t num, size_t bits, uint32_t seed) : seed_(seed), size_(0), table_(NULL), fast_div_() {
+    //cout << "num="<<num << ", bits="<<bits;
     size_ = rndup(bits*num);
-    cout <<", size=" << size_ << endl;
+    //cout <<", size=" << size_ << endl;
 
     init_table();
     init_k(bits);
@@ -44,7 +47,7 @@ public:
     for (uint64_t i = 0; i < k_; i++) {
       //MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+i, &hash);
       hash = hash0 * i + hash1;
-      id = hash - (hash / fast_div_) * size_; // equal to hash % size;
+      id = hash - (hash / fast_div_) * size_; // equal to hash % size_;
       //assert(id == (hash % size_));
       if ((table_[id >> 3] & mask[id & 0x07]) == 0) {
 	return false;      
@@ -134,3 +137,6 @@ private:
   }
    
 };
+
+
+#endif

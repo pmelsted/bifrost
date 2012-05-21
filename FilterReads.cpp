@@ -20,6 +20,7 @@
 #include "HashTables.hpp"
 #include "fastq.hpp"
 #include "Kmer.hpp"
+#include "KmerIterator.hpp"
 #include "BloomFilter.hpp"
 
 
@@ -205,17 +206,15 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
   // for each read
   while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
     // TODO: add code to handle N's, currently all N's are mapped to A
-    Kmer km(s);
-    for (size_t i = 0; i <= len-k; ++i) {
+
+    KmerIterator it(s), it_end;
+    Kmer km;
+    for (;it != it_end; ++it) {
       ++num_kmers;
-      if (i > 0) {
-	km = km.forwardBase(s[i+k-1]);
-      }
+      km = it->first;
       Kmer tw = km.twin();
       Kmer rep = km.rep();
       if (BF.contains(rep)) {
-	// has no effect if already in map
-	// implement
 	if (!BF2.contains(rep)) {
 	  BF2.insert(rep);
 	  ++num_ins;
@@ -231,30 +230,7 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
     }
   }
   
-  if (opt.verbose) {
-    cerr << "re-open all files" << endl;
-  }
-  // close all files, reopen and get accurate counts;
-  FQ.reopen();
-  hmap_t::iterator it;
-
-  
-  // we can remove this step
-  while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
-    Kmer km(s);
-    for (size_t i = 0; i <= len-k; ++i) {
-      if (i > 0) {
-	km = km.forwardBase(s[i+k-1]);
-      }
-
-      Kmer tw = km.twin();
-      Kmer rep = km.rep();
-      if (!BF.contains(rep)) {
-	cout << "Error!"; exit(1);
-      }
-    }
-  }
-  
+ 
   FQ.close();
 
   cerr << "closed all files" << endl;
