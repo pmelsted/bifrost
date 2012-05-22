@@ -41,17 +41,22 @@ public:
     uint64_t id;
     uint64_t hash;
     uint64_t block; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+2, &block);
+    // block is the index of the 512 bit memory block where x would be stored
+    // 0 <= block < blocks
     block = block - (block / block_div_) * (blocks); // block % blocks 
-    block <<= 6; // 64 bytes per block;
+    // Multiply block by 64 to get the first byte of the block 
+    block <<= 6; 
     uint64_t hash0; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_, &hash0);
-    hash0 |= 1; 
+    hash0 |= 1; // make hash0 an odd number
     uint64_t hash1; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+1, &hash1);
     for (uint64_t i = 0; i < k_; i++) {
       //MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+i, &hash);
       hash = hash0 * i + hash1;
+      // 0 <= id < 512, id represents one bit 
       id = hash & 0x1ff; // equal to hash % 512;
+      // we check if bit number 1+(id % 8) in byte (table_[block + id/8]) is set
       if ((table_[block + (id >> 3)] & mask[id & 0x07]) == 0) {
-	return false;      
+        return false;      
       }
     }
     return true;
@@ -62,15 +67,20 @@ public:
     uint64_t id;
     uint64_t hash;
     uint64_t block; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+2, &block);
+    // block is the index of the 512 bit memory block where x would be stored
+    // 0 <= block < blocks
     block = block - (block / block_div_) * (blocks); // block % blocks 
+    // Multiply block by 64 to get the first byte of the block 
     block <<= 6;
     uint64_t hash0; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_  , &hash0);
-    hash0 |= 1; // odd number
+    hash0 |= 1; // make hash0 an odd number
     uint64_t hash1; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+1, &hash1);
     for(uint64_t i = 0; i < k_; i++) {
       //MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+i,&hash);
       hash = hash0 * i + hash1;
+      // 0 <= id < 512, id represents one bit 
       id = hash & 0x1ff; // equal to hash % 512;
+      // we set bit number 1+(id % 8) in byte (table_[block + id/8]) to 1
       table_[block + (id >> 3)] |= mask[id & 0x07];
     }
   }
@@ -108,10 +118,10 @@ private:
 
   void clear() {
     if (table_ != NULL) {
-		delete[] table_;
+      delete[] table_;
     }
     table_ = NULL;
-	blocks = 0;
+    blocks = 0;
     size_ = 0;
   }
 
