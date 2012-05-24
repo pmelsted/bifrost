@@ -77,18 +77,18 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
     }
 
     switch (c) {
-    case 0: 
-      break;
-    case 'k': 
-      opt.k = atoi(optarg); 
-      break;
-    case 'o': 
-      opt.output = optarg;
-      break;
-    case 'i':
-      opt.input = optarg;
-      break;
-    default: break;
+      case 0: 
+        break;
+      case 'k': 
+        opt.k = atoi(optarg); 
+        break;
+      case 'o': 
+        opt.output = optarg;
+        break;
+      case 'i':
+        opt.input = optarg;
+        break;
+      default: break;
     }
   }
 
@@ -133,8 +133,8 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
     for(it = opt.files.begin(); it != opt.files.end(); ++it) {
       intStat = stat(it->c_str(), &stFileInfo);
       if (intStat != 0) {
-	cerr << "Error: file not found, " << *it << endl;
-	ret = false;
+  cerr << "Error: file not found, " << *it << endl;
+  ret = false;
       }
     }
   }
@@ -205,7 +205,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     Kmer km(s);
     for (size_t i = 0; i <= len-k; i++) {
       if (i > 0 ) {
-	km = km.forwardBase(s[i+k-1]);
+        km = km.forwardBase(s[i+k-1]);
       }
       kmers.push_back(km);
       reps.push_back(km.rep());
@@ -216,82 +216,81 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     while (i < kmers.size()) {
       
       if (!bf.contains(reps[i])) { // kmer i is not in the graph
-	i++; // jump over it
+        i++; // jump over it
       } else {
-	ContigRef cr = mapper.find(km);
+        ContigRef cr = mapper.find(km);
 
-	if (cr.isEmpty()) {
-	  // ok, didn't find the k-mer, search for it
+        if (cr.isEmpty()) {
+          // ok, didn't find the k-mer, search for it
 
-	  pair<Kmer, size_t> p_fw,p_bw;
-	  p_fw = find_contig_forward(bf,kmers[i],NULL);
-	  
-	  ContigRef cr_end = mapper.find(p_fw.first);
-	  if (cr_end.isEmpty()) {
-	    
-	    string seq, seq_fw(k,0), seq_bw(k,0);
-	    // 
-	    p_fw = find_contig_forward(bf,kmers[i],&seq_fw);
-	    p_bw = find_contig_forward(bf,kmers[i].twin(),&seq_bw);
-	    ContigRef cr_tw_end = mapper.find(p_bw.first);
-	    assert(cr_tw_end.isEmpty());
+          pair<Kmer, size_t> p_fw,p_bw;
+          p_fw = find_contig_forward(bf,kmers[i],NULL);
+          
+          ContigRef cr_end = mapper.find(p_fw.first);
+          if (cr_end.isEmpty()) {
+            
+            string seq, seq_fw(k,0), seq_bw(k,0);
+            // 
+            p_fw = find_contig_forward(bf,kmers[i],&seq_fw);
+            p_bw = find_contig_forward(bf,kmers[i].twin(),&seq_bw);
+            ContigRef cr_tw_end = mapper.find(p_bw.first);
+            assert(cr_tw_end.isEmpty());
 
-	    if (p_bw.second > 1) {
-	      seq.reserve(seq_bw.size() + seq_fw.size() - k);
-	      // copy reverse part of seq_bw not including k
-	      // TODO: refactor this to util package
-	      for (int j = seq_bw.size()-1; j>=k; j--) {
-		char c = seq_bw[j];
-		char cc = 'N';
-		switch (c) {
-		case 'A': cc = 'T'; break;
-		case 'C': cc = 'G'; break;
-		case 'G': cc = 'C'; break;
-		case 'T': cc = 'A'; break;
-		}
-		seq.push_back(cc);
-	      }
-	      // append seq_fw
-	      seq += seq_fw;
-	    } else {
-	      seq = seq_fw;
-	    }
-	    mapper.addContig(seq);
-	    
-	    //cerr << seq.size() << endl;
-	    ContigRef found = mapper.find(p_bw.first);
-	    assert(!found.isEmpty());
-	    if (!found.isEmpty()) {
-	      mapper.printContig(found.ref.idpos.id);
-	    }
-	  }
+            if (p_bw.second > 1) {
+              seq.reserve(seq_bw.size() + seq_fw.size() - k);
+              // copy reverse part of seq_bw not including k
+              // TODO: refactor this to util package
+              for (int j = seq_bw.size()-1; j>=k; j--) {
+                char c = seq_bw[j];
+                char cc = 'N';
+                switch (c) {
+                  case 'A': cc = 'T'; break;
+                  case 'C': cc = 'G'; break;
+                  case 'G': cc = 'C'; break;
+                  case 'T': cc = 'A'; break;
+                }
+                seq.push_back(cc);
+              }
+              // append seq_fw
+              seq += seq_fw;
+            } else {
+              seq = seq_fw;
+            }
 
-	  // jump over contig
-	  //i += p_fw.second;
-	  i++; // simple but inefficient
-	} else {
-	  i++;
-	  
-	  //cerr << "found" << endl;
-	  // already found
-	  // how much can we jump ahead?
-	  Contig *contig = mapper.getContig(cr).ref.contig;
-	  int32_t pos = cr.ref.idpos.pos;
-	  int32_t len = (int32_t) contig->seq.size();
-	  if (pos >= 0) {
-	    // kmer i is on forward strand
-	    assert(len-pos-k >= 0);
-	    i += len-pos-k + 1; // jump over contig
-	  } else {
-	    // kmer i is on reverse strand	    
-	    assert(-pos >= k-1);
-	    i += 2 - (pos + k); // jump over contig
-	  }
-	  
-	}
+            mapper.addContig(seq);
+            
+            //cerr << seq.size() << endl;
+            ContigRef found = mapper.find(p_bw.first);
+            assert(!found.isEmpty());
+            if (!found.isEmpty()) {
+              mapper.printContig(found.ref.idpos.id);
+            }
+          }
+
+          // jump over contig
+          //i += p_fw.second;
+          i++; // simple but inefficient
+        } else {
+          i++;
+          
+          //cerr << "found" << endl;
+          // already found
+          // how much can we jump ahead?
+          Contig *contig = mapper.getContig(cr).ref.contig;
+          int32_t pos = cr.ref.idpos.pos;
+          int32_t len = (int32_t) contig->seq.size();
+          if (pos >= 0) {
+            // kmer i is on forward strand
+            assert(len-pos-k >= 0);
+            i += len-pos-k + 1; // jump over contig
+          } else {
+            // kmer i is on reverse strand      
+            assert(-pos >= k-1);
+            i += 2 - (pos + k); // jump over contig
+          }
+        }
       }     
     }
-    
   }
   
   cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size()<< endl;
@@ -304,7 +303,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
       - generate k-mers
       - map to contig if in bf
         - if unique move to boundary, repeat with next
-	 - check if we can extend current contig or branch or merge
+   - check if we can extend current contig or branch or merge
         - if not found, create new contig
 
       - implement greedy strategy
@@ -374,11 +373,11 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
     for (int i = 0; i < 4; i++) {
       Kmer fw_rep = end.forwardBase(alpha[i]).rep();
       if (bf.contains(fw_rep)) {
-	j = i;
-	fw_count++;
-	if (fw_count > 1) {
-	  break;
-	}
+        j = i;
+        fw_count++;
+        if (fw_count > 1) {
+          break;
+        }
       }
     }
 
@@ -394,10 +393,10 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
     for (int i = 0; i < 4; i++) {
       Kmer bw_rep = fw.backwardBase(alpha[i]).rep();
       if (bf.contains(bw_rep)) {
-	bw_count++;
-	if (bw_count > 1) {
-	  break;
-	}
+        bw_count++;
+        if (bw_count > 1) {
+          break;
+        }
       }
     }
 
