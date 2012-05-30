@@ -276,7 +276,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           // jump over contig
           maxi = i + p_fw.second;
           i++;
-          while (i < kmers.size() && bf.contains(kmers[i]) && i < maxi)
+          while (i < kmers.size() && bf.contains(reps[i]) && i < maxi)
             i++;
 
         } else {
@@ -293,7 +293,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             // i += len-pos-k + 1; // This should not be done
             maxi = i + len-pos-k + 1; 
             i++;
-            while (i < kmers.size() && bf.contains(kmers[i]) && i < maxi)
+            while (i < kmers.size() && bf.contains(reps[i]) && i < maxi)
               i++;
           } else {
             // kmer i is on reverse strand      
@@ -301,7 +301,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             // i += 2 - (pos + k); // This should not be done
             maxi = i + 2 - (pos + k);
             i++;
-            while (i < kmers.size() && bf.contains(kmers[i]) && i < maxi)
+            while (i < kmers.size() && bf.contains(reps[i]) && i < maxi)
               i++;
           }
         }
