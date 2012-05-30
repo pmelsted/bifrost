@@ -3,3 +3,4 @@ KmerTestExtended
 CompressedSequenceTest
 BloomFilterTest
 BlockedBloomFilterTest
+KmerMapperTest

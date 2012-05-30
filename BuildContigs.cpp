@@ -25,6 +25,8 @@
 #include "KmerMapper.hpp"
 #include "Contig.hpp"
 
+#include <map>   // Just for testing
+
 
 pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s);
 
@@ -159,6 +161,11 @@ void BuildContigs_PrintSummary(const BuildContigs_ProgramOptions &opt) {
   
 }
 
+bool bfcheck(char *ks, BloomFilter &bf) {
+  Kmer km(ks);
+  return bf.contains(km);
+}
+
 void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
   BloomFilter bf;
@@ -211,14 +218,13 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
       reps.push_back(km.rep());
     }
     
-
-    size_t i = 0;
+    size_t i = 0, maxi;
     while (i < kmers.size()) {
       
       if (!bf.contains(reps[i])) { // kmer i is not in the graph
         i++; // jump over it
       } else {
-        ContigRef cr = mapper.find(km);
+        ContigRef cr = mapper.find(reps[i]);
 
         if (cr.isEmpty()) {
           // ok, didn't find the k-mer, search for it
@@ -265,14 +271,16 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             if (!found.isEmpty()) {
               mapper.printContig(found.ref.idpos.id);
             }
-          }
+          } 
 
           // jump over contig
-          //i += p_fw.second;
-          i++; // simple but inefficient
-        } else {
+          maxi = i + p_fw.second;
           i++;
-          
+          while (i < kmers.size() && bf.contains(kmers[i]) && i < maxi)
+            i++;
+
+        } else {
+          //i++; // This should not be done
           //cerr << "found" << endl;
           // already found
           // how much can we jump ahead?
@@ -282,11 +290,19 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           if (pos >= 0) {
             // kmer i is on forward strand
             assert(len-pos-k >= 0);
-            i += len-pos-k + 1; // jump over contig
+            // i += len-pos-k + 1; // This should not be done
+            maxi = i + len-pos-k + 1; 
+            i++;
+            while (i < kmers.size() && bf.contains(kmers[i]) && i < maxi)
+              i++;
           } else {
             // kmer i is on reverse strand      
             assert(-pos >= k-1);
-            i += 2 - (pos + k); // jump over contig
+            // i += 2 - (pos + k); // This should not be done
+            maxi = i + 2 - (pos + k);
+            i++;
+            while (i < kmers.size() && bf.contains(kmers[i]) && i < maxi)
+              i++;
           }
         }
       }     
@@ -420,3 +436,5 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
   }
   return make_pair(end,dist);
 }
+
+
