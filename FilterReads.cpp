@@ -126,7 +126,7 @@ void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions 
 }
 
 
-// use:  b = FilterReads(opt);
+// use:  b = FilterReads_CheckOptions(opt);
 // pre:  opt contains parameters for the program BFGraph
 // post: (b == true)  <==>  the parameters are valid
 bool FilterReads_CheckOptions(FilterReads_ProgramOptions &opt) {
@@ -285,6 +285,11 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
   }
 }
 
+// use:  FilterReads(argc, argv);
+// pre:  argc is the number of arguments in argv and argv includes 
+//       arguments for the Filtering
+// post: If the number of arguments is correct and the arguments are valid
+//       the Filtering has been completed
 void FilterReads(int argc, char **argv) {
   
   FilterReads_ProgramOptions opt;
