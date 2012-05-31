@@ -14,8 +14,7 @@
 
 # Other
 *.txt
-core
-[dD]oxy*
+*.out
 *.swp
 *~
 \#*
@@ -23,10 +22,11 @@ core
 old/
 dist/
 debug/
-gmon.out
 *.dSYM/*
 prof
 BFGraph
 Naive
 TODO
 data/
+core
+[dD]oxy*
