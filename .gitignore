@@ -14,6 +14,8 @@
 
 # Other
 *.txt
+core
+[dD]oxy*
 *.swp
 *~
 \#*
