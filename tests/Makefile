@@ -3,12 +3,12 @@ CXX = g++
 INCLUDES = -I.
 CXXFLAGS = -pg -Wall -Wextra -pedantic $(INCLUDES)
 
-
+EXECUTABLES = KmerTest KmerTestExtended CompressedSequenceTest BloomFilterTest BlockedBloomFilterTest KmerMapperTest
 
 all: CXXFLAGS += -O3
 all: target
 
-target: KmerTest KmerTestExtended CompressedSequenceTest BloomFilterTest BlockedBloomFilterTest KmerMapperTest
+target: $(EXECUTABLES) 
 
 debug: CXXFLAGS += -g -O0
 debug: LDFLAGS += -g
@@ -51,4 +51,4 @@ KmerMapperTest.o: ../KmerMapper.o
 
 clean:
 	rm -rf *.o
-	rm -rf KmerTest KmerTestExtended CompressedSequenceTest BloomFilterTest KmerMapperTest
+	rm -rf $(EXECUTABLES) 

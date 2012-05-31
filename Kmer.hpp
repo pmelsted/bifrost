@@ -15,7 +15,7 @@
 
 //for debug
 
-char *int2bin(uint32_t a, char *buffer, int buf_size);
+void int2bin(uint32_t a, char *buffer, int buf_size);
 
 
 
@@ -79,9 +79,10 @@ class Kmer {
 
 
   // private functions
-  void shiftRight(int shift);
+  void shiftForward(int shift);
+  
+  void shiftBackward(int shift);
 
-  void shiftLeft(int shift);
 };
 
 
