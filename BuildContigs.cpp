@@ -362,7 +362,7 @@ void BuildContigs(int argc, char** argv) {
 // pre:  
 // post: km is contained in a contig c with respect to the
 //       bloom filter graph bf and end is the forward endpoint (wrt km direction)
-//       and is contains dist kmers until the end (including km)
+//       and c contains dist kmers until the end (including km)
 //       if s is not NULL the sequence of the contig is stored in s
 pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
   //TODO: add string return option

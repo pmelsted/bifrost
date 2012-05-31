@@ -11,7 +11,7 @@ replace MAX_KMER_SIZE in Makefile with an appropriate number or directly to make
 
 % make MAX_KMER_SIZE=64
 
-In this case it the maximum k-mer size allowed is 63, and each k-mer will use 16 bytes of memory.
+In this case the maximum k-mer size allowed is 63, and each k-mer will use 16 bytes of memory.
 
 Running
 =======
