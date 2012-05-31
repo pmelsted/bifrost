@@ -8,6 +8,9 @@
 
 using namespace std;
 
+
+// use: PrintUsage(); 
+// post: Usage for how to run `./BFGraph` has been printed to cerr
 void PrintUsage() {
   cerr << "BFGraph " << BFC_VERSION << endl << endl;
   cerr << "A memory efficient de Bruijn graph assembler." << endl << endl;
@@ -20,21 +23,25 @@ void PrintUsage() {
     "    cite         Prints information for citing the paper" << endl <<
     "    version      Displays version number" << endl << endl;
     ;
-
-
 }
 
+
+// use:  PrintVersion(); 
+// post: The version of the program has been printed to cerr 
 void PrintVersion() {
   cerr <<  BFC_VERSION << endl;
 }
 
+
+// use:  PrintCite(); 
+// post: Information of how to cite this software has been printed 
 void PrintCite() {
   cerr << "The paper describing this software has not been published." << endl;
   //  cerr << "When using this program in your research, please cite" << endl << endl;
 }
 
-int main(int argc, char **argv) {
 
+int main(int argc, char **argv) {
   if (argc < 2) {
     cout << "Error: too few arguments" << endl;
     PrintUsage();
