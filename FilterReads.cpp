@@ -38,6 +38,10 @@ struct FilterReads_ProgramOptions {
   FilterReads_ProgramOptions() : k(0), nkmers(0), nkmers2(0), verbose(false), bf(4), bf2(8) {}
 };
 
+// use:  FilterReads_PrintUsage();
+// pre:   
+// post: Information about how the `./BFGraph filter` program is used 
+//       has been printed to cerr
 void FilterReads_PrintUsage() {
   cerr << "BFGraph " << BFC_VERSION << endl << endl;
   cerr << "Filters errors in fastq or fasta files and saves results" << endl << endl;
@@ -54,8 +58,10 @@ void FilterReads_PrintUsage() {
 }
 
 
-
-
+// use:  FilterReads_ParseOptions(argc, argv, opt);
+// pre:  argc is the parameter count, argv is a list of valid parameters and
+//       opt can contain the parsed parameters
+// post: All the parameters from argv have been parsed into opt
 void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions &opt) {
   int verbose_flag = 0;
   const char* opt_string = "n:N:k:o:b:B:";
@@ -120,6 +126,9 @@ void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions 
 }
 
 
+// use:  b = FilterReads(opt);
+// pre:  opt contains parameters for the program BFGraph
+// post: (b == true)  <==>  the parameters are valid
 bool FilterReads_CheckOptions(FilterReads_ProgramOptions &opt) {
   bool ret = true;
 
@@ -151,8 +160,8 @@ bool FilterReads_CheckOptions(FilterReads_ProgramOptions &opt) {
     for(it = opt.files.begin(); it != opt.files.end(); ++it) {
       intStat = stat(it->c_str(), &stFileInfo);
       if (intStat != 0) {
-	cerr << "Error: file not found, " << *it << endl;
-	ret = false;
+        cerr << "Error: file not found, " << *it << endl;
+        ret = false;
       }
     }
   }
@@ -173,6 +182,10 @@ bool FilterReads_CheckOptions(FilterReads_ProgramOptions &opt) {
 
 }
 
+
+// use:  FilterReads_PrintSummary(opt);
+// pre:  opt has information about Kmer size, Bloom Filter sizes
+// post: Information about the two Bloom Filters has been printed to cerr 
 void FilterReads_PrintSummary(const FilterReads_ProgramOptions &opt) {
   double fp;
   cerr << "Using bloom filter size: " << opt.bf << " bits" << endl;
@@ -187,6 +200,15 @@ void FilterReads_PrintSummary(const FilterReads_ProgramOptions &opt) {
 }
 
 
+// use:  FilterReads_Normal(opt);
+// pre:  opt has information about Kmer size, Bloom Filter sizes,
+//       lower bound of Kmer count, upper bound of Kmer count
+//       input file name strings and output file name
+// post: Input files have been opened and and all the reads 
+//       have been broken into kmers of given Kmer size. 
+//       The kmers have been filtered through two Bloom Filters
+//       and those that survived through the second Bloom Filter have
+//       been written into the output file
 void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
   // create hash table and bloom filter
   size_t k = Kmer::k;
@@ -215,12 +237,12 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
       Kmer tw = km.twin();
       Kmer rep = km.rep();
       if (BF.contains(rep)) {
-	if (!BF2.contains(rep)) {
-	  BF2.insert(rep);
-	  ++num_ins;
-	}
+        if (!BF2.contains(rep)) {
+          BF2.insert(rep);
+          ++num_ins;
+        }
       } else {
-	BF.insert(rep);
+          BF.insert(rep);
       }
     }
     ++n_read;
@@ -250,13 +272,13 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
   if (f == NULL) {
     cerr << "Error could not write to file!" << endl;
   } else {
-    // first metadata for bloom filter
-    // then the actual filter
-    if (!BF2.WriteBloomFilter(f)) {
-      cerr << "Error writing data to file!" << endl;
-    }
-    fclose(f);
-    f = NULL;
+  // first metadata for bloom filter
+  // then the actual filter
+  if (!BF2.WriteBloomFilter(f)) {
+    cerr << "Error writing data to file!" << endl;
+  }
+  fclose(f);
+  f = NULL;
   }
   if (opt.verbose) {
     cerr << " done" << endl;
