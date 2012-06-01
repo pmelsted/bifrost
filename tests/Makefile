@@ -3,7 +3,7 @@ CXX = g++
 INCLUDES = -I.
 CXXFLAGS = -pg -Wall -Wextra -pedantic $(INCLUDES)
 
-EXECUTABLES = KmerTest KmerTestExtended CompressedSequenceTest BloomFilterTest BlockedBloomFilterTest KmerMapperTest
+EXECUTABLES = KmerTest KmerTestExtended CompressedSequenceTest BloomFilterTest BlockedBloomFilterTest  KmerMapperTest
 
 all: CXXFLAGS += -O3
 all: target
@@ -14,7 +14,7 @@ debug: CXXFLAGS += -g -O0
 debug: LDFLAGS += -g
 debug: target
 
-OBJECTS = ../Kmer.o ../hash.o ../CompressedSequence.o ../Contig.o ../KmerMapper.o
+OBJECTS = ../Kmer.o ../hash.o ../CompressedSequence.o ../Contig.o ../KmerMapper.o 
 
 KmerTest: KmerTest.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(OBJECTS) KmerTest.o -o KmerTest
@@ -46,8 +46,8 @@ KmerMapperTest.o: ../KmerMapper.o
 ../CompressedSequence.o: ../Common.hpp ../CompressedSequence.hpp ../CompressedSequence.cpp
 ../BloomFilter.o: ../BloomFilter.hpp
 ../BlockedBloomFilter.o: ../BlockedBloomFilter.hpp
+../BlockedBloomFilter.hpp: ../BloomFilter.hpp
 ../KmerMapper.o: ../KmerMapper.hpp ../KmerMapper.cpp
-
 
 clean:
 	rm -rf *.o

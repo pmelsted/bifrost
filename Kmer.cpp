@@ -51,7 +51,7 @@ static const uint8_t base_swap[256] = {
 
 // use:  km = Kmer();
 // pre:  
-// post: the DNA string in km is AA....AAA (MAX_K/4 times A) 
+// post: the DNA string in km is AA....AAA (k times A) 
 Kmer::Kmer() {
   memset(bytes,0,MAX_K/4);
 }
@@ -86,7 +86,8 @@ Kmer& Kmer::operator=(const Kmer& o) {
 
 // use:  km = Kmer();
 // pre:  
-// post: the DNA string in km is AA....AAA (MAX_K/4 times A) 
+// post: The last bit in the bit array which stores the DNA string has been set to 1
+//       which indicates that the km is invalid
 void Kmer::set_deleted() {
   memset(bytes,0xff,MAX_K/4);
 }
@@ -194,12 +195,15 @@ Kmer Kmer::twin() const {
 }
 
 
+// use:  link = km.getLink(index);
+// pre:  0 <= index < 8
+// post: gives the forward kmer with the (index % 4) character in 'A','C','G' or 'T' if index < 4
+// post: else the backward kmer with the (index % 4) character in 'A','C','G' or 'T'
 Kmer Kmer::getLink(const size_t index) const {
   assert(index >= 0 && index < 8);
-  size_t ind_mod = index % 4;
-  char c = '\0';
+  char c;
 
-  switch (ind_mod) {
+  switch (index % 4) {
     case 0: c = 'A'; break;
     case 1: c = 'C'; break;
     case 2: c = 'G'; break;
@@ -337,10 +341,10 @@ void Kmer::shiftBackward(int shift) {
 
 
 // use:  set_k(k);
-// pre:  this method has not been called before and 0 < k <= MAX_K
+// pre:  this method has not been called before and 0 < k < MAX_K
 // post: The Kmer size has been set to k
 void Kmer::set_k(unsigned int _k) {
-  assert(_k <= MAX_K);
+  assert(_k < MAX_K);
   assert(_k > 0);
   assert(k_bytes == 0); // we can only call this once
   k = _k;
