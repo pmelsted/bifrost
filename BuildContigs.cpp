@@ -25,8 +25,6 @@
 #include "KmerMapper.hpp"
 #include "Contig.hpp"
 
-#include <map>   // Just for testing
-
 
 pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s);
 
@@ -40,6 +38,10 @@ struct BuildContigs_ProgramOptions {
   BuildContigs_ProgramOptions() : k(0), verbose(false) , contig_size(1000000) {}
 };
 
+
+// use:  BuildContigs_PrintUsage();
+// pre:   
+// post: Information about how to "build contigs" has been inted to cerr
 void BuildContigs_PrintUsage() {
   cerr << "BFGraph " << BFG_VERSION << endl << endl;
   cerr << "Filters errors in fastq or fasta files and saves results" << endl << endl;
@@ -53,8 +55,10 @@ void BuildContigs_PrintUsage() {
 }
 
 
-
-
+// use:  BuildContigs_ParseOptions(argc, argv, opt);
+// pre:  argc is the parameter count, argv is a list of valid parameters for 
+//       "building contigs" and opt is ready to contain the parsed parameters
+// post: All the parameters from argv have been parsed into opt
 void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOptions &opt) {
   int verbose_flag = 0;
   const char* opt_string = "k:o:i:";
@@ -105,6 +109,9 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
 }
 
 
+// use:  b = BuildContigs_CheckOptions(opt);
+// pre:  opt contains parameters for "building contigs"
+// post: (b == true)  <==>  the parameters are valid
 bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
   bool ret = true;
 
@@ -149,6 +156,11 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
 
 }
 
+
+// use:  BuildContigs_PrintSummary(opt);
+// pre:  opt has information about Kmer size, input file and output file
+// post: Information about the Kmer size and the input and output files 
+//       has been printed to cerr 
 void BuildContigs_PrintSummary(const BuildContigs_ProgramOptions &opt) {
   cerr << "Kmer size" << opt.k << endl
        << "Reading input file " << opt.input << endl
@@ -162,7 +174,26 @@ void BuildContigs_PrintSummary(const BuildContigs_ProgramOptions &opt) {
 }
 
 
+// use:  BuildContigs_Normal(opt);
+// pre:  opt has information about Kmer size, input file and output file
+// post: The contigs have been written to the output file 
 void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
+  /**
+   *  outline of algorithm
+   *   - open bloom filter file
+   *   - create contig datastructures
+   *   - for each read
+   *     - for all kmers in read
+   *        - if kmer is in bf
+   *          - if it maps to contig
+   *            - try to jump over as many kmers as possible
+   *          - else
+   *            - create new contig from kmers in both directions
+   *            - from this kmer while there is only one possible next kmer
+   *            - with respect to the bloom filter
+   *            - when the contig is ready, 
+   *            - try to jump over as many kmers as possible
+   */
 
   BloomFilter bf;
   FILE* f = fopen(opt.input.c_str(), "rb");
@@ -190,13 +221,11 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   uint64_t num_kmers = 0;  
   uint64_t num_ins = 0;
  
-  // loops over all files
   FastqFile FQ(opt.files);
   
   vector<Kmer> kmers;
   vector<Kmer> reps;
 
-  //
   cerr << "starting real work" << endl;
 
   while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
@@ -276,8 +305,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             i++;
 
         } else {
-          //i++; // This should not be done
-          //cerr << "found" << endl;
           // already found
           // how much can we jump ahead?
           Contig *contig = mapper.getContig(cr).ref.contig;
@@ -307,25 +334,14 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   
   cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size()<< endl;
   
-  /*
-    outline of algorithm
-    - open bloom filter file
-    - create contig datastructures
-    - for each read
-      - generate k-mers
-      - map to contig if in bf
-        - if unique move to boundary, repeat with next
-   - check if we can extend current contig or branch or merge
-        - if not found, create new contig
-
-      - implement greedy strategy
-   
-   */
-
-  
 }
 
 
+// use:  BuildContigs(argc, argv);
+// pre:  argc is the number of arguments in argv and argv includes 
+//       arguments for "building the contigs", including filenames
+// post: If the number of arguments is correct and the arguments are valid
+//       the "contigs have been built" and written to a file
 void BuildContigs(int argc, char** argv) {
   
   BuildContigs_ProgramOptions opt;

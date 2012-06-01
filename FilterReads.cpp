@@ -40,8 +40,7 @@ struct FilterReads_ProgramOptions {
 
 // use:  FilterReads_PrintUsage();
 // pre:   
-// post: Information about how the `./BFGraph filter` program is used 
-//       has been printed to cerr
+// post: Information about how to "filter reads" has been printed to cerr
 void FilterReads_PrintUsage() {
   cerr << "BFGraph " << BFG_VERSION << endl << endl;
   cerr << "Filters errors in fastq or fasta files and saves results" << endl << endl;
@@ -59,8 +58,8 @@ void FilterReads_PrintUsage() {
 
 
 // use:  FilterReads_ParseOptions(argc, argv, opt);
-// pre:  argc is the parameter count, argv is a list of valid parameters and
-//       opt can contain the parsed parameters
+// pre:  argc is the parameter count, argv is a list of valid parameters for 
+//       "filtering reads" and opt is ready to contain the parsed parameters
 // post: All the parameters from argv have been parsed into opt
 void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions &opt) {
   int verbose_flag = 0;
@@ -127,7 +126,7 @@ void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions 
 
 
 // use:  b = FilterReads_CheckOptions(opt);
-// pre:  opt contains parameters for the program BFGraph
+// pre:  opt contains parameters for "filtering reads"
 // post: (b == true)  <==>  the parameters are valid
 bool FilterReads_CheckOptions(FilterReads_ProgramOptions &opt) {
   bool ret = true;
@@ -210,7 +209,18 @@ void FilterReads_PrintSummary(const FilterReads_ProgramOptions &opt) {
 //       and those that survived through the second Bloom Filter have
 //       been written into the output file
 void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
-  // create hash table and bloom filter
+  /**
+   *  outline of algorithm
+   *   - create two bloom filters, BF and BF2
+   *   - for each read in all files 
+   *     - for all kmers in read
+   *       - if kmer in BF 
+   *         - insert kmer into BF2
+   *       - else 
+   *         - insert kmer into BF
+   *  now BF2 contains at least all the kmers that appear once
+   */
+
   size_t k = Kmer::k;
   BloomFilter BF(opt.nkmers, (size_t) opt.bf, (uint32_t) time(NULL));
   BloomFilter BF2(opt.nkmers2, (size_t) opt.bf2, (uint32_t) time(NULL));
@@ -222,10 +232,8 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
   uint64_t num_kmers = 0;  
   uint64_t num_ins = 0;
 
-  // loops over all files
   FastqFile FQ(opt.files);
 
-  // for each read
   while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
     // TODO: add code to handle N's, currently all N's are mapped to A
 
@@ -287,9 +295,9 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
 
 // use:  FilterReads(argc, argv);
 // pre:  argc is the number of arguments in argv and argv includes 
-//       arguments for the Filtering
+//       arguments for "filtering the reads", including filenames
 // post: If the number of arguments is correct and the arguments are valid
-//       the Filtering has been completed
+//       the "reads have been filtered" and written to a file 
 void FilterReads(int argc, char **argv) {
   
   FilterReads_ProgramOptions opt;
