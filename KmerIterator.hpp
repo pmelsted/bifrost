@@ -28,4 +28,4 @@ private:
   bool invalid_;
 };
 
-#endif
+#endif // BFG_KMER_ITERATOR_HPP

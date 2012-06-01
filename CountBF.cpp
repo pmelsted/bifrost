@@ -42,9 +42,9 @@ struct CountBF_ProgramOptions {
 };
 
 void CountBF_PrintUsage() {
-  cerr << "BFCounter " << BFC_VERSION << endl << endl;
+  cerr << "BFGraph " << BFG_VERSION << endl << endl;
   cerr << "Counts occurrences of k-mers in fastq or fasta files and saves results" << endl << endl;
-  cerr << "Usage: BFCounter count [options] ... FASTQ files";
+  cerr << "Usage: BFGraph count [options] ... FASTQ files";
   cerr << endl << endl <<
     "-k, --kmer-size=INT             Size of k-mers, at most " << (int) (Kmer::MAX_K-1)<< endl << 
     "-n, --num-kmers=LONG            Estimated number of k-mers (upper bound)" << endl <<

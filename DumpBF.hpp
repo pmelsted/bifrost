@@ -1,6 +1,6 @@
-#ifndef BFC_DUMPBF_HPP
-#define BFC_DUMPBF_HPP
+#ifndef BFG_DUMPBF_HPP
+#define BFG_DUMPBF_HPP
 
 void DumpBF(int argc, char** argv);
 
-#endif // BFC_DUMPBF_HPP
+#endif // BFG_DUMPBF_HPP

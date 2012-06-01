@@ -479,8 +479,6 @@ private:
    std::vector<std::size_t> size_list;
 };
 
-
-
 #endif
 
 

@@ -17,4 +17,4 @@ public:
   // TODO: do we store the links here?
 };
 
-#endif // BFG_CONTIG_H
+#endif // BFG_CONTIG_HPP

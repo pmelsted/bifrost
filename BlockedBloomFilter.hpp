@@ -84,5 +84,4 @@ private:
   }
 };
 
-
-#endif
+#endif // BFG_BLOCKEDBLOOMFILTER_HPP

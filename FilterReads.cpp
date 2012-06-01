@@ -43,7 +43,7 @@ struct FilterReads_ProgramOptions {
 // post: Information about how the `./BFGraph filter` program is used 
 //       has been printed to cerr
 void FilterReads_PrintUsage() {
-  cerr << "BFGraph " << BFC_VERSION << endl << endl;
+  cerr << "BFGraph " << BFG_VERSION << endl << endl;
   cerr << "Filters errors in fastq or fasta files and saves results" << endl << endl;
   cerr << "Usage: BFGraph filter [options] ... FASTQ files";
   cerr << endl << endl <<

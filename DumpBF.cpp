@@ -21,9 +21,9 @@ struct DumpBF_ProgramOptions {
 };
 
 void DumpBF_PrintUsage() {
-  cerr << "BFCounter " << BFC_VERSION << endl << endl;
+  cerr << "BFGraph " << BFG_VERSION << endl << endl;
   cerr << "Writes k-mer occurrences into a tab-separated text file." << endl << endl;
-  cerr <<     "Usage: BFCounter dump [options] ...";
+  cerr <<     "Usage: BFGraph dump [options] ...";
   cerr << endl << endl <<
     "-k, --kmer-size=INT             Size of k-mers, at most " << (int) (Kmer::MAX_K-1)<< endl << 
     "-i, --input=STRING              Filename for input file from count" << endl << 

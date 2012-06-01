@@ -1,5 +1,5 @@
-#ifndef BFC_HASHTABLES_HPP
-#define BFC_HASHTABLES_HPP
+#ifndef BFG_HASHTABLES_HPP
+#define BFG_HASHTABLES_HPP
 
 #include "google/sparse_hash_map"
 #include "google/sparsehash/sparsehashtable.h"
@@ -14,4 +14,4 @@ typedef google::sparse_hashtable<KmerIntPair, Kmer, KmerHash, SelectKmerKey, Set
 
 typedef google::sparse_hash_map<Kmer, float, KmerHash> hmapq_t;
 
-#endif // BFC_HASHTABLES_HPP
+#endif // BFG_HASHTABLES_HPP

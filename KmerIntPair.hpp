@@ -1,5 +1,5 @@
-#ifndef BFC_KMER_INT_PAIR_HPP
-#define BFC_KMER_INT_PAIR_HPP
+#ifndef BFG_KMER_INT_PAIR_HPP
+#define BFG_KMER_INT_PAIR_HPP
 
 #include "Kmer.hpp"
 
@@ -30,5 +30,4 @@ struct SetKmerKey {
   void operator()(KmerIntPair *value, const Kmer& km);
 };
 
-
-#endif // BFC_KMER_INT_PAIR_HPP
+#endif // BFG_KMER_INT_PAIR_HPP

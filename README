@@ -1,4 +1,4 @@
-BFCounter is a memory efficient program for counting k-mers from sequencing files.
+BFGraph is a memory efficient program for counting k-mers from sequencing files.
 
 Installation
 ============
@@ -17,19 +17,19 @@ Running
 =======
 To run the program use
 
-% ./BFCounter
+% ./BFGraph
 
 To list available commands
 
-% ./BFCounter count
-% ./BFCounter dump
+% ./BFGraph count
+% ./BFGraph dump
 
 will provide more complete help.
 
 Notes
 =====
 
-* BFCounter was developed on x86-64 GNU/Linux. Porting to other unix-like
+* BFGraph was developed on x86-64 GNU/Linux. Porting to other unix-like
   platforms should be easy, but we haven't done so yet.
 
 * If you run into bugs or problems or have suggestions for future versions 

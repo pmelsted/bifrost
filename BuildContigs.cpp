@@ -41,7 +41,7 @@ struct BuildContigs_ProgramOptions {
 };
 
 void BuildContigs_PrintUsage() {
-  cerr << "BFGraph " << BFC_VERSION << endl << endl;
+  cerr << "BFGraph " << BFG_VERSION << endl << endl;
   cerr << "Filters errors in fastq or fasta files and saves results" << endl << endl;
   cerr << "Usage: BFGraph contigs [options] ... FASTQ files";
   cerr << endl << endl <<
@@ -161,10 +161,6 @@ void BuildContigs_PrintSummary(const BuildContigs_ProgramOptions &opt) {
   
 }
 
-bool bfcheck(char *ks, BloomFilter &bf) {
-  Kmer km(ks);
-  return bf.contains(km);
-}
 
 void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 

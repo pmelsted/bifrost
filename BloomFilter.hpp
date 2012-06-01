@@ -138,5 +138,4 @@ protected:
    
 };
 
-
-#endif
+#endif // BFG_BLOOMFILTER_HPP

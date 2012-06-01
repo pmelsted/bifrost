@@ -12,7 +12,7 @@ using namespace std;
 // use: PrintUsage(); 
 // post: Usage for how to run `./BFGraph` has been printed to cerr
 void PrintUsage() {
-  cerr << "BFGraph " << BFC_VERSION << endl << endl;
+  cerr << "BFGraph " << BFG_VERSION << endl << endl;
   cerr << "A memory efficient de Bruijn graph assembler." << endl << endl;
   cerr << "Usage: BFGraph <cmd> [options] ..." << endl << endl;
   cerr << "Where <cmd> can be one of:" << endl;
@@ -29,7 +29,7 @@ void PrintUsage() {
 // use:  PrintVersion(); 
 // post: The version of the program has been printed to cerr 
 void PrintVersion() {
-  cerr <<  BFC_VERSION << endl;
+  cerr <<  BFG_VERSION << endl;
 }
 
 

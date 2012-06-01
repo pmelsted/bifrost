@@ -64,7 +64,4 @@ private:
   vector<ContigRef> contigs;
 };
 
-
-
-
 #endif // BFG_KMERMAPPER_H

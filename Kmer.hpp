@@ -93,4 +93,4 @@ struct KmerHash {
 };
 
 
-#endif // BFC_KMER_HPP
+#endif // BFG_KMER_HPP
