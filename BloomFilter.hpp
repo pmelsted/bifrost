@@ -15,7 +15,7 @@ using namespace std;
 static const unsigned char mask[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
  
 class BloomFilter {
-private:
+protected:
   unsigned char* table_; // bit array
   uint32_t seed_;        // for hash functions
   uint64_t size_;        // number of bits, table_ has (size_/8) number of bytes
@@ -101,7 +101,7 @@ public:
   }
 
 
-private:
+protected:
 
   void clear() {
     if (table_ != NULL) {
