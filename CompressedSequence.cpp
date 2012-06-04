@@ -21,6 +21,10 @@ static const char bases[256] = {
   'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N'
 };
 
+// bits['A'] = bits['a'] = 0 
+// bits['C'] = bits['c'] = 1
+// bits['G'] = bits['g'] = 2 
+// bits['T'] = bits['t'] = 3
 static const uint8_t bits[256] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
@@ -41,6 +45,9 @@ static const uint8_t bits[256] = {
 };
 
 
+// use:  delete c;
+// pre:  c is a pointer to a CompressedSequence
+// post: the memory which the CompressedSequence had allocated has been freed
 CompressedSequence::~CompressedSequence() {
   if (_capacity > 0 && _data != NULL) {
     delete[] _data;
@@ -49,29 +56,52 @@ CompressedSequence::~CompressedSequence() {
 }
 
 
+// use:  _cs = CompressedSequence(cs);
+// pre:   
+// post: the DNA string in _cs and is the same as in cs
 CompressedSequence::CompressedSequence(const CompressedSequence& o) : _length(0),_capacity(0),_data(0) {
   setSequence(o,0,o._length);
 }
 
+
+// use:  _cs = cs;
+// pre:   
+// post: the DNA string in _cs is the same as in cs
 CompressedSequence& CompressedSequence::operator=(const CompressedSequence& o) {
   setSequence(o,0,o._length);
   return *this;
 }
   
+
+// use:  cs = CompressedSequence(s);
+// pre:  s has only the characters 'A','C','G' and 'T' and can have any length
+// post: the DNA string in cs is now the same as s
 CompressedSequence::CompressedSequence(const char *s) : _length(0),_capacity(0),_data(0) {
   if (s != NULL) {
     setSequence(s,strlen(s));
   }
 }
 
+
+// use:  cs = CompressedSequence(s);
+// pre:  s has only the characters 'A','C','G' and 'T' and can have any length
+// post: the DNA string in cs is now the same as s
 CompressedSequence::CompressedSequence(const string& s) : _length(0),_capacity(0),_data(0) {
   setSequence(s.c_str(), s.size());
 }
 
+
+// use:  cs = CompressedSequence(km);
+// pre:   
+// post: the DNA string in cs is now the same as the DNA string in km
 CompressedSequence::CompressedSequence(const Kmer &km) : _length(0),_capacity(0),_data(0) {
   setSequence(km, Kmer::k);
 }
 
+
+// use:  c = cs[index];
+// pre:  0 <= index < cs.size()
+// post: c is character nr. index in the DNA string inside cs
 const char CompressedSequence::operator[](size_t index) const {
   size_t i = index / 4;
   size_t j = index % 4;
@@ -79,21 +109,22 @@ const char CompressedSequence::operator[](size_t index) const {
   return bases[idx];
 }
 
+
 //void CompressedSequence::setSequence(const CompressedSequence &o, size_t length, size_t offset, bool reversed) {
 //  setSequence(o,0,length,offset,reversed);
 //}
 
 
-// use:  a.setSequence(b, start, length, offset, reversed)
-// pre:  start+length <= o._length, offset <= a._length
+// use:  a.setSequence(b, start, length, offset, reversed);
+// pre:  start+length <= b._length, offset <= a._length
 // post: copies compressed sequence from b to a (reverse complement if reversed == true)
 //       the string copied from b is from [start,...,start+length-1]
-//       the positions in a that are update are [offset,...,offset+length-1]
+//       the positions in a that are updated are [offset,...,offset+length-1]
 //       capacity of a might be updated to fit the new string.
 void CompressedSequence::setSequence(const CompressedSequence &o, size_t start, size_t length, size_t offset, bool reversed) {
-  assert( o._length + start <= length);
+  assert(length + start <= o._length);
   if (round_to_bytes(length+offset) > _capacity) {
-    _resize_and_copy(round_to_bytes(length+offset), offset);
+    _resize_and_copy(round_to_bytes(length+offset), _length);
   } 
   
   size_t w_index = offset;
@@ -119,11 +150,15 @@ void CompressedSequence::setSequence(const CompressedSequence &o, size_t start, 
       r_index++;
     }
   }
-  _length = offset+length;
+  if (offset + length > _length) 
+    _length = offset + length;
 }
 
 
 
+// use:  cs.reserveLength(new_length);
+// pre:  
+// post: The DNA string in cs has space for at least new_length bases 
 void CompressedSequence::reserveLength(size_t new_length) {
   if (round_to_bytes(new_length) > _capacity) {
     _resize_and_copy(round_to_bytes(new_length), _length);
@@ -131,6 +166,10 @@ void CompressedSequence::reserveLength(size_t new_length) {
 }
 
 
+// use:  cs._resize_and_copy(new_cap, copy_limit);
+// pre:  
+// post: The DNA string in cs has space for at least new_length bases
+//       the first copy_limit characters of cs are the same as before this method
 void CompressedSequence::_resize_and_copy(size_t new_cap, size_t copy_limit) {
   if (new_cap > _capacity) {
     char *new_data = new char[new_cap];
@@ -142,35 +181,63 @@ void CompressedSequence::_resize_and_copy(size_t new_cap, size_t copy_limit) {
   }
 }
 
+
+// use:  a.setSequence(s, length, offset, reversed);
+// pre:  length <= strlen(s), offset <= a._length
+// post: copies substring s[0,...,length-1] to a (reverse complement if reversed == true)
+//       the positions in a that are updated are [offset,...,offset+length-1]
+//       capacity of a might be updated to fit the new string.
 void CompressedSequence::setSequence(const char *s, size_t length, size_t offset, bool reversed) {
   if(round_to_bytes(length+offset) > _capacity) {
-    _resize_and_copy(round_to_bytes(length+offset), offset);
+    _resize_and_copy(round_to_bytes(length+offset), _length);
   }
 
   for (size_t index = offset; index < offset+length; index++) {
     size_t i = index / 4;
     size_t j = index % 4;
     _data[i] &= ~(0x03 << (2*j)); // set bits to 0, default
-    uint8_t c = reversed ? bases[0x03-bits[(uint8_t)*(s+length+offset-index-1)]] : *(s+index);
+    uint8_t c = reversed ? bases[0x03-bits[(uint8_t)*(s+length+offset-index-1)]] : *(s+index-offset);
     _data[i] |= (bits[c] << (2*j));
   }
-  _length = offset+length;
+  if (offset + length > _length) 
+    _length = offset + length;
 }
 
+
+// use:  cs.setSequence(s, start, length, offset, reversed);
+// pre:  0 <= start + length < o.size()
+// post: If reversed is false then: cs[offset..offset+length-1] = s[0..start+length-1]
+//       else: cs[offset..offset+length-1] is the reverse complement of s[0..start+length-1]
 void CompressedSequence::setSequence(const string &s, size_t length, size_t offset, bool reversed) {
   setSequence(s.c_str(),length,offset,reversed);
 }
 
+
+// use:  cs.setSequence(km, length, offset, reversed);
+// pre:  0 <= length < cs._length,
+//       length <= Kmer::k
+// post: If reversed is false then: cs[offset..offset+length-1] 
+//         is the first length characters from the DNA string in km
+//       else: cs[offset..offset+length-1] is the first length characters from the
+//         reverse complement of the DNA string in km
 void CompressedSequence::setSequence(const Kmer &km, size_t length, size_t offset, bool reversed) {
-  char s[Kmer::MAX_K+1];
+  char s[Kmer::k+1];
   km.toString(&s[0]);
-  setSequence(s,length, offset, reversed);
+  setSequence(s, length, offset, reversed);
 }
 
+
+// use:  s = cs.toString();
+// pre:   
+// post: s is the DNA string from cs 
 string CompressedSequence::toString() const {
   return toString(0,_length);
 }
 
+
+// use:  s = cs.toString(offset, length);
+// pre:  offset + length <= cs.size(),
+// post: s is the DNA string from c[offset..offset+length-1]
 string CompressedSequence::toString(size_t offset, size_t length) const {
   assert(offset+length <= _length);
   string s(length,0);
@@ -184,10 +251,19 @@ string CompressedSequence::toString(size_t offset, size_t length) const {
   return s;
 }
 
+
+// use:  cs.toString(s);
+// pre:  s has space for cs.size() characters 
+// post: s is the same as the DNA string from cs
 void CompressedSequence::toString(char *s) const {
   toString(s,0,_length);
 }
 
+
+// use:  s = cs.toString(offset, length);
+// pre:  offset + length <= cs.size()
+//       s has space for length characters 
+// post: s is the same as cs[offset..offset+length-1]
 void CompressedSequence::toString(char *s, size_t offset, size_t length) const {
   assert(offset+length <= _length);
   size_t i,j,idx;
@@ -200,12 +276,22 @@ void CompressedSequence::toString(char *s, size_t offset, size_t length) const {
   s[length] = 0; // 0-terminated string
 }
 
+
+// use:  km = cs.getKmer(offset);
+// pre:  offset + Kmer::k <= cs._length
+// post: The DNA string in km is cs[offset..offset+Kmer::k-1]
 Kmer CompressedSequence::getKmer(size_t offset) const {
-  char s[Kmer::MAX_K+1];	
-  toString(&s[0]);
+  char s[Kmer::k+1];
+  toString(&s[0], offset, Kmer::k, false);
   return Kmer(s);
 }
 
+
+// use:  _cs = cs.rev();
+// pre:   
+// post: _cs is the reverse complement CompressedSequence with respect to cs,
+//       i.e. if the DNA string in cs is 'GTCA'
+//          then the DNA string in _cs is 'TGAC'
 CompressedSequence CompressedSequence::rev() const {
 	CompressedSequence r;
 	r.setSequence(*this, 0, _length, 0, true);

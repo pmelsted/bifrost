@@ -198,7 +198,7 @@ Kmer Kmer::twin() const {
 // use:  link = km.getLink(index);
 // pre:  0 <= index < 8
 // post: gives the forward kmer with the (index % 4) character in 'A','C','G' or 'T' if index < 4
-// post: else the backward kmer with the (index % 4) character in 'A','C','G' or 'T'
+//       else the backward kmer with the (index % 4) character in 'A','C','G' or 'T'
 Kmer Kmer::getLink(const size_t index) const {
   assert(index >= 0 && index < 8);
   char c;

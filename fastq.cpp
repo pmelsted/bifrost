@@ -34,17 +34,17 @@ int FastqFile::read_next(char *read, size_t *read_len, char *seq, size_t *seq_le
       memcpy(seq, kseq->seq.s, kseq->seq.l+1); // 0-terminated string
       *seq_len = kseq->seq.l;
       if (qual != NULL) {
-	memcpy(qual, kseq->qual.s, kseq->qual.l+1); // 0-terminated string
+        memcpy(qual, kseq->qual.s, kseq->qual.l+1); // 0-terminated string
       }
       if (file_id != NULL) {
-	*file_id = file_no/2;
+        *file_id = file_no/2;
       }
     } else if (r == -1) {
       open_next();
       if (fnit != fnames.end()) {
-	return read_next(read,read_len,seq,seq_len,file_id);
+        return read_next(read,read_len,seq,seq_len,file_id);
       } else {
-	return -1;
+        return -1;
       }
     }
     return r;
