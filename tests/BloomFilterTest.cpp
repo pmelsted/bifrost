@@ -33,4 +33,5 @@ int main(int argc, char *argv[]) {
 
 	// compute false positive rate
 	printf("False positive ratio: %.6f\n", wrong / (0.0 + counter));
+  cout << &argv[0][2] << " completed successfully" << endl;
 }

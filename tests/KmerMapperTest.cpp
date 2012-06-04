@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
   for(int i=0;i<n;i++) 
     s[i] = letters[rand() & 3];
   s[n] = '\0';
-  cout << s << endl;
+  //cout << s << endl;
 
   Kmer km(s), km2;
   mapper.addContig(s);
