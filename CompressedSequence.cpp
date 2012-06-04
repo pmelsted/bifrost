@@ -282,7 +282,7 @@ void CompressedSequence::toString(char *s, size_t offset, size_t length) const {
 // post: The DNA string in km is cs[offset..offset+Kmer::k-1]
 Kmer CompressedSequence::getKmer(size_t offset) const {
   char s[Kmer::k+1];
-  toString(&s[0], offset, Kmer::k, false);
+  toString(&s[0], offset, Kmer::k);
   return Kmer(s);
 }
 
