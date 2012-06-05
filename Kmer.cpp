@@ -3,7 +3,7 @@
 
 // use:  int2bin(a, buffer, buf_size);
 // pre:  buf_size >= 8 and buffer has space for buf_size elements
-// post: buffer[0..7] is the binary representation of a
+// post: buffer[0,...,7] is the binary representation of a
 void int2bin(uint32_t a, char *buffer, int buf_size) {
   //buffer += (buf_size - 1);
 
@@ -279,8 +279,8 @@ void Kmer::printBinary() const {
 
 
 // use:  km.toString(s);
-// pre:  s has space for at least k elements
-// post: s[0..k] is the DNA string for the Kmer km
+// pre:  s has space for k+1 elements
+// post: s[0,...,k-1] is the DNA string for the Kmer km and s[k] = '\0'
 void Kmer::toString(char * s) const {
   size_t i,j,l;
   

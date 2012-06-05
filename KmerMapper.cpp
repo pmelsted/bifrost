@@ -94,9 +94,12 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   assert(direction != 0); // what if we want b+a?
 
   Contig *joined = new Contig(0); // allocate new contig
-  joined->seq.reserveLength(sa.size()+sb.size());
-  joined->seq.setSequence(sa,0,sa.size()-Kmer::k + 1,0,true); // copy from a, except matching part, keep orientation of a
-  joined->seq.setSequence(sb,sa.size(),sb.size(),0,direction==-1); // copy from b, reverse if neccessary
+  //joined->seq.reserveLength(sa.size()+sb.size());
+  //joined->seq.setSequence(sa,0,sa.size()-Kmer::k + 1,0,true); // copy from a, except matching part, keep orientation of a
+  //joined->seq.setSequence(sb,sa.size(),sb.size(),0,direction==-1); // copy from b, reverse if neccessary
+  joined->seq.reserveLength(sa.size()+sb.size()-Kmer::k);                                                                                             
+  joined->seq.setSequence(sa,0,sa.size(),0,true); // copy from a, except matching part, keep orientation of a
+  joined->seq.setSequence(sb,sa.size(),sb.size()-Kmer::k,Kmer::k+1,direction==-1); // copy from b, reverse if neccessary
 
   ContigRef cr;
   cr.ref.contig = joined;
