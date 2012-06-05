@@ -94,12 +94,9 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   assert(direction != 0); // what if we want b+a?
 
   Contig *joined = new Contig(0); // allocate new contig
-  //joined->seq.reserveLength(sa.size()+sb.size());
-  //joined->seq.setSequence(sa,0,sa.size()-Kmer::k + 1,0,true); // copy from a, except matching part, keep orientation of a
-  //joined->seq.setSequence(sb,sa.size(),sb.size(),0,direction==-1); // copy from b, reverse if neccessary
   joined->seq.reserveLength(sa.size()+sb.size()-Kmer::k);                                                                                             
-  joined->seq.setSequence(sa,0,sa.size(),0,true); // copy from a, except matching part, keep orientation of a
-  joined->seq.setSequence(sb,sa.size(),sb.size()-Kmer::k,Kmer::k+1,direction==-1); // copy from b, reverse if neccessary
+  joined->seq.setSequence(sa,0,sa.size(),0,false); // copy all from a, keep orientation of a
+  joined->seq.setSequence(sb,Kmer::k,sb.size()-Kmer::k,sa.size(),direction==-1); // copy from b, reverse if neccessary
 
   ContigRef cr;
   cr.ref.contig = joined;
@@ -144,8 +141,9 @@ void KmerMapper::printContig(const size_t id) {
     ContigRef a = contigs[id];
     if (a.isContig) {
       string s = a.ref.contig->seq.toString();
-      cout << "contig " << id << ": length "  << s.size() << endl << s << endl;
-      cout << "kmers mapping: " << endl;
+      //cout << "contig " << id << ": length "  << s.size() << endl << s << endl;
+      cout << s << endl;
+      //cout << "kmers mapping: " << endl;
       const char *t = s.c_str();
       char tmp[Kmer::MAX_K+1];
       for (int i = 0; i < s.length()-Kmer::k+1; i++) {
@@ -153,12 +151,12 @@ void KmerMapper::printContig(const size_t id) {
 	if (!find(km).isEmpty()) {
 	  km.rep().toString(tmp);
 	  ContigRef km_rep = find(km);
-	  cout << string(i,' ') << tmp << " -> (" << km_rep.ref.idpos.id << ", " << km_rep.ref.idpos.pos << ")"  << endl;
+	  //cout << string(i,' ') << tmp << " -> (" << km_rep.ref.idpos.id << ", " << km_rep.ref.idpos.pos << ")"  << endl;
 	}
       }
     } else {
       ContigRef rep = find_rep(a);
-      cout << "-> (" << rep.ref.idpos.id << ", " << rep.ref.idpos.pos << ")" << endl;
+      //cout << "-> (" << rep.ref.idpos.id << ", " << rep.ref.idpos.pos << ")" << endl;
     }
   }
 }

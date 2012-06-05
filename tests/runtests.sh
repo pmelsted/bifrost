@@ -18,3 +18,7 @@ echo -e "\n"
 
 echo "Running BlockedBloomFilterTest"
 ./BlockedBloomFilterTest 4
+echo -e "\n"
+
+echo "Running KmerMapperTest"
+./KmerMapperTest

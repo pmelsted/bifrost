@@ -20,9 +20,9 @@ int main(int argc, char *argv[]) {
     
   srand(time(NULL));
 
-  // Read k from argument and set kmer size
-  unsigned int k = atoi(argv[1]), i; 
-  unsigned int LIM = 1 << k;
+  // Read n from argument
+  unsigned int n = atoi(argv[1]), i; 
+  unsigned int LIM = 1 << n;
 
   char *s = new char[LIM];
   char *out = new char[LIM];
