@@ -1,5 +1,4 @@
 Comment and add use/pre/post:
- CompressedSequence.cpp
  fastq.cpp
  hash.cpp
  KmerIntPair.cpp
@@ -7,12 +6,10 @@ Comment and add use/pre/post:
  KmerMapper.cpp 
 
 
-
 Other:
 Run gProfile on 200MB file
 
 KmerMapper.cpp 
- - Fix joinContigs
  - Add debug parameter?
 
 BuildContigs.cpp

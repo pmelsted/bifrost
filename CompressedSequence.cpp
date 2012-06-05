@@ -246,7 +246,7 @@ string CompressedSequence::toString(size_t offset, size_t length) const {
     i = index / 4;
     j = index % 4;
     idx = ((_data[i]) >> (2*j)) & 0x03;
-    s[index] = bases[idx];
+    s[index-offset] = bases[idx];
   }
   return s;
 }
@@ -271,7 +271,7 @@ void CompressedSequence::toString(char *s, size_t offset, size_t length) const {
     i = index / 4;
     j = index % 4;
     idx = ((_data[i]) >> (2*j)) & 0x03;
-    s[index] = bases[idx];
+    s[index-offset] = bases[idx];
   }
   s[length] = 0; // 0-terminated string
 }

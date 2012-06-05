@@ -54,6 +54,12 @@ int main(int argc, char *argv[]) {
   C3.setSequence(m.c_str(), 4, 4, true);
   assert(C3.toString() == (string) "TTTTCGGG");
 
+  Kmer::set_k(4);
+  Kmer km = C3.getKmer(4);
+  char *kmrstr = new char[5];
+  km.toString(kmrstr);
+  assert((string) kmrstr == (string) "CGGG");
+
   cout << &argv[0][2] << " completed successfully" << endl;
   return 0;
 }
