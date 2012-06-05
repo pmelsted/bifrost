@@ -221,7 +221,7 @@ void CompressedSequence::setSequence(const string &s, size_t length, size_t offs
 //       else: cs[offset,...,offset+length-1] is the first length characters from the
 //         reverse complement of the DNA string in km
 void CompressedSequence::setSequence(const Kmer &km, size_t length, size_t offset, bool reversed) {
-  char s[Kmer::k+1];
+  char s[Kmer::MAX_K+1];
   km.toString(&s[0]);
   setSequence(s, length, offset, reversed);
 }
@@ -281,7 +281,7 @@ void CompressedSequence::toString(char *s, size_t offset, size_t length) const {
 // pre:  offset + Kmer::k <= cs._length
 // post: The DNA string in km is cs[offset,...,offset+Kmer::k-1]
 Kmer CompressedSequence::getKmer(size_t offset) const {
-  char s[Kmer::k+1];
+  char s[Kmer::MAX_K+1];
   toString(&s[0], offset, Kmer::k);
   return Kmer(s);
 }
