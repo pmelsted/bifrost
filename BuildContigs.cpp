@@ -227,7 +227,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   vector<Kmer> reps;
 
   cerr << "starting real work" << endl;
-  char ps[200];
 
   while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
     // discard N's
@@ -245,10 +244,12 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     }
     
     size_t i = 0, maxi;
+
+    Contig *contig;
+    size_t jumpi;
+    bool repequal, reversed;
     while (i < kmers.size()) {
       
-      Contig *contig;
-      size_t jumpi;
       if (!bf.contains(reps[i])) { // kmer i is not in the graph
         i++; // jump over it
       } else {
@@ -307,58 +308,63 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
           }
 
-          contig = mapper.getContig(cr_end).ref.contig;
           // Though the kmer didn't map, we already made a contig with the same forward end
           // Now we jump as far ahead as we can
-          int start = i;
-          bool reversed = p_fw.first != p_fw.first.rep();
-          jumpi = contig->seq.endJump(s, i, p_fw.second, cr_end.ref.idpos.pos, reversed); 
+          int32_t pos = cr_end.ref.idpos.pos;
+          contig = mapper.getContig(cr_end).ref.contig;
+          repequal = p_fw.first == p_fw.first.rep();
+          reversed = (pos >= 0) != repequal;
+          
+          // Gera eitthvad vid pos her
+          if (pos >= 0) {
+            if (repequal) {
+            } else {
+            }
+          } else {
+            if (repequal) {
+            } else {
+            }
+          }
           maxi = i + p_fw.second;
           i++;
+          //jumpi = i + seq.jump(s, i, pos, reversed);
           while (i < kmers.size() && bf.contains(reps[i]) && i < maxi) {
             i++;
-	  }
-          assert(jumpi == i);
-          /*
-          int32_t pos = cr_end.ref.idpos.pos;
-          printf("posbefore=%d\n", pos);
-          pos = reversed ? -pos - Kmer::k + 1 : pos;
-          printf("posfater=%d\n", pos);
-          if (pos >= 0)
-            pos = pos - p_fw.second +1;
-          else 
-            pos = pos + p_fw.second -1;
-          size_t sjump = contig->seq.straightJump(s, start, pos);
-          if (sjump != jumpi) {
-            printf("sjump=%d\n", sjump);
-            sjump = contig->seq.straightJump(s, start, pos);
-            printf("jumpi=%d\n", jumpi);
-            assert(sjump == jumpi);
           }
-          */
+          // assert(i == jumpi);
 
         } else {
           // The kmer maps to a contig, how much can we jump through it?
           contig = mapper.getContig(cr).ref.contig;
           int32_t pos = cr.ref.idpos.pos;
           int32_t len = (int32_t) contig->seq.size();
-          bool reversed = kmers[i] != reps[i];
-          int start = i;
-          pos = reversed ? -pos - Kmer::k + 1 : pos;
-          jumpi = contig->seq.straightJump(s, i, pos);
+          
+          repequal = kmers[i] == reps[i];
+          reversed = (pos >= 0) != repequal;
+
+         
+          // Gera eitthvad vid pos her
           if (pos >= 0) {
-            // kmer i is on forward strand
             assert(len-pos-k >= 0);
-            maxi = i + len-pos-k + 1; 
+            if (repequal) {
+              maxi = i + len-pos-k + 1; 
+            } else {
+              maxi = i + len-pos-k + 1; // Is this right??? 
+            }
           } else {
-            // kmer i is on reverse strand      
             assert(-pos >= k-1);
-            maxi = i + 2 - (pos + k);
+            if (repequal) {
+              maxi = i + 2 - (pos + k);
+            } else {
+              maxi = i + 2 - (pos + k); // Is this right???
+            }
           }
+          
           i++;
+          //jumpi = i + seq.jump(s, i, pos, reversed);
           while (i < kmers.size() && bf.contains(reps[i]) && i < maxi)
             i++;
-          assert(i == jumpi);
+          //assert(i == jumpi);
         }
       }     
     }
