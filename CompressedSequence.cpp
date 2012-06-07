@@ -298,6 +298,64 @@ CompressedSequence CompressedSequence::rev() const {
 	return r;
 }
 
+
+// use:  j = cs.jump(s,i,pos,reversed)
+// pre:  0 <= i < s.length, 0 <= pos < cs._length, 
+// post: if reversed == false: s[i...i+j-1] == cs._data[pos...pos+j-1], 0 <= j <= min(s.length-i, cs._length-pos)
+//       if reversed == true : reverse_complement(s[i...i+j-1]) == cs._data[pos-j+1...pos], 0 <= j <= min(s.length-i, pos+1)
+size_t CompressedSequence::jump(const char *s, size_t i, size_t pos, bool reversed) const {
+  assert(i>=0);
+  assert(pos >= 0);
+  assert(pos < _length);
+  size_t j = 0;
+  int dir = (reversed) ? -1 : 1;
+  size_t limit = (reversed) ? pos+1 : _length - pos; // index limit, lower or upper bound
+  size_t a,b,idx;
+  for (size_t index = pos; s[i+j] != 0 && j != limit; index+= dir, j++) {
+    assert(index >= 0);
+    assert(index < _length);
+    a = index / 4;
+    b = index % 4;
+    idx = ((_data[a]) >> (2*j)) & 0x03;
+    if ((!reversed && s[i+j] != bases[idx]) && (reversed && s[i+j] != bases[3-idx])) {
+      break;
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 size_t CompressedSequence::endJump(char *s, size_t i, size_t dist, int pos, bool reversed) const {
   size_t a,b,idx;
   i++;

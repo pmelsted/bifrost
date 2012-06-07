@@ -315,8 +315,9 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           jumpi = contig->seq.endJump(s, i, p_fw.second, cr_end.ref.idpos.pos, reversed); 
           maxi = i + p_fw.second;
           i++;
-          while (i < kmers.size() && bf.contains(reps[i]) && i < maxi)
+          while (i < kmers.size() && bf.contains(reps[i]) && i < maxi) {
             i++;
+	  }
           assert(jumpi == i);
           /*
           int32_t pos = cr_end.ref.idpos.pos;
