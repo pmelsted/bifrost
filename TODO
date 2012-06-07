@@ -3,8 +3,6 @@ Comment and add use/pre/post:
  hash.cpp
  KmerIntPair.cpp
  KmerIterator.cpp
- KmerMapper.cpp 
-
 
 Other:
 Run gProfile on 200MB file
