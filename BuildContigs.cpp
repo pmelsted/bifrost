@@ -227,6 +227,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   vector<Kmer> reps;
 
   cerr << "starting real work" << endl;
+  char ps[200];
 
   while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
     // discard N's
@@ -246,22 +247,28 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     size_t i = 0, maxi;
     while (i < kmers.size()) {
       
+      Contig *contig;
+      size_t jumpi;
       if (!bf.contains(reps[i])) { // kmer i is not in the graph
         i++; // jump over it
       } else {
         ContigRef cr = mapper.find(reps[i]);
 
         if (cr.isEmpty()) {
-          // ok, didn't find the k-mer, search for it
+          // The kmer does not map but the contig could although exist 
 
           pair<Kmer, size_t> p_fw,p_bw;
-          p_fw = find_contig_forward(bf,kmers[i],NULL);
+          p_fw = find_contig_forward(bf,kmers[i],NULL); 
           
           ContigRef cr_end = mapper.find(p_fw.first);
+
+          // Check whether we have made this contig or not
           if (cr_end.isEmpty()) {
+            // We have not made this contig, lets make it
             
             string seq, seq_fw(k,0), seq_bw(k,0);
-            // 
+            // Find the forward and backward limits of this contig
+            // according to the bloom filter
             p_fw = find_contig_forward(bf,kmers[i],&seq_fw);
             p_bw = find_contig_forward(bf,kmers[i].twin(),&seq_bw);
             ContigRef cr_tw_end = mapper.find(p_bw.first);
@@ -296,37 +303,61 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             if (!found.isEmpty()) {
               mapper.printContig(found.ref.idpos.id);
             }
-          } 
+            cr_end = mapper.find(p_fw.first);
 
-          // jump over contig
+          }
+
+          contig = mapper.getContig(cr_end).ref.contig;
+          // Though the kmer didn't map, we already made a contig with the same forward end
+          // Now we jump as far ahead as we can
+          int start = i;
+          bool reversed = p_fw.first != p_fw.first.rep();
+          jumpi = contig->seq.endJump(s, i, p_fw.second, cr_end.ref.idpos.pos, reversed); 
           maxi = i + p_fw.second;
           i++;
           while (i < kmers.size() && bf.contains(reps[i]) && i < maxi)
             i++;
+          assert(jumpi == i);
+          /*
+          int32_t pos = cr_end.ref.idpos.pos;
+          printf("posbefore=%d\n", pos);
+          pos = reversed ? -pos - Kmer::k + 1 : pos;
+          printf("posfater=%d\n", pos);
+          if (pos >= 0)
+            pos = pos - p_fw.second +1;
+          else 
+            pos = pos + p_fw.second -1;
+          size_t sjump = contig->seq.straightJump(s, start, pos);
+          if (sjump != jumpi) {
+            printf("sjump=%d\n", sjump);
+            sjump = contig->seq.straightJump(s, start, pos);
+            printf("jumpi=%d\n", jumpi);
+            assert(sjump == jumpi);
+          }
+          */
 
         } else {
-          // already found
-          // how much can we jump ahead?
-          Contig *contig = mapper.getContig(cr).ref.contig;
+          // The kmer maps to a contig, how much can we jump through it?
+          contig = mapper.getContig(cr).ref.contig;
           int32_t pos = cr.ref.idpos.pos;
           int32_t len = (int32_t) contig->seq.size();
+          bool reversed = kmers[i] != reps[i];
+          int start = i;
+          pos = reversed ? -pos - Kmer::k + 1 : pos;
+          jumpi = contig->seq.straightJump(s, i, pos);
           if (pos >= 0) {
             // kmer i is on forward strand
             assert(len-pos-k >= 0);
-            // i += len-pos-k + 1; // This should not be done
             maxi = i + len-pos-k + 1; 
-            i++;
-            while (i < kmers.size() && bf.contains(reps[i]) && i < maxi)
-              i++;
           } else {
             // kmer i is on reverse strand      
             assert(-pos >= k-1);
-            // i += 2 - (pos + k); // This should not be done
             maxi = i + 2 - (pos + k);
-            i++;
-            while (i < kmers.size() && bf.contains(reps[i]) && i < maxi)
-              i++;
           }
+          i++;
+          while (i < kmers.size() && bf.contains(reps[i]) && i < maxi)
+            i++;
+          assert(i == jumpi);
         }
       }     
     }

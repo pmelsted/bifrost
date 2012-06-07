@@ -22,7 +22,6 @@ public:
 
   size_t size() const { return _length; }
   Kmer getKmer(size_t offset) const;
-  CompressedSequence rev() const;
   string toString() const;
   void toString(char *s) const;
   void toString(char *s, size_t offset, size_t length) const;
@@ -35,6 +34,10 @@ public:
   void setSequence(const Kmer &km, size_t length, size_t offset = 0, bool reversed=false);
   
   void reserveLength(size_t new_length);
+
+  CompressedSequence rev() const;
+  size_t endJump(char *s, size_t i, size_t dist, int pos, bool reversed) const;
+  size_t straightJump(char *s, size_t i, int pos) const;
 
 private:
   size_t round_to_bytes(const size_t len) const { return (len+3)/4; }

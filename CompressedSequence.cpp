@@ -297,3 +297,63 @@ CompressedSequence CompressedSequence::rev() const {
 	r.setSequence(*this, 0, _length, 0, true);
 	return r;
 }
+
+size_t CompressedSequence::endJump(char *s, size_t i, size_t dist, int pos, bool reversed) const {
+  size_t a,b,idx;
+  i++;
+  if (pos >=0 != reversed) {
+    for (int index=_length-dist+1; index<_length; index++) {
+      if (s[i+Kmer::k-1] == 0) break;
+
+      a = index / 4;
+      b = index % 4;
+      idx = ((_data[a]) >> (2*b)) & 0x03;
+      if (idx == bits[s[i + Kmer::k-1]]){
+        i++;
+      } else  
+        break;
+    }
+  } else {
+    for (int index=dist-2; index>=0; index--) {
+      if (s[i+Kmer::k-1] == 0) break;
+
+      a = index / 4;
+      b = index % 4;
+      idx = ((_data[a]) >> (2*b)) & 0x03;
+      if (3-idx == bits[s[i + Kmer::k-1]]){
+        i++;
+      } else 
+        break;
+    }
+  }
+  return i;
+}
+
+size_t CompressedSequence::straightJump(char *s, size_t i, int pos) const {
+  size_t a,b,idx;
+  i++;
+  if (pos >=0) {
+    for(int index = pos+Kmer::k; index<_length; index++) {
+      if (s[i+Kmer::k-1] == 0) break;
+      a = index / 4;
+      b = index % 4;
+      idx = ((_data[a]) >> (2*b)) & 0x03;
+      if (idx == bits[s[i + Kmer::k-1]])
+        i++;
+      else
+        break;
+    }
+  } else {
+    for(int index = -pos-Kmer::k; index>=0; index--) {
+      if (s[i+Kmer::k-1] == 0) break;
+      a = index / 4;
+      b = index % 4;
+      idx = ((_data[a]) >> (2*b)) & 0x03;
+      if (3-idx == bits[s[i+Kmer::k-1]])
+        i++;
+      else
+        break;
+    }
+  }
+  return i;
+}
