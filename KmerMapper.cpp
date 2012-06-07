@@ -2,6 +2,10 @@
 #include <cmath>
 #include <iostream>
 
+
+// use:  delete m;
+// pre:  m is a pointer to a KmerMapper
+// post: the memory that this KmerMapper had allocated has been freed 
 KmerMapper::~KmerMapper() {
   vector<ContigRef>::iterator it,it_end;
   it_end = contigs.end();
@@ -13,10 +17,19 @@ KmerMapper::~KmerMapper() {
   }
 }
 
+
+// same as addContig(const char *s) but with string
 ContigRef KmerMapper::addContig(const string &s) {
   return addContig(s.c_str());
 }
 
+
+// use:  cr = mapper.addContig(s);
+// pre:  s is a string of 'A','C','G' and 'T's
+// post: a contig with s as string has been added to mapper
+//       the reps of the first and last kmer in this contig now map to this contig
+//       the reps of the kmers between the first and last that do not overlap each other
+//       also map to this contig
 ContigRef KmerMapper::addContig(const char *s) {
   // check that it doesn't map, our responsibility or not?
   ContigRef cr;
@@ -49,6 +62,11 @@ ContigRef KmerMapper::addContig(const char *s) {
   return cr;
 }
 
+
+// use:  cr = mapper.find(km);
+// pre:  
+// post: If the rep of kmer km maps to a contig, cr is the contigref that maps the rep
+//       to a contig, else cr is an empty contigref 
 ContigRef KmerMapper::find(const Kmer km) {
   Kmer rep = km.rep();
   iterator it = map.find(km.rep());
@@ -70,7 +88,6 @@ ContigRef KmerMapper::find(const Kmer km) {
 // post: r is a contigref that points to a newly created contig
 //       formed by joining a+b with proper direction, sequences
 //       pointed to by a and b have been forwarded to the new contig r
-
 ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   //join a to b
   a = find_rep(a);
@@ -117,6 +134,9 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
 }
 
 
+// use:  contig = mapper.getContig(_id);
+// pre:  
+// post: contig is the contig with id _id
 ContigRef KmerMapper::getContig(const size_t id) const {
   ContigRef a = contigs[id];
   if (!a.isContig) {
@@ -126,6 +146,10 @@ ContigRef KmerMapper::getContig(const size_t id) const {
   return a;
 }
 
+
+// use:  contig = mapper.getContig(cr);
+// pre:  
+// post: contig is the contig that cr maps to 
 ContigRef KmerMapper::getContig(const ContigRef ref) const {
   if (ref.isContig) {
     return ref;
@@ -134,6 +158,10 @@ ContigRef KmerMapper::getContig(const ContigRef ref) const {
   }
 }
 
+
+// use:  mapper.printContig(_id);
+// pre:  _id is in mapper.contigs
+// post: details about the contig whose id is _id has been printed to cout
 void KmerMapper::printContig(const size_t id) {
   if (id >= contigs.size()) {
     cerr << "invalid reference " << id << endl;
@@ -141,22 +169,22 @@ void KmerMapper::printContig(const size_t id) {
     ContigRef a = contigs[id];
     if (a.isContig) {
       string s = a.ref.contig->seq.toString();
-      //cout << "contig " << id << ": length "  << s.size() << endl << s << endl;
+      cout << "contig " << id << ": length "  << s.size() << endl;
       cout << s << endl;
-      //cout << "kmers mapping: " << endl;
+      cout << "kmers mapping: " << endl;
       const char *t = s.c_str();
       char tmp[Kmer::MAX_K+1];
       for (int i = 0; i < s.length()-Kmer::k+1; i++) {
-	Kmer km(t+i);
-	if (!find(km).isEmpty()) {
-	  km.rep().toString(tmp);
-	  ContigRef km_rep = find(km);
-	  //cout << string(i,' ') << tmp << " -> (" << km_rep.ref.idpos.id << ", " << km_rep.ref.idpos.pos << ")"  << endl;
-	}
+        Kmer km(t+i);
+        if (!find(km).isEmpty()) {
+          km.rep().toString(tmp);
+          ContigRef km_rep = find(km);
+          cout << string(i,' ') << tmp << " -> (" << km_rep.ref.idpos.id << ", " << km_rep.ref.idpos.pos << ")"  << endl;
+        }
       }
     } else {
       ContigRef rep = find_rep(a);
-      //cout << "-> (" << rep.ref.idpos.id << ", " << rep.ref.idpos.pos << ")" << endl;
+      cout << "-> (" << rep.ref.idpos.id << ", " << rep.ref.idpos.pos << ")" << endl;
     }
   }
 }
