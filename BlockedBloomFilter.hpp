@@ -3,6 +3,11 @@
 
 #include "BloomFilter.hpp"
 
+
+/* Short description: 
+ *  - Extended BloomFilter which hashes into 64-bit blocks
+ *    that can be accessed very fast from the CPU cache 
+ * */
 class BlockedBloomFilter : public BloomFilter {
 private:
   uint64_t blocks;

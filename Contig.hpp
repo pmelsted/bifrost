@@ -6,6 +6,9 @@
 #include "CompressedSequence.hpp"
 
 
+/* Short description: 
+ *  - Use the CompressedSequence class for storing the DNA string 
+ *  */
 class Contig {
 public:
   Contig() : cov(0) {}

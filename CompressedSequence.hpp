@@ -6,6 +6,15 @@
 #include <stdint.h>
 #include "Kmer.hpp"
 
+
+/* Short description: 
+ *  - Compress a DNA string by using 2 bits per base instead of 8 
+ *  - Easily get the DNA string back from the compressed format 
+ *  - Create a sequence from a kmer
+ *  - Get kmers from a sequence
+ *  - Get length of a sequence
+ *  - Easily get length of matching substring from a given string
+ * */
 class CompressedSequence {
 public: 
   CompressedSequence() : _length(0),_capacity(0),_data(0) {}

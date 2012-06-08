@@ -18,8 +18,13 @@
 void int2bin(uint32_t a, char *buffer, int buf_size);
 
 
-
-
+/* Short description: 
+ *  - Store kmer strings by using 2 bits per base instead of 8 
+ *  - Easily return reverse complements of kmers, e.g. TTGG -> CCAA
+ *  - Easily compare kmers
+ *  - Provide hash of kmers
+ *  - Get last and next kmer, e.g. ACGT -> CGTT or ACGT -> AACGT
+ *  */
 class Kmer {
  public:
 

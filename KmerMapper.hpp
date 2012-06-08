@@ -14,6 +14,13 @@ using google::sparse_hash_map;
 
 
 
+/* Short description: 
+ *  - A ContigRef can be:
+ *    1) An empty reference
+ *    2) A reference to a contig
+ *    3) A reference to position inside another ContigRef
+ *  - A chain of references always ends at a contig
+ *  */
 class ContigRef {
 public:
   ContigRef() : isContig(true) { ref.contig = NULL;}
@@ -30,6 +37,15 @@ public:
   bool isContig;
 };
 
+
+/* Short description: 
+ *  - Map kmers in a contig to ContigRefs
+ *  - Store which ContigRefs refer to Contigs
+ *  - Get contig at the end of a ContigRef chain
+ *  - Get a ContigRef that a kmer maps to
+ *  - Join contigs while maintaining right references
+ *  - Pretty print a reference map of a Contig
+ *  */
 class KmerMapper {
 public:
 typedef google::sparse_hash_map<Kmer, ContigRef, KmerHash> hmap_contig_t;

@@ -14,6 +14,14 @@ using namespace std;
 
 static const unsigned char mask[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
  
+
+/* Short description: 
+ *  - Use the very fast MurmurHash to hash keys into a Bloom Filter 
+ *  - Gain speed by using libdivide when not dividing by powers of 2
+ *  - Easily write a Bloom Filter to a file
+ *  - Easily read a Bloom Filter from a file
+ *  - Pretty print the false positive rate
+ * */
 class BloomFilter {
 protected:
   unsigned char* table_; // bit array

@@ -1,6 +1,6 @@
-#ifndef BFG_FILTER_READS
-#define BFG_FILTER_READS
+#ifndef BFG_COUNTBF_HPP
+#define BFG_COUNTBF_HPP
 
-void FilterReads(int argc, char** argv);
+void CountBF(int argc, char **argv);
 
-#endif // BFG_FILTER_READS
+#endif // BFG_COUNTBF_HPP
