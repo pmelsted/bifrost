@@ -2,14 +2,10 @@ Comment and add use/pre/post:
  fastq.cpp
  hash.cpp
  KmerIntPair.cpp
- KmerIterator.cpp
 
 Other:
-Run gProfile on 200MB file
-
-KmerMapper.cpp 
- - Add debug parameter?
+ - Run gProfile on 200MB file
 
 BuildContigs.cpp
- - Use string shortcut instead of bloom filter when jumping
+ - Use jump method in CompressedSequence when jumping over contigs
  - Add joinContigs when finished through reads

@@ -369,7 +369,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
       }     
     }
   }
-  
   cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size()<< endl;
   
 }
@@ -486,5 +485,3 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
   }
   return make_pair(end,dist);
 }
-
-

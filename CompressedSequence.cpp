@@ -2,6 +2,7 @@
 #include "Kmer.hpp"
 #include "CompressedSequence.hpp"
 
+
 static const char bases[256] = {
   'A','C','G','T','N','N','N','N',  'N','N','N','N','N','N','N','N', 
   'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N', 
@@ -83,9 +84,7 @@ CompressedSequence::CompressedSequence(const char *s) : _length(0),_capacity(0),
 }
 
 
-// use:  cs = CompressedSequence(s);
-// pre:  s has only the characters 'A','C','G' and 'T' and can have any length
-// post: the DNA string in cs is now the same as s
+// same as above except with a string not a char array 
 CompressedSequence::CompressedSequence(const string& s) : _length(0),_capacity(0),_data(0) {
   setSequence(s.c_str(), s.size());
 }
