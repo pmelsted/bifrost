@@ -4,9 +4,12 @@
 #include "KmerIterator.hpp"
 
 
+/* Note: That an iter is exhausted means that (iter._invalid == true) */
+
 // use:  ++iter;
 // pre:  
-// post: *iter is now NULL or the next pair of kmer and location
+// post: *iter is now exhausted
+//       OR *iter is the next valid pair of kmer and location
 KmerIterator& KmerIterator::operator++() {
   int pos_ = p_.second;
   if (!invalid_) {
