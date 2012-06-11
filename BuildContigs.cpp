@@ -324,7 +324,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           
           kmers[i].toString(kmrstr);
           contigstr = contig->seq.toString();
-          // Gera eitthvad vid pos her
           if (pos >= 0) {
             if (repequal) {
               if (casecount == 255) assert(goon); 
@@ -337,17 +336,19 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               if ((casecount & 2) == 0) 
                 printf("Case e2: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
               casecount |= 2;
+              cmppos = pos -1 + p_fw.second -1;
             }
           } else {
             if (repequal) {
               if (casecount == 255) assert(goon); 
               if ((casecount & 4) == 0) 
-              printf("Case e3: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
+                printf("Case e3: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
               casecount |= 4;
+              cmppos = p_fw.second - 2;
             } else {
               if (casecount == 255) assert(goon); 
               if ((casecount & 8) == 0) 
-              printf("Case e4: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
+                printf("Case e4: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
               casecount |= 8;
               cmppos = (-pos + 1 - k) - p_fw.second + 1 + k;
             }
@@ -391,7 +392,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               if ((casecount & 32) == 0) 
                 printf("Case 2: pos=%d contig= %s kmer= %s\n", pos, contigstr.c_str(), kmrstr);
               casecount |= 32;
-              maxi = i + len-pos-k + 1; // Is this right??? 
+              cmppos = pos -1;
+              maxi = i + pos +1; 
             }
           } else {
             assert(-pos >= k-1);
