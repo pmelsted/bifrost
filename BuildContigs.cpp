@@ -354,16 +354,12 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             }
           }
           maxi = i + p_fw.second;
-          if (cmppos >= 0) {
-            jumpi = 1 + i + contig->seq.jump(s, i+k, cmppos, reversed);
-          }
+          jumpi = 1 + i + contig->seq.jump(s, i+k, cmppos, reversed);
           i++;
           while (i < kmers.size() && bf.contains(reps[i]) && i < maxi) {
             i++;
           }
-          if (cmppos >= 0) {
-            assert(i == jumpi);
-          }
+          assert(i == jumpi);
 
         } else {
           // The kmer maps to a contig, how much can we jump through it?
@@ -377,7 +373,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
           kmers[i].toString(kmrstr);
           contigstr = contig->seq.toString();
-          // Gera eitthvad vid pos her
           if (pos >= 0) {
             assert(len-pos-k >= 0);
             if (repequal) {
@@ -414,16 +409,12 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             }
           }
           
-          if (cmppos >= 0) {
-            jumpi = 1 + i + contig->seq.jump(s, i + k, cmppos, reversed);
-          }
+          jumpi = 1 + i + contig->seq.jump(s, i + k, cmppos, reversed);
           i++;
           while (i < kmers.size() && bf.contains(reps[i]) && i < maxi) {
             i++;
           }
-          if (cmppos >= 0) {
-            assert(i == jumpi);
-          }
+          assert(i == jumpi);
         }
       }     
     }
