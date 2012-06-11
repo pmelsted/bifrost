@@ -319,18 +319,10 @@ size_t CompressedSequence::jump(const char *s, size_t i, size_t pos, bool revers
     b = index % 4;
     //idx = ((_data[a]) >> (2*j)) & 0x03;
     idx = ((_data[a]) >> (2*b)) & 0x03;
-    if (reversed) {
-      if (s[i+j] != bases[3-idx]) {
-        break;
-      }
-    } else {
-      if (s[i+j] != bases[idx]) {
-        break;
-      }
-    }
     //if ((!reversed && s[i+j] != bases[idx]) && (reversed && s[i+j] != bases[3-idx])) {
-    //  break;
-    //}
+    if ((!reversed && s[i+j] != bases[idx]) || (reversed && s[i+j] != bases[3-idx])) {
+      break;
+    }
   }
   return j;
 }
