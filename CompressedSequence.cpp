@@ -309,10 +309,10 @@ size_t CompressedSequence::jump(const char *s, size_t i, size_t pos, bool revers
   size_t j = 0;
   int dir = (reversed) ? -1 : 1;
   //size_t limit = (reversed) ? pos+1 : _length - pos; // index limit, lower or upper bound
-  size_t limit = (reversed) ? 0 : _length; // index limit, lower or upper bound
+  int limit = (reversed) ? -1 : _length; // index limit, lower or upper bound
   size_t a,b,idx;
   //for (size_t index = pos; s[i+j] != 0 && j != limit; index+= dir, j++) {
-  for (size_t index = pos; s[i+j] != 0 && index != limit; index+= dir, j++) {
+  for (int index = pos; s[i+j] != 0 && index != limit; index+= dir, j++) {
     assert(index >= 0);
     assert(index < _length);
     a = index / 4;

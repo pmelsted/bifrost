@@ -74,6 +74,8 @@ int main(int argc, char *argv[]) {
   assert(C3.jump(T.c_str(), 0, 0, false) == 2);
   T = "CCC";
   assert(C3.jump(T.c_str(), 0, 7, true) == 3);
+  T = "AAAA";
+  assert(C3.jump(T.c_str(), 0, 3, true) == 4);
   T = "NNNN";
   for (size_t m=0; m<8; m++) {
     for (size_t h=0; m<4; m++) {
@@ -81,6 +83,10 @@ int main(int argc, char *argv[]) {
       assert(C3.jump(T.c_str(), h, m, false) == 0);
     }
   }
+
+
+  CompressedSequence C4("ACGT");
+  
 
   cout << &argv[0][2] << " completed successfully" << endl;
   return 0;
