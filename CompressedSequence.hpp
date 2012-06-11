@@ -45,7 +45,7 @@ public:
   void reserveLength(size_t new_length);
 
   CompressedSequence rev() const;
-  size_t jump(const char *s, size_t i, size_t pos, bool reversed) const;
+  size_t jump(const char *s, size_t i, int pos, bool reversed) const;
 
 private:
   size_t round_to_bytes(const size_t len) const { return (len+3)/4; }
