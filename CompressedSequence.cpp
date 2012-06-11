@@ -305,7 +305,7 @@ CompressedSequence CompressedSequence::rev() const {
 size_t CompressedSequence::jump(const char *s, size_t i, size_t pos, bool reversed) const {
   assert(i>=0);
   assert(pos >= 0);
-  assert(pos < _length);
+  assert(pos <= _length);
   size_t j = 0;
   int dir = (reversed) ? -1 : 1;
   //size_t limit = (reversed) ? pos+1 : _length - pos; // index limit, lower or upper bound
