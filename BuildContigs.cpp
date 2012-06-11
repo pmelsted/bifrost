@@ -400,6 +400,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               if ((casecount & 64) == 0) 
                 printf("Case 3: pos=%d contig= %s kmer= %s\n", pos, contigstr.c_str(), kmrstr);
               casecount |= 64;
+              cmppos = -pos -k;
               maxi = i + 2 - (pos + k);
             } else {
               if (casecount == 255) assert(goon); 
