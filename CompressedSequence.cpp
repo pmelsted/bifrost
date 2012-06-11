@@ -308,16 +308,29 @@ size_t CompressedSequence::jump(const char *s, size_t i, size_t pos, bool revers
   assert(pos < _length);
   size_t j = 0;
   int dir = (reversed) ? -1 : 1;
-  size_t limit = (reversed) ? pos+1 : _length - pos; // index limit, lower or upper bound
+  //size_t limit = (reversed) ? pos+1 : _length - pos; // index limit, lower or upper bound
+  size_t limit = (reversed) ? 0 : _length; // index limit, lower or upper bound
   size_t a,b,idx;
-  for (size_t index = pos; s[i+j] != 0 && j != limit; index+= dir, j++) {
+  //for (size_t index = pos; s[i+j] != 0 && j != limit; index+= dir, j++) {
+  for (size_t index = pos; s[i+j] != 0 && index != limit; index+= dir, j++) {
     assert(index >= 0);
     assert(index < _length);
     a = index / 4;
     b = index % 4;
-    idx = ((_data[a]) >> (2*j)) & 0x03;
-    if ((!reversed && s[i+j] != bases[idx]) && (reversed && s[i+j] != bases[3-idx])) {
-      break;
+    //idx = ((_data[a]) >> (2*j)) & 0x03;
+    idx = ((_data[a]) >> (2*b)) & 0x03;
+    if (reversed) {
+      if (s[i+j] != bases[3-idx]) {
+        break;
+      }
+    } else {
+      if (s[i+j] != bases[idx]) {
+        break;
+      }
     }
+    //if ((!reversed && s[i+j] != bases[idx]) && (reversed && s[i+j] != bases[3-idx])) {
+    //  break;
+    //}
   }
+  return j;
 }

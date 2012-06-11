@@ -60,6 +60,28 @@ int main(int argc, char *argv[]) {
   km.toString(kmrstr);
   assert((string) kmrstr == (string) "CGGG");
 
+
+  string T = "TTTT";
+  assert(C3.jump(T.c_str(), 0, 0, false) == 4);
+  T = "TTCG";
+  assert(C3.jump(T.c_str(), 0, 2, false) == 4);
+  T = "ACCCG";
+  assert(C3.jump(T.c_str(), 1, 7, true) == 4);
+  T = string(10, 'A');
+  T.append("GAAA");
+  assert(C3.jump(T.c_str(), 10, 4, true) == 4);
+  T = "TT";
+  assert(C3.jump(T.c_str(), 0, 0, false) == 2);
+  T = "CCC";
+  assert(C3.jump(T.c_str(), 0, 7, true) == 3);
+  T = "NNNN";
+  for (size_t m=0; m<8; m++) {
+    for (size_t h=0; m<4; m++) {
+      assert(C3.jump(T.c_str(), h, m, true) == 0);
+      assert(C3.jump(T.c_str(), h, m, false) == 0);
+    }
+  }
+
   cout << &argv[0][2] << " completed successfully" << endl;
   return 0;
 }
