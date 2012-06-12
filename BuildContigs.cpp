@@ -20,6 +20,7 @@
 #include "HashTables.hpp"
 #include "fastq.hpp"
 #include "Kmer.hpp"
+#include "KmerIterator.hpp"
 #include "BloomFilter.hpp"
 #include "CompressedSequence.hpp"
 #include "KmerMapper.hpp"
@@ -225,25 +226,28 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   
   vector<Kmer> kmers;
   vector<Kmer> reps;
+  Kmer km, rep;
+  KmerIterator iter;
 
   cerr << "starting real work" << endl;
 
-  unsigned char casecount = 0;
-  char kmrstr[200];
-  string contigstr;
-  bool goon = true;
+  //unsigned char casecount = 0;
+  //char kmrstr[200];
+  //string contigstr;
+  //bool goon = true;
   Contig *contig;
   size_t i, maxi, jumpi;
-  int32_t cmppos;
+  int32_t len, pos, cmppos;
   bool repequal, reversed;
 
   while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
+    iter = KmerIterator(s);
     // TODO:  discard N's
     n_read++;
     kmers.clear();
     reps.clear();
 
-    Kmer km(s);
+    km = Kmer(s);
     for (i = 0; i <= len-k; i++) {
       if (i > 0 ) {
         km = km.forwardBase(s[i+k-1]);
@@ -255,7 +259,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     i = 0;
 
     while (i < kmers.size()) {
-      
+      km = iter->first;
       if (!bf.contains(reps[i])) { // kmer i is not in the graph
         i++; // jump over it
       } else {
@@ -316,14 +320,14 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 	  // cr_end is a contigRef pointing to the last position of the contig containing the kmer
 
           // Now we jump as far ahead as we can
-          int32_t pos = cr_end.ref.idpos.pos; // position of rep of end-kmer
+          pos = cr_end.ref.idpos.pos; // position of rep of end-kmer
           cmppos = -1; // position of next nucleotide after kmer to compare.
           contig = mapper.getContig(cr_end).ref.contig;
           repequal = (p_fw.first == p_fw.first.rep()); // is end-kmer rep?
           reversed = ((pos >= 0) != repequal); // is end-kmer is reverse direction of contig?
           
-          kmers[i].toString(kmrstr); //tmp
-          contigstr = contig->seq.toString(); //tmp
+          //kmers[i].toString(kmrstr); 
+          //contigstr = contig->seq.toString(); 
           if (pos >= 0) {
             if (repequal) {
               //if (casecount == 255) assert(goon); //tmp
@@ -366,8 +370,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         } else {
           // The kmer maps to a contig, how much can we jump through it?
           contig = mapper.getContig(cr).ref.contig;
-          int32_t pos = cr.ref.idpos.pos;
-          int32_t len = (int32_t) contig->seq.size();
+          pos = cr.ref.idpos.pos;
+          len = (int32_t) contig->seq.size();
           
           cmppos = -1;
           repequal = kmers[i] == reps[i];
@@ -419,6 +423,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           assert(i == jumpi);
         }
       }     
+      iter++;
     }
   }
   cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size()<< endl;
