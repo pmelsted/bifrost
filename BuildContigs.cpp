@@ -48,11 +48,11 @@ void BuildContigs_PrintUsage() {
   cerr << "Filters errors in fastq or fasta files and saves results" << endl << endl;
   cerr << "Usage: BFGraph contigs [options] ... FASTQ files";
   cerr << endl << endl <<
-    "-k, --kmer-size=INT             Size of k-mers, at most " << (int) (Kmer::MAX_K-1)<< endl << 
-    "-i, --input=STRING            Filtered reads" << endl <<
-    "-o, --output=STRING             Filename for output" << endl <<
-    "    --verbose                   Print lots of messages during run" << endl << endl
-    ;
+      "-k, --kmer-size=INT             Size of k-mers, at most " << (int) (Kmer::MAX_K-1)<< endl << 
+      "-i, --input=STRING            Filtered reads" << endl <<
+      "-o, --output=STRING             Filename for output" << endl <<
+      "    --verbose                   Print lots of messages during run" << endl << endl
+      ;
 }
 
 
@@ -64,13 +64,13 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
   int verbose_flag = 0;
   const char* opt_string = "k:o:i:";
   static struct option long_options[] =
-  {
-    {"verbose", no_argument,  &verbose_flag, 1},
-    {"kmer-size", required_argument, 0, 'k'},
-    {"input", required_argument, 0, 'i'},
-    {"output", required_argument, 0, 'o'},
-    {0,0,0,0}
-  };
+      {
+        {"verbose", no_argument,  &verbose_flag, 1},
+        {"kmer-size", required_argument, 0, 'k'},
+        {"input", required_argument, 0, 'i'},
+        {"output", required_argument, 0, 'o'},
+        {0,0,0,0}
+      };
 
   int option_index = 0;
   int c;
@@ -143,8 +143,8 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
     for(it = opt.files.begin(); it != opt.files.end(); ++it) {
       intStat = stat(it->c_str(), &stFileInfo);
       if (intStat != 0) {
-  cerr << "Error: file not found, " << *it << endl;
-  ret = false;
+	cerr << "Error: file not found, " << *it << endl;
+	ret = false;
       }
     }
   }
@@ -318,7 +318,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
           }
 	  // cr_end is a contigRef pointing to the last position of the contig containing the kmer
-
+	  
           // Now we jump as far ahead as we can
           pos = cr_end.ref.idpos.pos; // position of rep of end-kmer
           cmppos = -1; // position of next nucleotide after kmer to compare.

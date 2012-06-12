@@ -82,12 +82,12 @@ void KmerIterator::find_next(int i, int j, bool last_valid) {
         p_.first = p_.first.forwardBase(c);
         break; // default case, 
       } else {
-      if (i + Kmer::k - 1 == j) {
-        p_.first = Kmer(s_+i);
-        last_valid = true;
-        break; // create k-mer from scratch
-      } else {
-        ++j;
+	if (i + Kmer::k - 1 == j) {
+	  p_.first = Kmer(s_+i);
+	  last_valid = true;
+	  break; // create k-mer from scratch
+	} else {
+	  ++j;
         }
       }
     } else {
@@ -97,7 +97,7 @@ void KmerIterator::find_next(int i, int j, bool last_valid) {
     }
   }
   if (i+Kmer::k-1 == j && s_[j] != 0) {
-      p_.second = i;
+    p_.second = i;
   } else {
     invalid_ = true;
   }

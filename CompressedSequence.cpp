@@ -292,9 +292,9 @@ Kmer CompressedSequence::getKmer(size_t offset) const {
 //       i.e. if the DNA string in cs is 'GTCA'
 //          then the DNA string in _cs is 'TGAC'
 CompressedSequence CompressedSequence::rev() const {
-	CompressedSequence r;
-	r.setSequence(*this, 0, _length, 0, true);
-	return r;
+  CompressedSequence r;
+  r.setSequence(*this, 0, _length, 0, true);
+  return r;
 }
 
 
