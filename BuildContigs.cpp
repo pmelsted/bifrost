@@ -238,7 +238,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   bool repequal, reversed;
 
   while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
-    // discard N's
+    // TODO:  discard N's
     n_read++;
     kmers.clear();
     reps.clear();
@@ -313,46 +313,48 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             cr_end = mapper.find(p_fw.first);
 
           }
+	  // cr_end is a contigRef pointing to the last position of the contig containing the kmer
 
-          // Though the kmer didn't map, we already made a contig with the same forward end
           // Now we jump as far ahead as we can
-          int32_t pos = cr_end.ref.idpos.pos;
-          cmppos = -1;
+          int32_t pos = cr_end.ref.idpos.pos; // position of rep of end-kmer
+          cmppos = -1; // position of next nucleotide after kmer to compare.
           contig = mapper.getContig(cr_end).ref.contig;
-          repequal = p_fw.first == p_fw.first.rep();
-          reversed = (pos >= 0) != repequal;
+          repequal = (p_fw.first == p_fw.first.rep()); // is end-kmer rep?
+          reversed = ((pos >= 0) != repequal); // is end-kmer is reverse direction of contig?
           
-          kmers[i].toString(kmrstr);
-          contigstr = contig->seq.toString();
+          kmers[i].toString(kmrstr); //tmp
+          contigstr = contig->seq.toString(); //tmp
           if (pos >= 0) {
             if (repequal) {
-              if (casecount == 255) assert(goon); 
-              if ((casecount & 1) == 0) 
-                printf("Case e1: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
-              casecount |= 1;
+              //if (casecount == 255) assert(goon); //tmp
+              //if ((casecount & 1) == 0) 
+              //  printf("Case e1: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
+              //casecount |= 1;
               cmppos = pos - p_fw.second + 1 + k;
             } else {
-              if (casecount == 255) assert(goon); 
-              if ((casecount & 2) == 0) 
-                printf("Case e2: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
-              casecount |= 2;
+              //if (casecount == 255) assert(goon); 
+              //if ((casecount & 2) == 0) 
+              //  printf("Case e2: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
+              //casecount |= 2;
+	      assert(pos == 0);
               cmppos = pos -1 + p_fw.second -1;
             }
           } else {
             if (repequal) {
-              if (casecount == 255) assert(goon); 
-              if ((casecount & 4) == 0) 
-                printf("Case e3: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
-              casecount |= 4;
+              //if (casecount == 255) assert(goon); 
+              //if ((casecount & 4) == 0) 
+              //  printf("Case e3: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
+              //casecount |= 4;
               cmppos = p_fw.second - 2;
             } else {
-              if (casecount == 255) assert(goon); 
-              if ((casecount & 8) == 0) 
-                printf("Case e4: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
-              casecount |= 8;
+              //if (casecount == 255) assert(goon); 
+              //if ((casecount & 8) == 0) 
+              //  printf("Case e4: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
+              //casecount |= 8;
               cmppos = (-pos + 1 - k) - p_fw.second + 1 + k;
             }
           }
+
           maxi = i + p_fw.second;
           jumpi = 1 + i + contig->seq.jump(s, i+k, cmppos, reversed);
           i++;
@@ -371,39 +373,39 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           repequal = kmers[i] == reps[i];
           reversed = (pos >= 0) != repequal;
 
-          kmers[i].toString(kmrstr);
-          contigstr = contig->seq.toString();
+          //kmers[i].toString(kmrstr);
+          //contigstr = contig->seq.toString();
           if (pos >= 0) {
             assert(len-pos-k >= 0);
             if (repequal) {
-              if (casecount == 255) assert(goon); 
-              if ((casecount & 16) == 0) 
-                printf("Case 1: pos=%d contig= %s kmer= %s\n", pos, contigstr.c_str(), kmrstr);
-              casecount |= 16;
+              //if (casecount == 255) assert(goon); 
+              //if ((casecount & 16) == 0) 
+              //  printf("Case 1: pos=%d contig= %s kmer= %s\n", pos, contigstr.c_str(), kmrstr);
+              //casecount |= 16;
               cmppos = pos + k;
               maxi = i + len-pos-k + 1;
             } else {
-              if (casecount == 255) assert(goon); 
-              if ((casecount & 32) == 0) 
-                printf("Case 2: pos=%d contig= %s kmer= %s\n", pos, contigstr.c_str(), kmrstr);
-              casecount |= 32;
+              //if (casecount == 255) assert(goon); 
+              //if ((casecount & 32) == 0) 
+              //  printf("Case 2: pos=%d contig= %s kmer= %s\n", pos, contigstr.c_str(), kmrstr);
+              //casecount |= 32;
               cmppos = pos -1;
               maxi = i + pos +1; 
             }
           } else {
             assert(-pos >= k-1);
             if (repequal) {
-              if (casecount == 255) assert(goon); 
-              if ((casecount & 64) == 0) 
-                printf("Case 3: pos=%d contig= %s kmer= %s\n", pos, contigstr.c_str(), kmrstr);
-              casecount |= 64;
+              //if (casecount == 255) assert(goon); 
+              //if ((casecount & 64) == 0) 
+              //  printf("Case 3: pos=%d contig= %s kmer= %s\n", pos, contigstr.c_str(), kmrstr);
+              //casecount |= 64;
               cmppos = -pos -k;
               maxi = i + 2 - (pos + k);
             } else {
-              if (casecount == 255) assert(goon); 
-              if ((casecount & 128) == 0) 
-                printf("Case 4: pos=%d contig= %s kmer= %s\n", pos, contigstr.c_str(), kmrstr);
-              casecount |= 128;
+              //if (casecount == 255) assert(goon); 
+              //if ((casecount & 128) == 0) 
+              //  printf("Case 4: pos=%d contig= %s kmer= %s\n", pos, contigstr.c_str(), kmrstr);
+              //casecount |= 128;
               cmppos = -pos+1;
               maxi = i + len - cmppos + 1;
             }
