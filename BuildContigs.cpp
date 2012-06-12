@@ -317,7 +317,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             cr_end = mapper.find(p_fw.first);
 
           }
-	  // cr_end is a contigRef pointing to the last position of the contig containing the kmer
+          // cr_end is a contigRef pointing to the last position of the contig containing the kmer
 	  
           // Now we jump as far ahead as we can
           pos = cr_end.ref.idpos.pos; // position of rep of end-kmer
@@ -340,7 +340,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               //if ((casecount & 2) == 0) 
               //  printf("Case e2: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
               //casecount |= 2;
-	      assert(pos == 0);
+              assert(pos == 0);
               cmppos = pos -1 + p_fw.second -1;
             }
           } else {
