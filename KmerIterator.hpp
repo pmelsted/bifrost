@@ -18,6 +18,7 @@ public:
 
   KmerIterator& operator++();
   KmerIterator operator++(int);
+  void raise(Kmer &km, Kmer &rep);
 
   bool operator==(const KmerIterator& o);
   bool operator!=(const KmerIterator& o) { return !this->operator==(o);}

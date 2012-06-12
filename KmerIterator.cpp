@@ -66,6 +66,18 @@ std::pair<Kmer, int>* KmerIterator::operator->() {
 }
 
 
+// use:  iter.raise(km, rep);
+// pre: 
+// post: iter has been incremented by one
+//       if iter is not invalid, km is iter->first and rep is km.rep()
+void KmerIterator::raise(Kmer &km, Kmer &rep) {
+  operator++();
+  if (!invalid_) {
+    km = p_.first;
+    rep = km.rep();
+  }
+}
+
 // use:  find_next(i,j, last_valid); 
 // pre:  
 // post: *iter is either invalid or is a pair of:

@@ -216,7 +216,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
   size_t k  = Kmer::k;
   char name[8196],s[8196];
-  size_t name_len,len;
+  size_t name_len, len;
 
   uint64_t n_read = 0;
   uint64_t num_kmers = 0;  
@@ -224,52 +224,42 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
  
   FastqFile FQ(opt.files);
   
-  vector<Kmer> kmers;
-  vector<Kmer> reps;
   Kmer km, rep;
-  KmerIterator iter;
+  KmerIterator iter, iterend;
 
   cerr << "starting real work" << endl;
 
   //unsigned char casecount = 0;
-  //char kmrstr[200];
+  char kmrstr[200], kmrstr2[200];
   //string contigstr;
   //bool goon = true;
   Contig *contig;
   size_t i, maxi, jumpi;
-  int32_t len, pos, cmppos;
+  int32_t contiglen, pos, cmppos;
   bool repequal, reversed;
 
   while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
     iter = KmerIterator(s);
-    // TODO:  discard N's
     n_read++;
-    kmers.clear();
-    reps.clear();
-
-    km = Kmer(s);
-    for (i = 0; i <= len-k; i++) {
-      if (i > 0 ) {
-        km = km.forwardBase(s[i+k-1]);
-      }
-      kmers.push_back(km);
-      reps.push_back(km.rep());
-    }
-    
     i = 0;
 
-    while (i < kmers.size()) {
+    if (iter != iterend) {
       km = iter->first;
-      if (!bf.contains(reps[i])) { // kmer i is not in the graph
+      rep = km.rep();
+    }
+
+    while (iter != iterend) {
+      if (!bf.contains(rep)) { // kmer i is not in the graph
         i++; // jump over it
+        iter.raise(km, rep);
       } else {
-        ContigRef cr = mapper.find(reps[i]);
+        ContigRef cr = mapper.find(rep);
 
         if (cr.isEmpty()) {
           // The kmer does not map but the contig could although exist 
 
           pair<Kmer, size_t> p_fw,p_bw;
-          p_fw = find_contig_forward(bf,kmers[i],NULL); 
+          p_fw = find_contig_forward(bf, km ,NULL); 
           
           ContigRef cr_end = mapper.find(p_fw.first);
 
@@ -280,8 +270,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             string seq, seq_fw(k,0), seq_bw(k,0);
             // Find the forward and backward limits of this contig
             // according to the bloom filter
-            p_fw = find_contig_forward(bf,kmers[i],&seq_fw);
-            p_bw = find_contig_forward(bf,kmers[i].twin(),&seq_bw);
+            p_fw = find_contig_forward(bf, km, &seq_fw);
+            p_bw = find_contig_forward(bf, km.twin(), &seq_bw);
             ContigRef cr_tw_end = mapper.find(p_bw.first);
             assert(cr_tw_end.isEmpty());
 
@@ -326,104 +316,73 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           repequal = (p_fw.first == p_fw.first.rep()); // is end-kmer rep?
           reversed = ((pos >= 0) != repequal); // is end-kmer is reverse direction of contig?
           
-          //kmers[i].toString(kmrstr); 
-          //contigstr = contig->seq.toString(); 
           if (pos >= 0) {
             if (repequal) {
-              //if (casecount == 255) assert(goon); //tmp
-              //if ((casecount & 1) == 0) 
-              //  printf("Case e1: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
-              //casecount |= 1;
               cmppos = pos - p_fw.second + 1 + k;
             } else {
-              //if (casecount == 255) assert(goon); 
-              //if ((casecount & 2) == 0) 
-              //  printf("Case e2: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
-              //casecount |= 2;
               assert(pos == 0);
               cmppos = pos -1 + p_fw.second -1;
             }
           } else {
             if (repequal) {
-              //if (casecount == 255) assert(goon); 
-              //if ((casecount & 4) == 0) 
-              //  printf("Case e3: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
-              //casecount |= 4;
               cmppos = p_fw.second - 2;
             } else {
-              //if (casecount == 255) assert(goon); 
-              //if ((casecount & 8) == 0) 
-              //  printf("Case e4: pos=%d dist=%d contig= %s kmer= %s\n", pos, p_fw.second, contigstr.c_str(), kmrstr);
-              //casecount |= 8;
               cmppos = (-pos + 1 - k) - p_fw.second + 1 + k;
             }
           }
 
-          maxi = i + p_fw.second;
+          //maxi = i + p_fw.second;
           jumpi = 1 + i + contig->seq.jump(s, i+k, cmppos, reversed);
           i++;
-          while (i < kmers.size() && bf.contains(reps[i]) && i < maxi) {
+          iter.raise(km, rep);
+          //while (iter != iterend && bf.contains(rep) && i < maxi) {
+          while (iter != iterend && i < jumpi) {
             i++;
+            iter.raise(km, rep);
           }
-          assert(i == jumpi);
+          //assert(i == jumpi);
 
         } else {
           // The kmer maps to a contig, how much can we jump through it?
           contig = mapper.getContig(cr).ref.contig;
           pos = cr.ref.idpos.pos;
-          len = (int32_t) contig->seq.size();
+          contiglen = (int32_t) contig->seq.size();
           
           cmppos = -1;
-          repequal = kmers[i] == reps[i];
+          repequal = km == rep;
           reversed = (pos >= 0) != repequal;
 
-          //kmers[i].toString(kmrstr);
-          //contigstr = contig->seq.toString();
           if (pos >= 0) {
-            assert(len-pos-k >= 0);
+            assert(contiglen-pos-k >= 0);
             if (repequal) {
-              //if (casecount == 255) assert(goon); 
-              //if ((casecount & 16) == 0) 
-              //  printf("Case 1: pos=%d contig= %s kmer= %s\n", pos, contigstr.c_str(), kmrstr);
-              //casecount |= 16;
               cmppos = pos + k;
-              maxi = i + len-pos-k + 1;
+              //maxi = i + contiglen-pos-k + 1;
             } else {
-              //if (casecount == 255) assert(goon); 
-              //if ((casecount & 32) == 0) 
-              //  printf("Case 2: pos=%d contig= %s kmer= %s\n", pos, contigstr.c_str(), kmrstr);
-              //casecount |= 32;
               cmppos = pos -1;
-              maxi = i + pos +1; 
+              //maxi = i + pos +1; 
             }
           } else {
             assert(-pos >= k-1);
             if (repequal) {
-              //if (casecount == 255) assert(goon); 
-              //if ((casecount & 64) == 0) 
-              //  printf("Case 3: pos=%d contig= %s kmer= %s\n", pos, contigstr.c_str(), kmrstr);
-              //casecount |= 64;
               cmppos = -pos -k;
-              maxi = i + 2 - (pos + k);
+              //maxi = i + 2 - (pos + k);
             } else {
-              //if (casecount == 255) assert(goon); 
-              //if ((casecount & 128) == 0) 
-              //  printf("Case 4: pos=%d contig= %s kmer= %s\n", pos, contigstr.c_str(), kmrstr);
-              //casecount |= 128;
               cmppos = -pos+1;
-              maxi = i + len - cmppos + 1;
+              //maxi = i + contiglen - cmppos + 1;
             }
           }
           
           jumpi = 1 + i + contig->seq.jump(s, i + k, cmppos, reversed);
           i++;
-          while (i < kmers.size() && bf.contains(reps[i]) && i < maxi) {
+          iter.raise(km, rep);
+          //while (iter != iterend && bf.contains(rep) && i < maxi) {
+          while (iter != iterend && i < jumpi) {
             i++;
+            iter.raise(km, rep);
           }
-          assert(i == jumpi);
+          //assert(i == jumpi);
         }
       }     
-      iter++;
     }
   }
   cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size()<< endl;
