@@ -28,6 +28,7 @@
 
 
 pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s);
+ContigRef kmer_maps_to_contig(BloomFilter &bf, Kmer km, KmerMapper &mapper);
 
 struct BuildContigs_ProgramOptions {
   size_t k;
@@ -229,12 +230,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
   cerr << "starting real work" << endl;
 
-  //unsigned char casecount = 0;
-  char kmrstr[200], kmrstr2[200];
-  //string contigstr;
-  //bool goon = true;
   Contig *contig;
-  size_t i, maxi, jumpi;
+  size_t i, jumpi;
   int32_t contiglen, pos, cmppos;
   bool repequal, reversed;
 
@@ -257,9 +254,10 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
         if (cr.isEmpty()) {
           // The kmer does not map but the contig could although exist 
+          assert(kmer_maps_to_contig(bf, km, mapper).isEmpty());
 
           pair<Kmer, size_t> p_fw,p_bw;
-          p_fw = find_contig_forward(bf, km ,NULL); 
+          p_fw = find_contig_forward(bf, km, NULL); 
           
           ContigRef cr_end = mapper.find(p_fw.first);
 
@@ -343,6 +341,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           //assert(i == jumpi);
 
         } else {
+          assert(!kmer_maps_to_contig(bf, km, mapper).isEmpty());
           // The kmer maps to a contig, how much can we jump through it?
           contig = mapper.getContig(cr).ref.contig;
           pos = cr.ref.idpos.pos;
@@ -423,6 +422,60 @@ void BuildContigs(int argc, char** argv) {
 }
 
 
+static const char alpha[4] = {'A','C','G','T'};
+
+ContigRef kmer_maps_to_contig(BloomFilter &bf, Kmer km, KmerMapper &mapper) {
+  size_t dist = 1;
+  Kmer fw, bw, end = km;
+  ContigRef cr = mapper.find(km);
+  if (!cr.isEmpty()) {
+    return cr;
+  }
+  while (dist < Kmer::k) {
+    size_t fw_count = 0;
+    int j = -1;
+    for (int i = 0; i < 4; i++) {
+      Kmer fw_rep = end.forwardBase(alpha[i]).rep();
+      if (bf.contains(fw_rep)) {
+        j = i;
+        fw_count++;
+        if (fw_count > 1) {
+          break;
+        }
+      }
+    }
+
+    if (fw_count != 1) {
+      break;
+    }
+
+    
+    fw = end.forwardBase(alpha[j]);
+
+    size_t bw_count = 0;
+    for (int i = 0; i < 4; i++) {
+      Kmer bw_rep = fw.backwardBase(alpha[i]).rep();
+      if (bf.contains(bw_rep)) {
+        bw_count++;
+        if (bw_count > 1) {
+          break;
+        }
+      }
+    }
+
+    assert(bw_count >= 1);
+    if (bw_count != 1) {
+      break;
+    }
+    dist++;
+    cr = mapper.find(km);
+    if (!cr.isEmpty()) {
+      return cr; 
+    }
+  }
+  return cr;
+}
+
 // use:  (end,dist) = find_contig_forward(bf,km,s);
 // pre:  
 // post: km is contained in a contig c with respect to the
@@ -445,7 +498,6 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
   size_t dist = 1;
 
   Kmer fw,bw;
-  const char alpha[4] = {'A','C','G','T'};
 
   while (true) {
     assert(bf.contains(end.rep()));
