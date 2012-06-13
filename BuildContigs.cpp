@@ -254,7 +254,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
         if (cr.isEmpty()) {
           // The kmer does not map but the contig could although exist 
-          assert(kmer_maps_to_contig(bf, km, mapper).isEmpty());
 
           pair<Kmer, size_t> p_fw,p_bw;
           p_fw = find_contig_forward(bf, km, NULL); 
@@ -263,6 +262,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
           // Check whether we have made this contig or not
           if (cr_end.isEmpty()) {
+            assert(kmer_maps_to_contig(bf, km, mapper).isEmpty());
             // We have not made this contig, lets make it
             
             string seq, seq_fw(k,0), seq_bw(k,0);
@@ -303,8 +303,10 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               mapper.printContig(found.ref.idpos.id);
             }
             cr_end = mapper.find(p_fw.first);
-
           }
+
+          assert(!kmer_maps_to_contig(bf, km, mapper).isEmpty());
+
           // cr_end is a contigRef pointing to the last position of the contig containing the kmer
 	  
           // Now we jump as far ahead as we can
@@ -425,13 +427,13 @@ void BuildContigs(int argc, char** argv) {
 static const char alpha[4] = {'A','C','G','T'};
 
 ContigRef kmer_maps_to_contig(BloomFilter &bf, Kmer km, KmerMapper &mapper) {
-  size_t dist = 1;
-  Kmer fw, bw, end = km;
   ContigRef cr = mapper.find(km);
   if (!cr.isEmpty()) {
     return cr;
   }
-  while (dist < Kmer::k) {
+  size_t dist = 1;
+  Kmer fw, bw, end = km;
+  while (dist <= Kmer::k) {
     size_t fw_count = 0;
     int j = -1;
     for (int i = 0; i < 4; i++) {
@@ -449,7 +451,6 @@ ContigRef kmer_maps_to_contig(BloomFilter &bf, Kmer km, KmerMapper &mapper) {
       break;
     }
 
-    
     fw = end.forwardBase(alpha[j]);
 
     size_t bw_count = 0;
@@ -467,8 +468,9 @@ ContigRef kmer_maps_to_contig(BloomFilter &bf, Kmer km, KmerMapper &mapper) {
     if (bw_count != 1) {
       break;
     }
+    end = fw;
     dist++;
-    cr = mapper.find(km);
+    cr = mapper.find(end);
     if (!cr.isEmpty()) {
       return cr; 
     }

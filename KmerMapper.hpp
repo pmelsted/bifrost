@@ -27,7 +27,7 @@ public:
   ContigRef(uint32_t id, int32_t pos) : isContig(false) {ref.idpos.id=id; ref.idpos.pos = pos;}
   bool isEmpty() { return (isContig && ref.contig == NULL);}
   
-  union ContigRefUnion_t{
+  union ContigRefUnion_t {
     struct ContigRefProper_t {
       uint32_t id; // maps to ContigArray, managed by Mapper class
       int32_t pos; // negative is reverse

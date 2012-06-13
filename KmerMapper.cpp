@@ -68,7 +68,6 @@ ContigRef KmerMapper::addContig(const char *s) {
 // post: If the rep of kmer km maps to a contig, cr is the contigref that maps the rep
 //       to a contig, else cr is an empty contigref 
 ContigRef KmerMapper::find(const Kmer km) {
-  Kmer rep = km.rep();
   iterator it = map.find(km.rep());
   if (it == map.end()) {
     return ContigRef();
