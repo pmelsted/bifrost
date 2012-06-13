@@ -168,9 +168,9 @@ void KmerMapper::printContig(const size_t id) {
     ContigRef a = contigs[id];
     if (a.isContig) {
       string s = a.ref.contig->seq.toString();
-      cout << "contig " << id << ": length "  << s.size() << endl;
+      //cout << "contig " << id << ": length "  << s.size() << endl;
       cout << s << endl;
-      cout << "kmers mapping: " << endl;
+      //cout << "kmers mapping: " << endl;
       const char *t = s.c_str();
       char tmp[Kmer::MAX_K+1];
       for (int i = 0; i < s.length()-Kmer::k+1; i++) {
@@ -178,12 +178,12 @@ void KmerMapper::printContig(const size_t id) {
         if (!find(km).isEmpty()) {
           km.rep().toString(tmp);
           ContigRef km_rep = find(km);
-          cout << string(i,' ') << tmp << " -> (" << km_rep.ref.idpos.id << ", " << km_rep.ref.idpos.pos << ")"  << endl;
+          //cout << string(i,' ') << tmp << " -> (" << km_rep.ref.idpos.id << ", " << km_rep.ref.idpos.pos << ")"  << endl;
         }
       }
     } else {
       ContigRef rep = find_rep(a);
-      cout << "-> (" << rep.ref.idpos.id << ", " << rep.ref.idpos.pos << ")" << endl;
+      //cout << "-> (" << rep.ref.idpos.id << ", " << rep.ref.idpos.pos << ")" << endl;
     }
   }
 }

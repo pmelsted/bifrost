@@ -17,6 +17,8 @@
 
 #include "Common.hpp"
 
+#include "boost/tuple/tuple.hpp"
+
 #include "HashTables.hpp"
 #include "fastq.hpp"
 #include "Kmer.hpp"
@@ -26,9 +28,10 @@
 #include "KmerMapper.hpp"
 #include "Contig.hpp"
 
+using boost::tuples::tie;
 
 pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s);
-ContigRef kmer_maps_to_contig(BloomFilter &bf, Kmer km, KmerMapper &mapper);
+pair<ContigRef, int> check_contig(BloomFilter &bf, Kmer km, KmerMapper &mapper);
 
 struct BuildContigs_ProgramOptions {
   size_t k;
@@ -234,6 +237,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   size_t i, jumpi;
   int32_t contiglen, pos, cmppos;
   bool repequal, reversed;
+  ContigRef mapcr;
+  int dist;
 
   while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
     iter = KmerIterator(s);
@@ -262,7 +267,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
           // Check whether we have made this contig or not
           if (cr_end.isEmpty()) {
-            assert(kmer_maps_to_contig(bf, km, mapper).isEmpty());
+            tie(mapcr, dist) = check_contig(bf, km, mapper);
+            assert(mapcr.isEmpty());
             // We have not made this contig, lets make it
             
             string seq, seq_fw(k,0), seq_bw(k,0);
@@ -305,7 +311,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             cr_end = mapper.find(p_fw.first);
           }
 
-          assert(!kmer_maps_to_contig(bf, km, mapper).isEmpty());
+          tie(mapcr, dist) = check_contig(bf, km, mapper);
+          assert(!mapcr.isEmpty());
 
           // cr_end is a contigRef pointing to the last position of the contig containing the kmer
 	  
@@ -343,7 +350,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           //assert(i == jumpi);
 
         } else {
-          assert(!kmer_maps_to_contig(bf, km, mapper).isEmpty());
+          tie(mapcr, dist) = check_contig(bf, km, mapper);
+          assert(!mapcr.isEmpty());
           // The kmer maps to a contig, how much can we jump through it?
           contig = mapper.getContig(cr).ref.contig;
           pos = cr.ref.idpos.pos;
@@ -426,18 +434,27 @@ void BuildContigs(int argc, char** argv) {
 
 static const char alpha[4] = {'A','C','G','T'};
 
-ContigRef kmer_maps_to_contig(BloomFilter &bf, Kmer km, KmerMapper &mapper) {
+// use:  tie(cr, dist) = check_contig_(bf,km,mapper);
+// pre:  
+// post: if km does not map to a contig: cr.isEmpty() == true and dist == 0
+//       else: km is in a contig which cr maps to and |i| is the distance 
+//             from km to the mapping location 
+//             i > 0:  km has the same direction as the contig
+//             i < 0:  km has the opposite direction to the contig
+//             i == 0: direction unknown
+pair<ContigRef, int> check_contig(BloomFilter &bf, Kmer km, KmerMapper &mapper) {
   ContigRef cr = mapper.find(km);
   if (!cr.isEmpty()) {
-    return cr;
+    return make_pair(cr, 0); 
   }
-  size_t dist = 1;
-  Kmer fw, bw, end = km;
-  while (dist <= Kmer::k) {
+  int dist = 1;
+  bool found = false;
+  Kmer bw, bw_rep, fw, fw_rep, end = km;
+  while (dist < mapper.stride) {
     size_t fw_count = 0;
     int j = -1;
     for (int i = 0; i < 4; i++) {
-      Kmer fw_rep = end.forwardBase(alpha[i]).rep();
+      fw_rep = end.forwardBase(alpha[i]).rep();
       if (bf.contains(fw_rep)) {
         j = i;
         fw_count++;
@@ -455,7 +472,7 @@ ContigRef kmer_maps_to_contig(BloomFilter &bf, Kmer km, KmerMapper &mapper) {
 
     size_t bw_count = 0;
     for (int i = 0; i < 4; i++) {
-      Kmer bw_rep = fw.backwardBase(alpha[i]).rep();
+      bw_rep = fw.backwardBase(alpha[i]).rep();
       if (bf.contains(bw_rep)) {
         bw_count++;
         if (bw_count > 1) {
@@ -468,14 +485,19 @@ ContigRef kmer_maps_to_contig(BloomFilter &bf, Kmer km, KmerMapper &mapper) {
     if (bw_count != 1) {
       break;
     }
+    cr = mapper.find(fw);
     end = fw;
-    dist++;
-    cr = mapper.find(end);
     if (!cr.isEmpty()) {
-      return cr; 
+      found = true;
+      break;
     }
+    dist++;
   }
-  return cr;
+  if (found) {
+    return make_pair(cr, end == end.rep() ? dist : -dist); 
+  } else {
+    return make_pair(ContigRef(), 0);
+  }
 }
 
 // use:  (end,dist) = find_contig_forward(bf,km,s);
