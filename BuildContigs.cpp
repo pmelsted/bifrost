@@ -1,38 +1,37 @@
-#include <iostream>
-#include <cstdlib>
-#include <ctime>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
-#include <utility>
-
-#include <sstream>
-#include <vector>
-#include <string>
-
-#include <stdint.h>
-#include <sys/stat.h>
+#include <ctime>
 #include <functional>
-
 #include <getopt.h>
-
-#include "Common.hpp"
+#include <iostream>
+#include <sstream>
+#include <stdint.h>
+#include <string>
+#include <sys/stat.h>
+#include <utility>
+#include <vector>
 
 #include "boost/tuple/tuple.hpp"
 
+#include "BloomFilter.hpp"
+#include "Common.hpp"
+#include "CompressedSequence.hpp"
+#include "Contig.hpp"
 #include "HashTables.hpp"
-#include "fastq.hpp"
 #include "Kmer.hpp"
 #include "KmerIterator.hpp"
-#include "BloomFilter.hpp"
-#include "CompressedSequence.hpp"
 #include "KmerMapper.hpp"
-#include "Contig.hpp"
+#include "fastq.hpp"
 
 using boost::tuples::tie;
 
 pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s);
 pair<ContigRef, pair<size_t, bool> > check_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
 string make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
+
+static const char alpha[4] = {'A','C','G','T'};
+static const char beta[4] = {'T','G','A','C'}; // c -> beta[(c & 7) >> 1] maps: 'A' <-> 'T', 'C' <-> 'G'
 
 struct BuildContigs_ProgramOptions {
   size_t k;
@@ -105,7 +104,7 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
   }
 
   // all other arguments are fast[a/q] files to be read
-  for (int i = optind; i < argc; i++) {
+  for (int i = optind; i < argc; ++i) {
     opt.files.push_back(argv[i]);
   }
   
@@ -216,33 +215,24 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     f = NULL;
   }
 
-  KmerMapper mapper(opt.contig_size);
-
-  size_t k  = Kmer::k;
-  char name[8196],s[8196];
-  size_t name_len, len;
-
-  uint64_t n_read = 0;
-  uint64_t num_kmers = 0;  
-  uint64_t num_ins = 0;
- 
-  FastqFile FQ(opt.files);
-  
   Kmer km, rep;
+  KmerMapper mapper(opt.contig_size);
   KmerIterator iter, iterend;
-
-  cerr << "starting real work" << endl;
-
+  FastqFile FQ(opt.files);
   Contig *contig;
-  bool repequal, reversed;
-  size_t i, id, jumpi, dist;
-  int32_t pos, cmppos;
-  pair<size_t, bool> disteq;
   ContigRef mapcr;
 
+  bool repequal, reversed;
+  char name[8192], s[8192];
+  size_t i, id, jumpi, dist, name_len, len, k = Kmer::k;
+  int32_t pos, cmppos;
+  uint64_t n_read = 0, num_kmers = 0, num_ins = 0;
+  pair<size_t, bool> disteq;
+
+  cerr << "starting real work" << endl;
   while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
     iter = KmerIterator(s);
-    n_read++;
+    ++n_read;
     i = 0;
 
     if (iter != iterend) {
@@ -252,7 +242,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
     while (iter != iterend) {
       if (!bf.contains(rep)) { // kmer i is not in the graph
-        i++; // jump over it
+        ++i; // jump over it
         iter.raise(km, rep);
       } else {
         tie(mapcr, disteq) = check_contig(bf, mapper, km);
@@ -287,11 +277,11 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         }
         reversed = (pos >= 0) != repequal;
         jumpi = 1 + i + contig->seq.jump(s, i + k, cmppos, reversed);
-        i++;
+        ++i;
         iter.raise(km, rep);
 
         while (iter != iterend && i < jumpi) {
-          i++;
+          ++i;
           iter.raise(km, rep);
         }
       }     
@@ -334,7 +324,6 @@ void BuildContigs(int argc, char** argv) {
 }
 
 
-static const char alpha[4] = {'A','C','G','T'};
 
 // use:  (cr, (dist, eq)) = check_contig_(bf,km,mapper);
 // pre:  
@@ -355,11 +344,11 @@ pair<ContigRef, pair<size_t, bool> > check_contig(BloomFilter &bf, KmerMapper &m
   while (dist < mapper.stride) {
     fw_count = 0;
     j = -1;
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 4; ++i) {
       fw_rep = end.forwardBase(alpha[i]).rep();
       if (bf.contains(fw_rep)) {
         j = i;
-        fw_count++;
+        ++fw_count;
         if (fw_count > 1) {
           break;
         }
@@ -373,10 +362,10 @@ pair<ContigRef, pair<size_t, bool> > check_contig(BloomFilter &bf, KmerMapper &m
     fw = end.forwardBase(alpha[j]);
 
     bw_count = 0;
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 4; ++i) {
       bw_rep = fw.backwardBase(alpha[i]).rep();
       if (bf.contains(bw_rep)) {
-        bw_count++;
+        ++bw_count;
         if (bw_count > 1) {
           break;
         }
@@ -393,7 +382,7 @@ pair<ContigRef, pair<size_t, bool> > check_contig(BloomFilter &bf, KmerMapper &m
       found = true;
       break;
     }
-    dist++;
+    ++dist;
   }
   if (found) {
     return make_pair(cr, make_pair(dist, end == end.rep())); 
@@ -407,27 +396,19 @@ pair<ContigRef, pair<size_t, bool> > check_contig(BloomFilter &bf, KmerMapper &m
 // post: Finds the forward and backward limits of the contig
 //       which contains km  according to the bloom filter bf and puts it into seq
 string make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
+  char c, cc;
   size_t k  = Kmer::k;
   string seq, seq_fw(k, 0), seq_bw(k, 0);
   pair<Kmer, size_t> p_fw = find_contig_forward(bf, km, &seq_fw);
   pair<Kmer, size_t> p_bw = find_contig_forward(bf, km.twin(), &seq_bw);
   ContigRef cr_tw_end = mapper.find(p_bw.first);
   assert(cr_tw_end.isEmpty());
-  char c, cc;
 
   if (p_bw.second > 1) {
     seq.reserve(seq_bw.size() + seq_fw.size() - k);
     // copy reverse part of seq_bw not including k
-    for (int j = seq_bw.size()-1; j>=k; j--) {
-      c = seq_bw[j];
-      cc = 'N';
-      switch (c) {
-        case 'A': cc = 'T'; break;
-        case 'C': cc = 'G'; break;
-        case 'G': cc = 'C'; break;
-        case 'T': cc = 'A'; break;
-      }
-      seq.push_back(cc);
+    for (int j = seq_bw.size() - 1; j >= k; --j) {
+      seq.push_back(beta[(seq_bw[j] & 7) >> 1]);
     }
     // append seq_fw
     seq += seq_fw;
@@ -444,31 +425,30 @@ string make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
 //       and c contains dist kmers until the end (including km)
 //       if s is not NULL the sequence of the contig is stored in s
 pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
-  //TODO: add string return option
-  assert(bf.contains(km.rep()));
+  int i, j;
+  size_t fw_count, bw_count, dist = 1;
   vector<char> v;
+
+  Kmer bw, bw_rep, fw, fw_rep, end = km;
+
+  assert(bf.contains(km.rep()));
   if (s != NULL) {
     char t[Kmer::MAX_K+1];
     km.toString(t);
-    for (int i = 0; i < Kmer::k; i++) {
+    for (i = 0; i < Kmer::k; ++i) {
       v.push_back(t[i]);
     }
   }
-  Kmer end = km;
   
-  size_t dist = 1;
-
-  Kmer fw,bw;
-
   while (true) {
     assert(bf.contains(end.rep()));
-    size_t fw_count = 0;
-    int j = -1;
-    for (int i = 0; i < 4; i++) {
-      Kmer fw_rep = end.forwardBase(alpha[i]).rep();
+    fw_count = 0;
+    j = -1;
+    for (i = 0; i < 4; ++i) {
+      fw_rep = end.forwardBase(alpha[i]).rep();
       if (bf.contains(fw_rep)) {
         j = i;
-        fw_count++;
+        ++fw_count;
         if (fw_count > 1) {
           break;
         }
@@ -483,11 +463,11 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
     assert(0 <= j && j < 4);
     assert(bf.contains(fw.rep()));
 
-    size_t bw_count = 0;
-    for (int i = 0; i < 4; i++) {
-      Kmer bw_rep = fw.backwardBase(alpha[i]).rep();
+    bw_count = 0;
+    for (i = 0; i < 4; ++i) {
+      bw_rep = fw.backwardBase(alpha[i]).rep();
       if (bf.contains(bw_rep)) {
-        bw_count++;
+        ++bw_count;
         if (bw_count > 1) {
           break;
         }
@@ -499,9 +479,8 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
       break;
     }
     
-    
     end = fw;
-    dist++;
+    ++dist;
     if (s != NULL) {
       v.push_back(alpha[j]);
     }
@@ -510,7 +489,7 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
   if (s != NULL) {
     s->clear();
     s->reserve(v.size());
-    s->insert(s->begin(),v.begin(),v.end());
+    s->insert(s->begin(), v.begin(), v.end());
   }
-  return make_pair(end,dist);
+  return make_pair(end, dist);
 }
