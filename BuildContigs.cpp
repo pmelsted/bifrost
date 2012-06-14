@@ -31,7 +31,8 @@
 using boost::tuples::tie;
 
 pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s);
-pair<ContigRef, int> check_contig(BloomFilter &bf, Kmer km, KmerMapper &mapper);
+pair<ContigRef, pair<size_t, bool> > check_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
+string make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
 
 struct BuildContigs_ProgramOptions {
   size_t k;
@@ -147,8 +148,8 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
     for(it = opt.files.begin(); it != opt.files.end(); ++it) {
       intStat = stat(it->c_str(), &stFileInfo);
       if (intStat != 0) {
-	cerr << "Error: file not found, " << *it << endl;
-	ret = false;
+        cerr << "Error: file not found, " << *it << endl;
+        ret = false;
       }
     }
   }
@@ -175,7 +176,6 @@ void BuildContigs_PrintSummary(const BuildContigs_ProgramOptions &opt) {
   for (it = opt.files.begin(); it != opt.files.end(); ++it) {
     cerr << "  " << *it << endl;
   }
-  
 }
 
 
@@ -234,11 +234,11 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   cerr << "starting real work" << endl;
 
   Contig *contig;
-  size_t i, jumpi;
-  int32_t contiglen, pos, cmppos;
   bool repequal, reversed;
+  size_t i, id, jumpi, dist;
+  int32_t pos, cmppos;
+  pair<size_t, bool> disteq;
   ContigRef mapcr;
-  int dist;
 
   while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
     iter = KmerIterator(s);
@@ -255,147 +255,49 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         i++; // jump over it
         iter.raise(km, rep);
       } else {
-        ContigRef cr = mapper.find(rep);
+        tie(mapcr, disteq) = check_contig(bf, mapper, km);
 
-        if (cr.isEmpty()) {
-          // The kmer does not map but the contig could although exist 
+        if (mapcr.isEmpty()) {
+          // The kmer does not map so we make the contig
+          string seq = make_contig(bf, mapper, km);
+          id = mapper.addContig(seq);
+          mapper.printContig(id);
+          tie(mapcr, disteq) = check_contig(bf, mapper, km);
+        } 
 
-          pair<Kmer, size_t> p_fw,p_bw;
-          p_fw = find_contig_forward(bf, km, NULL); 
-          
-          ContigRef cr_end = mapper.find(p_fw.first);
+        // Now the kmer definitely maps to a contig
 
-          // Check whether we have made this contig or not
-          if (cr_end.isEmpty()) {
-            tie(mapcr, dist) = check_contig(bf, km, mapper);
-            assert(mapcr.isEmpty());
-            // We have not made this contig, lets make it
-            
-            string seq, seq_fw(k,0), seq_bw(k,0);
-            // Find the forward and backward limits of this contig
-            // according to the bloom filter
-            p_fw = find_contig_forward(bf, km, &seq_fw);
-            p_bw = find_contig_forward(bf, km.twin(), &seq_bw);
-            ContigRef cr_tw_end = mapper.find(p_bw.first);
-            assert(cr_tw_end.isEmpty());
+        contig = mapper.getContig(mapcr).ref.contig;
+        tie(dist, repequal) = disteq;
+        pos = mapcr.ref.idpos.pos;
 
-            if (p_bw.second > 1) {
-              seq.reserve(seq_bw.size() + seq_fw.size() - k);
-              // copy reverse part of seq_bw not including k
-              // TODO: refactor this to util package
-              for (int j = seq_bw.size()-1; j>=k; j--) {
-                char c = seq_bw[j];
-                char cc = 'N';
-                switch (c) {
-                  case 'A': cc = 'T'; break;
-                  case 'C': cc = 'G'; break;
-                  case 'G': cc = 'C'; break;
-                  case 'T': cc = 'A'; break;
-                }
-                seq.push_back(cc);
-              }
-              // append seq_fw
-              seq += seq_fw;
-            } else {
-              seq = seq_fw;
-            }
-
-            mapper.addContig(seq);
-            
-            //cerr << seq.size() << endl;
-            ContigRef found = mapper.find(p_bw.first);
-            assert(!found.isEmpty());
-            if (!found.isEmpty()) {
-              mapper.printContig(found.ref.idpos.id);
-            }
-            cr_end = mapper.find(p_fw.first);
-          }
-
-          tie(mapcr, dist) = check_contig(bf, km, mapper);
-          assert(!mapcr.isEmpty());
-
-          // cr_end is a contigRef pointing to the last position of the contig containing the kmer
-	  
-          // Now we jump as far ahead as we can
-          pos = cr_end.ref.idpos.pos; // position of rep of end-kmer
-          cmppos = -1; // position of next nucleotide after kmer to compare.
-          contig = mapper.getContig(cr_end).ref.contig;
-          repequal = (p_fw.first == p_fw.first.rep()); // is end-kmer rep?
-          reversed = ((pos >= 0) != repequal); // is end-kmer is reverse direction of contig?
-          
-          if (pos >= 0) {
-            if (repequal) {
-              cmppos = pos - p_fw.second + 1 + k;
-            } else {
-              assert(pos == 0);
-              cmppos = pos -1 + p_fw.second -1;
-            }
+        // Now we find the right location for start of comparison
+        if (pos >= 0) {
+          if (repequal) {
+            cmppos = pos - dist + k;
           } else {
-            if (repequal) {
-              cmppos = p_fw.second - 2;
-            } else {
-              cmppos = (-pos + 1 - k) - p_fw.second + 1 + k;
-            }
+            cmppos = pos - 1 + dist;
           }
-
-          //maxi = i + p_fw.second;
-          jumpi = 1 + i + contig->seq.jump(s, i+k, cmppos, reversed);
-          i++;
-          iter.raise(km, rep);
-          //while (iter != iterend && bf.contains(rep) && i < maxi) {
-          while (iter != iterend && i < jumpi) {
-            i++;
-            iter.raise(km, rep);
-          }
-          //assert(i == jumpi);
-
         } else {
-          tie(mapcr, dist) = check_contig(bf, km, mapper);
-          assert(!mapcr.isEmpty());
-          // The kmer maps to a contig, how much can we jump through it?
-          contig = mapper.getContig(cr).ref.contig;
-          pos = cr.ref.idpos.pos;
-          contiglen = (int32_t) contig->seq.size();
-          
-          cmppos = -1;
-          repequal = km == rep;
-          reversed = (pos >= 0) != repequal;
-
-          if (pos >= 0) {
-            assert(contiglen-pos-k >= 0);
-            if (repequal) {
-              cmppos = pos + k;
-              //maxi = i + contiglen-pos-k + 1;
-            } else {
-              cmppos = pos -1;
-              //maxi = i + pos +1; 
-            }
+          if (repequal) {
+            cmppos = -pos + dist -k;
           } else {
-            assert(-pos >= k-1);
-            if (repequal) {
-              cmppos = -pos -k;
-              //maxi = i + 2 - (pos + k);
-            } else {
-              cmppos = -pos+1;
-              //maxi = i + contiglen - cmppos + 1;
-            }
+            cmppos = -pos + 1 - dist; // Original: (-pos +1 -k) - dist + k
           }
-          
-          jumpi = 1 + i + contig->seq.jump(s, i + k, cmppos, reversed);
+        }
+        reversed = (pos >= 0) != repequal;
+        jumpi = 1 + i + contig->seq.jump(s, i + k, cmppos, reversed);
+        i++;
+        iter.raise(km, rep);
+
+        while (iter != iterend && i < jumpi) {
           i++;
           iter.raise(km, rep);
-          //while (iter != iterend && bf.contains(rep) && i < maxi) {
-          while (iter != iterend && i < jumpi) {
-            i++;
-            iter.raise(km, rep);
-          }
-          //assert(i == jumpi);
         }
       }     
     }
   }
   cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size()<< endl;
-  
 }
 
 
@@ -434,26 +336,26 @@ void BuildContigs(int argc, char** argv) {
 
 static const char alpha[4] = {'A','C','G','T'};
 
-// use:  tie(cr, dist) = check_contig_(bf,km,mapper);
+// use:  (cr, (dist, eq)) = check_contig_(bf,km,mapper);
 // pre:  
 // post: if km does not map to a contig: cr.isEmpty() == true and dist == 0
-//       else: km is in a contig which cr maps to and |i| is the distance 
+//       else: km is in a contig which cr maps to and dist is the distance 
 //             from km to the mapping location 
-//             i > 0:  km has the same direction as the contig
-//             i < 0:  km has the opposite direction to the contig
-//             i == 0: direction unknown
-pair<ContigRef, int> check_contig(BloomFilter &bf, Kmer km, KmerMapper &mapper) {
+//             (eq == true):  km has the same direction as the contig
+//             else:  km has the opposite direction to the contig
+pair<ContigRef, pair<size_t, bool> > check_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
   ContigRef cr = mapper.find(km);
   if (!cr.isEmpty()) {
-    return make_pair(cr, 0); 
+    return make_pair(cr, make_pair(0, km == km.rep())); 
   }
-  int dist = 1;
+  int i, j, dist = 1;
+  size_t fw_count, bw_count;
   bool found = false;
   Kmer bw, bw_rep, fw, fw_rep, end = km;
   while (dist < mapper.stride) {
-    size_t fw_count = 0;
-    int j = -1;
-    for (int i = 0; i < 4; i++) {
+    fw_count = 0;
+    j = -1;
+    for (i = 0; i < 4; i++) {
       fw_rep = end.forwardBase(alpha[i]).rep();
       if (bf.contains(fw_rep)) {
         j = i;
@@ -470,8 +372,8 @@ pair<ContigRef, int> check_contig(BloomFilter &bf, Kmer km, KmerMapper &mapper) 
 
     fw = end.forwardBase(alpha[j]);
 
-    size_t bw_count = 0;
-    for (int i = 0; i < 4; i++) {
+    bw_count = 0;
+    for (i = 0; i < 4; i++) {
       bw_rep = fw.backwardBase(alpha[i]).rep();
       if (bf.contains(bw_rep)) {
         bw_count++;
@@ -494,13 +396,48 @@ pair<ContigRef, int> check_contig(BloomFilter &bf, Kmer km, KmerMapper &mapper) 
     dist++;
   }
   if (found) {
-    return make_pair(cr, end == end.rep() ? dist : -dist); 
+    return make_pair(cr, make_pair(dist, end == end.rep())); 
   } else {
-    return make_pair(ContigRef(), 0);
+    return make_pair(ContigRef(), make_pair(0,0));
   }
 }
 
-// use:  (end,dist) = find_contig_forward(bf,km,s);
+// use:  seq = make_contig(bf, mapper, km, s);
+// pre:  km is not contained in a mapped contig in mapper 
+// post: Finds the forward and backward limits of the contig
+//       which contains km  according to the bloom filter bf and puts it into seq
+string make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
+  size_t k  = Kmer::k;
+  string seq, seq_fw(k, 0), seq_bw(k, 0);
+  pair<Kmer, size_t> p_fw = find_contig_forward(bf, km, &seq_fw);
+  pair<Kmer, size_t> p_bw = find_contig_forward(bf, km.twin(), &seq_bw);
+  ContigRef cr_tw_end = mapper.find(p_bw.first);
+  assert(cr_tw_end.isEmpty());
+  char c, cc;
+
+  if (p_bw.second > 1) {
+    seq.reserve(seq_bw.size() + seq_fw.size() - k);
+    // copy reverse part of seq_bw not including k
+    for (int j = seq_bw.size()-1; j>=k; j--) {
+      c = seq_bw[j];
+      cc = 'N';
+      switch (c) {
+        case 'A': cc = 'T'; break;
+        case 'C': cc = 'G'; break;
+        case 'G': cc = 'C'; break;
+        case 'T': cc = 'A'; break;
+      }
+      seq.push_back(cc);
+    }
+    // append seq_fw
+    seq += seq_fw;
+  } else {
+    seq = seq_fw;
+  }
+  return seq;
+}
+
+// use:  tie(end,dist) = find_contig_forward(bf,km,s);
 // pre:  
 // post: km is contained in a contig c with respect to the
 //       bloom filter graph bf and end is the forward endpoint (wrt km direction)

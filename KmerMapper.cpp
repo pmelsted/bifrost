@@ -19,18 +19,19 @@ KmerMapper::~KmerMapper() {
 
 
 // same as addContig(const char *s) but with string
-ContigRef KmerMapper::addContig(const string &s) {
+size_t KmerMapper::addContig(const string &s) {
   return addContig(s.c_str());
 }
 
 
-// use:  cr = mapper.addContig(s);
+// use:  id = mapper.addContig(s);
 // pre:  s is a string of 'A','C','G' and 'T's
 // post: a contig with s as string has been added to mapper
 //       the reps of the first and last kmer in this contig now map to this contig
 //       the reps of the kmers between the first and last that do not overlap each other
 //       also map to this contig
-ContigRef KmerMapper::addContig(const char *s) {
+//       id is the id of the contig
+size_t KmerMapper::addContig(const char *s) {
   // check that it doesn't map, our responsibility or not?
   ContigRef cr;
   cr.ref.contig = new Contig(s);
@@ -59,7 +60,7 @@ ContigRef KmerMapper::addContig(const char *s) {
     ipos  = (km == rep) ? (int32_t) pos : -((int32_t)(pos+Kmer::k-1));
     map.insert(make_pair(rep,ContigRef(id,ipos)));  
   }
-  return cr;
+  return id;
 }
 
 

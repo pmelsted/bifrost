@@ -55,8 +55,8 @@ typedef google::sparse_hash_map<Kmer, ContigRef, KmerHash> hmap_contig_t;
   KmerMapper(size_t init = 1000) :  map(init) {stride = Kmer::k; contigs.reserve(init);}
   ~KmerMapper();
 
-  ContigRef addContig(const string &s);
-  ContigRef addContig(const char *s);
+  size_t addContig(const string &s);
+  size_t addContig(const char *s);
   
   ContigRef joinContigs(ContigRef a, ContigRef b);
   //  ContigRef extendContig(ContigRef a, const string &s);
