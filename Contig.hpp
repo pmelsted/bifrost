@@ -12,10 +12,11 @@
 class Contig {
 public:
   Contig() : cov(0) {}
-  Contig(const char *s) : seq(s),cov(0) {}
+  Contig(const char *s) : seq(s) { allocateCov(); }
   ~Contig();
 
-  uint32_t *cov;
+  uint8_t *cov;
+  uint32_t covlength;
   CompressedSequence seq;
   // TODO: do we store the links here?
 };

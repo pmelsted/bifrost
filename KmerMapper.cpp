@@ -3,6 +3,20 @@
 #include <iostream>
 
 
+static const char alpha[4] = {'A','C','G','T'};
+
+// use:  reverse(s);
+// pre:  s != NULL
+// post: s has been reversed
+void reverse(char *s) {
+  int len=strlen(s);
+  for (int i=0;i<len/2;i++) {
+    s[i]^=s[len-i-1];                                                                                                                        
+    s[len-i-1]^=s[i];
+    s[i]^=s[len-i-1];
+  }
+}
+
 // use:  delete m;
 // pre:  m is a pointer to a KmerMapper
 // post: the memory that this KmerMapper had allocated has been freed 
@@ -83,37 +97,64 @@ ContigRef KmerMapper::find(const Kmer km) {
   return a;
 }
 
-// use:  r = m.joinContigs(a,b);
+// use:  r = m.joinContigs(a, b);
 // pre:  a and b are not contig pointers
+//       the last Kmer::k-1 bases in the last kmer in the contig that a refers to
+//       are the same as the first Kmer::k-1 bases in the first kmer or the twin of 
+//       the last kmer in the contig that b refers to
 // post: r is a contigref that points to a newly created contig
 //       formed by joining a+b with proper direction, sequences
 //       pointed to by a and b have been forwarded to the new contig r
 ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   //join a to b
+  size_t k = Kmer::k;
   a = find_rep(a);
   uint32_t a_id = a.ref.idpos.id;
   b = find_rep(b);
   uint32_t b_id = b.ref.idpos.id;
   assert(contigs[a_id].isContig && contigs[b_id].isContig);
 
-  // fix this mess
-  CompressedSequence &sa = contigs[a_id].ref.contig->seq;
-  CompressedSequence &sb = contigs[b_id].ref.contig->seq;
+  Contig *ca = contigs[a_id].ref.contig;
+  Contig *cb = contigs[b_id].ref.contig;
+  CompressedSequence &sa = ca->seq;
+  CompressedSequence &sb = cb->seq;
 
   int direction = 0;
-  if(sa.getKmer(sa.size()-Kmer::k) == sb.getKmer(0)) {
-    direction = 1;
-  }
-  if(sa.getKmer(sa.size()-Kmer::k) == sb.getKmer(sb.size()-Kmer::k).twin()) {
-    direction = -1;
+  Kmer aLast = sa.getKmer(sa.size() - k);
+  Kmer bFirst = sb.getKmer(0);
+  Kmer bLast = sb.getKmer(sb.size() - k).twin();
+  Kmer next;
+  for(int i=0; i<4; ++i) {
+    next = aLast.forwardBase(alpha[i]);
+    if (next == bFirst) {
+      direction = 1;
+      break;
+    }
+    if (next == bLast) {
+      direction = -1;
+      break;
+    }
   }
 
-  assert(direction != 0); // what if we want b+a?
+  assert(direction != 0);
 
   Contig *joined = new Contig(0); // allocate new contig
-  joined->seq.reserveLength(sa.size()+sb.size()-Kmer::k);                                                                                             
-  joined->seq.setSequence(sa,0,sa.size(),0,false); // copy all from a, keep orientation of a
-  joined->seq.setSequence(sb,Kmer::k,sb.size()-Kmer::k,sa.size(),direction==-1); // copy from b, reverse if neccessary
+  joined->seq.reserveLength(sa.size() + sb.size() - k + 1);
+  joined->seq.setSequence(sa, 0, sa.size(), 0, false); // copy all from a, keep orientation of a
+  joined->seq.setSequence(sb, k-1, sb.size() - k + 1, sa.size(), direction == -1); // copy from b, reverse if neccessary
+  joined->allocateCov();
+ 
+  for(int i=0; i <= sa.size() - k; ++i) {
+    joined->cov[i] = ca->cov[i]; 
+  } 
+
+  if (direction == -1) {
+    reverse(cb->cov);
+  }
+
+  for(int i=0; i <= sb.size() - k; ++i) {
+    joined->cov[sa.size() - k + 1 + i] = cb->cov[i]; 
+  } 
 
   ContigRef cr;
   cr.ref.contig = joined;
@@ -128,7 +169,6 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   contigs[b_id] = ContigRef(id,sa.size()); 
 
   // TODO: fix stride issues, release k-mers, might improve memory
-
 
   return ContigRef(id,0); // points to newly created contig
 }

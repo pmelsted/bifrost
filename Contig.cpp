@@ -10,3 +10,12 @@ Contig::~Contig() {
     cov = NULL;
   }
 }
+
+// use:  c = allocateCov();
+// pre:  cov is a NULL pointer and seq is not NULL
+// post: cov is a array with zeros of length : seq.size() - Kmer::k +1
+Contig::allocateCov() : seq(s) {
+  covlength = seq.size()-Kmer::k+1;
+  cov = new uint8_t[covlength];
+  memset(cov, 0, covlength);
+}
