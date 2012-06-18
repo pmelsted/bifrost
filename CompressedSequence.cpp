@@ -117,7 +117,8 @@ const char CompressedSequence::operator[](size_t index) const {
 // use:  a.setSequence(b, start, length, offset, reversed);
 // pre:  start+length <= b._length, offset <= a._length
 // post: copies compressed sequence from b to a (reverse complement if reversed == true)
-//       the string copied from b is from [start,...,start+length-1]
+//       the string copied from b is from [start,...,start+length-1] 
+//          (reverse complement of [o._length-1-start-length,...,o._length-1-start] if reversed == true) 
 //       the positions in a that are updated are [offset,...,offset+length-1]
 //       capacity of a might be updated to fit the new string.
 void CompressedSequence::setSequence(const CompressedSequence &o, size_t start, size_t length, size_t offset, bool reversed) {
@@ -127,7 +128,7 @@ void CompressedSequence::setSequence(const CompressedSequence &o, size_t start, 
   } 
   
   size_t w_index = offset;
-  size_t r_index = reversed ? length-start-1 : start;
+  size_t r_index = reversed ? o._length-start-1 : start;
   size_t wi,wj,ri,rj;
   
   for (size_t i = 0; i < length; i++) {
