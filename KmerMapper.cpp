@@ -140,7 +140,8 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   Contig *joined = new Contig(0); // allocate new contig
   joined->seq.reserveLength(sa.size() + sb.size() - k + 1);
   joined->seq.setSequence(sa, 0, sa.size(), 0, false); // copy all from a, keep orientation of a
-  joined->seq.setSequence(sb, k-1, sb.size() - k + 1, sa.size(), direction == -1); // copy from b, reverse if neccessary
+  joined->seq.setSequence(sb, k - 1, sb.size() - k + 1, sa.size(), direction == -1); // copy from b, reverse if neccessary
+
   joined->allocateCov();
  
   for(int i=0; i <= sa.size() - k; ++i) {
@@ -164,12 +165,12 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   delete contigs[a_id].ref.contig;
   delete contigs[b_id].ref.contig;
   
-  contigs[a_id] = ContigRef(id,0);
-  contigs[b_id] = ContigRef(id,sa.size()); 
+  contigs[a_id] = ContigRef(id, 0);
+  contigs[b_id] = ContigRef(id, sa.size()); 
 
   // TODO: fix stride issues, release k-mers, might improve memory
 
-  return ContigRef(id,0); // points to newly created contig
+  return ContigRef(id, 0); // points to newly created contig
 }
 
 
