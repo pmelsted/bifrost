@@ -224,10 +224,13 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
   bool repequal, reversed;
   char name[8192], s[8192];
-  size_t i, id, jumpi, dist, name_len, len, k = Kmer::k;
+  size_t i, id, jumpi, kmernum, dist, name_len, len, k = Kmer::k;
   int32_t pos, cmppos;
   uint64_t n_read = 0, num_kmers = 0, num_ins = 0;
   pair<size_t, bool> disteq;
+
+  Kmer tmpkm;
+  char kmrstr[200];
 
   cerr << "starting real work" << endl;
   while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
@@ -265,20 +268,37 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         if (pos >= 0) {
           if (repequal) {
             cmppos = pos - dist + k;
+            kmernum = cmppos - k;
           } else {
             cmppos = pos - 1 + dist;
+            kmernum = cmppos +1;
           }
         } else {
           if (repequal) {
             cmppos = -pos + dist -k;
+            kmernum = cmppos +1;
           } else {
             cmppos = -pos + 1 - dist; // Original: (-pos +1 -k) - dist + k
+            kmernum = cmppos - k;
           }
         }
         reversed = (pos >= 0) != repequal;
         jumpi = 1 + i + contig->seq.jump(s, i + k, cmppos, reversed);
         ++i;
         iter.raise(km, rep);
+
+        if(reversed) {
+          km.twin().toString(kmrstr);
+          printf("(reversed) dist=%d cmppos=%d pos=%d repequal=%d kmernum=%d, km.twin()=%s\n",dist,cmppos, pos, repequal, kmernum, kmrstr);
+        } else {
+          km.toString(kmrstr);
+          printf("dist=%d cmppos=%d pos=%d repequal=%d, kmernum=%d, km=%s\n",dist,cmppos, pos, repequal, kmernum, kmrstr);
+        }
+        printf("contig=%s\n", contig->seq.toString().c_str());
+        if (reversed) 
+          assert(contig->seq.getKmer(kmernum) == km.twin());
+        else
+          assert(contig->seq.getKmer(kmernum) == km);
 
         while (iter != iterend && i < jumpi) {
           ++i;

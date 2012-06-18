@@ -77,6 +77,7 @@ int main(int argc, char *argv[]) {
   T = "AAAA";
   assert(C3.jump(T.c_str(), 0, 3, true) == 4);
   T = "NNNN";
+
   for (size_t m=0; m<8; m++) {
     for (size_t h=0; m<4; m++) {
       assert(C3.jump(T.c_str(), h, m, true) == 0);

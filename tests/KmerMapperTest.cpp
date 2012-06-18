@@ -25,22 +25,35 @@ int main(int argc, char *argv[]) {
   srand(time(NULL));
 
   Kmer::set_k(k);
-  KmerMapper mapper;
+  KmerMapper mapper1, mapper2;
 
   
-  char s1[] = "ACGGTTTT";
-  char s2[] = "TTTTCCCC";
+  char s1[] = "ACGGTTT";
+  char s2[] = "TTTCCCC";
 
   Kmer km1(s1+4), km2(s2+4);
-  mapper.addContig(s1);
-  mapper.addContig(s2);
-  ContigRef cr1 = mapper.getContig(0);
-  ContigRef cr2 = mapper.getContig(1);
-  assert(cr1.ref.contig->seq.toString() == (string)  s1);
-  assert(cr2.ref.contig->seq.toString() == (string)  s2);
-  cr1 = mapper.find(km1);
-  cr2 = mapper.find(km2);
-  ContigRef joined = mapper.joinContigs(cr1,cr2);
-  assert(mapper.getContig(joined).ref.contig->seq.toString() == "ACGGTTTTCCCC");
+  mapper1.addContig(s1);
+  mapper1.addContig(s2);
+  ContigRef cr1 = mapper1.getContig(0);
+  ContigRef cr2 = mapper1.getContig(1);
+  assert(cr1.ref.contig->seq.toString() == (string) s1);
+  assert(cr2.ref.contig->seq.toString() == (string) s2);
+  cr1 = mapper1.find(km1);
+  cr2 = mapper1.find(km2);
+  ContigRef joined = mapper1.joinContigs(cr1,cr2);
+  assert(mapper1.getContig(joined).ref.contig->seq.toString() == "ACGGTTTCCCC");
+
+  
+  char s3[] = "GGGGAAA";
+
+  mapper2.addContig(s2);
+  mapper2.addContig(s3);
+
+  cr1 = mapper2.getContig(0);
+  cr2 = mapper2.getContig(1);
+  joined = mapper1.joinContigs(cr1, cr2);
+
+  assert(mapper2.getContig(joined).ref.contig->seq.toString() == "ACGGTTTCCCC");
+
   cout << &argv[0][2] << " completed successfully" << endl;
 }

@@ -8,8 +8,7 @@ static const char alpha[4] = {'A','C','G','T'};
 // use:  reverse(s);
 // pre:  s != NULL
 // post: s has been reversed
-void reverse(char *s) {
-  int len=strlen(s);
+void reverse(uint8_t *s, int len) {
   for (int i=0;i<len/2;i++) {
     s[i]^=s[len-i-1];                                                                                                                        
     s[len-i-1]^=s[i];
@@ -149,7 +148,7 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   } 
 
   if (direction == -1) {
-    reverse(cb->cov);
+    reverse(cb->cov, cb->covlength);
   }
 
   for(int i=0; i <= sb.size() - k; ++i) {
