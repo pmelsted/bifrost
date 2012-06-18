@@ -1,7 +1,8 @@
 CC = g++
 CXX = g++
 INCLUDES = -I.
-CXXFLAGS = -pg -Wall -Wextra -pedantic $(INCLUDES)
+CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -fPIC
+LDFLAGS =
 
 EXECUTABLES = KmerTest KmerTestExtended CompressedSequenceTest BloomFilterTest BlockedBloomFilterTest  KmerMapperTest
 
@@ -14,25 +15,30 @@ debug: CXXFLAGS += -g -O0
 debug: LDFLAGS += -g
 debug: target
 
+profile: CXXFLAGS += -p -g -O2
+profile: LDFLAGS += -p -g
+profile: clean
+profile: target
+
 OBJECTS = ../Kmer.o ../hash.o ../CompressedSequence.o ../Contig.o ../KmerMapper.o 
 
 KmerTest: KmerTest.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) KmerTest.o -o KmerTest
+	$(CC) $(INCLUDES) $(OBJECTS) KmerTest.o $(LDFLAGS) -o KmerTest
 
 KmerTestExtended: KmerTestExtended.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) KmerTestExtended.o -o KmerTestExtended
+	$(CC) $(INCLUDES) $(OBJECTS) KmerTestExtended.o $(LDFLAGS) -o KmerTestExtended
 
 CompressedSequenceTest: CompressedSequenceTest.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) CompressedSequenceTest.o -o CompressedSequenceTest
+	$(CC) $(INCLUDES) $(OBJECTS) CompressedSequenceTest.o $(LDFLAGS) -o CompressedSequenceTest
 
 BloomFilterTest: BloomFilterTest.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) BloomFilterTest.o -o BloomFilterTest
+	$(CC) $(INCLUDES) $(OBJECTS) BloomFilterTest.o $(LDFLAGS) -o BloomFilterTest
 
 BlockedBloomFilterTest: BlockedBloomFilterTest.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) BlockedBloomFilterTest.o -o BlockedBloomFilterTest
+	$(CC) $(INCLUDES) $(OBJECTS) BlockedBloomFilterTest.o $(LDFLAGS) -o BlockedBloomFilterTest
 
 KmerMapperTest: KmerMapperTest.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) KmerMapperTest.o -o KmerMapperTest
+	$(CC) $(INCLUDES) $(OBJECTS) KmerMapperTest.o $(LDFLAGS) -o KmerMapperTest
 
 KmerTest.o: ../Kmer.o ../hash.o
 KmerTestExtended.o: ../Kmer.o ../hash.o
