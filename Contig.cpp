@@ -11,11 +11,16 @@ Contig::~Contig() {
   }
 }
 
+
 // use:  c = allocateCov();
 // pre:  cov is a NULL pointer and seq is not NULL
-// post: cov is a array with zeros of length : seq.size() - Kmer::k +1
+// post: cov has space to store coverage for all kmers in this contig 
 void Contig::allocateCov() {
-  covlength = seq.size()-Kmer::k+1;
-  cov = new uint8_t[covlength];
-  memset(cov, 0, covlength);
-}
+  if (seq.size() >= Kmer::k) {
+    covlength = seq.size()-Kmer::k+1;
+    cov = new uint8_t[covlength];
+    for(int i=0;i < covlength;++i) {
+      cov[i] = 0;
+    }
+  }
+} 
