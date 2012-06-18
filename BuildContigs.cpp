@@ -220,12 +220,12 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   KmerIterator iter, iterend;
   FastqFile FQ(opt.files);
   Contig *contig;
-  ContigRef mapcr;
+  ContigRef cr, mapcr;
 
   bool repequal, reversed;
   char name[8192], s[8192];
   size_t i, id, jumpi, kmernum, dist, name_len, len, k = Kmer::k;
-  int32_t pos, cmppos;
+  int32_t pos, cmppos, direction;
   uint64_t n_read = 0, num_kmers = 0, num_ins = 0;
   pair<size_t, bool> disteq;
 
@@ -254,7 +254,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           // The kmer does not map so we make the contig
           string seq = make_contig(bf, mapper, km);
           id = mapper.addContig(seq);
-          mapper.printContig(id);
+          //mapper.printContig(id);
           tie(mapcr, disteq) = check_contig(bf, mapper, km);
         } 
 
@@ -284,28 +284,71 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         }
         reversed = (pos >= 0) != repequal;
         jumpi = 1 + i + contig->seq.jump(s, i + k, cmppos, reversed);
-        ++i;
-        iter.raise(km, rep);
 
-        if(reversed) {
-          km.twin().toString(kmrstr);
-          printf("(reversed) dist=%d cmppos=%d pos=%d repequal=%d kmernum=%d, km.twin()=%s\n",dist,cmppos, pos, repequal, kmernum, kmrstr);
-        } else {
-          km.toString(kmrstr);
-          printf("dist=%d cmppos=%d pos=%d repequal=%d, kmernum=%d, km=%s\n",dist,cmppos, pos, repequal, kmernum, kmrstr);
-        }
-        printf("contig=%s\n", contig->seq.toString().c_str());
         if (reversed) 
           assert(contig->seq.getKmer(kmernum) == km.twin());
         else
           assert(contig->seq.getKmer(kmernum) == km);
+        if (contig->cov[kmernum] < 0xff) {
+          contig->cov[kmernum] += 1;
+        }
+        direction = reversed ? -1 : 1;
+        kmernum += direction;
+        ++i;
+        iter.raise(km, rep);
 
         while (iter != iterend && i < jumpi) {
+          assert(kmernum < contig->covlength);
+          if (contig->cov[kmernum] < 0xff) {
+            contig->cov[kmernum] += 1;
+          }
+          kmernum += direction;
           ++i;
           iter.raise(km, rep);
         }
       }     
     }
+  }
+
+  // Print the good contigs
+  size_t firstchar, lastchar, contigcount = mapper.contigCount();
+  uint32_t covlength;
+  char cstr[8192];
+  char *p;
+  Contig *now;
+  
+  for(size_t contigid = 0; contigid < contigcount; ++contigid) {
+    p = &cstr[0];
+    now = mapper.getContig(contigid).ref.contig;
+    firstchar = 0;
+    lastchar = now->seq.size() -1;
+    covlength = now->covlength;
+    cr = mapper.getContig(contigid);
+
+    if (!cr.isContig) {
+      continue;
+    }
+
+    strcpy(cstr, now->seq.toString().c_str());
+    cstr[lastchar + 1] = 0;
+
+    // Trim the contig if either end is only covered once 
+    while (1 + lastchar - firstchar >= k && now->cov[firstchar] == 1) {
+      ++p;
+      ++firstchar;
+    }
+    while (1 + lastchar - firstchar >= k && now->cov[covlength-1] == 1) {
+      cstr[lastchar] = 0;
+      --lastchar;
+      --covlength;
+    }
+
+    if (1 + lastchar - firstchar < k) {
+      continue;
+    }
+
+    // Finally print the contig
+    printf("%s\n", p);
   }
   cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size()<< endl;
 }
@@ -357,8 +400,8 @@ pair<ContigRef, pair<size_t, bool> > check_contig(BloomFilter &bf, KmerMapper &m
   if (!cr.isEmpty()) {
     return make_pair(cr, make_pair(0, km == km.rep())); 
   }
-  int i, j, dist = 1;
-  size_t fw_count, bw_count;
+  int i, j;
+  size_t fw_count, bw_count, dist = 1;
   bool found = false;
   Kmer bw, bw_rep, fw, fw_rep, end = km;
   while (dist < mapper.stride) {

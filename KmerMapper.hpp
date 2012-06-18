@@ -69,6 +69,10 @@ typedef google::sparse_hash_map<Kmer, ContigRef, KmerHash> hmap_contig_t;
   const size_t size() const {
     return map.size();
   }
+  
+  const size_t contigCount() const {
+    return contigs.size();
+  }
 
   ContigRef getContig(const size_t id) const;
   ContigRef getContig(const ContigRef ref) const;
