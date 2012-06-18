@@ -318,16 +318,16 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   Contig *now;
   
   for(size_t contigid = 0; contigid < contigcount; ++contigid) {
-    p = &cstr[0];
-    now = mapper.getContig(contigid).ref.contig;
-    firstchar = 0;
-    lastchar = now->seq.size() -1;
-    covlength = now->covlength;
     cr = mapper.getContig(contigid);
-
     if (!cr.isContig) {
       continue;
     }
+
+    p = &cstr[0];
+    now = cr.ref.contig;
+    firstchar = 0;
+    lastchar = now->seq.size() -1;
+    covlength = now->covlength;
 
     strcpy(cstr, now->seq.toString().c_str());
     cstr[lastchar + 1] = 0;
