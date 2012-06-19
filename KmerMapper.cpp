@@ -51,8 +51,12 @@ size_t KmerMapper::addContig(const char *s) {
    
   uint32_t id = (uint32_t) contigs.size();
   contigs.push_back(cr);
+  mapContig(id, cr.ref.contig->seq.size()-Kmer::k+1, s);
+  return id;
+}
 
-  size_t len = cr.ref.contig->seq.size()-Kmer::k+1;
+
+void KmerMapper::mapContig(uint32_t id, size_t len, const char *s) {
   bool last = false;
   size_t pos;
   int32_t ipos;
@@ -73,7 +77,6 @@ size_t KmerMapper::addContig(const char *s) {
     ipos  = (km == rep) ? (int32_t) pos : -((int32_t)(pos+Kmer::k-1));
     map.insert(make_pair(rep,ContigRef(id,ipos)));  
   }
-  return id;
 }
 
 
@@ -346,7 +349,6 @@ void KmerMapper::splitAndJoinContigs() {
       cstr[lastchar] = 0;
       --lastchar;
       --covlength;
-
     }
 
     if (firstchar > 0 || covlength != lengthbefore) {
@@ -365,14 +367,15 @@ void KmerMapper::splitAndJoinContigs() {
       }
       now->covlength = covlength - firstchar;
       delete[] covp;
-
-      // TODO: Remap the contig
+      if (1 + lastchar - firstchar >= k) {
+        mapContig(contigid, covlength - firstchar, p);
+      }
     }
 
     assert(strncmp(now->seq.toString().c_str(), p, lastchar-firstchar+1) == 0);
 
     if (1 + lastchar - firstchar < k) {
-      // TODO: Delete the contig contigs[contigid].ref.contig 
+      delete contigs[contigid].ref.contig;
       contigs[contigid] = ContigRef();
     }
   }
