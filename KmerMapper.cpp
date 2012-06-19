@@ -214,7 +214,7 @@ void KmerMapper::printContig(const size_t id) {
       //cout << "kmers mapping: " << endl;
       const char *t = s.c_str();
       char tmp[Kmer::MAX_K+1];
-      for (int i = 0; i < s.length()-Kmer::k+1; i++) {
+      for (size_t i = 0; i < s.length()-Kmer::k+1; i++) {
         Kmer km(t+i);
         if (!find(km).isEmpty()) {
           km.rep().toString(tmp);
@@ -301,10 +301,12 @@ void KmerMapper::splitAndJoinContigs() {
     assert(lastchar < 8192);
     covlength = now->covlength;
     assert(covlength + k - 2 == lastchar);
-    end = Kmer(&cstr[covlength-1]);
+    
 
     strcpy(cstr, now->seq.toString().c_str());
     cstr[lastchar + 1] = 0;
+
+    end = Kmer(&cstr[covlength-1]);
 
     // Trim the contig if either end is only covered once 
     while (1 + lastchar - firstchar >= k && now->cov[firstchar] == 1) {
@@ -350,6 +352,7 @@ void KmerMapper::splitAndJoinContigs() {
       for(size_t q=0; q < covlength - firstchar; ++q) {
         now->cov[q] = covp[firstchar+q];
       }
+      now->covlength = covlength - firstchar;
       delete[] covp;
 
       // TODO: Remap the contig
@@ -370,7 +373,7 @@ void KmerMapper::printContigs() {
 
   for(size_t contigid = 0; contigid < contigcount; ++contigid) {
     cr = contigs[contigid];
-    if (!cr.isContig) {
+    if (!cr.isContig || cr.isEmpty()) {
       continue;
     }
     cout << cr.ref.contig->seq.toString() << endl;
