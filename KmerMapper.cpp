@@ -282,7 +282,9 @@ void KmerMapper::splitAndJoinContigs() {
   size_t firstchar, lastchar, contigcount = contigs.size();
   size_t lengthbefore, k = Kmer::k;
   uint32_t covlength;
-  char cstr[8192];
+  
+  size_t cstr_len = 2*k+1;
+  char *cstr = (char*) malloc(cstr_len);
   char *p;
   uint8_t *covp;
   Contig *now;
@@ -294,11 +296,20 @@ void KmerMapper::splitAndJoinContigs() {
       continue;
     }
 
-    p = &cstr[0];
+    
+    
+    
     now = cr.ref.contig;
     firstchar = 0;
     lastchar = now->seq.size() - 1;
-    assert(lastchar < 8192);
+
+    if (now->seq.size() >= cstr_len) {
+      cstr_len = 2*(now->seq.size())+1;
+      cstr = (char*) realloc(cstr, cstr_len);
+    }
+    
+    p = &cstr[0];
+    //assert(lastchar < 8192);
     covlength = now->covlength;
     assert(covlength + k - 2 == lastchar);
     
@@ -365,6 +376,8 @@ void KmerMapper::splitAndJoinContigs() {
       contigs[contigid] = ContigRef();
     }
   }
+
+  free(cstr);
 }
 
 void KmerMapper::printContigs() {
