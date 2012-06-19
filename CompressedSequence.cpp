@@ -323,3 +323,10 @@ size_t CompressedSequence::jump(const char *s, size_t i, int pos, bool reversed)
   }
   return j;
 }
+
+void CompressedSequence::clear() {
+  _length = 0;
+  _capacity = 0;
+  delete[] _data;
+  _data = NULL;
+}

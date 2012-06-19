@@ -28,6 +28,7 @@ public:
 
   const char operator[](size_t index) const;
 
+  void clear();
 
   size_t size() const { return _length; }
   Kmer getKmer(size_t offset) const;

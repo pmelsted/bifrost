@@ -217,6 +217,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
   Kmer km, rep;
   KmerMapper mapper(opt.contig_size);
+
   KmerIterator iter, iterend;
   FastqFile FQ(opt.files);
   Contig *contig;
@@ -311,45 +312,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   }
 
   // Print the good contigs
-  size_t firstchar, lastchar, contigcount = mapper.contigCount();
-  uint32_t covlength;
-  char cstr[8192];
-  char *p;
-  Contig *now;
-  
-  for(size_t contigid = 0; contigid < contigcount; ++contigid) {
-    cr = mapper.getContig(contigid);
-    if (!cr.isContig) {
-      continue;
-    }
-
-    p = &cstr[0];
-    now = cr.ref.contig;
-    firstchar = 0;
-    lastchar = now->seq.size() -1;
-    covlength = now->covlength;
-
-    strcpy(cstr, now->seq.toString().c_str());
-    cstr[lastchar + 1] = 0;
-
-    // Trim the contig if either end is only covered once 
-    while (1 + lastchar - firstchar >= k && now->cov[firstchar] == 1) {
-      ++p;
-      ++firstchar;
-    }
-    while (1 + lastchar - firstchar >= k && now->cov[covlength-1] == 1) {
-      cstr[lastchar] = 0;
-      --lastchar;
-      --covlength;
-    }
-
-    if (1 + lastchar - firstchar < k) {
-      continue;
-    }
-
-    // Finally print the contig
-    printf("%s\n", p);
-  }
+  mapper.splitAndJoinContigs();
+  mapper.printContigs();
   cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size()<< endl;
 }
 
