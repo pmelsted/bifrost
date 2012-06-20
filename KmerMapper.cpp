@@ -448,6 +448,9 @@ void KmerMapper::splitContigs() {
       while (c->cov[a] <= 1 && a < covlength) {
         a++;
       }
+      if (a == covlength) {
+        break;
+      }
       b = a;
       while (c->cov[b] > 1 && b < covlength) {
        b++; 

@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
 
   Kmer::set_k(k);
 
-  KmerMapper mapper1, mapper2, mapper3;
+  KmerMapper mapper1, mapper2, mapper3, mapper4, mapper5;
 
   
   char s1[] = "ACGGTTT";
@@ -73,13 +73,10 @@ int main(int argc, char *argv[]) {
   mapper3.addContig(s5);
   cr1 = mapper3.getContig(0);
   Contig *cn = cr1.ref.contig;
-  for (size_t j=0; j<=6; ++j) {
+  for (size_t j=0; j<6; ++j) {
     cn->cov[j] = 2;
   }
   cn->cov[3] = 1;
-  for (size_t j=0; j<=6; ++j) {
-    //printf("cov[%u]=%u\n", j, cn->cov[j]);
-  }
   mapper3.splitAndJoinContigs();
   assert(mapper3.contigCount() == 3);
   assert(mapper3.contigs[0].isEmpty());
@@ -91,6 +88,47 @@ int main(int argc, char *argv[]) {
   }
   for (size_t j=0; j<=1; ++j) {
     assert(mapper3.contigs[2].ref.contig->cov[j] == 2);
+  }
+  
+  char s6[] = "AAAATCCCC";
+  mapper4.addContig(s6);
+  cr1 = mapper4.getContig(0);
+  cn = cr1.ref.contig;
+  for (size_t j=0; j<=5; ++j) {
+    cn->cov[j] = 1;
+  }
+  for (size_t j=2; j<=4; ++j) {
+    cn->cov[j] = 2;
+  }
+  mapper4.splitAndJoinContigs();
+  assert(mapper4.contigCount() == 2);
+  assert(mapper4.contigs[0].isEmpty());
+  assert(!mapper4.contigs[1].isEmpty());
+  assert(mapper4.contigs[1].ref.contig->seq.toString() == "AATCCC");
+  for (size_t j=0; j<=2; ++j) {
+    assert(mapper4.contigs[1].ref.contig->cov[j] == 2);
+  }
+  
+  char s7[] = "AAAATCCCC";
+  mapper5.addContig(s7);
+  cr1 = mapper5.getContig(0);
+  cn = cr1.ref.contig;
+  for (size_t j=0; j<=5; ++j) {
+    cn->cov[j] = 2;
+  }
+  cn->cov[0] = 1;
+  cn->cov[2] = 1;
+  cn->cov[5] = 1;
+  mapper5.splitAndJoinContigs();
+  assert(mapper5.contigCount() == 3);
+  assert(mapper5.contigs[0].isEmpty());
+  assert(!mapper5.contigs[1].isEmpty());
+  assert(!mapper5.contigs[2].isEmpty());
+  assert(mapper5.contigs[1].ref.contig->seq.toString() == "AAAT");
+  assert(mapper5.contigs[2].ref.contig->seq.toString() == "ATCCC");
+  assert(mapper5.contigs[1].ref.contig->cov[0] == 2);
+  for (size_t j=0; j<=1; ++j) {
+    assert(mapper5.contigs[2].ref.contig->cov[j] == 2);
   }
   
 
