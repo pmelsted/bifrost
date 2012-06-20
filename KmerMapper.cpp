@@ -169,9 +169,18 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   delete contigs[b_id].ref.contig;
   
   contigs[a_id] = ContigRef(id, 0);
-  contigs[b_id] = ContigRef(id, sa.size()); 
+  if (direction == 1) {
+    contigs[b_id] = ContigRef(id, sa.size() - k + 1);
+  } else {
+    contigs[b_id] = ContigRef(id, 1 - sa.size() - sb.size());
+  }
+  //contigs[b_id] = ContigRef(id, sa.size()); // Should we not insert a negative pos if (direction == -1) ??
 
   // TODO: fix stride issues, release k-mers, might improve memory
+  assert(!contigs[a_id].isContig);
+  assert(!contigs[b_id].isContig);
+  assert(contigs[id].isContig);
+  assert(!contigs[id].isEmpty());
 
   return ContigRef(id, 0); // points to newly created contig
 }
@@ -212,9 +221,9 @@ void KmerMapper::printContig(const size_t id) {
     ContigRef a = contigs[id];
     if (a.isContig) {
       string s = a.ref.contig->seq.toString();
-      //cout << "contig " << id << ": length "  << s.size() << endl;
+      cout << "contig " << id << ": length "  << s.size() << endl;
       cout << s << endl;
-      //cout << "kmers mapping: " << endl;
+      cout << "kmers mapping: " << endl;
       const char *t = s.c_str();
       char tmp[Kmer::MAX_K+1];
       for (size_t i = 0; i < s.length()-Kmer::k+1; i++) {
@@ -222,12 +231,12 @@ void KmerMapper::printContig(const size_t id) {
         if (!find(km).isEmpty()) {
           km.rep().toString(tmp);
           ContigRef km_rep = find(km);
-          //cout << string(i,' ') << tmp << " -> (" << km_rep.ref.idpos.id << ", " << km_rep.ref.idpos.pos << ")"  << endl;
+          cout << string(i,' ') << tmp << " -> (" << km_rep.ref.idpos.id << ", " << km_rep.ref.idpos.pos << ")"  << endl;
         }
       }
     } else {
       ContigRef rep = find_rep(a);
-      //cout << "-> (" << rep.ref.idpos.id << ", " << rep.ref.idpos.pos << ")" << endl;
+      cout << "-> (" << rep.ref.idpos.id << ", " << rep.ref.idpos.pos << ")" << endl;
     }
   }
 }
@@ -283,118 +292,37 @@ void KmerMapper::splitAndJoinContigs() {
   map.set_deleted_key(km_del);
 
   splitContigs();
-
-  /*
-  size_t firstchar, lastchar, contigcount = contigs.size();
-  size_t lengthbefore, k = Kmer::k;
-  uint32_t covlength;
-  
-  size_t cstr_len = 2*k+1;
-  char *cstr = (char*) malloc(cstr_len);
-  char *p;
-  uint8_t *covp;
-  Contig *now;
-  ContigRef cr;
-  
-  for(size_t contigid = 0; contigid < contigcount; ++contigid) {
-    cr = contigs[contigid];
-    if (!cr.isContig) {
-      continue;
-    }
-
-    
-    
-    
-    now = cr.ref.contig;
-    firstchar = 0;
-    lastchar = now->seq.size() - 1;
-
-    if (now->seq.size() >= cstr_len) {
-      cstr_len = 2*(now->seq.size())+1;
-      cstr = (char*) realloc(cstr, cstr_len);
-    }
-    
-    p = &cstr[0];
-    covlength = now->covlength;
-    assert(covlength + k - 2 == lastchar);
-    
-    strcpy(cstr, now->seq.toString().c_str());
-    cstr[lastchar + 1] = 0;
-
-    end = Kmer(&cstr[covlength-1]);
-
-    // Trim the contig if either end is only covered once 
-    while (1 + lastchar - firstchar >= k && now->cov[firstchar] == 1) {
-      if (firstchar % stride == 0) {
-        km = Kmer(p);
-        rep = km.rep();
-        map.erase(rep);
-        iterator it = map.find(rep);
-        assert(it == map.end());
-      }
-      ++p;
-      ++firstchar;
-    }
-
-    lengthbefore = covlength;
-    while (1 + lastchar - firstchar >= k && now->cov[covlength-1] == 1) {
-      assert(lastchar - k +1 == covlength -1);
-      if ( (covlength -1) % stride == 0) {
-        km = Kmer(&cstr[covlength-1]);
-        rep = km.rep();
-        map.erase(rep);
-        iterator it = map.find(rep);
-        assert(it == map.end());
-      }
-
-      cstr[lastchar] = 0;
-      --lastchar;
-      --covlength;
-    }
-
-    if (firstchar > 0 || covlength != lengthbefore) {
-      if ((lengthbefore -1) % stride != 0) {
-        rep = end.rep();
-        map.erase(rep);
-        iterator it = map.find(rep);
-        assert(it == map.end());
-      }
-      now->seq.clear();
-      now->seq.setSequence(p, lastchar - firstchar + 1, 0, false);
-      covp = now->cov;
-      now->cov = new uint8_t[covlength - firstchar];
-      for(size_t q=0; q < covlength - firstchar; ++q) {
-        now->cov[q] = covp[firstchar+q];
-      }
-      now->covlength = covlength - firstchar;
-      delete[] covp;
-      if (1 + lastchar - firstchar >= k) {
-        mapContig(contigid, covlength - firstchar, p);
-      }
-    }
-
-    assert(strncmp(now->seq.toString().c_str(), p, lastchar-firstchar+1) == 0);
-
-    if (1 + lastchar - firstchar < k) {
-      delete contigs[contigid].ref.contig;
-      contigs[contigid] = ContigRef();
-    }
-  }
-
-  free(cstr);
-  */
+  //joinContigs();
 }
 
-void KmerMapper::printContigs() {
-  size_t contigcount = contigs.size();
-  ContigRef cr; 
+
+void KmerMapper::joinContigs() {
+  size_t k = Kmer::k, contigcount = contigs.size();
+  
+  Contig *c;
+  ContigRef cr;
 
   for(size_t contigid = 0; contigid < contigcount; ++contigid) {
     cr = contigs[contigid];
     if (!cr.isContig || cr.isEmpty()) {
       continue;
     }
-    cout << cr.ref.contig->seq.toString() << endl;
+    c = cr.ref.contig;
+    ContigRef b, found;
+    Kmer end = c->seq.getKmer(c->covlength-1);
+    size_t fw_count = 0;
+    for(size_t i = 0; i<4; ++i) {
+      Kmer fw = end.forwardBase(alpha[i]);
+      b = find(fw);
+      if (!b.isEmpty()) {
+        fw_count += 1;
+        found = b;
+      }
+    }
+
+    if (fw_count == 1 && getContig(found).ref.contig != c) {
+      joinContigs(ContigRef(contigid, 0), found);
+    }
   }
 }
 
@@ -417,17 +345,8 @@ void KmerMapper::splitContigs() {
 
     c = cr.ref.contig;
     covlength = c->covlength;
-    seqlength = c->seq.size();
-
-    if (seqlength >= cstr_len) {
-      cstr_len = 2*seqlength+1;
-      cstr = (char*) realloc(cstr, cstr_len);
-    }
-    
-    strcpy(cstr, c->seq.toString().c_str());
-    cstr[seqlength] = 0;
-    
     okay = true;
+
     // Check if this contig has 1 coverage somewhere
     for(size_t index=0; index < covlength; ++index) {
       if (c->cov[index] <= 1) {
@@ -439,6 +358,16 @@ void KmerMapper::splitContigs() {
     if (okay) {
       continue;
     }
+    
+    seqlength = c->seq.size();
+
+    if (seqlength >= cstr_len) {
+      cstr_len = 2*seqlength+1;
+      cstr = (char*) realloc(cstr, cstr_len);
+    }
+    
+    strcpy(cstr, c->seq.toString().c_str());
+    cstr[seqlength] = 0;
 
     size_t a = 0, b = 0;
     vector<pair<int, int> > v;
@@ -467,6 +396,11 @@ void KmerMapper::splitContigs() {
         map.erase(rep);
       }
     }
+    if ((covlength - 1) % stride != 0) {
+      Kmer km = Kmer(&cstr[covlength-1]);
+      Kmer rep = km.rep();
+      map.erase(rep);
+    }
     
 
     // add the subcontigs to contigs and map them
@@ -488,4 +422,17 @@ void KmerMapper::splitContigs() {
     contigs[contigid] = ContigRef();
   }
   free(cstr);
+}
+
+void KmerMapper::printContigs() {
+  size_t contigcount = contigs.size();
+  ContigRef cr; 
+
+  for(size_t contigid = 0; contigid < contigcount; ++contigid) {
+    cr = contigs[contigid];
+    if (!cr.isContig || cr.isEmpty()) {
+      continue;
+    }
+    cout << cr.ref.contig->seq.toString() << endl;
+  }
 }

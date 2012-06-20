@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
 
   Kmer::set_k(k);
 
-  KmerMapper mapper1, mapper2, mapper3, mapper4, mapper5;
+  KmerMapper mapper1, mapper2, mapper3, mapper4, mapper5, mapper6;
 
   
   char s1[] = "ACGGTTT";
@@ -83,6 +83,7 @@ int main(int argc, char *argv[]) {
   assert(!mapper3.contigs[1].isEmpty());
   assert(!mapper3.contigs[2].isEmpty());
   assert(mapper3.contigs[1].ref.contig->seq.toString() == "AAAATC");
+  assert(mapper3.contigs[2].ref.contig->seq.toString() == "TCCCC");
   for (size_t j=0; j<=2; ++j) {
     assert(mapper3.contigs[1].ref.contig->cov[j] == 2);
   }
@@ -130,6 +131,23 @@ int main(int argc, char *argv[]) {
   for (size_t j=0; j<=1; ++j) {
     assert(mapper5.contigs[2].ref.contig->cov[j] == 2);
   }
+
+  char s8[] = "ACGAAAG";
+  char s9[] = "AAGCTTA";
+  mapper6.addContig(s8);
+  mapper6.addContig(s9);
+  cr1 = mapper6.getContig(0);
+  cr2 = mapper6.getContig(1);
+  for (size_t j=0; j<=3; ++j) {
+    cr1.ref.contig->cov[j] = 2;
+    cr2.ref.contig->cov[j] = 2;
+  }
+  mapper6.splitAndJoinContigs();
+  assert(mapper6.contigs.size() == 3);
+
+  Kmer k1(s8);
+  ContigRef _c1 = mapper6.find(k1);
+
   
 
   
