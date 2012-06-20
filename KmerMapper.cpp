@@ -277,7 +277,7 @@ ContigRef KmerMapper::find_rep(ContigRef a) const {
     int sign = (pos >= 0) ? 1 : -1;
     sign *= (a.ref.idpos.pos >= 0) ? 1 : -1;
     pos *= sign;
-    a = ContigRef(id,pos);    
+    a = b;//ContigRef(id,pos);    
   }
   return a;
 }
@@ -292,7 +292,7 @@ void KmerMapper::splitAndJoinContigs() {
   map.set_deleted_key(km_del);
 
   splitContigs();
-  //joinContigs();
+  joinContigs();
 }
 
 
@@ -321,7 +321,9 @@ void KmerMapper::joinContigs() {
     }
 
     if (fw_count == 1 && getContig(found).ref.contig != c) {
-      joinContigs(ContigRef(contigid, 0), found);
+      if (found.ref.idpos.id < contigcount) {
+        joinContigs(ContigRef(contigid, 0), found);
+      }
     }
   }
 }
