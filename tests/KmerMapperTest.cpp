@@ -3,7 +3,9 @@
 #include <iostream>
 #include <map>
 
+#define private public 
 #include "../KmerMapper.hpp"
+#undef private
 
 using namespace std;
 
@@ -13,7 +15,7 @@ int main(int argc, char *argv[]) {
 
   Kmer::set_k(k);
 
-  KmerMapper mapper1, mapper2;
+  KmerMapper mapper1, mapper2, mapper3;
 
   
   char s1[] = "ACGGTTT";
@@ -64,8 +66,35 @@ int main(int argc, char *argv[]) {
   assert(newc.cov[2] == 0);
   assert(newc.cov[4] == 3);
   assert(newc.covlength == 8);
-
-
   assert(mapper2.getContig(joined).ref.contig->seq.toString() == "AAGGCCCATAT");
+
+
+  char s5[] = "AAAATCCCC";
+  mapper3.addContig(s5);
+  cr1 = mapper3.getContig(0);
+  Contig *cn = cr1.ref.contig;
+  for (size_t j=0; j<=6; ++j) {
+    cn->cov[j] = 2;
+  }
+  cn->cov[3] = 1;
+  for (size_t j=0; j<=6; ++j) {
+    //printf("cov[%u]=%u\n", j, cn->cov[j]);
+  }
+  mapper3.splitAndJoinContigs();
+  assert(mapper3.contigCount() == 3);
+  assert(mapper3.contigs[0].isEmpty());
+  assert(!mapper3.contigs[1].isEmpty());
+  assert(!mapper3.contigs[2].isEmpty());
+  assert(mapper3.contigs[1].ref.contig->seq.toString() == "AAAATC");
+  for (size_t j=0; j<=2; ++j) {
+    assert(mapper3.contigs[1].ref.contig->cov[j] == 2);
+  }
+  for (size_t j=0; j<=1; ++j) {
+    assert(mapper3.contigs[2].ref.contig->cov[j] == 2);
+  }
+  
+
+  
+  
   cout << &argv[0][2] << " completed successfully" << endl;
 }

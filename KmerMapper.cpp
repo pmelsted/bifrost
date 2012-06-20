@@ -469,7 +469,7 @@ void KmerMapper::splitContigs() {
     // add the subcontigs to contigs and map them
     for(size_t index = 0; index < v.size(); ++index) {
       a = v[index].first; b = v[index].second;
-      string s(&cstr[a], (b - a + 1) + k);
+      string s(&cstr[a], (b - a) + k - 1);
       ContigRef newcr;
       Contig *newc = new Contig(s.c_str());
       newcr.ref.contig = newc;
