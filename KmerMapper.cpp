@@ -10,7 +10,7 @@ static const char alpha[4] = {'A','C','G','T'};
 // post: s has been reversed
 void reverse(uint8_t *s, int len) {
   for (int i=0;i<len/2;i++) {
-    s[i]^=s[len-i-1];                                                                                                                        
+    s[i]^=s[len-i-1];
     s[len-i-1]^=s[i];
     s[i]^=s[len-i-1];
   }
@@ -56,6 +56,9 @@ size_t KmerMapper::addContig(const char *s) {
 }
 
 
+// use:  mapper.mapContig(id, len, s);
+// pre:  the contig whose string sequence is s has not been mapped before
+// post: the contig has been mapped
 void KmerMapper::mapContig(uint32_t id, size_t len, const char *s) {
   bool last = false;
   size_t pos;
@@ -284,7 +287,7 @@ ContigRef KmerMapper::find_rep(ContigRef a) const {
 
 
 // use:  mapper.splitAndJoinContigs();
-// pre:  No contig is longer than 8192 
+// pre:  
 // post: The contigs in mapper have been splitted and joined
 void KmerMapper::splitAndJoinContigs() {
   Kmer km, rep, end, km_del;
@@ -296,6 +299,9 @@ void KmerMapper::splitAndJoinContigs() {
 }
 
 
+// use:  mapper.joinContigs()
+// pre:  
+// post: contigs that really should be connected have been connected 
 void KmerMapper::joinContigs() {
   size_t k = Kmer::k, contigcount = contigs.size();
   
@@ -328,6 +334,10 @@ void KmerMapper::joinContigs() {
   }
 }
 
+
+// use:  mapper.splitContigs()
+// pre:  
+// post: all contigs with 1 coverage somewhere have been split on those locations
 void KmerMapper::splitContigs() {
   size_t k = Kmer::k, contigcount = contigs.size();
   size_t covlength, seqlength, cstr_len = 2*k+1;
@@ -426,6 +436,10 @@ void KmerMapper::splitContigs() {
   free(cstr);
 }
 
+
+// use:  mapper.printContigs()
+// pre:  
+// post: All the contigs in mapper have been printed, line by line, to stdout
 void KmerMapper::printContigs() {
   size_t contigcount = contigs.size();
   ContigRef cr; 

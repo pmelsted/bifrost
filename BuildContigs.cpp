@@ -299,6 +299,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         iter.raise(km, rep);
 
         while (iter != iterend && i < jumpi) {
+          assert(kmernum >= 0);
           assert(kmernum < contig->covlength);
           if (contig->cov[kmernum] < 0xff) {
             contig->cov[kmernum] += 1;
@@ -365,14 +366,14 @@ pair<ContigRef, pair<size_t, bool> > check_contig(BloomFilter &bf, KmerMapper &m
     return make_pair(cr, make_pair(0, km == km.rep())); 
   }
   int i, j;
-  size_t fw_count, bw_count, dist = 1;
+  size_t dist = 1;
   bool found = false;
-  Kmer bw, bw_rep, fw, fw_rep, end = km;
+  Kmer end = km;
   while (dist < mapper.stride) {
-    fw_count = 0;
+    size_t fw_count = 0;
     j = -1;
     for (i = 0; i < 4; ++i) {
-      fw_rep = end.forwardBase(alpha[i]).rep();
+      Kmer fw_rep = end.forwardBase(alpha[i]).rep();
       if (bf.contains(fw_rep)) {
         j = i;
         ++fw_count;
@@ -386,11 +387,11 @@ pair<ContigRef, pair<size_t, bool> > check_contig(BloomFilter &bf, KmerMapper &m
       break;
     }
 
-    fw = end.forwardBase(alpha[j]);
+    Kmer fw = end.forwardBase(alpha[j]);
 
-    bw_count = 0;
+    size_t bw_count = 0;
     for (i = 0; i < 4; ++i) {
-      bw_rep = fw.backwardBase(alpha[i]).rep();
+      Kmer bw_rep = fw.backwardBase(alpha[i]).rep();
       if (bf.contains(bw_rep)) {
         ++bw_count;
         if (bw_count > 1) {
@@ -456,7 +457,7 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
   size_t fw_count, bw_count, dist = 1;
   vector<char> v;
 
-  Kmer bw, bw_rep, fw, fw_rep, end = km;
+  Kmer end = km;
 
   assert(bf.contains(km.rep()));
   if (s != NULL) {
@@ -469,10 +470,10 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
   
   while (true) {
     assert(bf.contains(end.rep()));
-    fw_count = 0;
+    size_t fw_count = 0;
     j = -1;
     for (i = 0; i < 4; ++i) {
-      fw_rep = end.forwardBase(alpha[i]).rep();
+      Kmer fw_rep = end.forwardBase(alpha[i]).rep();
       if (bf.contains(fw_rep)) {
         j = i;
         ++fw_count;
@@ -486,13 +487,13 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
       break;
     }
     
-    fw = end.forwardBase(alpha[j]);
+    Kmer fw = end.forwardBase(alpha[j]);
     assert(0 <= j && j < 4);
     assert(bf.contains(fw.rep()));
 
-    bw_count = 0;
+    size_t bw_count = 0;
     for (i = 0; i < 4; ++i) {
-      bw_rep = fw.backwardBase(alpha[i]).rep();
+      Kmer bw_rep = fw.backwardBase(alpha[i]).rep();
       if (bf.contains(bw_rep)) {
         ++bw_count;
         if (bw_count > 1) {
