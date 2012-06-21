@@ -102,6 +102,18 @@ ContigRef KmerMapper::find(const Kmer km) {
   return a;
 }
 
+// use:  r = isNeighbor(a,b)
+// pre:
+// post: r is true if a[1:k-1]+c == b for some c
+bool isNeighbor(Kmer a, Kmer b) {
+  for (size_t i = 0; i < 4; ++i) {
+    if (b == a.forwardBase(alpha[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // use:  r = m.joinContigs(a, b);
 // pre:  a and b are not contig pointers
 //       the last Kmer::k-1 bases in the last kmer in the contig that a refers to
@@ -124,40 +136,49 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   CompressedSequence &sa = ca->seq;
   CompressedSequence &sb = cb->seq;
 
-  int direction = 0;
+  int a_direction = 0, b_direction = 0;
+  Kmer aFirst = sa.getKmer(0).twin();
   Kmer aLast = sa.getKmer(sa.size() - k);
   Kmer bFirst = sb.getKmer(0);
   Kmer bLast = sb.getKmer(sb.size() - k).twin();
-  Kmer next;
-  for(int i=0; i<4; ++i) {
-    next = aLast.forwardBase(alpha[i]);
-    if (next == bFirst) {
-      direction = 1;
-      break;
-    }
-    if (next == bLast) {
-      direction = -1;
-      break;
-    }
-  }
 
-  assert(direction != 0);
+  if (isNeighbor(aLast,bFirst)) {
+    a_direction = 1;
+    b_direction = 1;
+  } else if (isNeighbor(aLast,bLast)) {
+    a_direction = 1;
+    b_direction = -1;
+  } else if (isNeighbor(aFirst, bLast)) {
+    a_direction = -1;
+    b_direction = -1;
+  } else if (isNeighbor(aFirst, bFirst)) {
+    a_direction = -1;
+    b_direction = 1;
+  } else {
+    cerr << "sa:" << endl << sa.toString() << endl << endl;
+    cerr << "sb:" << endl << sb.toString() << endl << endl;
+    assert(0);
+  }
 
   Contig *joined = new Contig(0); // allocate new contig
   joined->seq.reserveLength(sa.size() + sb.size() - k + 1);
-  joined->seq.setSequence(sa, 0, sa.size(), 0, false); // copy all from a, keep orientation of a
-  joined->seq.setSequence(sb, k - 1, sb.size() - k + 1, sa.size(), direction == -1); // copy from b, reverse if neccessary
+  joined->seq.setSequence(sa, 0, sa.size(), 0, a_direction == -1); // copy all from a, keep orientation of a
+  joined->seq.setSequence(sb, k - 1, sb.size() - k + 1, sa.size(), b_direction == -1); // copy from b, reverse if neccessary
 
   joined->allocateCov();
- 
-  for(unsigned int i=0; i <= sa.size() - k; ++i) {
-    joined->cov[i] = ca->cov[i]; 
-  } 
 
-  if (direction == -1) {
+  // reverse coverages if neccessary
+  if (a_direction == -1) {
+    reverse(ca->cov, ca->covlength);
+  }
+  if (b_direction == -1) {
     reverse(cb->cov, cb->covlength);
   }
-
+  
+  for(unsigned int i=0; i <= sa.size() - k; ++i) {
+    joined->cov[i] = ca->cov[i]; 
+  }
+  
   for(unsigned int i=0; i <= sb.size() - k; ++i) {
     joined->cov[sa.size() - k + 1 + i] = cb->cov[i]; 
   } 
@@ -170,9 +191,14 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   // invalidated old contigs
   delete contigs[a_id].ref.contig;
   delete contigs[b_id].ref.contig;
+
+  if (a_direction == 1) {
+    contigs[a_id] = ContigRef(id, 0);
+  } else {
+    contigs[a_id] = ContigRef(id, -sa.size() + k);
+  }
   
-  contigs[a_id] = ContigRef(id, 0);
-  if (direction == 1) {
+  if (b_direction == 1) {
     contigs[b_id] = ContigRef(id, sa.size() - k + 1);
   } else {
     contigs[b_id] = ContigRef(id, 1 - sa.size() - sb.size());
@@ -308,30 +334,54 @@ void KmerMapper::joinContigs() {
   Contig *c;
   ContigRef cr;
 
-  for(size_t contigid = 0; contigid < contigcount; ++contigid) {
+  for(size_t contigid = 0; contigid < contigs.size(); ++contigid) {
     cr = contigs[contigid];
     if (!cr.isContig || cr.isEmpty()) {
       continue;
     }
     c = cr.ref.contig;
-    ContigRef b, found;
-    Kmer end = c->seq.getKmer(c->covlength-1);
-    size_t fw_count = 0;
-    for(size_t i = 0; i<4; ++i) {
-      Kmer fw = end.forwardBase(alpha[i]);
-      b = find(fw);
-      if (!b.isEmpty()) {
-        fw_count += 1;
-        found = b;
-      }
-    }
 
-    if (fw_count == 1 && getContig(found).ref.contig != c) {
-      if (found.ref.idpos.id < contigcount) {
-        joinContigs(ContigRef(contigid, 0), found);
-      }
+    
+    
+    ContigRef found;
+    Kmer start_twin = c->seq.getKmer(0).twin();
+    Kmer end = c->seq.getKmer(c->covlength-1);
+    if (checkContigForward(c, end, found)) {
+      joinContigs(ContigRef(contigid,0),found); // this -> found
+    } else if (checkContigForward(c, start_twin, found)) {
+      joinContigs(found, ContigRef(contigid,0)); // found -> this
     }
   }
+}
+
+bool KmerMapper::checkContigForward(Contig* c, Kmer km, ContigRef &found) {
+  ContigRef b,cand;
+  Kmer fw_km;
+  size_t fw_count=0,bw_count=0;
+  for(size_t i = 0; i < 4; ++i) {
+    Kmer fw = km.forwardBase(alpha[i]);
+    ContigRef b = find(fw);
+    if (!b.isEmpty()) {
+      fw_count += 1;
+      cand = b;
+      fw_km = fw;
+    }
+  }
+
+  if (fw_count == 1 && getContig(cand).ref.contig != c) { // one fw-neighbor and no self-loop
+    for (size_t i = 0; i < 4; i++) {
+      Kmer bw = fw_km.backwardBase(alpha[i]);
+      b = find(bw);
+      if (!b.isEmpty()) {
+        bw_count += 1;
+      }
+    }
+    if (bw_count == 1) {
+      found = cand;
+      return true;
+    }
+  }
+  return false;
 }
 
 

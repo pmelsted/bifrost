@@ -82,7 +82,8 @@ typedef google::sparse_hash_map<Kmer, ContigRef, KmerHash> hmap_contig_t;
 
   void splitAndJoinContigs(); 
   void splitContigs(); 
-  void joinContigs(); 
+  void joinContigs();
+  bool checkContigForward(Contig* c, Kmer km, ContigRef &found);
 private:
   ContigRef find_rep(ContigRef a) const;
 
