@@ -20,7 +20,7 @@ KmerIterator& KmerIterator::operator++() {
       find_next(pos_,pos_+Kmer::k-1,true);
       return *this;
     }
-  };
+  }
   return *this;
 }
 

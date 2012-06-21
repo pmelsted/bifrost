@@ -225,7 +225,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
   bool repequal, reversed;
   char name[8192], s[8192];
-  size_t i, id, jumpi, kmernum, dist, name_len, len, k = Kmer::k;
+  size_t id, jumpi, kmernum, dist, name_len, len, k = Kmer::k;
   int32_t pos, cmppos, direction;
   uint64_t n_read = 0, num_kmers = 0, num_ins = 0;
   pair<size_t, bool> disteq;
@@ -237,7 +237,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
     iter = KmerIterator(s);
     ++n_read;
-    i = 0;
 
     if (iter != iterend) {
       km = iter->first;
@@ -245,8 +244,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     }
 
     while (iter != iterend) {
-      if (!bf.contains(rep)) { // kmer i is not in the graph
-        ++i; // jump over it
+      if (!bf.contains(rep)) { // km is not in the graph
+        // jump over it
         iter.raise(km, rep);
       } else {
         tie(mapcr, disteq) = check_contig(bf, mapper, km);
@@ -284,7 +283,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           }
         }
         reversed = (pos >= 0) != repequal;
-        jumpi = 1 + i + contig->seq.jump(s, i + k, cmppos, reversed);
+        jumpi = 1 + iter->second + contig->seq.jump(s, iter->second + k, cmppos, reversed);
 
         if (reversed) 
           assert(contig->seq.getKmer(kmernum) == km.twin());
@@ -295,17 +294,15 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         }
         direction = reversed ? -1 : 1;
         kmernum += direction;
-        ++i;
         iter.raise(km, rep);
 
-        while (iter != iterend && i < jumpi) {
+        while (iter != iterend && iter->second < jumpi) {
           assert(kmernum >= 0);
           assert(kmernum < contig->covlength);
           if (contig->cov[kmernum] < 0xff) {
             contig->cov[kmernum] += 1;
           }
           kmernum += direction;
-          ++i;
           iter.raise(km, rep);
         }
       }     
