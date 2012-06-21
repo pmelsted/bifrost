@@ -276,13 +276,13 @@ ContigRef KmerMapper::find_rep(ContigRef a) const {
       break;
     }
 
-    pos += abs(a.ref.idpos.pos);
+    pos += abs(b.ref.idpos.pos);
     int sign = (pos >= 0) ? 1 : -1;
-    sign *= (a.ref.idpos.pos >= 0) ? 1 : -1;
+    sign *= (b.ref.idpos.pos >= 0) ? 1 : -1;
     pos *= sign;
-    a = b;//ContigRef(id,pos);    
+    a = b;
   }
-  return a;
+  return ContigRef(id, pos);
 }
 
 

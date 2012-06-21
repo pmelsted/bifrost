@@ -145,8 +145,16 @@ int main(int argc, char *argv[]) {
   mapper6.splitAndJoinContigs();
   assert(mapper6.contigs.size() == 3);
 
+  assert(mapper6.contigs[2].ref.contig->seq.toString() == "ACGAAAGCTTA");
   Kmer k1(s8);
   ContigRef _c1 = mapper6.find(k1);
+  assert(_c1.ref.idpos.id == 2);
+  assert(_c1.ref.idpos.pos == 0);
+  Kmer k2(s9);
+  ContigRef _c2 = mapper6.find(k2);
+  cout << _c2.ref.idpos.pos << endl;
+  assert(_c2.ref.idpos.id == 2);
+  assert(_c2.ref.idpos.pos == 4);
 
   
 
