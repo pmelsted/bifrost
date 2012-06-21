@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
 
   Kmer::set_k(k);
 
-  KmerMapper mapper1, mapper2, mapper3, mapper4, mapper5, mapper6;
+  KmerMapper mapper1, mapper2, mapper3, mapper4, mapper5, mapper6, mapper7;
 
   
   char s1[] = "ACGGTTT";
@@ -155,6 +155,24 @@ int main(int argc, char *argv[]) {
   cout << _c2.ref.idpos.pos << endl;
   assert(_c2.ref.idpos.id == 2);
   assert(_c2.ref.idpos.pos == 4);
+  
+
+  char s10[] = "AGTCAGTTAAC";
+  char s11[] = "AACGTAGG";
+  mapper7.addContig(s10);
+  mapper7.addContig(s11);
+  cr1 = mapper7.getContig(0);
+  cr2 = mapper7.getContig(1);
+  for (size_t j=0; j<=10; ++j) {
+    cr1.ref.contig->cov[j] = 2;
+  }
+  for (size_t j=0; j<=7; ++j) {
+    cr2.ref.contig->cov[j] = 2;
+  }
+  mapper7.splitAndJoinContigs();
+  assert(mapper7.contigs.size() == 3);
+
+  assert(mapper7.contigs[2].ref.contig->seq.toString() == "AGTCAGTTAACGTAGG");
 
   
 
