@@ -9,7 +9,7 @@ static const char alpha[4] = {'A','C','G','T'};
 // pre:  s != NULL
 // post: s has been reversed
 void reverse(uint8_t *s, int len) {
-  for (int i=0;i<len/2;i++) {
+  for (int i=0; i<len/2; i++) {
     s[i]^=s[len-i-1];
     s[len-i-1]^=s[i];
     s[i]^=s[len-i-1];
@@ -71,14 +71,14 @@ void KmerMapper::mapContig(uint32_t id, size_t len, const char *s) {
     Kmer rep = km.rep();
 
     ipos  = (km == rep) ? (int32_t) pos : -((int32_t)(pos+Kmer::k-1));
-    map.insert(make_pair(rep,ContigRef(id,ipos)));    
+    map.insert(make_pair(rep, ContigRef(id, ipos)));    
   }
   if (!last) {
     pos = len-1;
     Kmer km(s+pos);
     Kmer rep = km.rep();
     ipos  = (km == rep) ? (int32_t) pos : -((int32_t)(pos+Kmer::k-1));
-    map.insert(make_pair(rep,ContigRef(id,ipos)));  
+    map.insert(make_pair(rep, ContigRef(id, ipos)));  
   }
 }
 
@@ -203,7 +203,6 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   } else {
     contigs[b_id] = ContigRef(id, 1 - sa.size() - sb.size());
   }
-  //contigs[b_id] = ContigRef(id, sa.size()); // Should we not insert a negative pos if (direction == -1) ??
 
   // TODO: fix stride issues, release k-mers, might improve memory
   assert(!contigs[a_id].isContig);
@@ -271,17 +270,6 @@ void KmerMapper::printContig(const size_t id) {
 }
 
 
-/* Will we need this at all?
-ContigRef KmerMapper::extendContig(ContigRef a, const string &s) {
-  
-}
-
-ContigRef KmerMapper::extendContig(ContigRef a, const char *s) {
-  
-}
-*/
-
-
 // use:  r = m.find_rep(a);
 // pre:  
 // post: if a.isContig is false, then r.isContig is false and
@@ -312,24 +300,27 @@ ContigRef KmerMapper::find_rep(ContigRef a) const {
 }
 
 
-// use:  mapper.splitAndJoinContigs();
+// use:  d = mapper.splitAndJoinContigs();
 // pre:  
 // post: The contigs in mapper have been splitted and joined
-void KmerMapper::splitAndJoinContigs() {
+//       d is the increase of contigs after split and join
+int KmerMapper::splitAndJoinContigs() {
   Kmer km, rep, end, km_del;
   km_del.set_deleted();
   map.set_deleted_key(km_del);
 
-  splitContigs();
-  joinContigs();
+  int splitted = splitContigs();
+  int joined = joinContigs();
+  return splitted - joined;
 }
 
 
-// use:  mapper.joinContigs()
+// use:  joined = mapper.joinContigs()
 // pre:  
 // post: contigs that really should be connected have been connected 
-void KmerMapper::joinContigs() {
-  size_t k = Kmer::k, contigcount = contigs.size();
+//       joined is the number of contigs joined
+int KmerMapper::joinContigs() {
+  size_t joined = 0;
   
   Contig *c;
   ContigRef cr;
@@ -340,18 +331,19 @@ void KmerMapper::joinContigs() {
       continue;
     }
     c = cr.ref.contig;
-
-    
     
     ContigRef found;
     Kmer start_twin = c->seq.getKmer(0).twin();
     Kmer end = c->seq.getKmer(c->covlength-1);
     if (checkContigForward(c, end, found)) {
-      joinContigs(ContigRef(contigid,0),found); // this -> found
+      joinContigs(ContigRef(contigid, 0), found); // this -> found
+      ++joined;
     } else if (checkContigForward(c, start_twin, found)) {
-      joinContigs(found, ContigRef(contigid,0)); // found -> this
+      joinContigs(found, ContigRef(contigid, 0)); // found -> this
+      ++joined;
     }
   }
+  return joined;
 }
 
 bool KmerMapper::checkContigForward(Contig* c, Kmer km, ContigRef &found) {
@@ -385,10 +377,12 @@ bool KmerMapper::checkContigForward(Contig* c, Kmer km, ContigRef &found) {
 }
 
 
-// use:  mapper.splitContigs()
+// use:  count = mapper.splitContigs()
 // pre:  
 // post: all contigs with 1 coverage somewhere have been split on those locations
-void KmerMapper::splitContigs() {
+//       count is the number of contigs splitted
+int KmerMapper::splitContigs() {
+  size_t splitted = 0;
   size_t k = Kmer::k, contigcount = contigs.size();
   size_t covlength, seqlength, cstr_len = 2*k+1;
   size_t nextid = contigcount;
@@ -466,6 +460,7 @@ void KmerMapper::splitContigs() {
     
 
     // add the subcontigs to contigs and map them
+    splitted += v.size() - 1;
     for(size_t index = 0; index < v.size(); ++index) {
       a = v[index].first; b = v[index].second;
       string s(&cstr[a], (b - a) + k - 1);
@@ -484,6 +479,7 @@ void KmerMapper::splitContigs() {
     contigs[contigid] = ContigRef();
   }
   free(cstr);
+  return splitted;
 }
 
 
@@ -492,13 +488,11 @@ void KmerMapper::splitContigs() {
 // post: All the contigs in mapper have been printed, line by line, to stdout
 void KmerMapper::printContigs() {
   size_t contigcount = contigs.size();
-  ContigRef cr; 
 
   for(size_t contigid = 0; contigid < contigcount; ++contigid) {
-    cr = contigs[contigid];
-    if (!cr.isContig || cr.isEmpty()) {
-      continue;
+    ContigRef cr = contigs[contigid];
+    if (cr.isContig && !cr.isEmpty()) {
+      cout << cr.ref.contig->seq.toString() << endl;
     }
-    cout << cr.ref.contig->seq.toString() << endl;
   }
 }
