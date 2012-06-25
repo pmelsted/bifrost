@@ -455,7 +455,7 @@ string make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
 //       if s is not NULL the sequence of the contig is stored in s
 pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
   int i, j;
-  size_t fw_count, bw_count, dist = 1;
+  size_t dist = 1;
   vector<char> v;
 
   Kmer end = km;
