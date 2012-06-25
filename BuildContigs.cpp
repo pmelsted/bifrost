@@ -310,9 +310,13 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   }
 
   // Print the good contigs
-  mapper.splitAndJoinContigs();
+  size_t contigsBefore = mapper.contigCount();
+  int contigDiff = mapper.splitAndJoinContigs();
+  int contigsAfter = contigsBefore + contigDiff;
   mapper.printContigs();
-  cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size()<< endl;
+  cerr << "Before split and join: " << contigsBefore << " contigs" << endl;
+  cerr << "After split and join: " << contigsAfter << " contigs" <<  endl;
+  cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size() << endl;
 }
 
 

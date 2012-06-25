@@ -13,7 +13,6 @@
 using google::sparse_hash_map;
 
 
-
 /* Short description: 
  *  - A ContigRef can be:
  *    1) An empty reference
@@ -59,30 +58,24 @@ typedef google::sparse_hash_map<Kmer, ContigRef, KmerHash> hmap_contig_t;
   size_t addContig(const char *s);
   void mapContig(uint32_t id, size_t len, const char *s);
   
-  ContigRef joinContigs(ContigRef a, ContigRef b);
-  //  ContigRef extendContig(ContigRef a, const string &s);
-  //  ContigRef extendContig(ContigRef a, const char *s);
 
   ContigRef find(const Kmer km); // maybe change 
-  //const_iterator end() { return map.end(); }
 
   size_t stride; // store every stride-th kmer  
-  const size_t size() const {
-    return map.size();
-  }
-  
-  const size_t contigCount() const {
-    return contigs.size();
-  }
+  const size_t size() const { return map.size(); }
+  const size_t contigCount() const { return contigs.size(); }
 
   ContigRef getContig(const size_t id) const;
   ContigRef getContig(const ContigRef ref) const;
+
   void printContig(const size_t id);
   void printContigs();
 
-  void splitAndJoinContigs(); 
-  void splitContigs(); 
-  void joinContigs();
+  ContigRef joinContigs(ContigRef a, ContigRef b);
+  int joinContigs();
+  int splitContigs(); 
+  int splitAndJoinContigs(); 
+
   bool checkContigForward(Contig* c, Kmer km, ContigRef &found);
 private:
   ContigRef find_rep(ContigRef a) const;
