@@ -5,3 +5,5 @@ BloomFilterTest
 BlockedBloomFilterTest
 KmerMapperTest
 KmerIteratorTest
+SimpleMultithreadTest
+*.txt
