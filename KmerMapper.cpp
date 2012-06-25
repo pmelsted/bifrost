@@ -160,7 +160,7 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
     assert(0);
   }
 
-  Contig *joined = new Contig(0); // allocate new contig
+  Contig *joined = new Contig(); // allocate new contig
   joined->seq.reserveLength(sa.size() + sb.size() - k + 1);
   joined->seq.setSequence(sa, 0, sa.size(), 0, a_direction == -1); // copy all from a, keep orientation of a
   joined->seq.setSequence(sb, k - 1, sb.size() - k + 1, sa.size(), b_direction == -1); // copy from b, reverse if neccessary
@@ -188,10 +188,6 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   uint32_t id = (uint32_t) contigs.size();
   contigs.push_back(cr); // add to contigs set, is now at position id
   
-  // invalidated old contigs
-  delete contigs[a_id].ref.contig;
-  delete contigs[b_id].ref.contig;
-
   if (a_direction == 1) {
     contigs[a_id] = ContigRef(id, 0);
   } else {
@@ -205,6 +201,11 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   }
   //contigs[b_id] = ContigRef(id, sa.size()); // Should we not insert a negative pos if (direction == -1) ??
 
+
+  // invalidated old contigs
+  delete contigs[a_id].ref.contig;
+  delete contigs[b_id].ref.contig;
+  
   // TODO: fix stride issues, release k-mers, might improve memory
   assert(!contigs[a_id].isContig);
   assert(!contigs[b_id].isContig);
@@ -436,14 +437,14 @@ void KmerMapper::splitContigs() {
 
     // put [start,end] of covered subintervals of cstr into v
     while (b != covlength) {
-      while (c->cov[a] <= 1 && a < covlength) {
+      while (a < covlength &&  c->cov[a] <= 1) {
         a++;
       }
       if (a == covlength) {
         break;
       }
       b = a;
-      while (c->cov[b] > 1 && b < covlength) {
+      while (b < covlength && c->cov[b] > 1) {
        b++; 
       }
       v.push_back(make_pair(a,b));
