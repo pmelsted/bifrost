@@ -187,23 +187,28 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   cr.ref.contig = joined;
   uint32_t id = (uint32_t) contigs.size();
   contigs.push_back(cr); // add to contigs set, is now at position id
+
+  size_t sa_size = sa.size();
+  size_t sb_size = sb.size();
+  
+  // invalidated old contigs
+  delete contigs[a_id].ref.contig;
+  delete contigs[b_id].ref.contig;
   
   if (a_direction == 1) {
     contigs[a_id] = ContigRef(id, 0);
   } else {
-    contigs[a_id] = ContigRef(id, -sa.size() + k);
+    contigs[a_id] = ContigRef(id, -sa_size + k);
   }
   
   if (b_direction == 1) {
-    contigs[b_id] = ContigRef(id, sa.size() - k + 1);
+    contigs[b_id] = ContigRef(id, sa_size - k + 1);
   } else {
-    contigs[b_id] = ContigRef(id, 1 - sa.size() - sb.size());
+    contigs[b_id] = ContigRef(id, 1 - sa_size - sb_size);
   }
 
 
-  // invalidated old contigs
-  delete contigs[a_id].ref.contig;
-  delete contigs[b_id].ref.contig;
+  
   
   // TODO: fix stride issues, release k-mers, might improve memory
   assert(!contigs[a_id].isContig);
