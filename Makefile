@@ -8,9 +8,9 @@ MAX_KMER_SIZE = 32
 CC = g++
 CXX = g++
 INCLUDES = -I.
-CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) -fPIC
+CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) -fPIC -fopenmp
 LDFLAGS =
-LDLIBS  = -lm -lz
+LDLIBS  = -lm -lz -lgomp
 
 ifdef OPENMP
 override CXXFLAGS := $(CXXFLAGS) -fopenmp
