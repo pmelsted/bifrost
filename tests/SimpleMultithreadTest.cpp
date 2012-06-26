@@ -3,22 +3,15 @@
 #include <stdlib.h>
 #include <vector>
 
-#include "../MutexLock.hpp"
-
 using namespace std;
 
 int main () {
-  int MAX = 100, counter = 0, reads = 0;
+  int MAX = 100, reads = 0;
   int l[MAX];
-  int index = 0;
   int sum = 0;
   vector<int> v, vi;
 
-  while (reads < MAX && cin >> l[index++]) {
-    ++reads;
-  }
-  
-  MutexLock ml;
+  while (reads < MAX && cin >> l[reads++]);
 
   #pragma omp parallel default(shared) private(vi)
   {
@@ -28,17 +21,23 @@ int main () {
       vi.push_back(l[i]);
     }
 
-    ml.lock(); 
-    v.insert(v.end(), vi.begin(), vi.end()); 
-    ml.unlock();
+    #pragma omp master 
+    {
+      cout << "Number of threads : " << omp_get_num_threads() << endl;
+    }
+
+    #pragma omp critical 
+    { 
+      v.insert(v.end(), vi.begin(), vi.end()); 
+    }
   }  
 
 
-  #pragma omp parallel shared(counter)
+  #pragma omp parallel shared(sum)
   {
-    ++counter;
+    cout << "I'm a thread!" << endl;
   }
-  cout << "Number of cores: " << counter << endl;
+
   cout << "Sum: " << sum << endl;
 
   for(vector<int>::iterator it=v.begin(); it != v.end(); ++it) {
