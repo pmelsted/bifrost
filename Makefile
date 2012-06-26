@@ -12,9 +12,6 @@ CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) -f
 LDFLAGS =
 LDLIBS  = -lm -lz -lgomp
 
-ifdef OPENMP
-override CXXFLAGS := $(CXXFLAGS) -fopenmp
-endif
 
 all: CXXFLAGS += -O3
 all: target
