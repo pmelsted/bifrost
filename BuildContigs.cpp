@@ -5,6 +5,7 @@
 #include <functional>
 #include <getopt.h>
 #include <iostream>
+#include <omp>
 #include <sstream>
 #include <stdint.h>
 #include <string>
@@ -199,6 +200,17 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
    *            - try to jump over as many kmers as possible
    */
 
+  size_t num_threads = 1;
+  #pragma omp parallel
+  {
+    #pragma omp master 
+    {
+      num_threads = omp_get_num_threads();
+    }
+  }
+
+  vector<int> *smallv, *parray = new vector<int>[num_threads];
+
   BloomFilter bf;
   FILE* f = fopen(opt.input.c_str(), "rb");
   if (f == NULL) {
@@ -317,6 +329,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   cerr << "Before split and join: " << contigsBefore << " contigs" << endl;
   cerr << "After split and join: " << contigsAfter << " contigs" <<  endl;
   cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size() << endl;
+  delete [] varray;
 }
 
 
