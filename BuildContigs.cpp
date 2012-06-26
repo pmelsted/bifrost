@@ -36,12 +36,13 @@ static const char beta[4] = {'T','G','A','C'}; // c -> beta[(c & 7) >> 1] maps: 
 
 struct BuildContigs_ProgramOptions {
   size_t k;
+  size_t read_chunksize;
   size_t contig_size; // not configurable
   string input;
   string output;
   bool verbose;
   vector<string> files;
-  BuildContigs_ProgramOptions() : k(0), verbose(false) , contig_size(1000000) {}
+  BuildContigs_ProgramOptions() : k(0), verbose(false) , contig_size(1000000), read_chunksize(0) {}
 };
 
 
@@ -54,7 +55,8 @@ void BuildContigs_PrintUsage() {
   cerr << "Usage: BFGraph contigs [options] ... FASTQ files";
   cerr << endl << endl <<
       "-k, --kmer-size=INT             Size of k-mers, at most " << (int) (Kmer::MAX_K-1)<< endl << 
-      "-i, --input=STRING            Filtered reads" << endl <<
+      "-c, --chunk-size=INT            Read chunksize to split betweeen threads" << endl <<
+      "-i, --input=STRING              Filtered reads" << endl <<
       "-o, --output=STRING             Filename for output" << endl <<
       "    --verbose                   Print lots of messages during run" << endl << endl
       ;
@@ -67,11 +69,12 @@ void BuildContigs_PrintUsage() {
 // post: All the parameters from argv have been parsed into opt
 void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOptions &opt) {
   int verbose_flag = 0;
-  const char* opt_string = "k:o:i:";
+  const char* opt_string = "k:o:i:c:";
   static struct option long_options[] =
       {
         {"verbose", no_argument,  &verbose_flag, 1},
         {"kmer-size", required_argument, 0, 'k'},
+        {"chunk-size", required_argument, 0, 'c'},
         {"input", required_argument, 0, 'i'},
         {"output", required_argument, 0, 'o'},
         {0,0,0,0}
@@ -90,6 +93,9 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
 
     switch (c) {
       case 0: 
+        break;
+      case 'c':
+        opt.read_chunksize = atoi(optarg);
         break;
       case 'k': 
         opt.k = atoi(optarg); 
@@ -127,6 +133,11 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
     ret = false;
   }
 
+  if (opt.read_chunksize <= 0) {
+    cerr << "Error, invalid value for chunk-size: " << opt.read_chunksize << endl;
+    cerr << "Value must be greater than 0" << endl;
+    ret = false;
+  }
   
   if (opt.input.empty()) {
     cerr << "Input file missing" << endl;
@@ -250,7 +261,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   vector<string> readv;
   vector<Kmer> *smallv, *parray = new vector<Kmer>[num_threads];
   bool done = false;
-  size_t readindex, reads_now, read_chunksize = 100;
+  size_t readindex, reads_now, read_chunksize = opt.read_chunksize;
+  cerr << "using chunksize " << read_chunksize << endl;
 
   cerr << "starting real work" << endl;
   while (!done) {
@@ -385,6 +397,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   cerr << "Before split and join: " << contigsBefore << " contigs" << endl;
   cerr << "After split and join: " << contigsAfter << " contigs" <<  endl;
   cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size() << endl;
+  cerr << "Used " << num_threads << " threads and chunksize " << read_chunksize << endl;
   delete [] parray;
 }
 
