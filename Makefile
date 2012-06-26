@@ -12,6 +12,10 @@ CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) -f
 LDFLAGS =
 LDLIBS  = -lm -lz
 
+ifdef OPENMP
+override CXXFLAGS := $(CXXFLAGS) -fopenmp
+endif
+
 all: CXXFLAGS += -O3
 all: target
 
@@ -27,7 +31,7 @@ profile: target
 
 target: BFGraph
 
-OBJECTS =   Kmer.o KmerIterator.o KmerIntPair.o hash.o fastq.o FilterReads.o BuildContigs.o SimplifyGraph.o KmerMapper.o CompressedSequence.o Contig.o
+OBJECTS = Kmer.o KmerIterator.o KmerIntPair.o hash.o fastq.o FilterReads.o BuildContigs.o SimplifyGraph.o KmerMapper.o CompressedSequence.o Contig.o
 
 testread: testread.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(LDFLAGS) $(LDLIBS) $(OBJECTS) testread.o -o testread
