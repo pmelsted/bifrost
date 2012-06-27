@@ -26,9 +26,17 @@
 
 using boost::tuples::tie;
 
+struct NewContig {
+  string seq;
+  size_t start;
+  size_t end;
+  NewContig(string s, size_t a, size_t b) : seq(s), start(a), end(b) {}
+};
+  
+
 pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s);
 pair<ContigRef, pair<size_t, bool> > check_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
-string make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
+pair<string, size_t> make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
 void getMappingInfo(bool &repequal, int32_t &pos, size_t &dist, size_t &k, size_t &kmernum, int32_t &cmppos);
 
 static const char alpha[4] = {'A','C','G','T'};
@@ -240,7 +248,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     f = NULL;
   }
 
-  Kmer km, rep;
   KmerMapper mapper(opt.contig_size);
 
   KmerIterator iter, iterend;
@@ -259,11 +266,11 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   char kmrstr[200];
 
   vector<string> readv;
-  vector<Kmer> *smallv, *parray = new vector<Kmer>[num_threads];
+  vector<NewContig> *smallv, *parray = new vector<NewContig>[num_threads];
   bool done = false;
   size_t readindex, reads_now, read_chunksize = opt.read_chunksize;
-  cerr << "using chunksize " << read_chunksize << endl;
 
+  cerr << "using chunksize " << read_chunksize << endl;
   cerr << "starting real work" << endl;
   while (!done) {
     readv.clear();
@@ -292,7 +299,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
       #pragma omp for nowait
       for(int index=0; index < reads_now; ++index) {
-        iter = KmerIterator(readv[index].c_str());
+        const char *cstr = readv[index].c_str();
+        iter = KmerIterator(cstr);
         Kmer km, rep;
 
         if (iter != iterend) {
@@ -306,19 +314,40 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             iter.raise(km, rep);
           } else {
             tie(mapcr, disteq) = check_contig(bf, mapper, km);
-
             if (mapcr.isEmpty()) {
-              // Make contig (or increase coverage) from this kmer after this thread finishes
-              smallv->push_back(km);
+              // Map contig (or increase coverage) from this sequence after this thread finishes
+              pair<string, size_t> cpair = make_contig(bf, mapper, km);
+              string seq = cpair.first;
+              
+              size_t index = iter->second;
+              size_t cmpindex = index + k;
+              size_t seqindex = cpair.second;
+              size_t seqcmpindex = seqindex + k;
               iter.raise(km, rep);
+
+              while (cmppos < seq.size() && iter != iterend) {
+                if (cstr[cmpindex] == seq[seqcmpindex]) {
+                  Kmer k1(&cstr[cmpindex-k]);
+                  Kmer k2(&seq[seqcmpindex-k]);
+                  assert(k1 == k2);
+                  ++cmpindex;
+                  ++seqcmpindex;
+                  iter.raise(km,rep);
+                } else {
+                  break;
+                }
+              }
+              // cstr[index,...,cmpindex-1] == seq[seqindex,...,seqcmpindex-1]
+              // increase coverage in cov[seqindex,...,seqcmpindex-k]
+              smallv->push_back(NewContig(seq,seqindex,seqcmpindex-k));
             } else {
               Contig *contig = mapper.getContig(mapcr).ref.contig;
               tie(dist, repequal) = disteq;
               int32_t pos = mapcr.ref.idpos.pos;
 
-              getMappingInfo(repequal, pos, dist, k, kmernum, cmppos);        
+              getMappingInfo(repequal, pos, dist, k, kmernum, cmppos);
               bool reversed = (pos >= 0) != repequal;
-              size_t jumpi = 1 + iter->second + contig->seq.jump(readv[index].c_str(), iter->second + k, cmppos, reversed);
+              size_t jumpi = 1 + iter->second + contig->seq.jump(cstr, iter->second + k, cmppos, reversed);
 
               if (reversed) {
                 assert(contig->seq.getKmer(kmernum) == km.twin());
@@ -354,36 +383,55 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     }
 
     for (int i=0; i < num_threads; i++) {
-      for (vector<Kmer>::iterator it=parray[i].begin(); it != parray[i].end(); ++it) {
+      for (vector<NewContig>::iterator it=parray[i].begin(); it != parray[i].end(); ++it) {
         // The kmer did not map when it was added to this vector
         // so we make the contig if it has not been made yet
-        km = *it;
+        const char *cstr = it->seq.c_str();
+        Contig *contig;
+
+        Kmer km(cstr); 
         tie(mapcr, disteq) = check_contig(bf, mapper, km);
         
         if(mapcr.isEmpty()) {
-          string seq = make_contig(bf, mapper, km);
-          id = mapper.addContig(seq);
-          //mapper.printContig(id);
-          tie(mapcr, disteq) = check_contig(bf, mapper, km);
-        } 
+          // The contig has not been mapped so we map it and increase coverage
+          // of the kmers that came from the read
+          size_t id = mapper.addContig(cstr);
+          contig = mapper.getContig(id).ref.contig;
+          //tie(mapcr, disteq) = check_contig(bf, mapper, km);
+          for (size_t index=it->start; index <= it->end ; ++index) {
+            Kmer covkm = Kmer(cstr+index);
+            assert(contig->seq.getKmer(index) == covkm);
+            if (contig->cov[index] < 0xff) {
+              contig->cov[index] += 1;
+            }
+          }
 
-        // Increase coverage
-        contig = mapper.getContig(mapcr).ref.contig;
+        } else {
+          // The contig has been mapped so we only increase the coverage of the
+          // kmers that came from the read
 
-        tie(dist, repequal) = disteq;
-        pos = mapcr.ref.idpos.pos;
+          contig = mapper.getContig(mapcr).ref.contig;
 
-        getMappingInfo(repequal, pos, dist, k, kmernum, cmppos);        
-        reversed = (pos >= 0) != repequal;
+          tie(dist, repequal) = disteq;
+          assert(dist == 0); // km is the first or the last kmer in the contig
+          pos = mapcr.ref.idpos.pos;
 
-        if (reversed) {
-          assert(contig->seq.getKmer(kmernum) == km.twin());
-        }
-        else {
-          assert(contig->seq.getKmer(kmernum) == km);
-        }
-        if (contig->cov[kmernum] < 0xff) {
-          contig->cov[kmernum] += 1;
+          getMappingInfo(repequal, pos, dist, k, kmernum, cmppos);        
+          reversed = (pos >= 0) != repequal;
+          int32_t direction = reversed ? -1 : 1;
+
+          if (reversed) {
+            assert(contig->seq.getKmer(kmernum) == km.twin());
+          }
+          else {
+            assert(contig->seq.getKmer(kmernum) == km);
+          }
+          /*
+          if (contig->cov[kmernum] < 0xff) {
+            contig->cov[kmernum] += 1;
+          }
+          */
+          // TODO: Increase coverage!
         }
       }
       parray[i].clear();
@@ -524,11 +572,12 @@ pair<ContigRef, pair<size_t, bool> > check_contig(BloomFilter &bf, KmerMapper &m
   }
 }
 
-// use:  seq = make_contig(bf, mapper, km, s);
+// use:  seq, pos = make_contig(bf, mapper, km, s);
 // pre:  km is not contained in a mapped contig in mapper 
 // post: Finds the forward and backward limits of the contig
 //       which contains km  according to the bloom filter bf and puts it into seq
-string make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
+//       pos is the position where km maps into this contig
+pair<string, size_t> make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
   char c, cc;
   size_t k  = Kmer::k;
   string seq, seq_fw(k, 0), seq_bw(k, 0);
@@ -548,7 +597,7 @@ string make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
   } else {
     seq = seq_fw;
   }
-  return seq;
+  return make_pair(seq, p_bw.second-1);
 }
 
 // use:  tie(end,dist) = find_contig_forward(bf,km,s);
