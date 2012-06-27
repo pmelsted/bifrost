@@ -355,11 +355,10 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               uint8_t oldval = contig->cov[kmernum];
               uint8_t *change = &contig->cov[kmernum];
               while (!worked) {
-                
                 if (oldval < 0xff) {
                   worked = __sync_bool_compare_and_swap(change, oldval, oldval +1);
                 } else {
-                  worked = true;
+                  break;
                 }
                 oldval = contig->cov[kmernum];
               }
@@ -378,7 +377,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
                   if (oldval < 0xff) {
                     worked = __sync_bool_compare_and_swap(change, oldval, oldval +1);
                   } else {
-                    worked = true;
+                    break;
                   }
                   oldval = contig->cov[kmernum];
                 }
@@ -395,21 +394,21 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
       for (vector<NewContig>::iterator it=parray[i].begin(); it != parray[i].end(); ++it) {
         // The kmer did not map when it was added to this vector
         // so we make the contig if it has not been made yet
-        const char *cstr = it->seq.c_str();
+        const char *seq = it->seq.c_str();
         Contig *contig;
 
-        Kmer km(cstr); 
+        Kmer km(seq); // Is this definitely the kmer we want to check? 
         tie(mapcr, disteq) = check_contig(bf, mapper, km);
         
         if(mapcr.isEmpty()) {
           // The contig has not been mapped so we map it and increase coverage
           // of the kmers that came from the read
-          size_t id = mapper.addContig(cstr);
+          size_t id = mapper.addContig(seq);
           contig = mapper.getContig(id).ref.contig;
           //tie(mapcr, disteq) = check_contig(bf, mapper, km);
-          size_t limit = it->seq.size() - k;
-          for (size_t index=0; index <= limit ; ++index) {
-            Kmer covkm = Kmer(cstr+index);
+          size_t limit = it->end;
+          for (size_t index=it->start; index <= limit ; ++index) {
+            Kmer covkm = Kmer(seq+index);
             assert(contig->seq.getKmer(index) == covkm);
             if (contig->cov[index] < 0xff) {
               contig->cov[index] += 1;
