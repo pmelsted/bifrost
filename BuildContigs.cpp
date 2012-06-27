@@ -396,7 +396,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           size_t id = mapper.addContig(cstr);
           contig = mapper.getContig(id).ref.contig;
           //tie(mapcr, disteq) = check_contig(bf, mapper, km);
-          for (size_t index=it->start; index <= it->end ; ++index) {
+          size_t limit = it->seq.size() - k;
+          for (size_t index=0; index <= limit ; ++index) {
             Kmer covkm = Kmer(cstr+index);
             assert(contig->seq.getKmer(index) == covkm);
             if (contig->cov[index] < 0xff) {
