@@ -335,7 +335,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
                 iter.raise(km,rep);
               }
               // cstr[index,...,cmpindex-1] == seq[seqindex,...,seqcmpindex-1]
-              // increase coverage in cov[seqindex,...,seqcmpindex-k]
+              // increase coverage of cov[seqindex,...,seqcmpindex-k] by one, later in master thread
               smallv->push_back(NewContig(seq,seqindex,seqcmpindex-k));
             } else {
               Contig *contig = mapper.getContig(mapcr).ref.contig;
@@ -362,6 +362,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               iter.raise(km, rep);
 
               while (iter != iterend && iter->second < jumpi) {
+                assert(cstr[iter->second+k-1] != 'N');
                 assert(kmernum >= 0);
                 assert(kmernum < contig->covlength);
                 #pragma omp critical 
@@ -419,7 +420,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           size_t start = it->start, end = it->end;
           if (reversed) {
             assert(contig->seq.getKmer(kmernum) == km.twin());
-
           }
           else {
             assert(contig->seq.getKmer(kmernum) == km);
