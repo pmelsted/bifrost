@@ -351,11 +351,17 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               } else {
                 assert(contig->seq.getKmer(kmernum) == km);
               }
-              #pragma omp critical 
-              {
-                if (contig->cov[kmernum] < 0xff) {
-                  contig->cov[kmernum] += 1;
+              bool worked = false;
+              uint8_t oldval = contig->cov[kmernum];
+              uint8_t *change = &contig->cov[kmernum];
+              while (!worked) {
+                
+                if (oldval < 0xff) {
+                  worked = __sync_bool_compare_and_swap(change, oldval, oldval +1);
+                } else {
+                  worked = true;
                 }
+                oldval = contig->cov[kmernum];
               }
               int32_t direction = reversed ? -1 : 1;
               kmernum += direction;
@@ -365,11 +371,16 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
                 assert(cstr[iter->second+k-1] != 'N');
                 assert(kmernum >= 0);
                 assert(kmernum < contig->covlength);
-                #pragma omp critical 
-                {
-                  if (contig->cov[kmernum] < 0xff) {
-                    contig->cov[kmernum] += 1;
+                uint8_t oldval = contig->cov[kmernum];
+                uint8_t *change = &contig->cov[kmernum];
+                bool worked = false;
+                while (!worked) {
+                  if (oldval < 0xff) {
+                    worked = __sync_bool_compare_and_swap(change, oldval, oldval +1);
+                  } else {
+                    worked = true;
                   }
+                  oldval = contig->cov[kmernum];
                 }
                 kmernum += direction;
                 iter.raise(km, rep);
