@@ -416,19 +416,21 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           getMappingInfo(repequal, pos, dist, k, kmernum, cmppos);        
           reversed = (pos >= 0) != repequal;
           int32_t direction = reversed ? -1 : 1;
-
+          size_t start = it->start, end = it->end;
           if (reversed) {
             assert(contig->seq.getKmer(kmernum) == km.twin());
+
           }
           else {
             assert(contig->seq.getKmer(kmernum) == km);
           }
-          /*
-          if (contig->cov[kmernum] < 0xff) {
-            contig->cov[kmernum] += 1;
+          while (start <= end) {
+            if (contig->cov[kmernum] < 0xff) {
+              contig->cov[kmernum] += 1;
+            }
+            kmernum += direction;
+            ++start;
           }
-          */
-          // TODO: Increase coverage!
         }
       }
       parray[i].clear();
