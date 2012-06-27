@@ -324,18 +324,15 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               size_t seqindex = cpair.second;
               size_t seqcmpindex = seqindex + k;
               iter.raise(km, rep);
-
-              while (cmppos < seq.size() && iter != iterend) {
-                if (cstr[cmpindex] == seq[seqcmpindex]) {
-                  Kmer k1(&cstr[cmpindex-k]);
-                  Kmer k2(&seq[seqcmpindex-k]);
-                  assert(k1 == k2);
-                  ++cmpindex;
-                  ++seqcmpindex;
-                  iter.raise(km,rep);
-                } else {
-                  break;
-                }
+              
+              while (cstr[cmpindex] == seq[seqcmpindex] && cstr[cmpindex] != '\0') {
+                assert(cstr[cmpindex] != 'N');
+                Kmer k1(&cstr[cmpindex-k]);
+                Kmer k2(&seq[seqcmpindex-k]);
+                assert(k1 == k2);
+                ++cmpindex;
+                ++seqcmpindex;
+                iter.raise(km,rep);
               }
               // cstr[index,...,cmpindex-1] == seq[seqindex,...,seqcmpindex-1]
               // increase coverage in cov[seqindex,...,seqcmpindex-k]
