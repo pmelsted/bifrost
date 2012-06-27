@@ -46,7 +46,18 @@ public:
   }
 
   template<typename T>
-  bool contains(T x)  {
+  bool contains(T x) {
+    return (search(x) == 0);
+  }
+
+  // use:  r = bf.search(x)
+  // pre:
+  // post: r is the number of bits that need to be set to 1 so that
+  //       x is a member of bf
+  template<typename T>
+  size_t search(T x) 
+  {
+    size_t r = k_;
     uint64_t id;
     uint64_t hash;
     uint64_t hash0; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_  , &hash0);
@@ -57,17 +68,22 @@ public:
       hash = hash0 * i + hash1;
       id = hash - (hash / fast_div_) * size_; // equal to hash % size_;
       //assert(id == (hash % size_));
-      if ((table_[id >> 3] & mask[id & 0x07]) == 0) {
-	return false;      
+      if ((table_[id >> 3] & mask[id & 0x07]) != 0) {
+	r--;      
       }
     }
-    return true;
+    return r;
   }
 
+  // use:  r = bf.insert(x)
+  // pre:
+  // post: x is a member of bf, r is the number of bits modified
   template<typename T>
-  void insert(T x) {
+  size_t insert(T x) {
+    size_t r = 0;
     uint64_t id;
     uint64_t hash;
+    unsigned char val;
     uint64_t hash0; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_  , &hash0);
     hash0 |= 1; // odd number
     uint64_t hash1; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+1, &hash1);
@@ -76,8 +92,35 @@ public:
       hash = hash0 * i + hash1;
       id = hash - (hash / fast_div_) * size_;
       //assert(id == (hash % size_));
-      table_[id>>3] |= mask[id & 0x07];
+
+      
+      if ((table_[id>>3] & mask[id & 0x07]) == 0) {
+        val = __sync_fetch_and_or(table_ + (id>>3), mask[id & 0x07]); // val is the value prior to or-ing
+        if ((val & mask[id & 0x07]) == 0) {
+          r++; // we changed the value
+        }
+      }
+      
+
+      /*
+        while ( 1 ) {
+        val = table_[id>>3];
+        if ((val & mask[id & 0x07]) == 0) {
+          unsigned char nval = val | mask[id & 0x07];
+          if (__sync_bool_compare_and_swap(&(table_[id>>3]), val, nval)) {
+            r++;
+            break;
+          }
+        } else {
+          break;
+        }
+      }
+      */
+
+
+
     }
+    return r;
   }
 
   bool WriteBloomFilter(FILE *fp) {

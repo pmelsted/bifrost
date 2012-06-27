@@ -31,11 +31,12 @@ struct FilterReads_ProgramOptions {
   size_t nkmers;
   size_t nkmers2;
   string output;
+  uint32_t seed;
   bool verbose;
   size_t bf;
   size_t bf2;
   vector<string> files;
-  FilterReads_ProgramOptions() : k(0), nkmers(0), nkmers2(0), verbose(false), bf(4), bf2(8) {}
+  FilterReads_ProgramOptions() : k(0), nkmers(0), nkmers2(0), verbose(false), bf(4), bf2(8), seed(0) {}
 };
 
 // use:  FilterReads_PrintUsage();
@@ -46,14 +47,15 @@ void FilterReads_PrintUsage() {
   cerr << "Filters errors in fastq or fasta files and saves results" << endl << endl;
   cerr << "Usage: BFGraph filter [options] ... FASTQ files";
   cerr << endl << endl <<
-    "-k, --kmer-size=INT             Size of k-mers, at most " << (int) (Kmer::MAX_K-1)<< endl << 
-    "-n, --num-kmers=LONG            Estimated number of k-mers (upper bound)" << endl <<
-    "-N, --num-kmer2=LONG            Estimated number of k-mers in genome (upper bound)" << endl <<
-    "-o, --output=STRING             Filename for output" << endl <<
-    "-b, --bloom-bits=INT            Number of bits to use in Bloom filter (default=4)" << endl <<
-    "-B, --bloom-bits2=INT          Number of bits to use in second Bloom filter (default=8)" << endl <<
-    "    --verbose                   Print lots of messages during run" << endl << endl
-    ;
+      "-k, --kmer-size=INT             Size of k-mers, at most " << (int) (Kmer::MAX_K-1)<< endl << 
+      "-n, --num-kmers=LONG            Estimated number of k-mers (upper bound)" << endl <<
+      "-N, --num-kmer2=LONG            Estimated number of k-mers in genome (upper bound)" << endl <<
+      "-o, --output=STRING             Filename for output" << endl <<
+      "-b, --bloom-bits=INT            Number of bits to use in Bloom filter (default=4)" << endl <<
+      "-B, --bloom-bits2=INT           Number of bits to use in second Bloom filter (default=8)" << endl <<
+      "-s, --seed=INT                  Seed used for randomisazaion (default time based)" << endl <<
+      "    --verbose                   Print lots of messages during run" << endl << endl
+      ;
 }
 
 
@@ -63,7 +65,7 @@ void FilterReads_PrintUsage() {
 // post: All the parameters from argv have been parsed into opt
 void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions &opt) {
   int verbose_flag = 0;
-  const char* opt_string = "n:N:k:o:b:B:";
+  const char* opt_string = "n:N:k:o:b:B:s:";
   static struct option long_options[] =
   {
     {"verbose", no_argument,  &verbose_flag, 1},
@@ -73,6 +75,7 @@ void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions 
     {"output", required_argument, 0, 'o'},
     {"bloom-bits", required_argument, 0, 'b'},
     {"bloom-bits2", required_argument, 0, 'B'},
+    {"seed", required_argument, 0, 's'},
     {0,0,0,0}
   };
 
@@ -109,6 +112,9 @@ void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions 
       break;
     case 'B':
       opt.bf2 = atoi(optarg);
+      break;
+    case 's':
+      opt.seed = atoi(optarg);
       break;
     default: break;
     }
@@ -222,8 +228,12 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
    */
 
   size_t k = Kmer::k;
-  BloomFilter BF(opt.nkmers, (size_t) opt.bf, (uint32_t) time(NULL));
-  BloomFilter BF2(opt.nkmers2, (size_t) opt.bf2, (uint32_t) time(NULL));
+  uint32_t seed = opt.seed;
+  if (seed == 0) {
+    seed = (uint32_t) time(NULL);
+  }
+  BloomFilter BF(opt.nkmers, (size_t) opt.bf, seed);
+  BloomFilter BF2(opt.nkmers2, (size_t) opt.bf2, seed+1); // use different seeds
   
   char name[8196],s[8196];
   size_t name_len,len;
@@ -234,31 +244,70 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
 
   FastqFile FQ(opt.files);
 
-  while (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
-    // TODO: add code to handle N's, currently all N's are mapped to A
 
-    KmerIterator it(s), it_end;
-    Kmer km;
-    for (;it != it_end; ++it) {
-      ++num_kmers;
-      km = it->first;
-      Kmer tw = km.twin();
-      Kmer rep = km.rep();
-      if (BF.contains(rep)) {
-        if (!BF2.contains(rep)) {
-          BF2.insert(rep);
-          ++num_ins;
-        }
+  size_t chunk_size = 20000, reads_now = 0;
+  vector<string> readv;
+  bool done = false;
+  #ifdef _OPENMP
+  //omp_set_num_threads(1);
+  #endif
+
+  while (!done) {
+    readv.clear();
+    reads_now = 0;
+    while (reads_now < chunk_size) {
+      if (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
+        readv.push_back(string(s));
+        ++n_read;
+        ++reads_now;
       } else {
-          BF.insert(rep);
+        done = true;
+        break;
       }
     }
-    ++n_read;
 
-    if (opt.verbose && n_read % 1000000 == 0) {
-      cerr << "processed " << n_read << " reads" << endl;
+    
+    #pragma omp parallel default(shared) shared(readv, BF, reads_now, k)
+    {
+      size_t threadnum = 0;
+      #ifdef _OPENMP
+        threadnum= omp_get_thread_num();
+      #endif
+      KmerIterator iter,iterend;
+
+      #pragma omp for nowait
+      for (size_t index = 0; index < reads_now; ++index) {
+        iter = KmerIterator(readv[index].c_str());
+        Kmer km;
+        for (;iter != iterend; ++iter) {
+          //++num_kmers;
+          km = iter->first;
+          Kmer tw = km.twin();
+          Kmer rep = km.rep();
+          size_t r = BF.search(rep);        
+          if (r == 0) {
+            if (!BF2.contains(rep)) {
+              BF2.insert(rep);
+              ++num_ins;
+            }
+          } else {
+            if (BF.insert(rep) == r) {
+              ++num_ins;
+            } else {
+              if (opt.verbose) {
+                cerr << "clash!" << endl;
+              }
+              BF2.insert(rep); // better safe than sorry
+            }
+          }
+        }
+      }
+        
     }
+    
   }
+  
+  
   
  
   FQ.close();
