@@ -113,15 +113,15 @@ void CompressedCoverage::cover(size_t start, size_t end) {
     return;
   } else {
     if ((asBits & tagMask) == 1) { // local array
-      intptr_t s = intptr_t(3);
-      s <<= (8 + start);
+      intptr_t s = intptr_t(3); // 0b11
+      s <<= (8 + 2*start); 
       size_t val;
       for (; start <= end; start++,s<<=2) {
-        val = (asBits & s) >> (8 + start);
+        val = (asBits & s) >> (8 + 2*start);
         if (val < 2) {
           val++;
           asBits &= ~s; // clear bits
-          asBits |= (val << (8+start));
+          asBits |= (val << (8 +  2*start));
         }
       }
       if (isFull()) {
@@ -135,8 +135,8 @@ void CompressedCoverage::cover(size_t start, size_t end) {
       size_t index, pos;
       for (; start <= end; start++) {
         index = start >> 2;
-        pos = start & 0x03;
-        val = ptr[index] & (s<<pos);
+        pos = 2*(start & 0x03);
+        val = ptr[index] & (s << pos);
         if (val < 2) {
           ptr[index] &= ~(s << pos);
           ptr[index] |= (val << pos);
