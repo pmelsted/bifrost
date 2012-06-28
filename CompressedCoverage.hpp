@@ -52,4 +52,4 @@ private:
   };
 };
 
-#endif // BFG_COMPRESSED_COVERAGE_H
+#endif // BFG_COMPRESSED_COVERAGE_HPP

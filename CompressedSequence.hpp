@@ -56,4 +56,4 @@ private:
   char *_data; // 0-based 2bit compressed dna string
 };
 
-#endif // BFG_COMPRESSED_SEQUENCE_H
+#endif // BFG_COMPRESSED_SEQUENCE_HPP

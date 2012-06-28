@@ -6,4 +6,5 @@ BlockedBloomFilterTest
 KmerMapperTest
 KmerIteratorTest
 SimpleMultithreadTest
+CompressedCoverageTest
 *.txt
