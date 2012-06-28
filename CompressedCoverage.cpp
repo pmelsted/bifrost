@@ -84,7 +84,7 @@ string CompressedCoverage::toString() const {
       uint32_t filled = *((const uint32_t*)(getPointer()+4));
       info << filled << endl;
               
-      size_t nbytes = round_to_bytes(sz);
+      int nbytes = round_to_bytes(sz);
       uint8_t *ptr = getPointer() + 8;
       string ptrbits('0', nbytes*8);
       for (int i = 0; i < nbytes; i++) {
