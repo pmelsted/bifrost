@@ -49,8 +49,9 @@ struct BuildContigs_ProgramOptions {
   string input;
   string output;
   bool verbose;
+  size_t threads;
   vector<string> files;
-  BuildContigs_ProgramOptions() : k(0), verbose(false) , contig_size(1000000), read_chunksize(0) {}
+  BuildContigs_ProgramOptions() : k(0), verbose(false) , contig_size(1000000), read_chunksize(0), threads(1) {}
 };
 
 
@@ -64,6 +65,7 @@ void BuildContigs_PrintUsage() {
   cerr << endl << endl <<
       "-k, --kmer-size=INT             Size of k-mers, at most " << (int) (Kmer::MAX_K-1)<< endl << 
       "-c, --chunk-size=INT            Read chunksize to split betweeen threads" << endl <<
+      "-t, --threads=INT               Number of threads to use (default 1)" << endl << 
       "-i, --input=STRING              Filtered reads" << endl <<
       "-o, --output=STRING             Filename for output" << endl <<
       "    --verbose                   Print lots of messages during run" << endl << endl
@@ -77,7 +79,7 @@ void BuildContigs_PrintUsage() {
 // post: All the parameters from argv have been parsed into opt
 void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOptions &opt) {
   int verbose_flag = 0;
-  const char* opt_string = "k:o:i:c:";
+  const char* opt_string = "k:o:i:c:t:";
   static struct option long_options[] =
       {
         {"verbose", no_argument,  &verbose_flag, 1},
@@ -85,6 +87,7 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
         {"chunk-size", required_argument, 0, 'c'},
         {"input", required_argument, 0, 'i'},
         {"output", required_argument, 0, 'o'},
+        {"threads", required_argument, 0, 't'},
         {0,0,0,0}
       };
 
@@ -113,6 +116,9 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
         break;
       case 'i':
         opt.input = optarg;
+        break;
+      case 't':
+        opt.threads = atoi(optarg);
         break;
       default: break;
     }
@@ -156,6 +162,12 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
       ret = false;
     }
   }
+
+  if (opt.threads < 1) {
+    cerr << "Invalid number of threads " << opt.threads << ", need a number >= 1" << endl;
+    ret = false;
+  }
+  
 
   if (opt.files.size() == 0) {
     cerr << "Need to specify files for input" << endl;
@@ -220,6 +232,10 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
    */
 
   size_t num_threads = 1;
+  #ifdef _OPENMP
+    omp_set_num_threads(opt.threads);
+  #endif
+  
   #pragma omp parallel
   {
     #pragma omp master 
@@ -414,7 +430,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               contig->cov[index] += 1;
             }
           }
-
         } else {
           // The contig has been mapped so we only increase the coverage of the
           // kmers that came from the read
@@ -460,6 +475,9 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 }
 
 
+// use:  getMappingInfo(repequal, pos, dist, k, kmernum, cmppos)
+// pre:  ?
+// post: cmppos is the first character to ...
 void getMappingInfo(bool &repequal, int32_t &pos, size_t &dist, size_t &k, size_t &kmernum, int32_t &cmppos) {
   // Now we find the right location of the kmer inside the contig
   // to increase coverage 
