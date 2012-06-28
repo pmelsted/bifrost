@@ -37,7 +37,8 @@ struct NewContig {
 pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s);
 pair<ContigRef, pair<size_t, bool> > check_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
 pair<string, size_t> make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
-void getMappingInfo(bool &repequal, int32_t &pos, size_t &dist, size_t &k, size_t &kmernum, int32_t &cmppos);
+void getMappingInfo(const bool repequal, const int32_t pos, const size_t dist, const size_t k, size_t &kmernum, int32_t &cmppos);
+
 
 static const char alpha[4] = {'A','C','G','T'};
 static const char beta[4] = {'T','G','A','C'}; // c -> beta[(c & 7) >> 1] maps: 'A' <-> 'T', 'C' <-> 'G'
@@ -285,7 +286,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   vector<NewContig> *smallv, *parray = new vector<NewContig>[num_threads];
   bool done = false;
   size_t readindex, reads_now, read_chunksize = opt.read_chunksize;
-
   cerr << "using chunksize " << read_chunksize << endl;
   cerr << "starting real work" << endl;
   while (!done) {
@@ -405,7 +405,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         }
       }
     }
-
     for (int i=0; i < num_threads; i++) {
       for (vector<NewContig>::iterator it=parray[i].begin(); it != parray[i].end(); ++it) {
         // The kmer did not map when it was added to this vector
@@ -433,22 +432,23 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         } else {
           // The contig has been mapped so we only increase the coverage of the
           // kmers that came from the read
-
           contig = mapper.getContig(mapcr).ref.contig;
 
           tie(dist, repequal) = disteq;
           assert(dist == 0); // km is the first or the last kmer in the contig
           pos = mapcr.ref.idpos.pos;
 
-          getMappingInfo(repequal, pos, dist, k, kmernum, cmppos);        
-          reversed = (pos >= 0) != repequal;
+          getMappingInfo(repequal, pos, dist, k, kmernum, cmppos);
+          reversed = ((pos >= 0) != repequal);
           int32_t direction = reversed ? -1 : 1;
           size_t start = it->start, end = it->end;
           if (reversed) {
             assert(contig->seq.getKmer(kmernum) == km.twin());
+            kmernum -= it->start;
           }
           else {
             assert(contig->seq.getKmer(kmernum) == km);
+            kmernum += it->start;
           }
           while (start <= end) {
             if (contig->cov[kmernum] < 0xff) {
@@ -476,9 +476,9 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
 
 // use:  getMappingInfo(repequal, pos, dist, k, kmernum, cmppos)
-// pre:  ?
-// post: cmppos is the first character to ...
-void getMappingInfo(bool &repequal, int32_t &pos, size_t &dist, size_t &k, size_t &kmernum, int32_t &cmppos) {
+// pre:  
+// post: cmppos is the first character after the kmer-match at position pos
+void getMappingInfo(const bool repequal, const int32_t pos, const size_t dist, const size_t k, size_t &kmernum, int32_t &cmppos) {
   // Now we find the right location of the kmer inside the contig
   // to increase coverage 
   if (pos >= 0) {
