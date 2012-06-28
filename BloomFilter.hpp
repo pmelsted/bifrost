@@ -69,7 +69,7 @@ public:
       id = hash - (hash / fast_div_) * size_; // equal to hash % size_;
       //assert(id == (hash % size_));
       if ((table_[id >> 3] & mask[id & 0x07]) != 0) {
-	r--;      
+        r--;      
       }
     }
     return r;

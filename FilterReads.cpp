@@ -266,45 +266,33 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
       }
     }
 
-    
-    #pragma omp parallel default(shared) shared(readv, BF, reads_now, k)
-    {
-      size_t threadnum = 0;
-      #ifdef _OPENMP
-        threadnum= omp_get_thread_num();
-      #endif
-      KmerIterator iter,iterend;
-
-      #pragma omp for nowait
-      for (size_t index = 0; index < reads_now; ++index) {
-        iter = KmerIterator(readv[index].c_str());
-        Kmer km;
-        for (;iter != iterend; ++iter) {
-          //++num_kmers;
-          km = iter->first;
-          Kmer tw = km.twin();
-          Kmer rep = km.rep();
-          size_t r = BF.search(rep);        
-          if (r == 0) {
-            if (!BF2.contains(rep)) {
-              BF2.insert(rep);
-              ++num_ins;
-            }
+    KmerIterator iter, iterend;
+    #pragma omp parallel for private(iter) shared(iterend, readv, BF, reads_now, k) reduction(+:num_ins)
+    for (size_t index = 0; index < reads_now; ++index) {
+      iter = KmerIterator(readv[index].c_str());
+      for (;iter != iterend; ++iter) {
+        //++num_kmers;
+        Kmer km = iter->first;
+        Kmer tw = km.twin();
+        Kmer rep = km.rep();
+        size_t r = BF.search(rep);        
+        if (r == 0) {
+          if (!BF2.contains(rep)) {
+            BF2.insert(rep);
+            ++num_ins;
+          }
+        } else {
+          if (BF.insert(rep) == r) {
+            ++num_ins;
           } else {
-            if (BF.insert(rep) == r) {
-              ++num_ins;
-            } else {
-              if (opt.verbose) {
-                cerr << "clash!" << endl;
-              }
-              BF2.insert(rep); // better safe than sorry
+            if (opt.verbose) {
+              cerr << "clash!" << endl;
             }
+            BF2.insert(rep); // better safe than sorry
           }
         }
       }
-        
     }
-    
   }
   
   
