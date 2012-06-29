@@ -13,10 +13,10 @@
  *    pppppppp|pppppppp|pppppppp|pppppppp|pppppppp|pppppppp|pppppppp|ppppppF0
  *    dddddddd|dddddddd|dddddddd|dddddddd|dddddddd|dddddddd|dddddddd|ssssssF1
  *
- *    - First bit is 0 for pointer and 1 for local array
- *    - Second bit is 1 for a full coverage and 0 for non-full
- *    - For local array next 6 bits store size of the array
- *    - For the pointer version next 62 bits encode the pointer (last two bits
+ *    - Last bit is 0 for pointer and 1 for local array
+ *    - Second last bit is 1 for a full coverage and 0 for non-full
+ *    - For local array last 8 except last 2 bits store size of the array
+ *    - For the pointer version first 62 bits encode the pointer (last two bits
  *      are zeroed out before dereferencing)
  *    - The pointer points to an array of bytes, where the first 8 encode the
  *      size of the array used in uint32_t and the number of full positions.
@@ -32,6 +32,7 @@ public:
 
   size_t size() const;
   std::string toString() const; // for debugging
+  bool isFull() const;
 
 private:
 
@@ -43,7 +44,6 @@ private:
   static const size_t size_limit = 28; // 56 bit array, 28 2-bit integers
   
   uint8_t* getPointer() const;
-  bool isFull() const;
   void releasePointer();
   
   union {

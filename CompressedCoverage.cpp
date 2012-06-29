@@ -31,7 +31,7 @@ CompressedCoverage::~CompressedCoverage() {
 
 
 void CompressedCoverage::releasePointer() {
-  if ((asBits & tagMask) == 0 && (asBits & fullMask) != 1) {
+  if ((asBits & tagMask) == 0 && (asBits & fullMask) != 2) {
     // release pointer
     uint8_t* ptr = getPointer();
     size_t sz = size();
@@ -46,7 +46,7 @@ size_t CompressedCoverage::size() const {
   if ((asBits & tagMask) == 1) {
     return ((asBits & sizeMask) >> 2);
   } else {
-    if ((asBits & fullMask) == 1) {
+    if ((asBits & fullMask) == 2) {
       return (uint32_t) (asBits >> 32);
     } else {
       return *((uint32_t*) getPointer());
@@ -83,21 +83,22 @@ string CompressedCoverage::toString() const {
       info << sz;
       info << endl;
     } else {
-      info << "Non-full, size = " << sz << ", filled = ";
+      info << "Non-full, size = " << sz << ", not-filled = ";
       uint32_t filled = *((const uint32_t*)(getPointer()+4));
       info << filled << endl;
               
       int nbytes = round_to_bytes(sz);
       uint8_t *ptr = getPointer() + 8;
       string ptrbits(nbytes*8, '0');
-      for (int i = 0; i < nbytes; i++) {
-        for (int j = 0; j < 8; j++) {
-          if ((ptr[i] & (1<<j)) == 1) {
+      for (size_t i = 0; i < nbytes; i++) {
+        for (size_t j = 0; j < 8; j++) {
+          if (((ptr[i] & (1<<j)) >> j) == 1) {
             ptrbits[nbytes*8-1-(8*i+j)] = '1';
           }
         }
       }
-      info << ptrbits;
+      //info << ptrbits;
+      bits += ptrbits;
     }
     return bits + "\n" + info.str();
   } else {
@@ -134,27 +135,30 @@ void CompressedCoverage::cover(size_t start, size_t end) {
         asBits |= fullMask;
       }
     } else {
-      size_t filled = 0;
-      uint8_t s = intptr_t(3);
-      uint8_t* ptr = getPointer()+8;
+      size_t fillednow = 0;
+      uint8_t s = intptr_t(3); // 0b11
+      uint8_t* ptr = getPointer() + 8;
       size_t val;
       size_t index, pos;
       for (; start <= end; start++) {
         index = start >> 2;
         pos = 2*(start & 0x03);
-        val = ptr[index] & (s << pos);
+        val = (ptr[index] & (s << pos)) >> pos;
         if (val < 2) {
+          val++;
           ptr[index] &= ~(s << pos);
           ptr[index] |= (val << pos);
           if (val == 2) {
-            filled++;
+            fillednow++;
           }
         }
       }
-      *((uint32_t*) (getPointer()+4)) -= filled;
+      *((uint32_t*) (getPointer()+4)) -= fillednow;
+      
 
       if (isFull()) {
         releasePointer();
+        assert((asBits & fullMask) == 2);
       }
       
     }
@@ -163,7 +167,7 @@ void CompressedCoverage::cover(size_t start, size_t end) {
 
 
 bool CompressedCoverage::isFull() const {
-  if ((asBits & fullMask) == 1) {
+  if ((asBits & fullMask) == 2) {
     return true;
   }
   
