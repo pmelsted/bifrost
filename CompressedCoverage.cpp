@@ -17,7 +17,6 @@ CompressedCoverage::CompressedCoverage(size_t size) {
     asBits |= (sizeMask & (size << 2)); // set bits 2-6 to size;
   } else {
     uint8_t* ptr = new uint8_t[8+round_to_bytes(size)];
-    printf("In constructor: %x\n",ptr);
     *(reinterpret_cast<uint32_t*>(ptr)) = (uint32_t) size; // first 4 bytes store size
     *(reinterpret_cast<uint32_t*>(ptr+4)) = (uint32_t) size; // next  4 bytes store number of uncovered bases
     memset(ptr+8, 0, round_to_bytes(size)); // 0 out array allocated
@@ -27,17 +26,14 @@ CompressedCoverage::CompressedCoverage(size_t size) {
 
 
 CompressedCoverage::~CompressedCoverage() {
-  printf("calling destructor\n");
   releasePointer();
 }
 
 
 void CompressedCoverage::releasePointer() {
-  printf("releasing pointer\n");
   if ((asBits & tagMask) == 0 && (asBits & fullMask) != 1) {
     // release pointer
     uint8_t* ptr = getPointer();
-    printf("In releasePointer: %x\n",ptr);
     size_t sz = size();
     asBits = fullMask;
     asBits |= (sz << 32);
@@ -71,10 +67,7 @@ string CompressedCoverage::toString() const {
   size_t sz = size();
   bool full = isFull();
 
-  string bits('0', 64);
-  for(size_t index=0; index < 64; ++index) {
-    bits[index] = '0';
-  }
+  string bits(64, '0');
   
   for (int i = 0; i < 64; i++) {
     if (asBits & (intptr_t(1) << (63-i))) {
@@ -96,7 +89,7 @@ string CompressedCoverage::toString() const {
               
       int nbytes = round_to_bytes(sz);
       uint8_t *ptr = getPointer() + 8;
-      string ptrbits('0', nbytes*8);
+      string ptrbits(nbytes*8, '0');
       for (int i = 0; i < nbytes; i++) {
         for (int j = 0; j < 8; j++) {
           if ((ptr[i] & (1<<j)) == 1) {
@@ -120,6 +113,8 @@ string CompressedCoverage::toString() const {
 
 
 void CompressedCoverage::cover(size_t start, size_t end) {
+  assert(start <= end);
+  assert(end < size());
   if (isFull()) {
     return;
   } else {
