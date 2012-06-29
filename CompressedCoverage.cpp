@@ -10,17 +10,19 @@ using namespace std;
 size_t round_to_bytes(const size_t len)  { return (len+3)/4; }
 
 
-CompressedCoverage::CompressedCoverage(size_t size) {
-  if (size <= size_limit) {
+CompressedCoverage::CompressedCoverage(size_t _size) {
+  if (_size <= size_limit) {
     asBits = intptr_t(0); // zero out
     asBits |= tagMask;  // set 0-bit to 1
-    asBits |= (sizeMask & (size << 2)); // set bits 2-6 to size;
+    asBits |= (sizeMask & (_size << 2)); // set bits 2-6 to size;
   } else {
-    uint8_t* ptr = new uint8_t[8+round_to_bytes(size)];
-    *(reinterpret_cast<uint32_t*>(ptr)) = (uint32_t) size; // first 4 bytes store size
-    *(reinterpret_cast<uint32_t*>(ptr+4)) = (uint32_t) size; // next  4 bytes store number of uncovered bases
-    memset(ptr+8, 0, round_to_bytes(size)); // 0 out array allocated
+    uint8_t* ptr = new uint8_t[8+round_to_bytes(_size)];
+    *(reinterpret_cast<uint32_t*>(ptr)) = (uint32_t) _size; // first 4 bytes store size
+    *(reinterpret_cast<uint32_t*>(ptr+4)) = (uint32_t) _size; // next  4 bytes store number of uncovered bases
+    memset(ptr+8, 0, round_to_bytes(_size)); // 0 out array allocated
     asPointer = ptr; // last bit is 0
+    assert(getPointer() == ptr);
+    assert(size() == _size);
   }
 }
 
@@ -87,7 +89,7 @@ string CompressedCoverage::toString() const {
       uint32_t filled = *((const uint32_t*)(getPointer()+4));
       info << filled << endl;
               
-      int nbytes = round_to_bytes(sz);
+      size_t nbytes = round_to_bytes(sz);
       uint8_t *ptr = getPointer() + 8;
       string ptrbits(nbytes*8, '0');
       for (size_t i = 0; i < nbytes; i++) {

@@ -313,7 +313,7 @@ size_t CompressedSequence::jump(const char *s, size_t i, int pos, bool reversed)
   size_t a,b,idx;
   for (int index = pos; s[i+j] != 0 && index != limit; index+= dir, j++) {
     assert(index >= 0);
-    assert(index < _length);
+    assert(_length - index > 0);
     a = index / 4;
     b = index % 4;
     idx = ((_data[a]) >> (2*b)) & 0x03;

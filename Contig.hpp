@@ -4,10 +4,12 @@
 #include "Common.hpp"
 #include "Kmer.hpp"
 #include "CompressedSequence.hpp"
+#include "CompressedCoverage.hpp"
 
 
 /* Short description: 
  *  - Use the CompressedSequence class for storing the DNA string 
+ *  - Use the CompressedCoverage class for storing the kmer coverage 
  *  */
 class Contig {
 public:
@@ -18,6 +20,7 @@ public:
 
   uint8_t *cov;
   uint32_t covlength;
+  CompressedCoverage *covp;
   CompressedSequence seq;
   // TODO: do we store the links here?
 };

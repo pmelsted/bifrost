@@ -269,25 +269,22 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
   KmerIterator iter, iterend;
   FastqFile FQ(opt.files);
-  Contig *contig;
   ContigRef cr, mapcr;
 
   bool repequal, reversed;
   char name[8192], s[8192];
-  size_t id, jumpi, kmernum, dist, name_len, len, k = Kmer::k;
-  int32_t pos, cmppos, direction;
-  uint64_t n_read = 0, num_kmers = 0, num_ins = 0;
+  size_t kmernum, dist, name_len, len, k = Kmer::k;
+  int32_t pos, cmppos;
+  uint64_t n_read = 0; 
   pair<size_t, bool> disteq;
-
-  Kmer tmpkm;
-  char kmrstr[200];
 
   vector<string> readv;
   vector<NewContig> *smallv, *parray = new vector<NewContig>[num_threads];
   bool done = false;
-  size_t readindex, reads_now, read_chunksize = opt.read_chunksize;
+  size_t reads_now, read_chunksize = opt.read_chunksize;
   cerr << "using chunksize " << read_chunksize << endl;
   cerr << "starting real work" << endl;
+
   while (!done) {
     readv.clear();
     reads_now = 0;
@@ -314,7 +311,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
 
       #pragma omp for nowait
-      for(int index=0; index < reads_now; ++index) {
+      for(size_t index=0; index < reads_now; ++index) {
         const char *cstr = readv[index].c_str();
         iter = KmerIterator(cstr);
         Kmer km, rep;
@@ -360,7 +357,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
               getMappingInfo(repequal, pos, dist, k, kmernum, cmppos);
               bool reversed = (pos >= 0) != repequal;
-              size_t jumpi = 1 + iter->second + contig->seq.jump(cstr, iter->second + k, cmppos, reversed);
+              int jumpi = 1 + iter->second + contig->seq.jump(cstr, iter->second + k, cmppos, reversed);
 
               if (reversed) {
                 assert(contig->seq.getKmer(kmernum) == km.twin());
@@ -405,7 +402,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         }
       }
     }
-    for (int i=0; i < num_threads; i++) {
+    for (size_t i=0; i < num_threads; i++) {
       for (vector<NewContig>::iterator it=parray[i].begin(); it != parray[i].end(); ++it) {
         // The kmer did not map when it was added to this vector
         // so we make the contig if it has not been made yet
@@ -606,10 +603,10 @@ pair<ContigRef, pair<size_t, bool> > check_contig(BloomFilter &bf, KmerMapper &m
 //       which contains km  according to the bloom filter bf and puts it into seq
 //       pos is the position where km maps into this contig
 pair<string, size_t> make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
-  char c, cc;
   size_t k  = Kmer::k;
   string seq, seq_fw(k, 0), seq_bw(k, 0);
-  pair<Kmer, size_t> p_fw = find_contig_forward(bf, km, &seq_fw);
+  //pair<Kmer, size_t> p_fw = find_contig_forward(bf, km, &seq_fw);
+  find_contig_forward(bf, km, &seq_fw);
   pair<Kmer, size_t> p_bw = find_contig_forward(bf, km.twin(), &seq_bw);
   ContigRef cr_tw_end = mapper.find(p_bw.first);
   assert(cr_tw_end.isEmpty());
@@ -617,7 +614,7 @@ pair<string, size_t> make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
   if (p_bw.second > 1) {
     seq.reserve(seq_bw.size() + seq_fw.size() - k);
     // copy reverse part of seq_bw not including k
-    for (int j = seq_bw.size() - 1; j >= k; --j) {
+    for (size_t j = seq_bw.size() - 1; j >= k; --j) {
       seq.push_back(beta[(seq_bw[j] & 7) >> 1]);
     }
     // append seq_fw
@@ -635,8 +632,8 @@ pair<string, size_t> make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
 //       and c contains dist kmers until the end (including km)
 //       if s is not NULL the sequence of the contig is stored in s
 pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
-  int i, j;
-  size_t dist = 1;
+  int j;
+  size_t i,dist = 1;
   vector<char> v;
 
   Kmer end = km;
