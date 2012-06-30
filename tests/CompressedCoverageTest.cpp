@@ -11,7 +11,6 @@ using namespace std;
 // f = lambda x,start,new: x[0:start*2] + new + x[start*2+len(new):]
 // x = "00"*28
 // f(x,12,"01"*12)
-//
 int main(int argc, char *argv[]) {
   CompressedCoverage c1(28);
   string s1r = c1.toString();
@@ -140,6 +139,10 @@ int main(int argc, char *argv[]) {
   assert(s3r_64[62] == '1');
   assert(s3r_64.substr(0,32) == "00000000000000000000000000110010"); // 50 as a 32 bit binary number
   assert(c3.size() == 50);
+
+  for(size_t j=0; j<100;++j) {
+    CompressedCoverage cc = CompressedCoverage(j);
+  }
 
   cout << &argv[0][2] << " completed successfully" << endl;
 }

@@ -7,7 +7,7 @@
 Contig::~Contig() {
   if (cov != NULL) {
     delete[] cov;
-    delete[] covp;
+    delete covp;
     covp = NULL;
     cov = NULL;
   }
