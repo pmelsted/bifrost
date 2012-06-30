@@ -175,8 +175,7 @@ bool CompressedCoverage::isFull() const {
   
   if ((asBits & tagMask) == 1) {
     size_t sz = size();
-    intptr_t b = (((1 << sz)-1) << 8);
-    return ((asBits & b) == (0xAAAAAAAAAAAAAA00 & b));
+    return (static_cast<size_t>(asBits) >> 8) == (0xAAAAAAAAAAAAAA >> 2*(28 - sz));
   } else {
     size_t uncovered = *((const uint32_t*) (getPointer()+4));
     return (uncovered == 0);

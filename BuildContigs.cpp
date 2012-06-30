@@ -375,6 +375,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
                 }
                 oldval = contig->cov[kmernum];
               }
+              contig->covp->cover(kmernum,kmernum);
+
               int32_t direction = reversed ? -1 : 1;
               kmernum += direction;
               iter.raise(km, rep);
@@ -394,6 +396,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
                   }
                   oldval = contig->cov[kmernum];
                 }
+                contig->covp->cover(kmernum,kmernum);
+
                 kmernum += direction;
                 iter.raise(km, rep);
               }
@@ -426,6 +430,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               contig->cov[index] += 1;
             }
           }
+          contig->covp->cover(it->start,limit);
         } else {
           // The contig has been mapped so we only increase the coverage of the
           // kmers that came from the read
@@ -442,10 +447,12 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           if (reversed) {
             assert(contig->seq.getKmer(kmernum) == km.twin());
             kmernum -= it->start;
+            contig->covp->cover(kmernum-(end-start),kmernum);
           }
           else {
             assert(contig->seq.getKmer(kmernum) == km);
             kmernum += it->start;
+            contig->covp->cover(kmernum,kmernum+end-start);
           }
           while (start <= end) {
             if (contig->cov[kmernum] < 0xff) {

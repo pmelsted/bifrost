@@ -418,6 +418,7 @@ int KmerMapper::splitContigs() {
     }
     
     if (okay) {
+      assert(c->covp->isFull());
       continue;
     }
     
