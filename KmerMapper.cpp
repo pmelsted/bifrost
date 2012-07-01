@@ -168,6 +168,8 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   joined->allocateCov(true); // true because the joined contig will have full coverage
 
   // reverse coverages if neccessary
+  
+  /*
   if (a_direction == -1) {
     reverse(ca->cov, ca->covlength);
   }
@@ -182,6 +184,7 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   for(unsigned int i=0; i <= sb.size() - k; ++i) {
     joined->cov[sa.size() - k + 1 + i] = cb->cov[i]; 
   } 
+  */
 
   ContigRef cr;
   cr.ref.contig = joined;
@@ -407,21 +410,27 @@ int KmerMapper::splitContigs() {
 
     c = cr.ref.contig;
     covlength = c->covlength;
-    okay = true;
 
     // Check if this contig has 1 coverage somewhere
+    /*
+    okay = true;
     for(size_t index=0; index < covlength; ++index) {
       if (c->cov[index] <= 1) {
         okay = false;
         break;
       }
     }
+    */
+    okay = c->covp->isFull();
     
     if (okay) {
-      assert(c->covp->isFull());
+      // The new CompressedSequence class
+      //assert(c->covp->isFull());
       continue;
     }
-    assert(!c->covp->isFull());
+    
+    // The new CompressedSequence class
+    //assert(!c->covp->isFull());
     
     seqlength = c->seq.size();
 
@@ -433,9 +442,11 @@ int KmerMapper::splitContigs() {
     strcpy(cstr, c->seq.toString().c_str());
     cstr[seqlength] = 0;
 
+    vector<pair<int, int> > v = c->covp->getSplittingVector();
+    /*
     size_t a = 0, b = 0;
     vector<pair<int, int> > v;
-    vector<pair<int, int> > splittingVector = c->covp->getSplittingVector();
+    // The new CompressedSequence class
 
     // put [start,end] of covered subintervals of cstr into v
     while (b != covlength) {
@@ -452,15 +463,9 @@ int KmerMapper::splitContigs() {
       v.push_back(make_pair(a,b));
       a = b;
     }
-    if (v != splittingVector) {
-      fprintf(stderr, "%s", c->covp->toString().c_str());
-      printf("and cov:\n");
-      for(size_t i=0; i<covlength; i++) {
-        fprintf(stderr, "%u ", c->cov[i]);
-      }
-      fprintf(stderr,"\n");
-      assert(0);
-    }
+    */
+    // The new CompressedSequence class
+    // assert(v == splittingVector)
 
     // unmap the contig
     for(size_t index = 0; index < covlength; ++index) {
@@ -480,15 +485,17 @@ int KmerMapper::splitContigs() {
     // add the subcontigs to contigs and map them
     splitted += v.size() - 1;
     for(size_t index = 0; index < v.size(); ++index) {
-      a = v[index].first; b = v[index].second;
+      size_t a = v[index].first, b = v[index].second;
       string s(&cstr[a], (b - a) + k - 1);
       ContigRef newcr;
-      Contig *newc = new Contig(s.c_str());
+      Contig *newc = new Contig(s.c_str(), true);
       newcr.ref.contig = newc;
+      /*
       size_t i = 0;
       while (a < b) {
         newc->cov[i++] = c->cov[a++];
       }
+      */
       contigs.push_back(newcr);
       mapContig(nextid++, newc->covlength, s.c_str());
     }

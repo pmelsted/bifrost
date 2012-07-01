@@ -14,7 +14,7 @@
 class Contig {
 public:
   Contig() : cov(0) {}
-  Contig(const char *s) : seq(s) { allocateCov(false); }
+  Contig(const char *s, bool full=false) : seq(s) { allocateCov(full); }
   ~Contig();
   void allocateCov(bool full);
 
