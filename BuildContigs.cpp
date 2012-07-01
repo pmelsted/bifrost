@@ -364,17 +364,19 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               } else {
                 assert(contig->seq.getKmer(kmernum) == km);
               }
-              bool worked = false;
-              uint8_t oldval = contig->cov[kmernum];
               uint8_t *change = &contig->cov[kmernum];
-              while (!worked) {
+              uint8_t oldval = *change; 
+              while (1) {
                 if (oldval < 0xff) {
-                  worked = __sync_bool_compare_and_swap(change, oldval, oldval +1);
+                  if(__sync_bool_compare_and_swap(change, oldval, oldval +1)) {
+                    break;
+                  }
                 } else {
                   break;
                 }
-                oldval = contig->cov[kmernum];
+                oldval = *change; 
               }
+              // The new CompressedCoverage class
               contig->covp->cover(kmernum,kmernum);
 
               int32_t direction = reversed ? -1 : 1;
@@ -385,17 +387,19 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
                 assert(cstr[iter->second+k-1] != 'N');
                 assert(kmernum >= 0);
                 assert(kmernum < contig->covlength);
-                uint8_t oldval = contig->cov[kmernum];
                 uint8_t *change = &contig->cov[kmernum];
-                bool worked = false;
-                while (!worked) {
+                uint8_t oldval = *change; 
+                while (1) {
                   if (oldval < 0xff) {
-                    worked = __sync_bool_compare_and_swap(change, oldval, oldval +1);
+                    if (__sync_bool_compare_and_swap(change, oldval, oldval +1)) {
+                      break;
+                    }
                   } else {
                     break;
                   }
-                  oldval = contig->cov[kmernum];
+                  oldval = *change; 
                 }
+                // The new CompressedCoverage class
                 contig->covp->cover(kmernum,kmernum);
 
                 kmernum += direction;
@@ -430,6 +434,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               contig->cov[index] += 1;
             }
           }
+          // The new CompressedCoverage class
           contig->covp->cover(it->start,limit);
         } else {
           // The contig has been mapped so we only increase the coverage of the
@@ -447,11 +452,13 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           if (reversed) {
             assert(contig->seq.getKmer(kmernum) == km.twin());
             kmernum -= it->start;
+            // The new CompressedCoverage class
             contig->covp->cover(kmernum-(end-start),kmernum);
           }
           else {
             assert(contig->seq.getKmer(kmernum) == km);
             kmernum += it->start;
+            // The new CompressedCoverage class
             contig->covp->cover(kmernum,kmernum+end-start);
           }
           while (start <= end) {

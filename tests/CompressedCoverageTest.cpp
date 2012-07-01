@@ -19,12 +19,17 @@ int main(int argc, char *argv[]) {
   assert(s1r.substr(0, 28*2) == string(2*28, '0'));
 
   c1.cover(27,27);
+  assert(c1.covAt(0) == 0);
+  //assert(c1.covAt(27) == 1);
   c1.cover(27,27);
+  assert(c1.covAt(0) == 0);
+  assert(c1.covAt(27) == 2);
   s1r = c1.toString();
   assert(s1r[54 - 27*2] == '1');      // 0
   assert(s1r[54 - 27*2 +1] == '0');   // 1
   
   c1.cover(0,0);
+  assert(c1.covAt(0) == 1);
   s1r = c1.toString();
   assert(s1r[54 - 0*2] == '0');       // 54
   assert(s1r[54 - 0*2 +1] == '1');    // 55
@@ -63,9 +68,13 @@ int main(int argc, char *argv[]) {
   assert(s2r[63] == '1'); // Not pointer
   assert(s2r[62] == '0'); // Not full
   assert(s2r.substr(0, 28*2) == string(2*28, '0'));
+  for(size_t i=0; i<10; ++i) {
+    assert(c2.covAt(i) == 0);
+  }
 
   c2.cover(9,9);
   c2.cover(9,9);
+  assert(c2.covAt(9) == 2);
   s2r = c2.toString();
   assert(s2r[54 - 9*2] == '1');
   assert(s2r[54 - 9*2 +1] == '0');
@@ -106,7 +115,9 @@ int main(int argc, char *argv[]) {
 
 
   c3.cover(0,0);
+  assert(c3.covAt(0) == 1);
   c3.cover(0,0);
+  assert(c3.covAt(0) == 2);
   string s3r = c3.toString().substr(64+4,50*2);
   assert(s3r[49*2 - 0*2] == '1');
   assert(s3r[49*2 - 0*2 +1] == '0');
@@ -143,6 +154,29 @@ int main(int argc, char *argv[]) {
   for(size_t j=0; j<100;++j) {
     CompressedCoverage cc = CompressedCoverage(j);
   }
+  CompressedCoverage c4(18);
+  c4.cover(0,17);
+  c4.cover(0,16);
+  vector<pair<int, int> > v = c4.getSplittingVector();
+  assert(v.size() == 1);
+  pair<int, int> c4p = v[0];
+  assert(c4p.first == 0);
+  assert(c4p.second == 17);
+  
+  CompressedCoverage c5(10);
+  c5.cover(2,3);
+  c5.cover(2,3);
+  c5.cover(5,9);
+  c5.cover(5,9);
+  v = c5.getSplittingVector();
+  pair<int, int> c5p = v[0];
+  assert(v.size() == 2);
+  assert(c5p.first == 2);
+  assert(c5p.second == 4);
+  
+  c5p = v[1];
+  assert(c5p.first == 5);
+  assert(c5p.second == 10);
 
   cout << &argv[0][2] << " completed successfully" << endl;
 }

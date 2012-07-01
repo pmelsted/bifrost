@@ -14,9 +14,9 @@
 class Contig {
 public:
   Contig() : cov(0) {}
-  Contig(const char *s) : seq(s) { allocateCov(); }
+  Contig(const char *s) : seq(s) { allocateCov(false); }
   ~Contig();
-  void allocateCov();
+  void allocateCov(bool full);
 
   uint8_t *cov;
   uint32_t covlength;

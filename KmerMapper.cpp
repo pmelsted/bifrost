@@ -165,7 +165,7 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   joined->seq.setSequence(sa, 0, sa.size(), 0, a_direction == -1); // copy all from a, keep orientation of a
   joined->seq.setSequence(sb, k - 1, sb.size() - k + 1, sa.size(), b_direction == -1); // copy from b, reverse if neccessary
 
-  joined->allocateCov();
+  joined->allocateCov(true); // true because the joined contig will have full coverage
 
   // reverse coverages if neccessary
   if (a_direction == -1) {
@@ -421,6 +421,7 @@ int KmerMapper::splitContigs() {
       assert(c->covp->isFull());
       continue;
     }
+    assert(!c->covp->isFull());
     
     seqlength = c->seq.size();
 
@@ -434,6 +435,7 @@ int KmerMapper::splitContigs() {
 
     size_t a = 0, b = 0;
     vector<pair<int, int> > v;
+    vector<pair<int, int> > splittingVector = c->covp->getSplittingVector();
 
     // put [start,end] of covered subintervals of cstr into v
     while (b != covlength) {
@@ -449,6 +451,15 @@ int KmerMapper::splitContigs() {
       }
       v.push_back(make_pair(a,b));
       a = b;
+    }
+    if (v != splittingVector) {
+      fprintf(stderr, "%s", c->covp->toString().c_str());
+      printf("and cov:\n");
+      for(size_t i=0; i<covlength; i++) {
+        fprintf(stderr, "%u ", c->cov[i]);
+      }
+      fprintf(stderr,"\n");
+      assert(0);
     }
 
     // unmap the contig

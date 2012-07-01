@@ -1,8 +1,12 @@
 #ifndef BFG_COMPRESSED_COVERAGE_HPP
 #define BFG_COMPRESSED_COVERAGE_HPP
 
-#include <stdint.h>
 #include <cstring>
+#include <stdint.h>
+#include <vector>
+
+using std::vector;
+using std::pair;
 
 
 /* Short description: 
@@ -25,7 +29,7 @@
  * */
 class CompressedCoverage {
 public: 
-  CompressedCoverage(size_t size);
+  CompressedCoverage(size_t sz, bool full=false);
   ~CompressedCoverage();
 
   void cover(size_t start, size_t end); 
@@ -33,6 +37,8 @@ public:
   size_t size() const;
   std::string toString() const; // for debugging
   bool isFull() const;
+  uint8_t covAt(size_t index) const;
+  vector<pair<int, int> > getSplittingVector() const;
 
 private:
 
