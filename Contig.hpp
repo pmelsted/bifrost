@@ -13,12 +13,12 @@
  *  */
 class Contig {
 public:
-  Contig() : cov(0) {}
+  Contig() {}
   Contig(const char *s, bool full=false) : seq(s) { allocateCov(full); }
   ~Contig();
   void allocateCov(bool full);
 
-  uint8_t *cov;
+  //uint8_t *cov;
   uint32_t covlength;
   CompressedCoverage *covp;
   CompressedSequence seq;

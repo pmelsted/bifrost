@@ -5,11 +5,15 @@
 // pre:  c is a pointer to a contig
 // post: the memory location which c points to has been freed
 Contig::~Contig() {
+  /*
   if (cov != NULL) {
     delete[] cov;
+    cov = NULL;
+  }
+  */
+  if (covp != NULL) {
     delete covp;
     covp = NULL;
-    cov = NULL;
   }
 }
 
@@ -21,9 +25,11 @@ void Contig::allocateCov(bool full) {
   if (seq.size() >= Kmer::k) {
     covlength = seq.size() - Kmer::k + 1;
     covp = new CompressedCoverage(covlength, full);
+    /*
     cov = new uint8_t[covlength];
     for(int i=0;i < covlength;++i) {
       cov[i] = 0;
     }
+    */
   }
 } 
