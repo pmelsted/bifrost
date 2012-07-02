@@ -1,6 +1,8 @@
 #include "KmerMapper.hpp"
 #include <cmath>
 #include <iostream>
+#include <map>
+#include <sstream>
 
 
 static const char alpha[4] = {'A','C','G','T'};
@@ -519,5 +521,71 @@ void KmerMapper::printContigs() {
     if (cr.isContig && !cr.isEmpty()) {
       cout << cr.ref.contig->seq.toString() << endl;
     }
+  }
+}
+
+
+// use:  mapper.writeContigs(output);
+// pre:  output is the filename to write the contigs to
+// post: if output is a valid filename, all the contigs have been written to this file
+//       and backward and forward connections for each contig have been printed as well
+void KmerMapper::writeContigs(string output) {
+  FILE* of = fopen(output.c_str(), "w");
+  std::map<size_t,size_t> newids;
+
+  if (of == NULL) {
+    cerr << "Could not open file for writing, " << output << endl;
+    exit(1);
+  } else {
+    size_t nextid = 0;
+    size_t contigcount = contigs.size();
+    vector<ContigRef> realrefs;
+    for(size_t contigid = 0; contigid < contigcount; ++contigid) {
+      ContigRef cr = contigs[contigid];
+      if (cr.isContig && !cr.isEmpty()) {
+        realrefs.push_back(cr);
+        newids[contigid] = nextid++;
+      }
+    }
+
+    for(size_t id = 0; id < nextid; ++id) {
+      ContigRef cr = realrefs[id];
+      stringstream conn;
+      conn << "Backwards: ";
+
+      Kmer first = cr.ref.contig->seq.getKmer(0);
+      bool found = false;
+      for (size_t i=0; i<4; ++i) {
+        Kmer prev = first.backwardBase(alpha[i]);
+        ContigRef prevcr = find(prev);
+        if (!prevcr.isEmpty()) {
+          if (found) {
+            conn << ",";
+          }
+          assert(newids.find(prevcr.ref.idpos.id) != newids.end());
+          conn << newids[prevcr.ref.idpos.id];
+          found = true;
+        }
+      }
+      conn << "     Forward: ";
+
+      Kmer last = cr.ref.contig->seq.getKmer(cr.ref.contig->seq.size()-Kmer::k);
+      found = false;
+      for (size_t i=0; i<4; ++i) {
+        Kmer fw = last.forwardBase(alpha[i]);
+        ContigRef fwcr = find(fw);
+        if (!fwcr.isEmpty()) {
+          if (found) {
+            conn << ",";
+          }
+          assert(newids.find(fwcr.ref.idpos.id) != newids.end());
+          conn << newids[fwcr.ref.idpos.id];
+          found = true;
+        }
+      }
+      string seq = cr.ref.contig->seq.toString();
+      fprintf(of, ">contig%zu     %s\n%s\n", id, conn.str().c_str(), seq.c_str());
+    }
+    fclose(of);
   }
 }
