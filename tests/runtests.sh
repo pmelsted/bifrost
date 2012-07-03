@@ -22,3 +22,7 @@ echo -e "\n"
 
 echo "Running KmerMapperTest"
 ./KmerMapperTest
+
+echo "Running CompressedCoverageTest"
+./CompressedCoverageTest
+echo -e "\n"

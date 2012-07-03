@@ -408,10 +408,12 @@ int KmerMapper::splitContigs() {
     strcpy(cstr, c->seq.toString().c_str());
     cstr[seqlength] = 0;
 
-    vector<pair<int, int> > v = c->ccov.getSplittingVector();
+    vector<pair<int, int> > v = c->ccov.splittingVector();
     //TODO: use this number to update coveragesums of the new contigs
-    size_t lowcoverage = c->ccov.lowCoverageCount();
-    size_t totalcoverage = c->coveragesum - lowcoverage;
+    pair<size_t, size_t> lowpair = c->ccov.lowCoverageInfo();
+    size_t lowcount = lowpair.first;
+    size_t lowsum = lowpair.second;
+    size_t totalcoverage = c->coveragesum - lowsum;
     assert(c->coveragesum >= c->numKmers());
 
     // unmap the contig
@@ -437,9 +439,9 @@ int KmerMapper::splitContigs() {
       ContigRef newcr;
       Contig *newc = new Contig(s.c_str(), true); // This contig has full coverage
 
-      // Is this definitiley right ???
+      // Is this definitely right ???
       //
-      newc->coveragesum = totalcoverage * (b - a ) / numkmers; 
+      newc->coveragesum = (1 + totalcoverage * (b - a)) / (numkmers - lowcount); // add one to round up
       //
       //
       

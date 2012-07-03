@@ -12,8 +12,8 @@ Contig::~Contig() {
 void Contig::initializeCoverage(bool full) {
   size_t ssz = seq.size(), k = Kmer::k;
   assert(ssz >= k);
-  coveragesum = ssz - k + 1;
-  ccov.initialize(coveragesum, full);
+  coveragesum = 0;
+  ccov.initialize(ssz - k + 1, full);
 } 
 
 // use:   c.cover(start,end)

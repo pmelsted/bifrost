@@ -157,7 +157,7 @@ int main(int argc, char *argv[]) {
   CompressedCoverage c4(18);
   c4.cover(0,17);
   c4.cover(0,16);
-  vector<pair<int, int> > v = c4.getSplittingVector();
+  vector<pair<int, int> > v = c4.splittingVector();
   assert(v.size() == 1);
   pair<int, int> c4p = v[0];
   assert(c4p.first == 0);
@@ -168,7 +168,7 @@ int main(int argc, char *argv[]) {
   c5.cover(2,3);
   c5.cover(5,9);
   c5.cover(5,9);
-  v = c5.getSplittingVector();
+  v = c5.splittingVector();
   pair<int, int> c5p = v[0];
   assert(v.size() == 2);
   assert(c5p.first == 2);
