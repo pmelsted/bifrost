@@ -29,16 +29,20 @@ using std::pair;
  * */
 class CompressedCoverage {
 public: 
-  CompressedCoverage(size_t sz, bool full=false);
+  CompressedCoverage(size_t sz=0, bool full=false);
+  void initialize(size_t sz, bool full);
   ~CompressedCoverage();
+  
 
   void cover(size_t start, size_t end); 
 
-  size_t size() const;
-  std::string toString() const; // for debugging
   bool isFull() const;
+  size_t size() const;
   uint8_t covAt(size_t index) const;
+  std::string toString() const; // for debugging
+
   vector<pair<int, int> > getSplittingVector() const;
+  size_t lowCoverageCount() const;
 
 private:
 

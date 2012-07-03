@@ -364,22 +364,15 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               } else {
                 assert(contig->seq.getKmer(kmernum) == km);
               }
-              /*
-              uint8_t *change = &contig->cov[kmernum];
-              uint8_t oldval = *change; 
+              contig->ccov.cover(kmernum,kmernum);
+              uint64_t *change = &contig->coveragesum;
+              uint64_t oldval = *change; 
               while (1) {
-                if (oldval < 0xff) {
-                  if(__sync_bool_compare_and_swap(change, oldval, oldval +1)) {
-                    break;
-                  }
-                } else {
+                if(__sync_bool_compare_and_swap(change, oldval, oldval +1)) {
                   break;
                 }
                 oldval = *change; 
               }
-              */
-              // The new CompressedCoverage class
-              contig->covp->cover(kmernum,kmernum);
 
               int32_t direction = reversed ? -1 : 1;
               kmernum += direction;
@@ -388,23 +381,20 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               while (iter != iterend && iter->second < jumpi) {
                 assert(cstr[iter->second+k-1] != 'N');
                 assert(kmernum >= 0);
-                assert(kmernum < contig->covlength);
-                /*
-                uint8_t *change = &contig->cov[kmernum];
-                uint8_t oldval = *change; 
+                assert(kmernum < contig->numKmers());
+
+                // Update coverage
+                contig->ccov.cover(kmernum,kmernum);
+                uint64_t *change = &contig->coveragesum; 
+                uint64_t oldval = *change; 
+
+                // Increase coveragesum by 1
                 while (1) {
-                  if (oldval < 0xff) {
-                    if (__sync_bool_compare_and_swap(change, oldval, oldval +1)) {
-                      break;
-                    }
-                  } else {
+                  if (__sync_bool_compare_and_swap(change, oldval, oldval +1)) {
                     break;
                   }
                   oldval = *change; 
                 }
-                */
-                // The new CompressedCoverage class
-                contig->covp->cover(kmernum,kmernum);
 
                 kmernum += direction;
                 iter.raise(km, rep);
@@ -414,6 +404,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         }
       }
     }
+
     for (size_t i=0; i < num_threads; i++) {
       for (vector<NewContig>::iterator it=parray[i].begin(); it != parray[i].end(); ++it) {
         // The kmer did not map when it was added to this vector
@@ -427,21 +418,13 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         if(mapcr.isEmpty()) {
           // The contig has not been mapped so we map it and increase coverage
           // of the kmers that came from the read
-          size_t id = mapper.addContig(seq);
+          
+          // The coveragesum is set to the right value in Contig constructor
+          size_t id = mapper.addContig(seq); 
+
           contig = mapper.getContig(id).ref.contig;
-          //tie(mapcr, disteq) = check_contig(bf, mapper, km);
           size_t limit = it->end;
-          /*
-          for (size_t index=it->start; index <= limit ; ++index) {
-            Kmer covkm = Kmer(seq+index);
-            assert(contig->seq.getKmer(index) == covkm);
-            if (contig->cov[index] < 0xff) {
-              contig->cov[index] += 1;
-            }
-          }
-          */
-          // The new CompressedCoverage class
-          contig->covp->cover(it->start,limit);
+          contig->ccov.cover(it->start,limit);
         } else {
           // The contig has been mapped so we only increase the coverage of the
           // kmers that came from the read
@@ -453,34 +436,25 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
           getMappingInfo(repequal, pos, dist, k, kmernum, cmppos);
           reversed = ((pos >= 0) != repequal);
-          int32_t direction = reversed ? -1 : 1;
           size_t start = it->start, end = it->end;
           if (reversed) {
             assert(contig->seq.getKmer(kmernum) == km.twin());
             kmernum -= it->start;
-            // The new CompressedCoverage class
-            contig->covp->cover(kmernum-(end-start),kmernum);
+            contig->ccov.cover(kmernum - (end - start), kmernum);
+            contig->coveragesum += end - start + 1;
           }
           else {
             assert(contig->seq.getKmer(kmernum) == km);
             kmernum += it->start;
-            // The new CompressedCoverage class
-            contig->covp->cover(kmernum,kmernum+end-start);
+            contig->ccov.cover(kmernum, kmernum + end - start);
+            contig->coveragesum += end - start + 1;
           }
-          /*
-          while (start <= end) {
-            if (contig->cov[kmernum] < 0xff) {
-              contig->cov[kmernum] += 1;
-            }
-            kmernum += direction;
-            ++start;
-          }
-          */
         }
       }
       parray[i].clear();
     }
   }
+
   // Print the good contigs
   size_t contigsBefore = mapper.contigCount();
   int contigDiff = mapper.splitAndJoinContigs();

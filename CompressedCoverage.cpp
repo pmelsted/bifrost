@@ -11,6 +11,13 @@ size_t round_to_bytes(const size_t len)  { return (len+3)/4; }
  
 
 CompressedCoverage::CompressedCoverage(size_t sz, bool full) {
+  if (sz > 0) {
+    initialize(sz, full);
+  } 
+}
+
+
+void CompressedCoverage::initialize(size_t sz, bool full) {
   if (sz <= size_limit) {
     asBits = intptr_t(0); // zero out
     asBits |= tagMask;  // set 0-bit to 1
@@ -30,6 +37,7 @@ CompressedCoverage::CompressedCoverage(size_t sz, bool full) {
       asBits |= (sz << 32);
     }
   }
+  assert(sz == size());
 }
 
 
@@ -132,7 +140,12 @@ string CompressedCoverage::toString() const {
 
 
 void CompressedCoverage::cover(size_t start, size_t end) {
+  if (end >= size()) {
+    printf("start=%zu, end=%zu\n", start, end);
+    printf("size=%zu\n", size());
+  }
   assert(end < size());
+
   if (isFull()) {
     return;
   } else {
@@ -222,13 +235,28 @@ uint8_t CompressedCoverage::covAt(size_t index) const {
 }
 
 
+size_t CompressedCoverage::lowCoverageCount() const {
+  if (isFull()) {
+    return 0;
+  }
+  size_t sz = size();
+  size_t low = 0;
+  for(size_t i=0; i<sz; ++i) {
+    if (covAt(i) < 2) {
+      ++low;
+    }
+  }
+  return low;
+}
+
+
 vector<pair<int, int> > CompressedCoverage::getSplittingVector() const {
   size_t a = 0, b = 0, sz = size();
   vector<pair<int, int> > v;
     
-  // put [start,end] of covered subintervals of cstr into v
   while (b != sz) {
-    while (a < sz &&  covAt(a) <= 1) {
+    // [a,...,b-1] is a fully covered subinterval and (a,b) has been added to v
+    while (a < sz && covAt(a) <= 1) {
       a++;
     }
     if (a == sz) {

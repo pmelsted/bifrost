@@ -167,26 +167,7 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   joined->seq.setSequence(sa, 0, sa.size(), 0, a_direction == -1); // copy all from a, keep orientation of a
   joined->seq.setSequence(sb, k - 1, sb.size() - k + 1, sa.size(), b_direction == -1); // copy from b, reverse if neccessary
 
-  joined->allocateCov(true); // true because the joined contig will have full coverage
-
-  // reverse coverages if neccessary
-  
-  /*
-  if (a_direction == -1) {
-    reverse(ca->cov, ca->covlength);
-  }
-  if (b_direction == -1) {
-    reverse(cb->cov, cb->covlength);
-  }
-  
-  for(unsigned int i=0; i <= sa.size() - k; ++i) {
-    joined->cov[i] = ca->cov[i]; 
-  }
-  
-  for(unsigned int i=0; i <= sb.size() - k; ++i) {
-    joined->cov[sa.size() - k + 1 + i] = cb->cov[i]; 
-  } 
-  */
+  joined->initializeCoverage(true); // true because the joined contig will have full coverage
 
   ContigRef cr;
   cr.ref.contig = joined;
@@ -195,6 +176,10 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
 
   size_t sa_size = sa.size();
   size_t sb_size = sb.size();
+ 
+  assert(ca->coveragesum >= 2* ca->numKmers());
+  assert(cb->coveragesum >= 2* cb->numKmers());
+  joined->coveragesum = ca->coveragesum + cb->coveragesum;
   
   // invalidated old contigs
   delete contigs[a_id].ref.contig;
@@ -211,7 +196,6 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   } else {
     contigs[b_id] = ContigRef(id, 1 - sa_size - sb_size);
   }
-
 
   
   
@@ -345,7 +329,7 @@ int KmerMapper::joinContigs() {
     
     ContigRef found;
     Kmer start_twin = c->seq.getKmer(0).twin();
-    Kmer end = c->seq.getKmer(c->covlength-1);
+    Kmer end = c->seq.getKmer(c->numKmers()-1);
     if (checkContigForward(c, end, found)) {
       joinContigs(ContigRef(contigid, 0), found); // this -> found
       ++joined;
@@ -395,46 +379,26 @@ bool KmerMapper::checkContigForward(Contig* c, Kmer km, ContigRef &found) {
 int KmerMapper::splitContigs() {
   size_t splitted = 0;
   size_t k = Kmer::k, contigcount = contigs.size();
-  size_t covlength, seqlength, cstr_len = 2*k+1;
+  size_t cstr_len = 2*k+1;
   size_t nextid = contigcount;
   char *cstr = (char*) malloc(cstr_len);
-  bool okay;
-
-  Contig *c;
-  ContigRef cr;
 
   for(size_t contigid = 0; contigid < contigcount; ++contigid) {
-    cr = contigs[contigid];
+    ContigRef cr = contigs[contigid];
     
     if (!cr.isContig) {
       continue;
     }
 
-    c = cr.ref.contig;
-    covlength = c->covlength;
+    Contig *c = cr.ref.contig;
 
-    // Check if this contig has 1 coverage somewhere
-    /*
-    okay = true;
-    for(size_t index=0; index < covlength; ++index) {
-      if (c->cov[index] <= 1) {
-        okay = false;
-        break;
-      }
-    }
-    */
-    okay = c->covp->isFull();
     
-    if (okay) {
-      // The new CompressedSequence class
-      //assert(c->covp->isFull());
+    if (c->ccov.isFull()) {
       continue;
     }
     
-    // The new CompressedSequence class
-    //assert(!c->covp->isFull());
-    
-    seqlength = c->seq.size();
+    size_t numkmers = c->numKmers();
+    size_t seqlength = c->length();
 
     if (seqlength >= cstr_len) {
       cstr_len = 2*seqlength+1;
@@ -444,41 +408,22 @@ int KmerMapper::splitContigs() {
     strcpy(cstr, c->seq.toString().c_str());
     cstr[seqlength] = 0;
 
-    vector<pair<int, int> > v = c->covp->getSplittingVector();
-    /*
-    size_t a = 0, b = 0;
-    vector<pair<int, int> > v;
-    // The new CompressedSequence class
-
-    // put [start,end] of covered subintervals of cstr into v
-    while (b != covlength) {
-      while (a < covlength &&  c->cov[a] <= 1) {
-        a++;
-      }
-      if (a == covlength) {
-        break;
-      }
-      b = a;
-      while (b < covlength && c->cov[b] > 1) {
-       b++; 
-      }
-      v.push_back(make_pair(a,b));
-      a = b;
-    }
-    */
-    // The new CompressedSequence class
-    // assert(v == splittingVector)
+    vector<pair<int, int> > v = c->ccov.getSplittingVector();
+    //TODO: use this number to update coveragesums of the new contigs
+    size_t lowcoverage = c->ccov.lowCoverageCount();
+    size_t totalcoverage = c->coveragesum - lowcoverage;
+    assert(c->coveragesum >= c->numKmers());
 
     // unmap the contig
-    for(size_t index = 0; index < covlength; ++index) {
+    for(size_t index = 0; index < numkmers; ++index) {
       if (index % stride == 0) {
         Kmer km = Kmer(&cstr[index]);
         Kmer rep = km.rep();
         map.erase(rep);
       }
     }
-    if ((covlength - 1) % stride != 0) {
-      Kmer km = Kmer(&cstr[covlength-1]);
+    if ((numkmers - 1) % stride != 0) {
+      Kmer km = Kmer(&cstr[numkmers-1]);
       Kmer rep = km.rep();
       map.erase(rep);
     }
@@ -490,16 +435,17 @@ int KmerMapper::splitContigs() {
       size_t a = v[index].first, b = v[index].second;
       string s(&cstr[a], (b - a) + k - 1);
       ContigRef newcr;
-      Contig *newc = new Contig(s.c_str(), true);
+      Contig *newc = new Contig(s.c_str(), true); // This contig has full coverage
+
+      // Is this definitiley right ???
+      //
+      newc->coveragesum = totalcoverage * (b - a ) / numkmers; 
+      //
+      //
+      
       newcr.ref.contig = newc;
-      /*
-      size_t i = 0;
-      while (a < b) {
-        newc->cov[i++] = c->cov[a++];
-      }
-      */
       contigs.push_back(newcr);
-      mapContig(nextid++, newc->covlength, s.c_str());
+      mapContig(nextid++, newc->numKmers(), s.c_str());
     }
 
     delete c;
@@ -551,7 +497,8 @@ void KmerMapper::writeContigs(string output) {
     for(size_t id = 0; id < nextid; ++id) {
       ContigRef cr = realrefs[id];
       stringstream conn;
-      conn << "Backwards: ";
+      conn << "Coveragesum: " << cr.ref.contig->coveragesum;
+      conn << "  Backwards: ";
 
       Kmer first = cr.ref.contig->seq.getKmer(0);
       bool found = false;

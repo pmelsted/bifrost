@@ -13,16 +13,17 @@
  *  */
 class Contig {
 public:
-  Contig() {}
-  Contig(const char *s, bool full=false) : seq(s) { allocateCov(full); }
+  Contig() : coveragesum(0) {}
+  Contig(const char *s, bool full=false) : seq(s) { initializeCoverage(full); }
   ~Contig();
-  void allocateCov(bool full);
+  void initializeCoverage(bool full);
 
-  //uint8_t *cov;
-  uint32_t covlength;
-  CompressedCoverage *covp;
+  uint64_t coveragesum;
+  CompressedCoverage ccov;
   CompressedSequence seq;
-  // TODO: do we store the links here?
+
+  size_t numKmers() const { return ccov.size(); }
+  size_t length() const { return seq.size(); }
 };
 
 #endif // BFG_CONTIG_HPP
