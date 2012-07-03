@@ -364,8 +364,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               } else {
                 assert(contig->seq.getKmer(kmernum) == km);
               }
-              contig->ccov.cover(kmernum,kmernum);
-              uint64_t *change = &contig->coveragesum;
+              contig->cover(kmernum,kmernum);
+              /*uint64_t *change = &contig->coveragesum;
               uint64_t oldval = *change; 
               while (1) {
                 if(__sync_bool_compare_and_swap(change, oldval, oldval +1)) {
@@ -373,6 +373,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
                 }
                 oldval = *change; 
               }
+              */
 
               int32_t direction = reversed ? -1 : 1;
               kmernum += direction;
@@ -384,7 +385,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
                 assert(kmernum < contig->numKmers());
 
                 // Update coverage
-                contig->ccov.cover(kmernum,kmernum);
+                contig->cover(kmernum,kmernum);
+                /*
                 uint64_t *change = &contig->coveragesum; 
                 uint64_t oldval = *change; 
 
@@ -395,6 +397,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
                   }
                   oldval = *change; 
                 }
+                */
 
                 kmernum += direction;
                 iter.raise(km, rep);
@@ -424,7 +427,9 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
           contig = mapper.getContig(id).ref.contig;
           size_t limit = it->end;
-          contig->ccov.cover(it->start,limit);
+          contig->cover(it->start,limit);
+          // update coverage sum
+          
         } else {
           // The contig has been mapped so we only increase the coverage of the
           // kmers that came from the read
@@ -440,14 +445,14 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           if (reversed) {
             assert(contig->seq.getKmer(kmernum) == km.twin());
             kmernum -= it->start;
-            contig->ccov.cover(kmernum - (end - start), kmernum);
-            contig->coveragesum += end - start + 1;
+            contig->cover(kmernum - (end - start), kmernum);
+            //contig->coveragesum += end - start + 1;
           }
           else {
             assert(contig->seq.getKmer(kmernum) == km);
             kmernum += it->start;
-            contig->ccov.cover(kmernum, kmernum + end - start);
-            contig->coveragesum += end - start + 1;
+            contig->cover(kmernum, kmernum + end - start);
+            //contig->coveragesum += end - start + 1;
           }
         }
       }

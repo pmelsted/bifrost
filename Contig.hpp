@@ -17,7 +17,8 @@ public:
   Contig(const char *s, bool full=false) : seq(s) { initializeCoverage(full); }
   ~Contig();
   void initializeCoverage(bool full);
-
+  void cover(size_t start, size_t end);
+  
   uint64_t coveragesum;
   CompressedCoverage ccov;
   CompressedSequence seq;
