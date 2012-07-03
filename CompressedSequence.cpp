@@ -46,22 +46,33 @@ static const uint8_t bits[256] = {
 };
 
 
+CompressedSequence::CompressedSequence() {
+  initShort();
+}
+
+void CompressedSequence::initShort() {
+  asBits._size = 1; // short and size 0
+  memset(&asBits._arr[0],0,15); // clear other bits
+}
+
 // use:  delete c;
 // pre:  c is a pointer to a CompressedSequence
 // post: the memory which the CompressedSequence had allocated has been freed
 CompressedSequence::~CompressedSequence() {
-  if (_capacity > 0 && _data != NULL) {
-    delete[] _data;
-    _data = NULL;
-  }
+  clear();
 }
 
 
 // use:  _cs = CompressedSequence(cs);
 // pre:   
 // post: the DNA string in _cs and is the same as in cs
-CompressedSequence::CompressedSequence(const CompressedSequence& o) : _length(0),_capacity(0),_data(0) {
-  setSequence(o,0,o._length);
+CompressedSequence::CompressedSequence(const CompressedSequence& o){
+  if (o.isShort()) {
+    asBits._size = o.asBits._size;
+    memcpy(asBits._arr, o.asBits._arr, 15);
+  } else {  
+    setSequence(o,0,o.size()); // copy sequence and pointers etc.
+  }
 }
 
 
@@ -69,7 +80,12 @@ CompressedSequence::CompressedSequence(const CompressedSequence& o) : _length(0)
 // pre:   
 // post: the DNA string in _cs is the same as in cs
 CompressedSequence& CompressedSequence::operator=(const CompressedSequence& o) {
-  setSequence(o,0,o._length);
+  if (o.isShort()) {
+    asBits._size = o.asBits._size;
+    memcpy(asBits._arr, o.asBits._arr,15); // plain vanilla copy
+  } else {  
+    setSequence(o,0,o.size()); // copy sequence and pointers etc.
+  }
   return *this;
 }
   
@@ -77,7 +93,8 @@ CompressedSequence& CompressedSequence::operator=(const CompressedSequence& o) {
 // use:  cs = CompressedSequence(s);
 // pre:  s has only the characters 'A','C','G' and 'T' and can have any length
 // post: the DNA string in cs is now the same as s
-CompressedSequence::CompressedSequence(const char *s) : _length(0),_capacity(0),_data(0) {
+CompressedSequence::CompressedSequence(const char *s) {
+  initShort();
   if (s != NULL) {
     setSequence(s,strlen(s));
   }
@@ -85,7 +102,8 @@ CompressedSequence::CompressedSequence(const char *s) : _length(0),_capacity(0),
 
 
 // same as above except with a string not a char array 
-CompressedSequence::CompressedSequence(const string& s) : _length(0),_capacity(0),_data(0) {
+CompressedSequence::CompressedSequence(const string& s) {
+  initShort();
   setSequence(s.c_str(), s.size());
 }
 
@@ -93,7 +111,8 @@ CompressedSequence::CompressedSequence(const string& s) : _length(0),_capacity(0
 // use:  cs = CompressedSequence(km);
 // pre:   
 // post: the DNA string in cs is now the same as the DNA string in km
-CompressedSequence::CompressedSequence(const Kmer &km) : _length(0),_capacity(0),_data(0) {
+CompressedSequence::CompressedSequence(const Kmer &km) {
+  initShort();
   setSequence(km, Kmer::k);
 }
 
@@ -102,9 +121,10 @@ CompressedSequence::CompressedSequence(const Kmer &km) : _length(0),_capacity(0)
 // pre:  0 <= index < cs.size()
 // post: c is character nr. index in the DNA string inside cs
 const char CompressedSequence::operator[](size_t index) const {
+  const char *data = getPointer();
   size_t i = index / 4;
   size_t j = index % 4;
-  size_t idx = ((_data[i]) >> (2*j)) & 0x03;
+  size_t idx = ((data[i]) >> (2*j)) & 0x03;
   return bases[idx];
 }
 
@@ -113,6 +133,41 @@ const char CompressedSequence::operator[](size_t index) const {
 //  setSequence(o,0,length,offset,reversed);
 //}
 
+bool CompressedSequence::isShort() const {
+  return ((asBits._size & shortMask) == 1);
+}
+
+const char* CompressedSequence::getPointer() const {
+  if (isShort()) {
+    return &(asBits._arr[0]);
+  } else {
+    return asPointer._data;
+  }
+}
+
+size_t CompressedSequence::capacity() const {
+  if (isShort()) {
+    return 15; // 15 bytes
+  } else {
+    return asPointer._capacity;
+  }
+}
+
+void CompressedSequence::setSize(size_t size) {
+  if (isShort()) {
+    asBits._size = ((0x7F & size) << 1) | 1; // set short flag
+  } else {
+    asPointer._length = (0x7FFFFFFF & size) << 1;
+  }
+}
+
+size_t CompressedSequence::size() const {
+  if (isShort()) {
+    return (asBits._size >> 1);
+  } else {
+    return (asPointer._length >> 1);
+  }
+}
 
 // use:  a.setSequence(b, start, length, offset, reversed);
 // pre:  start+length <= b._length, offset <= a._length
@@ -122,13 +177,17 @@ const char CompressedSequence::operator[](size_t index) const {
 //       the positions in a that are updated are [offset,...,offset+length-1]
 //       capacity of a might be updated to fit the new string.
 void CompressedSequence::setSequence(const CompressedSequence &o, size_t start, size_t length, size_t offset, bool reversed) {
-  assert(length + start <= o._length);
-  if (round_to_bytes(length+offset) > _capacity) {
-    _resize_and_copy(round_to_bytes(length+offset), _length);
-  } 
+  assert(length + start <= o.size());
+
+  if (round_to_bytes(length+offset) > capacity()) {
+    _resize_and_copy(round_to_bytes(length+offset),size());
+  }
+  
+  char *data = const_cast<char *>(getPointer());
+  const char *odata = o.getPointer();
   
   size_t w_index = offset;
-  size_t r_index = reversed ? o._length-start-1 : start;
+  size_t r_index = reversed ? o.size()-start-1 : start;
   size_t wi,wj,ri,rj;
   
   for (size_t i = 0; i < length; i++) {
@@ -136,12 +195,12 @@ void CompressedSequence::setSequence(const CompressedSequence &o, size_t start, 
     wj = w_index % 4;
     ri = r_index / 4;
     rj = r_index % 4;
-    _data[wi] &= ~(0x03<<(2*wj)); // clear bits
-    uint8_t nucl = (o._data[ri] >> (2*rj)) & 0x03; // nucleotide stored in o
+    data[wi] &= ~(0x03<<(2*wj)); // clear bits
+    uint8_t nucl = (odata[ri] >> (2*rj)) & 0x03; // nucleotide stored in o
     if (reversed) {
       nucl = 3-nucl; // reverse sequence
     }
-    _data[wi] |= (nucl << (2*wj));
+    data[wi] |= (nucl << (2*wj));
 
     w_index++;
     if (reversed) {
@@ -150,8 +209,10 @@ void CompressedSequence::setSequence(const CompressedSequence &o, size_t start, 
       r_index++;
     }
   }
-  if (offset + length > _length) 
-    _length = offset + length;
+  // new length?
+  if (offset + length > size()) {
+    setSize(offset+length);
+  }
 }
 
 
@@ -160,8 +221,8 @@ void CompressedSequence::setSequence(const CompressedSequence &o, size_t start, 
 // pre:  
 // post: The DNA string in cs has space for at least new_length bases 
 void CompressedSequence::reserveLength(size_t new_length) {
-  if (round_to_bytes(new_length) > _capacity) {
-    _resize_and_copy(round_to_bytes(new_length), _length);
+  if (round_to_bytes(new_length) > capacity() ) {
+    _resize_and_copy(round_to_bytes(new_length), size());
   }
 }
 
@@ -171,13 +232,24 @@ void CompressedSequence::reserveLength(size_t new_length) {
 // post: The DNA string in cs has space for at least new_length bases
 //       the first copy_limit characters of cs are the same as before this method
 void CompressedSequence::_resize_and_copy(size_t new_cap, size_t copy_limit) {
-  if (new_cap > _capacity) {
-    char *new_data = new char[new_cap];
-    size_t bytes = round_to_bytes(copy_limit); 
-    memcpy(new_data,_data,bytes);
-    delete[] _data;
-    _data = new_data;
-    _capacity = new_cap;
+  if (new_cap <= capacity()) {
+    return;
+  }
+
+  char *new_data = new char[new_cap]; // allocate new storage
+  size_t bytes = round_to_bytes(copy_limit);
+  memcpy(new_data, getPointer(), bytes); // copy old data
+
+  if (isShort()) {
+    size_t sz = size();
+    asBits._size = 0; // this is now a long sequence.
+    setSize(sz);
+    asPointer._data = new_data;
+    asPointer._capacity = new_cap;
+  } else {
+    delete[] asPointer._data;
+    asPointer._data = new_data;
+    asPointer._capacity = new_cap;
   }
 }
 
@@ -188,19 +260,23 @@ void CompressedSequence::_resize_and_copy(size_t new_cap, size_t copy_limit) {
 //       the positions in a that are updated are [offset,...,offset+length-1]
 //       capacity of a might be updated to fit the new string.
 void CompressedSequence::setSequence(const char *s, size_t length, size_t offset, bool reversed) {
-  if(round_to_bytes(length+offset) > _capacity) {
-    _resize_and_copy(round_to_bytes(length+offset), _length);
+  if(round_to_bytes(length+offset) > capacity()) {
+    _resize_and_copy(round_to_bytes(length+offset), size());
   }
+  char *data = const_cast<char*>(getPointer());
 
+  
   for (size_t index = offset; index < offset+length; index++) {
     size_t i = index / 4;
     size_t j = index % 4;
-    _data[i] &= ~(0x03 << (2*j)); // set bits to 0, default
+    data[i] &= ~(0x03 << (2*j)); // set bits to 0, default
     uint8_t c = reversed ? bases[0x03-bits[(uint8_t)*(s+length+offset-index-1)]] : *(s+index-offset);
-    _data[i] |= (bits[c] << (2*j));
+    data[i] |= (bits[c] << (2*j));
   }
-  if (offset + length > _length) 
-    _length = offset + length;
+  
+  if (offset + length > size()) {
+    setSize(offset + length);
+  }
 }
 
 
@@ -231,7 +307,7 @@ void CompressedSequence::setSequence(const Kmer &km, size_t length, size_t offse
 // pre:   
 // post: s is the DNA string from cs 
 string CompressedSequence::toString() const {
-  return toString(0,_length);
+  return toString(0,size());
 }
 
 
@@ -239,13 +315,14 @@ string CompressedSequence::toString() const {
 // pre:  offset + length <= cs.size(),
 // post: s is the DNA string from c[offset,...,offset+length-1]
 string CompressedSequence::toString(size_t offset, size_t length) const {
-  assert(offset+length <= _length);
+  const char *data = getPointer();
+  assert(offset+length <= size());
   string s(length,0);
   size_t i,j,idx;
   for (size_t index = offset; index < offset+length; index++) {
     i = index / 4;
     j = index % 4;
-    idx = ((_data[i]) >> (2*j)) & 0x03;
+    idx = ((data[i]) >> (2*j)) & 0x03;
     s[index-offset] = bases[idx];
   }
   return s;
@@ -256,7 +333,7 @@ string CompressedSequence::toString(size_t offset, size_t length) const {
 // pre:  s has space for cs.size() characters 
 // post: s is the same as the DNA string from cs
 void CompressedSequence::toString(char *s) const {
-  toString(s,0,_length);
+  toString(s,0,size());
 }
 
 
@@ -265,12 +342,13 @@ void CompressedSequence::toString(char *s) const {
 //       s has space for length characters 
 // post: s is the same as cs[offset,...,offset+length-1]
 void CompressedSequence::toString(char *s, size_t offset, size_t length) const {
-  assert(offset+length <= _length);
+  const char *data = getPointer();
+  assert(offset+length <= size());
   size_t i,j,idx;
   for (size_t index = offset; index < offset+length; index++) {
     i = index / 4;
     j = index % 4;
-    idx = ((_data[i]) >> (2*j)) & 0x03;
+    idx = ((data[i]) >> (2*j)) & 0x03;
     s[index-offset] = bases[idx];
   }
   s[length] = 0; // 0-terminated string
@@ -294,7 +372,7 @@ Kmer CompressedSequence::getKmer(size_t offset) const {
 //          then the DNA string in _cs is 'TGAC'
 CompressedSequence CompressedSequence::rev() const {
   CompressedSequence r;
-  r.setSequence(*this, 0, _length, 0, true);
+  r.setSequence(*this, 0, size(), 0, true);
   return r;
 }
 
@@ -304,19 +382,20 @@ CompressedSequence CompressedSequence::rev() const {
 // post: if reversed == false: s[i...i+j-1] == cs._data[pos...pos+j-1], 0 <= j <= min(s.length-i, cs._length-pos)
 //       if reversed == true : reverse_complement(s[i...i+j-1]) == cs._data[pos-j+1...pos], 0 <= j <= min(s.length-i, pos+1)
 size_t CompressedSequence::jump(const char *s, size_t i, int pos, bool reversed) const {
+  const char *data = getPointer();
   assert(i>=0);
   assert(pos >= -1);
-  assert(0 <= _length - pos); // this prevents -1 <= _length from giving false
+  assert(0 <= size() - pos); // this prevents -1 <= _length from giving false
   size_t j = 0;
   int dir = (reversed) ? -1 : 1;
-  int limit = (reversed) ? -1 : _length; // index limit, lower or upper bound
+  int limit = (reversed) ? -1 : size(); // index limit, lower or upper bound
   size_t a,b,idx;
   for (int index = pos; s[i+j] != 0 && index != limit; index+= dir, j++) {
     assert(index >= 0);
-    assert(_length - index > 0);
+    assert(size() - index > 0);
     a = index / 4;
     b = index % 4;
-    idx = ((_data[a]) >> (2*b)) & 0x03;
+    idx = ((data[a]) >> (2*b)) & 0x03;
     if ((!reversed && s[i+j] != bases[idx]) || (reversed && s[i+j] != bases[3-idx])) {
       break;
     }
@@ -325,8 +404,10 @@ size_t CompressedSequence::jump(const char *s, size_t i, int pos, bool reversed)
 }
 
 void CompressedSequence::clear() {
-  _length = 0;
-  _capacity = 0;
-  delete[] _data;
-  _data = NULL;
+  if (!isShort()) { // release memory if needed
+    if (asPointer._capacity > 0 && asPointer._data != NULL) {
+      delete[] asPointer._data;
+      asPointer._data = NULL;
+    }
+  }
 }

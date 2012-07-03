@@ -23,10 +23,13 @@ int main(int argc, char *argv[]) {
   // Read n from argument
   unsigned int n = atoi(argv[1]), i; 
   unsigned int LIM = 1 << n;
+  if (n > 20) {
+    LIM = 1 << 20;
+  }
 
-  char *s = new char[LIM];
-  char *out = new char[LIM];
-  char *rev = new char[LIM];
+  char *s = new char[LIM+1];
+  char *out = new char[LIM+1];
+  char *rev = new char[LIM+1];
 
 
   char letters[] = {'A', 'C', 'G', 'T'};
@@ -35,11 +38,18 @@ int main(int argc, char *argv[]) {
   
   for(i=0;i<LIM;i++)
     s[i] = letters[rand() & 3];
+  s[LIM] = 0;
 
   CompressedSequence C1, C2;
   C1 = CompressedSequence(s);
   C1.toString(out);
-  assert(strcmp(s, out) == 0);
+  cout << '.';
+  if (strcmp(s, out) != 0) {
+    cout << "s:   " << s << endl;
+    cout << "out: " << out << endl;
+    assert(0);
+  }
+  //  assert(strcmp(s, out) == 0);
   C2 = C1.rev();
   C2.toString(rev);
   for(i=0;i<LIM;i++) {

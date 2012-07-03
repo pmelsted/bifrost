@@ -17,7 +17,7 @@
  * */
 class CompressedSequence {
 public: 
-  CompressedSequence() : _length(0),_capacity(0),_data(0) {}
+  CompressedSequence(); 
   ~CompressedSequence();
   CompressedSequence(const CompressedSequence& o);
   CompressedSequence& operator=(const CompressedSequence& o);
@@ -30,7 +30,7 @@ public:
 
   void clear();
 
-  size_t size() const { return _length; }
+  size_t size() const;
   Kmer getKmer(size_t offset) const;
   string toString() const;
   void toString(char *s) const;
@@ -51,9 +51,26 @@ public:
 private:
   size_t round_to_bytes(const size_t len) const { return (len+3)/4; }
   void _resize_and_copy(size_t new_cap, size_t copy_limit);
-  uint32_t _length; // size of sequence
-  uint32_t _capacity; // capacity of array allocated in bytes
-  char *_data; // 0-based 2bit compressed dna string
+  void initShort();
+  void setSize(size_t size);
+  
+  bool isShort() const;
+  size_t capacity() const;
+  const char *getPointer() const;
+  
+  static const uint8_t shortMask = 1;
+  
+  union {
+    struct {
+    uint32_t _length; // size of sequence
+    uint32_t _capacity; // capacity of array allocated in bytes
+    char *_data; // 0-based 2bit compressed dna string
+    } asPointer;
+    struct {
+      uint8_t _size; // 7 bits can index up to 60
+      char _arr[15]; // rest of 
+    } asBits;
+  };
 };
 
 #endif // BFG_COMPRESSED_SEQUENCE_HPP
