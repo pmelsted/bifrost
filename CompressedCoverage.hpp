@@ -41,24 +41,27 @@ public:
   uint8_t covAt(size_t index) const;
   std::string toString() const; // for debugging
 
-  vector<pair<int, int> > getSplittingVector() const;
-  size_t lowCoverageCount() const;
+  vector<pair<int, int> > splittingVector() const;
+  pair<size_t, size_t> lowCoverageInfo() const;
 
 private:
 
-  static const intptr_t tagMask = 1; // local array bit
-  static const intptr_t fullMask = 2; // full bit
-  static const intptr_t sizeMask = 0xFC; // 0b11111100
-  static const intptr_t pointerMask = ~(tagMask | fullMask); // rest of bits
+  static const uintptr_t tagMask = 1; // local array bit
+  static const uintptr_t fullMask = 2; // full bit
+  static const uintptr_t sizeMask = 0xFC; // 0b11111100
+  static const uintptr_t localCoverageMask = 0xAAAAAAAAAAAAAA; // 0b10101010101010101010101010101010101010101010101010101010
+  static const uintptr_t pointerMask = ~(tagMask | fullMask); // rest of bits
 
   static const size_t size_limit = 28; // 56 bit array, 28 2-bit integers
   
-  uint8_t* getPointer() const;
+  uint8_t* get8Pointer() const { return reinterpret_cast<uint8_t*>(asBits & pointerMask); } 
+  uint32_t* get32Pointer() const { return reinterpret_cast<uint32_t*>(asBits & pointerMask); }
+  const uint32_t* getConst32Pointer() const { return reinterpret_cast<const uint32_t*>(asBits & pointerMask); }
   void releasePointer();
   
   union {
     uint8_t *asPointer;
-    intptr_t asBits;
+    uintptr_t asBits;
   };
 };
 

@@ -13,13 +13,15 @@ size_t round_to_bytes(const size_t len)  { return (len+3)/4; }
 CompressedCoverage::CompressedCoverage(size_t sz, bool full) {
   if (sz > 0) {
     initialize(sz, full);
-  } 
+  } else {
+    asBits = tagMask;
+  }
 }
 
 
 void CompressedCoverage::initialize(size_t sz, bool full) {
   if (sz <= size_limit) {
-    asBits = intptr_t(0); // zero out
+    asBits = 0; // zero out
     asBits |= tagMask;  // set 0-bit to 1
     asBits |= (sizeMask & (sz << 2)); // set bits 2-6 to size;
     if (full) {
@@ -28,10 +30,10 @@ void CompressedCoverage::initialize(size_t sz, bool full) {
   } else {
     if (!full) {
       uint8_t* ptr = new uint8_t[8+round_to_bytes(sz)];
-      *(reinterpret_cast<uint32_t*>(ptr)) = (uint32_t) sz; // first 4 bytes store size
-      *(reinterpret_cast<uint32_t*>(ptr+4)) = (uint32_t) sz; // next  4 bytes store number of uncovered bases
-      memset(ptr+8, 0, round_to_bytes(sz)); // 0 out array allocated
       asPointer = ptr; // last bit is 0
+      *(get32Pointer()) = sz;
+      *(get32Pointer() + 1) = sz;
+      memset(ptr+8, 0, round_to_bytes(sz)); // 0 out array allocated
     } else {
       asBits = fullMask;
       asBits |= (sz << 32);
@@ -49,11 +51,11 @@ CompressedCoverage::~CompressedCoverage() {
 void CompressedCoverage::releasePointer() {
   if ((asBits & tagMask) == 0 && (asBits & fullMask) != fullMask) {
     // release pointer
-    uint8_t* ptr = getPointer();
-    size_t sz = size();
-    intptr_t *change = &asBits;
-    intptr_t oldval = *change;
-    intptr_t newval = fullMask | (sz << 32);
+    uint8_t* ptr = get8Pointer();
+    uintptr_t sz = size();
+    uintptr_t *change = &asBits;
+    uintptr_t oldval = *change;
+    uintptr_t newval = fullMask | (sz << 32);
     while ((oldval & fullMask) != fullMask) {
       if (__sync_bool_compare_and_swap(change, oldval, newval)) {
         delete[] ptr;
@@ -61,9 +63,6 @@ void CompressedCoverage::releasePointer() {
       }
       oldval = *change;
     }
-    //asBits = fullMask;
-    //asBits |= (sz << 32);
-    //delete[] ptr;
   }
 }
 
@@ -73,18 +72,11 @@ size_t CompressedCoverage::size() const {
     return ((asBits & sizeMask) >> 2);
   } else {
     if ((asBits & fullMask) == fullMask) {
-      return (uint32_t) (asBits >> 32);
+      return asBits >> 32;
     } else {
-      return *((uint32_t*) getPointer());
+      return *(get32Pointer());
     }
   }
-}
-
-
-
-uint8_t* CompressedCoverage::getPointer() const {
-  assert ((asBits & tagMask) == 0);
-  return reinterpret_cast<uint8_t*>(asBits & pointerMask);  
 }
 
 
@@ -92,11 +84,12 @@ string CompressedCoverage::toString() const {
   bool isPtr = ((asBits & tagMask) == 0);
   size_t sz = size();
   bool full = isFull();
+  uintptr_t one(1);
 
   string bits(64, '0');
   
   for (int i = 0; i < 64; i++) {
-    if (asBits & (intptr_t(1) << (63-i))) {
+    if (asBits & (one << (63-i))) {
       bits[i] = '1';
     }
   }
@@ -110,11 +103,11 @@ string CompressedCoverage::toString() const {
       info << endl;
     } else {
       info << "Non-full, size = " << sz << ", not-filled = ";
-      uint32_t filled = *((const uint32_t*)(getPointer()+4));
+      const uint32_t filled = *(getConst32Pointer() + 1);
       info << filled << endl;
               
       size_t nbytes = round_to_bytes(sz);
-      uint8_t *ptr = getPointer() + 8;
+      uint8_t *ptr = get8Pointer() + 8;
       string ptrbits(nbytes*8, '0');
       for (size_t i = 0; i < nbytes; i++) {
         for (size_t j = 0; j < 8; j++) {
@@ -123,7 +116,6 @@ string CompressedCoverage::toString() const {
           }
         }
       }
-      //info << ptrbits;
       bits += ptrbits;
     }
     return bits + "\n" + info.str();
@@ -140,29 +132,23 @@ string CompressedCoverage::toString() const {
 
 
 void CompressedCoverage::cover(size_t start, size_t end) {
-  if (end >= size()) {
-    printf("start=%zu, end=%zu\n", start, end);
-    printf("size=%zu\n", size());
-  }
   assert(end < size());
 
   if (isFull()) {
     return;
   } else {
     if ((asBits & tagMask) == tagMask) { // local array
-      intptr_t s = intptr_t(3); // 0b11
+      uintptr_t s(3); // 0b11
       s <<= (8 + 2*start); 
       size_t val;
       for (; start <= end; start++,s<<=2) {
         val = (asBits & s) >> (8 + 2*start);
         if (val < 2) {
           val++;
-          intptr_t *change = &asBits;
-          //asBits &= ~s; // clear bits
-          //asBits |= (val << (8 +  2*start));
+          uintptr_t *change = &asBits;
           while (1) {
-            intptr_t oldval = *change;
-            intptr_t newval = oldval & ~s;
+            uintptr_t oldval = *change;
+            uintptr_t newval = oldval & ~s;
             newval |= ( val << (8 + 2*start));
             if (__sync_bool_compare_and_swap(change, oldval, newval)) {
               break;
@@ -175,8 +161,8 @@ void CompressedCoverage::cover(size_t start, size_t end) {
       }
     } else {
       size_t fillednow = 0;
-      uint8_t s = intptr_t(3); // 0b11
-      uint8_t* ptr = getPointer() + 8;
+      uint8_t s(3); // 0b11
+      uint8_t* ptr = get8Pointer() + 8;
       size_t val;
       size_t index, pos;
       for (; start <= end; start++) {
@@ -187,11 +173,11 @@ void CompressedCoverage::cover(size_t start, size_t end) {
           val++;
           uint8_t *change = &ptr[index];
           while (1) {
-            intptr_t oldval = *change;
+            uintptr_t oldval = *change;
             if ((oldval & (s << pos)) >> pos == 2) {
               break;
             }
-            intptr_t newval = oldval & ~(s << pos);
+            uintptr_t newval = oldval & ~(s << pos);
             newval |= ( val << (pos));
             if (__sync_bool_compare_and_swap(change, oldval, newval)) {
               if (((newval & (s << pos)) >> pos)  == 2) {
@@ -200,11 +186,9 @@ void CompressedCoverage::cover(size_t start, size_t end) {
               break;
             }
           }
-          //ptr[index] &= ~(s << pos);
-          //ptr[index] |= (val << pos);
         }
       }
-      uint32_t *change = (uint32_t *) (getPointer() + 4);
+      uint32_t *change = get32Pointer() + 1;
       while (1) {
         uint32_t oldval = *change;
         uint32_t newval = oldval - fillednow;
@@ -226,31 +210,39 @@ void CompressedCoverage::cover(size_t start, size_t end) {
 uint8_t CompressedCoverage::covAt(size_t index) const {
   assert((asBits & fullMask) != fullMask);
   if ((asBits & tagMask) == tagMask) { 
-    return ((static_cast<uintptr_t>(asBits) >> (8 + 2*index)) & 0x03);
+    return ((asBits >> (8 + 2*index)) & 0x03);
   } else {
-    uint8_t* ptr = getPointer() + 8;
+    uint8_t* ptr = get8Pointer() + 8;
     size_t pos = 2*(index & 0x03);
     return (ptr[index >> 2] & (0x03 << pos)) >> pos;
   }
 }
 
 
-size_t CompressedCoverage::lowCoverageCount() const {
+// use:  (low, sum) = ccov.lowCoverage();
+// pre:  
+// post: low is the number of kmers under coverage limtis
+//       sum is the sum of these low coverages
+pair<size_t, size_t> CompressedCoverage::lowCoverageInfo() const {
+
   if (isFull()) {
-    return 0;
+    return make_pair(0,0);
   }
   size_t sz = size();
   size_t low = 0;
+  size_t sum = 0;
   for(size_t i=0; i<sz; ++i) {
-    if (covAt(i) < 2) {
+    size_t cov = covAt(i);
+    if (cov < 2) {
       ++low;
+      sum += cov;
     }
   }
-  return low;
+  return make_pair(low, sum);
 }
 
 
-vector<pair<int, int> > CompressedCoverage::getSplittingVector() const {
+vector<pair<int, int> > CompressedCoverage::splittingVector() const {
   size_t a = 0, b = 0, sz = size();
   vector<pair<int, int> > v;
     
@@ -272,16 +264,15 @@ vector<pair<int, int> > CompressedCoverage::getSplittingVector() const {
   return v;
 }
 
+
 bool CompressedCoverage::isFull() const {
   if ((asBits & fullMask) == fullMask) {
     return true;
   }
   
   if ((asBits & tagMask) == tagMask) {
-    size_t sz = size();
-    return (static_cast<uintptr_t>(asBits) >> 8) == (0xAAAAAAAAAAAAAA >> 2*(28 - sz));
+    return (asBits >> 8) == (localCoverageMask >> 2*(28 - size()));
   } else {
-    size_t uncovered = *((const uint32_t*) (getPointer()+4));
-    return (uncovered == 0);
+    return *(getConst32Pointer() + 1) == 0;
   }
 }
