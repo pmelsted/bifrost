@@ -43,8 +43,8 @@ int main(int argc, char *argv[]) {
   CompressedSequence C1, C2;
   C1 = CompressedSequence(s);
   C1.toString(out);
-  cout << '.';
   if (strcmp(s, out) != 0) {
+    cout << '.';
     cout << "s:   " << s << endl;
     cout << "out: " << out << endl;
     assert(0);
