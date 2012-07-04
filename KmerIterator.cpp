@@ -83,7 +83,7 @@ void KmerIterator::raise(Kmer &km, Kmer &rep) {
 // post: *iter is either invalid or is a pair of:
 //       1) the next valid kmer in the string that does not have any 'N'
 //       2) the location of that kmer in the string
-void KmerIterator::find_next(int i, int j, bool last_valid) {
+void KmerIterator::find_next(size_t i, size_t j, bool last_valid) {
   ++i;
   ++j;
 

@@ -227,7 +227,7 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
    *  now BF2 contains at least all the kmers that appear once
    */
 
-  size_t k = Kmer::k;
+
   uint32_t seed = opt.seed;
   if (seed == 0) {
     seed = (uint32_t) time(NULL);
@@ -267,13 +267,12 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
     }
 
     KmerIterator iter, iterend;
-    #pragma omp parallel for private(iter) shared(iterend, readv, BF, reads_now, k) reduction(+:num_ins)
+    #pragma omp parallel for private(iter) shared(iterend, readv, BF, reads_now) reduction(+:num_ins)
     for (size_t index = 0; index < reads_now; ++index) {
       iter = KmerIterator(readv[index].c_str());
       for (;iter != iterend; ++iter) {
         //++num_kmers;
         Kmer km = iter->first;
-        Kmer tw = km.twin();
         Kmer rep = km.rep();
         size_t r = BF.search(rep);        
         if (r == 0) {

@@ -27,7 +27,7 @@ public:
   std::pair<Kmer, int>* operator->();
 
 private:
-  void find_next(int i, int j, bool last_valid);
+  void find_next(size_t i, size_t j, bool last_valid);
   
   const char *s_;
   std::pair<Kmer, int> p_;
