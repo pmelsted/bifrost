@@ -200,7 +200,7 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
 // post: Information about the Kmer size and the input and output files 
 //       has been printed to cerr 
 void BuildContigs_PrintSummary(const BuildContigs_ProgramOptions &opt) {
-  cerr << "Kmer size" << opt.k << endl
+  cerr << "Kmer size " << opt.k << endl
        << "Reading input file " << opt.input << endl
        << "Writing to output " << opt.output << endl
        << "input files: " << endl;
@@ -455,8 +455,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     int contigsAfter = contigsBefore + contigDiff.first - contigDiff.second;
     cerr << "Before split and join: " << contigsBefore << " contigs" << endl;
     cerr << "After split and join: " << contigsAfter << " contigs" <<  endl;
-    cerr << "Contigs splitted:" << contigDiff.first << endl;
-    cerr << "Contigs joined:" << contigDiff.second << endl;
+    cerr << "Contigs splitted: " << contigDiff.first << endl;
+    cerr << "Contigs joined: " << contigDiff.second << endl;
     cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size() << endl;
     cerr << "Used " << num_threads << " threads and chunksize " << read_chunksize << endl;
     printMemoryUsage(bf, mapper);

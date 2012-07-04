@@ -315,7 +315,7 @@ pair<int, int> KmerMapper::splitAndJoinContigs() {
 // post: contigs that really should be connected have been connected 
 //       joined is the number of contigs joined
 int KmerMapper::joinContigs() {
-  size_t joined = 0;
+  int joined = 0;
   
   Contig *c;
   ContigRef cr;
@@ -377,7 +377,7 @@ bool KmerMapper::checkContigForward(Contig* c, Kmer km, ContigRef &found) {
 // post: all contigs with 1 coverage somewhere have been split on those locations
 //       count is the number of contigs splitted
 int KmerMapper::splitContigs() {
-  size_t splitted = 0;
+  int splitted = 0;
   size_t k = Kmer::k, contigcount = contigs.size();
   size_t cstr_len = 2*k+1;
   size_t nextid = contigcount;
