@@ -499,8 +499,10 @@ void KmerMapper::writeContigs(string output) {
     for(size_t id = 0; id < nextid; ++id) {
       ContigRef cr = realrefs[id];
       stringstream conn;
-      conn << "Coveragesum: " << cr.ref.contig->coveragesum;
-      conn << "  Backwards: ";
+      conn << " ; Coveragesum:" << cr.ref.contig->coveragesum;
+      conn << " ; Kmercount:" << cr.ref.contig->numKmers();
+      conn << " ; Length:" << cr.ref.contig->length();
+      conn << " ; Backwards:";
 
       Kmer first = cr.ref.contig->seq.getKmer(0);
       bool found = false;
@@ -516,7 +518,7 @@ void KmerMapper::writeContigs(string output) {
           found = true;
         }
       }
-      conn << "     Forward: ";
+      conn << " ; Forward:";
 
       Kmer last = cr.ref.contig->seq.getKmer(cr.ref.contig->seq.size()-Kmer::k);
       found = false;
@@ -533,7 +535,7 @@ void KmerMapper::writeContigs(string output) {
         }
       }
       string seq = cr.ref.contig->seq.toString();
-      fprintf(of, ">contig%zu     %s\n%s\n", id, conn.str().c_str(), seq.c_str());
+      fprintf(of, ">contig%zu%s\n%s\n", id, conn.str().c_str(), seq.c_str());
     }
     fclose(of);
   }

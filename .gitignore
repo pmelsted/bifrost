@@ -13,6 +13,7 @@
 
 
 # Other
+*.png
 *.txt
 *.out
 *.swp
