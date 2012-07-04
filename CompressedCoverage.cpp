@@ -178,7 +178,7 @@ void CompressedCoverage::cover(size_t start, size_t end) {
               break;
             }
             uintptr_t newval = oldval & ~(s << pos);
-            newval |= ( val << (pos));
+            newval |= ( val << pos);
             if (__sync_bool_compare_and_swap(change, oldval, newval)) {
               if (((newval & (s << pos)) >> pos)  == 2) {
                 fillednow++;
@@ -188,19 +188,24 @@ void CompressedCoverage::cover(size_t start, size_t end) {
           }
         }
       }
+      if (fillednow > 0) {
+        // Decrease filledcounter
+        __sync_add_and_fetch(get32Pointer + 1, -fillednow);
+      }
+      /*
       uint32_t *change = get32Pointer() + 1;
       while (1) {
         uint32_t oldval = *change;
         uint32_t newval = oldval - fillednow;
-        assert(newval >= 0);
         if (__sync_bool_compare_and_swap(change, oldval, newval)) {
           break;
         }
       }
+      */
       
       if (isFull()) {
         releasePointer();
-        assert((asBits & fullMask) == 2);
+        assert((asBits & fullMask) == fullMask);
       }
     }
   }

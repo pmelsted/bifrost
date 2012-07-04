@@ -441,7 +441,7 @@ int KmerMapper::splitContigs() {
 
       // Is this definitely right ???
       //
-      newc->coveragesum = (1 + totalcoverage * (b - a)) / (numkmers - lowcount); // add one to round up
+      newc->coveragesum = (totalcoverage * (b - a)) / (numkmers - lowcount); 
       //
       //
       

@@ -365,15 +365,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
                 assert(contig->seq.getKmer(kmernum) == km);
               }
               contig->cover(kmernum,kmernum);
-              /*uint64_t *change = &contig->coveragesum;
-              uint64_t oldval = *change; 
-              while (1) {
-                if(__sync_bool_compare_and_swap(change, oldval, oldval +1)) {
-                  break;
-                }
-                oldval = *change; 
-              }
-              */
 
               int32_t direction = reversed ? -1 : 1;
               kmernum += direction;
@@ -386,18 +377,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
                 // Update coverage
                 contig->cover(kmernum,kmernum);
-                /*
-                uint64_t *change = &contig->coveragesum; 
-                uint64_t oldval = *change; 
-
-                // Increase coveragesum by 1
-                while (1) {
-                  if (__sync_bool_compare_and_swap(change, oldval, oldval +1)) {
-                    break;
-                  }
-                  oldval = *change; 
-                }
-                */
 
                 kmernum += direction;
                 iter.raise(km, rep);
