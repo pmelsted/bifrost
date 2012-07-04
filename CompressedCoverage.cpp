@@ -190,7 +190,7 @@ void CompressedCoverage::cover(size_t start, size_t end) {
       }
       if (fillednow > 0) {
         // Decrease filledcounter
-        __sync_add_and_fetch(get32Pointer + 1, -fillednow);
+        __sync_add_and_fetch(get32Pointer() + 1, -fillednow);
       }
       /*
       uint32_t *change = get32Pointer() + 1;
