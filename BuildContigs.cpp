@@ -210,6 +210,14 @@ void BuildContigs_PrintSummary(const BuildContigs_ProgramOptions &opt) {
   }
 }
 
+void printMemoryUsage(BloomFilter &bf, KmerMapper &mapper) {
+  size_t total = 0;
+  cerr << "   -----  Memory usage  -----   " << endl;
+  total += bf.memory();
+  total += mapper.memory();
+  total >>= 20;
+  cerr << "Total:\t\t\t" << total << "MB" << endl;
+}
 
 // use:  BuildContigs_Normal(opt);
 // pre:  opt has information about Kmer size, input file and output file
@@ -440,14 +448,19 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   }
 
   // Print the good contigs
-  size_t contigsBefore = mapper.contigCount();
-  int contigDiff = mapper.splitAndJoinContigs();
-  int contigsAfter = contigsBefore + contigDiff;
   mapper.writeContigs(opt.output);
-  cerr << "Before split and join: " << contigsBefore << " contigs" << endl;
-  cerr << "After split and join: " << contigsAfter << " contigs" <<  endl;
-  cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size() << endl;
-  cerr << "Used " << num_threads << " threads and chunksize " << read_chunksize << endl;
+  if (opt.verbose) {
+    size_t contigsBefore = mapper.contigCount();
+    pair<int, int> contigDiff = mapper.splitAndJoinContigs();
+    int contigsAfter = contigsBefore + contigDiff.first - contigDiff.second;
+    cerr << "Before split and join: " << contigsBefore << " contigs" << endl;
+    cerr << "After split and join: " << contigsAfter << " contigs" <<  endl;
+    cerr << "Contigs splitted:" << contigDiff.first << endl;
+    cerr << "Contigs joined:" << contigDiff.second << endl;
+    cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size() << endl;
+    cerr << "Used " << num_threads << " threads and chunksize " << read_chunksize << endl;
+    printMemoryUsage(bf, mapper);
+  }
   delete [] parray;
 }
 
@@ -680,3 +693,4 @@ pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
   }
   return make_pair(end, dist);
 }
+

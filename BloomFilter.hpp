@@ -45,6 +45,12 @@ public:
     clear();
   }
 
+  size_t memory() const { 
+    size_t m = sizeof(BloomFilter) + (size_ >> 3);
+    fprintf(stderr, "BloomFilter:\t\t%zuMB\n",  m >> 20);
+    return m;
+  }
+
   template<typename T>
   bool contains(T x) {
     return (search(x) == 0);

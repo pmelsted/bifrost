@@ -299,14 +299,14 @@ ContigRef KmerMapper::find_rep(ContigRef a) const {
 // pre:  
 // post: The contigs in mapper have been splitted and joined
 //       d is the increase of contigs after split and join
-int KmerMapper::splitAndJoinContigs() {
+pair<int, int> KmerMapper::splitAndJoinContigs() {
   Kmer km, rep, end, km_del;
   km_del.set_deleted();
   map.set_deleted_key(km_del);
 
   int splitted = splitContigs();
   int joined = joinContigs();
-  return splitted - joined;
+  return make_pair(splitted, joined);
 }
 
 
@@ -414,7 +414,6 @@ int KmerMapper::splitContigs() {
     size_t lowcount = lowpair.first;
     size_t lowsum = lowpair.second;
     size_t totalcoverage = c->coveragesum - lowsum;
-    assert(c->coveragesum >= c->numKmers());
 
     // unmap the contig
     for(size_t index = 0; index < numkmers; ++index) {
@@ -539,4 +538,23 @@ void KmerMapper::writeContigs(string output) {
     }
     fclose(of);
   }
+}
+
+size_t KmerMapper::memory() const {
+  size_t contigcount = contigs.size();
+  size_t _contigs = 0;
+  for (size_t id=0; id<contigcount; ++id) {
+    ContigRef cr = contigs[id];
+    if (cr.isContig && !cr.isEmpty()) {
+      _contigs += cr.ref.contig->memory();
+    }
+  }
+  size_t _contigrefs = contigcount * sizeof(ContigRef);
+  size_t _map = sizeof(map) + map.size() * sizeof(ContigRef); // Is this the size of all the values ? 
+  size_t _kmermapper = sizeof(KmerMapper) ;
+  fprintf(stderr, "ContigRefs:\t\t%zuMB\n", _contigrefs >> 20);
+  fprintf(stderr, "Contigs:\t\t%zuMB\n", _contigs >> 20);
+  fprintf(stderr, "KmerMapper:\t\t%zuMB\n", _kmermapper >> 20);
+  fprintf(stderr, "Map:\t\t\t%zuMB\n", _map >> 20);
+  return _contigrefs + _contigs + _map + _kmermapper;
 }

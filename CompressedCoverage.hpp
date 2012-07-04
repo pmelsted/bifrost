@@ -44,6 +44,8 @@ public:
   vector<pair<int, int> > splittingVector() const;
   pair<size_t, size_t> lowCoverageInfo() const;
 
+  static const size_t size_limit = 28; // 56 bit array, 28 2-bit integers
+
 private:
 
   static const uintptr_t tagMask = 1; // local array bit
@@ -52,7 +54,6 @@ private:
   static const uintptr_t localCoverageMask = 0xAAAAAAAAAAAAAA; // 0b10101010101010101010101010101010101010101010101010101010
   static const uintptr_t pointerMask = ~(tagMask | fullMask); // rest of bits
 
-  static const size_t size_limit = 28; // 56 bit array, 28 2-bit integers
   
   uint8_t* get8Pointer() const { return reinterpret_cast<uint8_t*>(asBits & pointerMask); } 
   uint32_t* get32Pointer() const { return reinterpret_cast<uint32_t*>(asBits & pointerMask); }

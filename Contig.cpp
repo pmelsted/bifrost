@@ -25,3 +25,17 @@ void Contig::cover(size_t start, size_t end) {
   ccov.cover(start,end);
   __sync_add_and_fetch(&coveragesum,end-start+1);
 }
+
+
+size_t Contig::memory() const {
+  size_t m = sizeof(ccov) + sizeof(seq);
+  size_t numkmers = numKmers();
+  if (numkmers > ccov.size_limit) {
+    m += ((numkmers + 3) / 4) + 8;
+  }
+  size_t seqlength = length();
+  if (!seq.isShort()) {
+    m += ((seqlength + 3) / 4);
+  }
+  return m;
+}

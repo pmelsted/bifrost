@@ -25,6 +25,7 @@ public:
 
   size_t numKmers() const { return ccov.size(); }
   size_t length() const { return seq.size(); }
+  size_t memory() const;
 };
 
 #endif // BFG_CONTIG_HPP

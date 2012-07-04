@@ -48,13 +48,13 @@ public:
   CompressedSequence rev() const;
   size_t jump(const char *s, size_t i, int pos, bool reversed) const;
 
+  bool isShort() const;
 private:
   size_t round_to_bytes(const size_t len) const { return (len+3)/4; }
   void _resize_and_copy(size_t new_cap, size_t copy_limit);
   void initShort();
   void setSize(size_t size);
   
-  bool isShort() const;
   size_t capacity() const;
   const char *getPointer() const;
   
