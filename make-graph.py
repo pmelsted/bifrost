@@ -2,9 +2,9 @@
 #! -*- coding: utf-8 -*-
 try:
     import pydot
-except Exception as e:
+except:
     print "\nERROR: You do not have pydot installed, try: sudo pip install pydot\n"
-    raise(e)
+    raise
 import sys
 
 KMERSIZE = None #  Will be initialized in createDict
