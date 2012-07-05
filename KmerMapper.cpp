@@ -477,67 +477,81 @@ void KmerMapper::printContigs() {
 // post: if output is a valid filename, all the contigs have been written to this file
 //       and backward and forward connections for each contig have been printed as well
 void KmerMapper::writeContigs(string output) {
-  FILE* of = fopen(output.c_str(), "w");
-  std::map<size_t,size_t> newids;
+  string contigfilename = output + ".contigs";
+  string graphfilename = output + ".graph";
+  FILE* contigfile = fopen(contigfilename.c_str(), "w");
+  FILE* graphfile = fopen(graphfilename.c_str(), "w");
+  /* 
+  --- graphfile:
+  contigcount kmersize                    (only in the first line of the file)
+  id length ratio bwcount fwcount
+  bw1 bw2 bw3 bw4                         (at most 4)
+  fw1 fw2 fw3 fw4                         (at most 4)
+  ...
 
-  if (of == NULL) {
-    cerr << "Could not open file for writing, " << output << endl;
+  --- contigfile:
+  >contigID
+  sequence
+  ...
+  */
+
+  if (contigfile == NULL) {
+    cerr << "Could not open file for writing, " << contigfile << endl;
     exit(1);
-  } else {
-    size_t nextid = 0;
-    size_t contigcount = contigs.size();
-    vector<ContigRef> realrefs;
-    for(size_t contigid = 0; contigid < contigcount; ++contigid) {
-      ContigRef cr = contigs[contigid];
-      if (cr.isContig && !cr.isEmpty()) {
-        realrefs.push_back(cr);
-        newids[contigid] = nextid++;
-      }
+  } else if (graphfile == NULL) {
+    cerr << "Could not open file for writing, " << graphfile << endl;
+    exit(1);
+  } 
+
+  std::map<size_t,size_t> newids;
+  size_t nextid = 0, k = Kmer::k;
+  size_t contigcount = contigs.size();
+  vector<ContigRef> realrefs;
+  for(size_t contigid = 0; contigid < contigcount; ++contigid) {
+    ContigRef cr = contigs[contigid];
+    if (cr.isContig && !cr.isEmpty()) {
+      realrefs.push_back(cr);
+      newids[contigid] = nextid++;
     }
-
-    for(size_t id = 0; id < nextid; ++id) {
-      ContigRef cr = realrefs[id];
-      stringstream conn;
-      conn << " ; Coveragesum:" << cr.ref.contig->coveragesum;
-      conn << " ; Kmercount:" << cr.ref.contig->numKmers();
-      conn << " ; Length:" << cr.ref.contig->length();
-      conn << " ; Backwards:";
-
-      Kmer first = cr.ref.contig->seq.getKmer(0);
-      bool found = false;
-      for (size_t i=0; i<4; ++i) {
-        Kmer prev = first.backwardBase(alpha[i]);
-        ContigRef prevcr = find(prev);
-        if (!prevcr.isEmpty()) {
-          if (found) {
-            conn << ",";
-          }
-          assert(newids.find(prevcr.ref.idpos.id) != newids.end());
-          conn << newids[prevcr.ref.idpos.id];
-          found = true;
-        }
-      }
-      conn << " ; Forward:";
-
-      Kmer last = cr.ref.contig->seq.getKmer(cr.ref.contig->seq.size()-Kmer::k);
-      found = false;
-      for (size_t i=0; i<4; ++i) {
-        Kmer fw = last.forwardBase(alpha[i]);
-        ContigRef fwcr = find(fw);
-        if (!fwcr.isEmpty()) {
-          if (found) {
-            conn << ",";
-          }
-          assert(newids.find(fwcr.ref.idpos.id) != newids.end());
-          conn << newids[fwcr.ref.idpos.id];
-          found = true;
-        }
-      }
-      string seq = cr.ref.contig->seq.toString();
-      fprintf(of, ">contig%zu%s\n%s\n", id, conn.str().c_str(), seq.c_str());
-    }
-    fclose(of);
   }
+
+  fprintf(graphfile, "%zu %zu\n", nextid, k);
+  for(size_t id = 0; id < nextid; ++id) {
+    ContigRef cr = realrefs[id];
+    Contig *c = cr.ref.contig;
+    stringstream infoss, bwss, fwss;
+    size_t length = c->length(), fwcount = 0, bwcount = 0;
+    size_t numkmers = length - k + 1, coveragesum = c->coveragesum;
+    float ratio = coveragesum / (0.0 + numkmers);
+    infoss << id << " " <<  length << " " << ratio << " ";
+
+    Kmer first = c->seq.getKmer(0);
+    for (size_t i=0; i<4; ++i) {
+      Kmer bw = first.backwardBase(alpha[i]);
+      ContigRef prevcr = find(bw);
+      if (!prevcr.isEmpty()) {
+        assert(newids.find(prevcr.ref.idpos.id) != newids.end());
+        bwss << newids[prevcr.ref.idpos.id] << " ";
+        ++bwcount;
+      }
+    }
+
+    Kmer last = c->seq.getKmer(c->seq.size()-Kmer::k);
+    for (size_t i=0; i<4; ++i) {
+      Kmer fw = last.forwardBase(alpha[i]);
+      ContigRef fwcr = find(fw);
+      if (!fwcr.isEmpty()) {
+        assert(newids.find(fwcr.ref.idpos.id) != newids.end());
+        fwss << newids[fwcr.ref.idpos.id] << " ";
+      }
+    }
+    infoss << bwcount << " " << fwcount;
+
+    fprintf(contigfile, ">contig%zu\n%s\n", id, c->seq.toString().c_str());
+    fprintf(graphfile, "%s\n%s\n%s\n", infoss.str().c_str(), bwss.str().c_str(), fwss.str().c_str());
+  }
+  fclose(contigfile);
+  fclose(graphfile);
 }
 
 size_t KmerMapper::memory() const {

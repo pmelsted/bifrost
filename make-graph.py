@@ -1,79 +1,95 @@
 #!/usr/bin/python
 #! -*- coding: utf-8 -*-
-
-from sys import argv
-
-if len(argv) < 3 or argv[2][-4:] != '.png':
-    print "usage: ./make-graph.py <inputfile> <outputfile.png>"
-    exit()
-
-
-f = open(argv[1], "r").readlines()
-d = {}
-contigs = []
-m = {}
-numcontigs = len(f) / 2
-for i in xrange(0, len(f), 2):
-    info = f[i].replace("\n", "").strip().split(";")
-    q = {}
-    for item in info:
-        if item[0] == '>':
-            _id = int(item[7:])
-        else:
-            a, b = item.split(":")
-            a, b = a.strip(), b.strip()
-            if b:
-                q[a] = map(int, b.split(","))
-            else:
-                q[a] = []
-    c = f[i+1].replace("\n", "")
-    q['contig'] = c
-    q['ratio'] = q['Coveragesum'][0]  / ( 0.0 + q['Kmercount'][0])
-    contigs.append(c)
-    d[_id] = q
-    m[_id] = c
-
-it = d.items()
-it.sort(key=lambda x: x[1]['ratio'], reverse=True)
-
+import pydot
 import sys
-sys.path.append('..')
-sys.path.append('/usr/lib/graphviz/python/')
-sys.path.append('/usr/lib64/graphviz/python/')
-import gv
 
-# Import pygraph
-#from pygraph.classes.digraph import digraph
-from pygraph.classes.graph import graph
-from pygraph.readwrite.dot import write
+KMERSIZE = None #  Will be initialized in createDict
 
-# Graph creation
-gr = graph()
+class Contig:
+    def __init__(self, id, bases):
+        self.id = id
+        self.bases = bases
 
-#gr.add_nodes(m.values())
-
-def p(_id):
-    global d
-    return "%d-%d-%d" % (_id, d[_id]['ratio'], d[_id]['Length'][0])
-
-gr.add_nodes(map(p, range(numcontigs)))
+    def addinfo(self, length, ratio, bw, fw):
+        self.length = length
+        self.ratio = ratio
+        self.bw = bw
+        self.fw = fw
 
 
-for w in sorted(d.items()):
-    k,v = w
-    #print ">contig%d: %s" % (k, d[k]['contig'])
-    for bw in v['Backwards']:
-        if not gr.has_edge((p(bw), p(k))):
-            gr.add_edge((p(bw), p(k)))
-        #gr.add_edge((m[k], m[bw]))
+def createDict(prefix):
+    global KMERSIZE
+    non = lambda s : s.replace('\n', '').strip()
+    contigfile = prefix + ".contigs"
+    graphfile = prefix + ".graph"
+    try:
+        clines = map(non, open(prefix + ".contigs", 'r').readlines())
+    except:
+        print "Could not find file %s.contigs, did you run ./BFGraph contigs -o %s ...?" % (prefix, prefix)
+        exit()
+    try:
+        glines = map(non, open(prefix + ".graph", 'r').readlines())
+    except:
+        print "Could not find file %s.graph, did you run ./BFGraph contigs -o %s ...?" % (prefix, prefix)
+        exit()
+    print "Creating the De Brujin graph from the files %s and %s" % (contigfile, graphfile)
 
-    for fw in v['Forward']:
-        if not gr.has_edge((p(k), p(fw))):
-            gr.add_edge((p(k), p(fw)))
-        #gr.add_edge((m[k], m[fw]))
-#print d
-# Draw as PNG
-dot = write(gr)
-gvv = gv.readstring(dot)
-gv.layout(gvv,'dot')
-gv.render(gvv,'png', argv[2])
+    contigcount, KMERSIZE = map(int, glines[0].split(" "))
+
+    contigs = []
+
+    for i in xrange(0, contigcount):
+        assert clines[2*i] == ">contig%d" % i
+        contigs.append(Contig(i, clines[1 + 2*i]))
+
+    for i in xrange(contigcount):
+        line = glines[1 + 3*i].split(" ")
+        assert int(line[0]) == i
+        length = int(line[1])
+        ratio = float(line[2])
+        bwcount = int(line[3])
+        fwcount = int(line[4])
+        bw = map(int, glines[2 + 3*i].split(" ")) if bwcount else []
+        fw = map(int, glines[3 + 3*i].split(" ")) if fwcount else []
+        contigs[i].addinfo(length, ratio, bw, fw)
+
+    return contigs
+
+
+def makeDot(contigs):
+    global KMERSIZE
+    s = ""
+    s += "digraph G{\ngraph [rankdir=LR];\n node[shape=record]\n"
+    max_cov = max(c.ratio for c in contigs)
+    for c in contigs:
+        now = c.bases
+        if c.length >= 2*KMERSIZE:
+            now = "%s .. (%d) .. %s" % (c.bases[:KMERSIZE], int(c.ratio), c.bases[-KMERSIZE:])
+        s += '%s [style=filled, fillcolor=gray%s,label="%s"];\n'%(c.bases, int(100.0 - round(c.ratio / max_cov)), now)
+
+    for c in contigs:
+        for i in c.bw:
+            s += "%s -> %s;\n" % (c.bases, contigs[i].bases)
+        for i in c.fw:
+            s += "%s -> %s;\n" % (c.bases, contigs[i].bases)
+
+    s += "}"
+    return s
+
+
+def writeToPNG(dot, filename):
+    g = pydot.graph_from_dot_data(dot)
+    print "Writing the graph to %s" % filename
+    g.write(filename, format='png')
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print "usage: ./make-graph.py <prefix>"
+        exit()
+
+    prefix = sys.argv[1]
+    contigs = createDict(prefix)
+    dot = makeDot(contigs)
+
+    writeToPNG(dot, prefix + ".png")
