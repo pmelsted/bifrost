@@ -1,13 +1,6 @@
 #!/usr/bin/python
 #! -*- coding: utf-8 -*-
-try:
-    import pydot
-except:
-    print "\nERROR: You do not have pydot installed, try: sudo pip install pydot\n"
-    raise
 import sys
-
-KMERSIZE = None #  Will be initialized in createDict
 
 class Contig:
     def __init__(self, id, bases):
@@ -22,7 +15,6 @@ class Contig:
 
 
 def createDict(prefix):
-    global KMERSIZE
     non = lambda s : s.replace('\n', '').strip()
     contigfile = prefix + ".contigs"
     graphfile = prefix + ".graph"
@@ -57,11 +49,10 @@ def createDict(prefix):
         fw = map(int, glines[3 + 3*i].split(" ")) if fwcount else []
         contigs[i].addinfo(length, ratio, bw, fw)
 
-    return contigs
+    return contigs, KMERSIZE
 
 
-def makeDot(contigs):
-    global KMERSIZE
+def makeDot(contigs, KMERSIZE):
     s = ""
     s += "digraph G{\ngraph [rankdir=LR];\n node[shape=record]\n"
     max_cov = max(c.ratio for c in contigs)
@@ -81,23 +72,15 @@ def makeDot(contigs):
     return s
 
 
-def writeToPNG(dot, filename):
-    g = pydot.graph_from_dot_data(dot)
-    print "Writing the graph to %s" % filename
-    g.write(filename, format='png')
-
-
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print "usage: ./make-graph.py <prefix>"
         exit()
 
     prefix = sys.argv[1]
-    contigs = createDict(prefix)
-    dot = makeDot(contigs)
+    contigs, KMERSIZE = createDict(prefix)
+    dot = makeDot(contigs, KMERSIZE)
+    out = open(prefix + ".dot", 'w')
+    out.write(dot)
+    out.close()
 
-    try:
-        writeToPNG(dot, prefix + ".png")
-    except:
-        print "\nERROR: Are you sure you have graphviz installed? You could try: sudo apt-get install graphviz\n"
-        raise

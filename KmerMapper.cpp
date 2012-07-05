@@ -543,12 +543,15 @@ void KmerMapper::writeContigs(string output) {
       if (!fwcr.isEmpty()) {
         assert(newids.find(fwcr.ref.idpos.id) != newids.end());
         fwss << newids[fwcr.ref.idpos.id] << " ";
+        ++fwcount;
       }
     }
-    infoss << bwcount << " " << fwcount;
+    bwss << endl;
+    fwss << endl;
+    infoss << bwcount << " " << fwcount << endl;
 
     fprintf(contigfile, ">contig%zu\n%s\n", id, c->seq.toString().c_str());
-    fprintf(graphfile, "%s\n%s\n%s\n", infoss.str().c_str(), bwss.str().c_str(), fwss.str().c_str());
+    fprintf(graphfile, "%s%s%s", infoss.str().c_str(), bwss.str().c_str(), fwss.str().c_str());
   }
   fclose(contigfile);
   fclose(graphfile);
