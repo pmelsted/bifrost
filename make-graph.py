@@ -1,6 +1,10 @@
 #!/usr/bin/python
 #! -*- coding: utf-8 -*-
-import pydot
+try:
+    import pydot
+except:
+    print "You do not have pydot installed, try: sudo pip install pydot"
+    exit()
 import sys
 
 KMERSIZE = None #  Will be initialized in createDict
@@ -92,4 +96,8 @@ if __name__ == "__main__":
     contigs = createDict(prefix)
     dot = makeDot(contigs)
 
-    writeToPNG(dot, prefix + ".png")
+    try:
+        writeToPNG(dot, prefix + ".png")
+    except:
+        print "Are you sure you have graphviz installed? You could try: sudo apt-get install graphviz"
+        exit()
