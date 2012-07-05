@@ -526,6 +526,8 @@ void KmerMapper::writeContigs(string output) {
     infoss << id << " " <<  length << " " << ratio << " ";
 
     Kmer first = c->seq.getKmer(0);
+    Kmer last = c->seq.getKmer(c->seq.size()-Kmer::k);
+    // TODO: Get all neighbours!!!
     for (size_t i=0; i<4; ++i) {
       Kmer bw = first.backwardBase(alpha[i]);
       ContigRef prevcr = find(bw);
@@ -536,7 +538,6 @@ void KmerMapper::writeContigs(string output) {
       }
     }
 
-    Kmer last = c->seq.getKmer(c->seq.size()-Kmer::k);
     for (size_t i=0; i<4; ++i) {
       Kmer fw = last.forwardBase(alpha[i]);
       ContigRef fwcr = find(fw);
