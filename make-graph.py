@@ -2,6 +2,10 @@
 #! -*- coding: utf-8 -*-
 import sys
 
+alpha = {'A':'T', 'C':'G', 'G':'C', 'T':'A', 'N':'N'}
+twin  = lambda x: ''.join(map(lambda z: alpha[z], list(x[::-1])))
+non   = lambda s : s.replace('\n', '').strip()
+
 class Contig:
     def __init__(self, id, bases):
         self.id = id
@@ -13,9 +17,26 @@ class Contig:
         self.bw = bw
         self.fw = fw
 
+    def __repr__(self):
+        return "bw: %s fw: %s length: %d ratio %f seq: %s" % (self.bw, self.fw, self.length, self.ratio, self.bases)
+
+
+def isNeighbour(seq1, seq2, KMERSIZE):
+    aFirst = seq1[:KMERSIZE-1]
+    bFirst = seq2[:KMERSIZE-1]
+    aLast = seq1[-KMERSIZE+1:]
+    bLast = seq2[-KMERSIZE+1:]
+    if aLast == bFirst:
+        return True
+    elif aLast == twin(bLast):
+        return True
+    elif twin(aFirst) == bFirst:
+        return True
+    elif twin(aFirst) == twin(bLast):
+        return True
+    return False
 
 def createDict(prefix):
-    non = lambda s : s.replace('\n', '').strip()
     contigfile = prefix + ".contigs"
     graphfile = prefix + ".graph"
     try:
@@ -34,9 +55,22 @@ def createDict(prefix):
 
     contigs = []
 
-    for i in xrange(0, contigcount):
+    d = {}
+    for i in xrange(contigcount):
         assert clines[2*i] == ">contig%d" % i
-        contigs.append(Contig(i, clines[1 + 2*i]))
+        s = clines[1 + 2*i]
+
+        first = s[:KMERSIZE-1]
+        last = s[-KMERSIZE+1:]
+        firsttwin = twin(first)
+        lasttwin = twin(last)
+        d.setdefault(first, []).append(i)
+        d.setdefault(last, []).append(i)
+        d.setdefault(firsttwin, []).append(i)
+        d.setdefault(lasttwin, []).append(i)
+
+        contigs.append(Contig(i, s))
+
 
     for i in xrange(contigcount):
         line = glines[1 + 3*i].split(" ")
@@ -47,7 +81,31 @@ def createDict(prefix):
         fwcount = int(line[4])
         bw = map(int, glines[2 + 3*i].split(" ")) if bwcount else []
         fw = map(int, glines[3 + 3*i].split(" ")) if fwcount else []
-        contigs[i].addinfo(length, ratio, bw, fw)
+        c = contigs[i]
+        c.addinfo(length, ratio, bw, fw)
+        s = c.bases
+
+        for back in bw:
+            assert isNeighbour(contigs[back].bases, s, KMERSIZE)
+        for forward in bw:
+            assert isNeighbour(contigs[forward].bases, s, KMERSIZE)
+
+
+    for c in contigs:
+        s = c.bases
+        first = s[:KMERSIZE-1]
+        last = s[-KMERSIZE+1:]
+        firsttwin = twin(first)
+        lasttwin = twin(last)
+        """
+        print set(c.fw + c.bw + [c.id])
+        print set(d[first] + d[last] + d[firsttwin] + d[lasttwin])
+        """
+        assert set(c.fw+c.bw+[c.id]) == set(d[first] + d[last] + d[firsttwin] + d[lasttwin])
+
+
+
+
 
     return contigs, KMERSIZE
 
@@ -70,8 +128,6 @@ def makeDot(contigs, KMERSIZE):
     s += "}"
     return s
 
-alpha = {'A':'T', 'C':'G', 'G':'C', 'T':'A', 'N':'N'}
-twin = lambda x: ''.join(map(lambda z: alpha[z], list(x[::-1])))
 
 def makeDot2(contigs, KMERSIZE):
     lines = ["digraph G {", "graph [rankdir=LR, fontcolor=red, fontname=\"Courier\"];", "node [shape=record];"]
