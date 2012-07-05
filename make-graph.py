@@ -2,9 +2,9 @@
 #! -*- coding: utf-8 -*-
 try:
     import pydot
-except :
-    print "You do not have pydot installed, try: sudo pip install pydot"
-    raise
+except Exception as e:
+    print "\nERROR: You do not have pydot installed, try: sudo pip install pydot\n"
+    raise(e)
 import sys
 
 KMERSIZE = None #  Will be initialized in createDict
@@ -99,5 +99,5 @@ if __name__ == "__main__":
     try:
         writeToPNG(dot, prefix + ".png")
     except:
-        print "Are you sure you have graphviz installed? You could try: sudo apt-get install graphviz"
+        print "\nERROR: Are you sure you have graphviz installed? You could try: sudo apt-get install graphviz\n"
         raise
