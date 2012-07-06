@@ -409,7 +409,6 @@ int KmerMapper::splitContigs() {
     cstr[seqlength] = 0;
 
     vector<pair<int, int> > v = c->ccov.splittingVector();
-    //TODO: use this number to update coveragesums of the new contigs
     pair<size_t, size_t> lowpair = c->ccov.lowCoverageInfo();
     size_t lowcount = lowpair.first;
     size_t lowsum = lowpair.second;
@@ -527,7 +526,6 @@ void KmerMapper::writeContigs(string output) {
 
     Kmer first = c->seq.getKmer(0);
     Kmer last = c->seq.getKmer(c->seq.size()-Kmer::k);
-    // TODO: Get all neighbours!!!
     for (size_t i=0; i<4; ++i) {
       Kmer bw = first.backwardBase(alpha[i]);
       ContigRef prevcr = find(bw);

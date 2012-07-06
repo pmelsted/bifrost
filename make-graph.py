@@ -27,13 +27,13 @@ def isNeighbour(seq1, seq2, KMERSIZE):
     aLast = seq1[-KMERSIZE+1:]
     bLast = seq2[-KMERSIZE+1:]
     if aLast == bFirst:
-        return True
+        return (0,0)
     elif aLast == twin(bLast):
-        return True
+        return (0,1)
     elif twin(aFirst) == bFirst:
-        return True
+        return (1,0)
     elif twin(aFirst) == twin(bLast):
-        return True
+        return (1,1)
     return False
 
 def createDict(prefix):
@@ -97,12 +97,14 @@ def createDict(prefix):
         last = s[-KMERSIZE+1:]
         firsttwin = twin(first)
         lasttwin = twin(last)
+
+        #TODO: Assert that we have all possibilities
         """
+        print ">contig%d" % c.id
         print set(c.fw + c.bw + [c.id])
         print set(d[first] + d[last] + d[firsttwin] + d[lasttwin])
-        """
         assert set(c.fw+c.bw+[c.id]) == set(d[first] + d[last] + d[firsttwin] + d[lasttwin])
-
+        """
 
 
 
@@ -157,15 +159,12 @@ def makeDot2(contigs, KMERSIZE):
     done = {}
     for c in contigs:
         x = c.bases
-        for fw in c.fw:
-            o = contigs[fw].bases
+        for nbr in c.fw + c.bw:
+            o = contigs[nbr].bases
             if (x,o) not in done:
-                lines.append('%s:%s -> %s:%s;' % (struct[x][0],struct[x][1],struct[o][0],struct[o][1]))
+                a, b = isNeighbour(x, o, KMERSIZE)
+                lines.append('%s:%s -> %s:%s;' % (struct[x][0],a,struct[o][0], b))
                 done[(x, o)] = 1
-        for bw in c.bw:
-            o = contigs[bw].bases
-            if (o,x) not in done:
-                lines.append('%s:%s -> %s:%s;' % (struct[o][0],struct[o][1],struct[x][0],struct[x][1]))
                 done[(o, x)] = 1
     lines.append("}")
     return "\n".join(lines)

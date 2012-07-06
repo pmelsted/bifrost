@@ -9,12 +9,12 @@
 #include <stdint.h>
 #include <cassert>
 #include <cstring>
+#include <string>
 
 #include "hash.hpp"
 
 
 //for debug
-
 void int2bin(uint32_t a, char *buffer, int buf_size);
 
 
@@ -63,6 +63,7 @@ class Kmer {
   void printBinary() const;
   
   void toString(char * s) const;
+  std::string toString() const;
 
   // static functions
   static void set_k(unsigned int _k);

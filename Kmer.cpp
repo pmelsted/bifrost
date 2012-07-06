@@ -299,6 +299,13 @@ void Kmer::toString(char * s) const {
   *s = '\0';
 }
 
+std::string Kmer::toString() const {
+  char buf[MAX_K];
+  toString(buf);
+  return std::string(buf);
+}
+
+
 
 // use:  km.shiftForward(i);
 // pre:  i = 2,4,6 
