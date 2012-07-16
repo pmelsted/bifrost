@@ -3,8 +3,10 @@
 import sys
 
 alpha = {'A':'T', 'C':'G', 'G':'C', 'T':'A', 'N':'N'}
-twin  = lambda x: ''.join(map(lambda z: alpha[z], list(x[::-1])))
+twin  = lambda x : ''.join(map(lambda z: alpha[z], list(x[::-1])))
+rep   = lambda s : min(s, twin(s))
 non   = lambda s : s.replace('\n', '').strip()
+
 
 class Contig:
     def __init__(self, id, bases):
@@ -36,6 +38,7 @@ def isNeighbour(seq1, seq2, KMERSIZE):
         return (1,1)
     return False
 
+
 def createDict(prefix):
     contigfile = prefix + ".contigs"
     graphfile = prefix + ".graph"
@@ -55,21 +58,19 @@ def createDict(prefix):
 
     contigs = []
 
-    d = {}
+    firsts = {}
+    lasts = {}
     for i in xrange(contigcount):
         assert clines[2*i] == ">contig%d" % i
         s = clines[1 + 2*i]
-
-        first = s[:KMERSIZE-1]
-        last = s[-KMERSIZE+1:]
-        firsttwin = twin(first)
-        lasttwin = twin(last)
-        d.setdefault(first, []).append(i)
-        d.setdefault(last, []).append(i)
-        d.setdefault(firsttwin, []).append(i)
-        d.setdefault(lasttwin, []).append(i)
-
         contigs.append(Contig(i, s))
+
+        # For asserting that the fw and bw contigs are right
+        first = s[:KMERSIZE]
+        last = s[-KMERSIZE:]
+        firsts.setdefault(first, []).append(i)
+        lasts.setdefault(last, []).append(i)
+
 
 
     for i in xrange(contigcount):
@@ -93,45 +94,28 @@ def createDict(prefix):
 
     for c in contigs:
         s = c.bases
-        first = s[:KMERSIZE-1]
-        last = s[-KMERSIZE+1:]
-        firsttwin = twin(first)
-        lasttwin = twin(last)
-
-        #TODO: Assert that we have all possibilities
-        """
-        print ">contig%d" % c.id
-        print set(c.fw + c.bw + [c.id])
-        print set(d[first] + d[last] + d[firsttwin] + d[lasttwin])
-        assert set(c.fw+c.bw+[c.id]) == set(d[first] + d[last] + d[firsttwin] + d[lasttwin])
-        """
+        first = s[:KMERSIZE]
+        last = s[-KMERSIZE:]
 
 
+        #print ">contig%d\n%s" % (c.id, s)
 
+        _fws = set()
+        _bws = set()
+        for char in "ACGT":
+            fwkm = last[1:] + char
+            bwkm = char + first[:-1]
+            _fws.update(firsts.get(fwkm, []))
+            _fws.update(lasts.get(twin(fwkm), []))
+            _bws.update(lasts.get(bwkm, []))
+            _bws.update(firsts.get(twin(bwkm), []))
+        assert _fws == set(c.fw)
+        assert _bws == set(c.bw)
 
     return contigs, KMERSIZE
 
 
 def makeDot(contigs, KMERSIZE):
-    s = "digraph G{\ngraph [rankdir=LR];\n node[shape=record]\n"
-    max_cov = max(c.ratio for c in contigs)
-    for c in contigs:
-        now = c.bases
-        if c.length >= 2*KMERSIZE:
-            now = "%s .. (%d) .. %s" % (c.bases[:KMERSIZE], int(c.ratio), c.bases[-KMERSIZE:])
-        s += '%s [style=filled, fillcolor=gray%s,label="%s"];\n'%(c.bases, int(100.0 - round(70*c.ratio / max_cov)), now)
-
-    for c in contigs:
-        for i in c.bw:
-            s += "%s -> %s;\n" % (c.bases, contigs[i].bases)
-        for i in c.fw:
-            s += "%s -> %s;\n" % (c.bases, contigs[i].bases)
-
-    s += "}"
-    return s
-
-
-def makeDot2(contigs, KMERSIZE):
     lines = ["digraph G {", "graph [rankdir=LR, fontcolor=red, fontname=\"Courier\"];", "node [shape=record];"]
     struct = {}
     score = {}
@@ -176,7 +160,7 @@ if __name__ == "__main__":
 
     prefix = sys.argv[1]
     contigs, KMERSIZE = createDict(prefix)
-    dot = makeDot2(contigs, KMERSIZE)
+    dot = makeDot(contigs, KMERSIZE)
     out = open(prefix + ".dot", 'w')
     out.write(dot)
     out.close()
