@@ -63,7 +63,4 @@ Contig.o: Contig.cpp Contig.hpp
 hash.o: hash.hpp hash.cpp	
 
 clean:
-	rm -rf *.o
-	rm -rf *.so
-	rm -rf *_wrap.cxx
-	rm -rf BFGraph
+	rm -f *.o *.so *.pyc *_wrap.cxx BFGraph
