@@ -11,8 +11,12 @@
 *.la
 *.a
 
+# From SWIG
+*_wrap.cxx
+graph.py
 
 # Other
+*.pyc
 *.dot
 *.contigs
 *.graph

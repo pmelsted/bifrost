@@ -1,4 +1,3 @@
-
 # This affects the memory usage of the program
 # we use 1 byte for every 4 bp in kmers. Ideally
 # this parameter should be a multiple of 4.
@@ -11,6 +10,8 @@ INCLUDES = -I.
 CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) -fPIC -fopenmp
 LDFLAGS =
 LDLIBS  = -lm -lz -lgomp
+SWIG = /usr/bin/swig
+PYTHON_VERSION = $(shell echo `python -c 'import sys; print sys.version[:3]'`)
 
 
 all: CXXFLAGS += -O3
@@ -28,13 +29,21 @@ profile: target
 
 target: BFGraph
 
-OBJECTS = Kmer.o KmerIterator.o KmerIntPair.o hash.o fastq.o FilterReads.o BuildContigs.o SimplifyGraph.o KmerMapper.o CompressedSequence.o Contig.o CompressedCoverage.o
+
+OBJECTS = Kmer.o KmerIterator.o KmerIntPair.o hash.o fastq.o FilterReads.o BuildContigs.o SimplifyGraph.o KmerMapper.o \
+		  CompressedSequence.o Contig.o CompressedCoverage.o
+
+swig: $(OBJECTS) graph.i
+	$(SWIG) -python -c++ graph.i
+	$(CC) -fPIC -c graph_wrap.cxx -I /usr/include/python$(PYTHON_VERSION)
+	$(CC) -shared $(OBJECTS) graph_wrap.o -o _graph.so $(LDFLAGS) $(LDLIBS)
 
 testread: testread.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(LDFLAGS) $(LDLIBS) $(OBJECTS) testread.o -o testread
 
 BFGraph: BFGraph.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(OBJECTS) BFGraph.o $(LDFLAGS) $(LDLIBS) -o BFGraph
+
 
 
 BFGraph.o: BFGraph.cpp
@@ -55,4 +64,6 @@ hash.o: hash.hpp hash.cpp
 
 clean:
 	rm -rf *.o
+	rm -rf *.so
+	rm -rf *_wrap.cxx
 	rm -rf BFGraph
