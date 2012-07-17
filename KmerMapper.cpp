@@ -116,15 +116,13 @@ bool isNeighbor(Kmer a, Kmer b) {
   return false;
 }
 
-// use:  r = m.joinContigs(a, b);
+// use:  cr, succeded = m.joinContigs(a, b);
 // pre:  a and b are not contig pointers
-//       the last Kmer::k-1 bases in the last kmer in the contig that a refers to
-//       are the same as the first Kmer::k-1 bases in the first kmer or the twin of 
-//       the last kmer in the contig that b refers to
-// post: r is a contigref that points to a newly created contig
-//       formed by joining a+b with proper direction, sequences
-//       pointed to by a and b have been forwarded to the new contig r
-ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
+// post: if a and b are not neighbours neighbours then succeded == 0 and nothing has been done
+//       else a and b have been joined and cr is a contigref  that points to a newly created contig
+//       formed by joining a+b with proper direction.
+//       ContigRefs in the contigs vector have been updated to point to the new contig
+pair<ContigRef, int> KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   //join a to b
   size_t k = Kmer::k;
   a = find_rep(a);
@@ -157,9 +155,10 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
     a_direction = -1;
     b_direction = 1;
   } else {
+    cerr << "Not joining these contigs because they can't be joined:" << endl;
     cerr << "sa:" << endl << sa.toString() << endl << endl;
     cerr << "sb:" << endl << sb.toString() << endl << endl;
-    assert(0);
+    return make_pair(ContigRef(), 0);
   }
 
   Contig *joined = new Contig(); // allocate new contig
@@ -198,14 +197,13 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   }
 
   
-  
   // TODO: fix stride issues, release k-mers, might improve memory
   assert(!contigs[a_id].isContig);
   assert(!contigs[b_id].isContig);
   assert(contigs[id].isContig);
   assert(!contigs[id].isEmpty());
 
-  return ContigRef(id, 0); // points to newly created contig
+  return make_pair(ContigRef(id, 0), 1); // points to newly created contig
 }
 
 
@@ -331,11 +329,11 @@ size_t KmerMapper::joinContigs() {
     Kmer start_twin = c->seq.getKmer(0).twin();
     Kmer end = c->seq.getKmer(c->numKmers()-1);
     if (checkContigForward(c, end, found)) {
-      joinContigs(ContigRef(contigid, 0), found); // this -> found
-      ++joined;
+      pair<ContigRef, int> jp = joinContigs(ContigRef(contigid, 0), found); // this -> found
+      joined += jp.second;
     } else if (checkContigForward(c, start_twin, found)) {
-      joinContigs(found, ContigRef(contigid, 0)); // found -> this
-      ++joined;
+      pair<ContigRef, int> jp = joinContigs(found, ContigRef(contigid, 0)); // found -> this
+      joined += jp.second;
     }
   }
   return joined;
@@ -529,6 +527,22 @@ void KmerMapper::writeContigs(FILE* contigfile, FILE* graphfile) {
       ContigRef prevcr = find(bw);
       if (!prevcr.isEmpty()) {
         assert(newids.find(prevcr.ref.idpos.id) != newids.end());
+        bool repequal = bw == bw.rep();
+        int32_t pos = prevcr.ref.idpos.pos;
+        Contig *oc = getContig(prevcr).ref.contig;
+        if (c->length() != k && oc->length() != k) {
+          if (repequal) {
+            if ((pos == 0 || pos < 0) && (-pos + 1 == c->length())) {
+              fprintf(stderr, "Prevented bad map from contig %zu\n", id);
+              continue;
+            }
+          } else {
+            if ((pos >= 0 && pos + k == c->length()) || (pos < 0 && -pos + 1 == k)) {
+              fprintf(stderr, "Prevented bad map from contig %zu\n", id);
+              continue;
+            }
+          }
+        }
         bwss << newids[prevcr.ref.idpos.id] << " ";
         ++bwcount;
       }
@@ -539,6 +553,22 @@ void KmerMapper::writeContigs(FILE* contigfile, FILE* graphfile) {
       ContigRef fwcr = find(fw);
       if (!fwcr.isEmpty()) {
         assert(newids.find(fwcr.ref.idpos.id) != newids.end());
+        bool repequal = fw == fw.rep();
+        int32_t pos = fwcr.ref.idpos.pos;
+        Contig *oc = getContig(fwcr).ref.contig;
+        if (c->length() != k && oc->length() != k) {
+          if (repequal) {
+            if ((pos >= 0 && pos + k == c->length()) || (pos < 0 && -pos + 1 == k)) {
+              fprintf(stderr, "Prevented bad map from contig %zu\n", id);
+              continue;
+            }
+          } else {  
+            if ((pos == 0) || (pos < 0 && -pos + 1 == c->length())) {
+              fprintf(stderr, "Prevented bad map from contig %zu\n", id);
+              continue;
+            }
+          }
+        }
         fwss << newids[fwcr.ref.idpos.id] << " ";
         ++fwcount;
       }
