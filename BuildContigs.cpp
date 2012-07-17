@@ -219,8 +219,8 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
 //       has been printed to cerr 
 void BuildContigs_PrintSummary(const BuildContigs_ProgramOptions &opt) {
   cerr << "Kmer size " << opt.k << endl
+       << "Chunksize " << opt.read_chunksize << endl
        << "Reading input file " << opt.input << endl
-       << "Writing to output " << opt.output << endl
        << "input files: " << endl;
   vector<string>::const_iterator it;
   for (it = opt.files.begin(); it != opt.files.end(); ++it) {
@@ -271,7 +271,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   }
   
   if (num_threads > max_threads) {
-    cerr << "Using " << max_threads << " threads instead of " << num_threads << " due to number of cores" << endl;
+    cerr << "Using " << max_threads << " thread(s) instead of " << num_threads << " due to number of cores" << endl;
     num_threads = max_threads;
   }
 
@@ -314,7 +314,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   vector<NewContig> *smallv, *parray = new vector<NewContig>[num_threads];
   bool done = false;
   size_t reads_now, read_chunksize = opt.read_chunksize;
-  cerr << "using chunksize " << read_chunksize << endl;
   cerr << "starting real work" << endl;
 
   while (!done) {
@@ -428,7 +427,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
         Kmer km(seq); 
         ContigRef mapcr = mapper.find(km);
-        //tie(mapcr, disteq) = check_contig(bf, mapper, km);
         
         if(mapcr.isEmpty()) {
           // The contig has not been mapped so we map it and increase coverage
@@ -444,7 +442,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           // kmers that came from the read
           contig = mapper.getContig(mapcr).ref.contig;
 
-          //tie(dist, repequal) = disteq;
           pos = mapcr.ref.idpos.pos;
           repequal = (km == km.rep());
 
@@ -468,7 +465,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   }
 
   // Print the good contigs
-  mapper.writeContigs(opt.output);
   if (opt.verbose) {
     size_t contigsBefore = mapper.contigCount();
     pair<pair<size_t, size_t>, size_t> contigDiff = mapper.splitAndJoinContigs();
@@ -482,6 +478,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     cerr << "Used " << num_threads << " threads and chunksize " << read_chunksize << endl;
     printMemoryUsage(bf, mapper);
   }
+  mapper.writeContigs(opt.output);
   delete [] parray;
 }
 

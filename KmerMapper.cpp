@@ -557,6 +557,8 @@ void KmerMapper::writeContigs(string output) {
     fprintf(contigfile, ">contig%zu\n%s\n", id, c->seq.toString().c_str());
     fprintf(graphfile, "%s%s%s", infoss.str().c_str(), bwss.str().c_str(), fwss.str().c_str());
   }
+  cerr << "Writing contigs to file: " << contigfilename << endl
+        << "Writing the graph to file: " << graphfilename << endl;
   fclose(contigfile);
   fclose(graphfile);
 }
