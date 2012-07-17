@@ -273,7 +273,10 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   if (num_threads > max_threads) {
     cerr << "Using " << max_threads << " thread(s) instead of " << num_threads << " due to number of cores" << endl;
     num_threads = max_threads;
+  } else {
+    cerr << "Using " << num_threads << " thread(s)" << endl;
   }
+
 
   #ifdef _OPENMP
     omp_set_num_threads(num_threads);
@@ -474,7 +477,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     cerr << "Contigs deleted: " << contigDiff.first.second << endl;
     cerr << "Contigs joined: " << contigDiff.second << endl;
     cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size() << endl;
-    cerr << "Used " << num_threads << " threads and chunksize " << read_chunksize << endl;
     printMemoryUsage(bf, mapper);
   }
   mapper.writeContigs(opt.output);
