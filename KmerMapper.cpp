@@ -473,15 +473,11 @@ void KmerMapper::printContigs() {
 }
 
 
-// use:  mapper.writeContigs(output);
-// pre:  output is the filename to write the contigs to
-// post: if output is a valid filename, all the contigs have been written to this file
-//       and backward and forward connections for each contig have been printed as well
-void KmerMapper::writeContigs(string output) {
-  string contigfilename = output + ".contigs";
-  string graphfilename = output + ".graph";
-  FILE* contigfile = fopen(contigfilename.c_str(), "w");
-  FILE* graphfile = fopen(graphfilename.c_str(), "w");
+// use:  mapper.writeContigs(contigfile, graphfile);
+// pre:  contigfile and graphfile are file pointers, not NULL
+// post: all the contigs have been written to contigfile
+//       the De Brujin graph has been written to graphfile
+void KmerMapper::writeContigs(FILE* contigfile, FILE* graphfile) {
   /* 
   --- graphfile:
   contigcount kmersize                    (only in the first line of the file)
@@ -554,10 +550,6 @@ void KmerMapper::writeContigs(string output) {
     fprintf(contigfile, ">contig%zu\n%s\n", id, c->seq.toString().c_str());
     fprintf(graphfile, "%s%s%s", infoss.str().c_str(), bwss.str().c_str(), fwss.str().c_str());
   }
-  cerr << "Writing contigs to file: " << contigfilename << endl
-        << "Writing the graph to file: " << graphfilename << endl;
-  fclose(contigfile);
-  fclose(graphfile);
 }
 
 size_t KmerMapper::memory() const {

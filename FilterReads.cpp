@@ -1,22 +1,18 @@
-#include <iostream>
-#include <cstdlib>
-#include <ctime>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
-
-#include <sstream>
-#include <vector>
-#include <string>
-
-#include <stdint.h>
-#include <sys/stat.h>
+#include <ctime>
 #include <functional>
-
 #include <getopt.h>
+#include <iostream>
+#include <sstream>
+#include <stdint.h>
+#include <string>
+#include <sys/stat.h>
+#include <vector>
 
 #include "Common.hpp"
 #include "FilterReads.hpp"
-
 #include "HashTables.hpp"
 #include "fastq.hpp"
 #include "Kmer.hpp"
@@ -24,38 +20,37 @@
 #include "BloomFilter.hpp"
 
 
-// structs for getopt
-
 struct FilterReads_ProgramOptions {
-  size_t k;
-  size_t nkmers;
-  size_t nkmers2;
-  string output;
-  uint32_t seed;
   bool verbose;
-  size_t bf;
-  size_t bf2;
+  size_t threads, read_chunksize, k, nkmers, nkmers2;
+  FILE *outputfile;
+  string output;
+  size_t bf, bf2;
+  uint32_t seed;
   vector<string> files;
-  FilterReads_ProgramOptions() : k(0), nkmers(0), nkmers2(0), verbose(false), bf(4), bf2(8), seed(0) {}
+  FilterReads_ProgramOptions() : verbose(false), threads(1), k(0), nkmers(0), nkmers2(0), \
+                                 outputfile(NULL), bf(4), bf2(8), seed(0), read_chunksize(20000) {}
 };
 
 // use:  FilterReads_PrintUsage();
 // pre:   
-// post: Information about how to "filter reads" has been printed to cerr
+// post: Information about how to filter reads has been printed to cerr
 void FilterReads_PrintUsage() {
-  cerr << "BFGraph " << BFG_VERSION << endl << endl;
-  cerr << "Filters errors in fastq or fasta files and saves results" << endl << endl;
+  cerr << "BFGraph " << BFG_VERSION << endl;
+  cerr << "Filters errors in fastq or fasta files and saves results to a file specified by -o or --output" << endl << endl;
   cerr << "Usage: BFGraph filter [options] ... FASTQ files";
-  cerr << endl << endl <<
-      "-k, --kmer-size=INT             Size of k-mers, at most " << (int) (Kmer::MAX_K-1)<< endl << 
-      "-n, --num-kmers=LONG            Estimated number of k-mers (upper bound)" << endl <<
-      "-N, --num-kmer2=LONG            Estimated number of k-mers in genome (upper bound)" << endl <<
-      "-o, --output=STRING             Filename for output" << endl <<
-      "-b, --bloom-bits=INT            Number of bits to use in Bloom filter (default=4)" << endl <<
-      "-B, --bloom-bits2=INT           Number of bits to use in second Bloom filter (default=8)" << endl <<
-      "-s, --seed=INT                  Seed used for randomisazaion (default time based)" << endl <<
-      "    --verbose                   Print lots of messages during run" << endl << endl
-      ;
+  cerr << endl << endl << "Options:" << endl <<
+      "  -v, --verbose               Print lots of messages during run" << endl <<
+      "  -t, --threads=INT           Number of threads to use (default 1)" << endl << 
+      "  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default 20000 for multithreaded else 1)" << endl <<
+      "  -k, --kmer-size=INT         Size of k-mers, the same value as used for filtering reads" << endl << 
+      "  -n, --num-kmers=LONG        Estimated number of k-mers (upper bound)" << endl <<
+      "  -N, --num-kmer2=LONG        Estimated number of k-mers in genome (upper bound)" << endl <<
+      "  -o, --output=STRING         Filename for output" << endl <<
+      "  -b, --bloom-bits=INT        Number of bits to use in Bloom filter (default=4)" << endl <<
+      "  -B, --bloom-bits2=INT       Number of bits to use in second Bloom filter (default=8)" << endl <<
+      "  -s, --seed=INT              Seed used for randomization (default time based)" 
+  << endl << endl;
 }
 
 
@@ -64,69 +59,66 @@ void FilterReads_PrintUsage() {
 //       "filtering reads" and opt is ready to contain the parsed parameters
 // post: All the parameters from argv have been parsed into opt
 void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions &opt) {
-  int verbose_flag = 0;
-  const char* opt_string = "n:N:k:o:b:B:s:";
-  static struct option long_options[] =
-  {
-    {"verbose", no_argument,  &verbose_flag, 1},
-    {"kmer-size", required_argument, 0, 'k'},
-    {"num-kmers", required_argument, 0, 'n'},
-    {"num-kmers2", required_argument, 0, 'N'},
-    {"output", required_argument, 0, 'o'},
-    {"bloom-bits", required_argument, 0, 'b'},
-    {"bloom-bits2", required_argument, 0, 'B'},
-    {"seed", required_argument, 0, 's'},
-    {0,0,0,0}
+  const char* opt_string = "vt:k:n:N:o:b:B:s:c:";
+  static struct option long_options[] = {
+      {"verbose",     no_argument,       0, 'v'},
+      {"threads",     required_argument, 0, 't'},
+      {"chunk-size",  required_argument, 0, 'c'},
+      {"kmer-size",   required_argument, 0, 'k'},
+      {"num-kmers",   required_argument, 0, 'n'},
+      {"num-kmers2",  required_argument, 0, 'N'},
+      {"output",      required_argument, 0, 'o'},
+      {"bloom-bits",  required_argument, 0, 'b'},
+      {"bloom-bits2", required_argument, 0, 'B'},
+      {"seed",        required_argument, 0, 's'},
+      {0,             0,                 0,  0 }
   };
 
-  int option_index = 0;
-  int c;
-  stringstream ss;
-  stringstream ss2;
-  while (true) {
-    c = getopt_long(argc,argv,opt_string, long_options, &option_index);
-    //cout << "debug: c="<<c<<", optarg="<<optarg << endl;
-    if (c == -1) {
-      break;
-    }
-
+  int option_index = 0, c;
+  stringstream ss, ss2;
+  while ((c = getopt_long(argc, argv, opt_string, long_options, &option_index)) != -1) {
     switch (c) {
-    case 0: 
-      break;
-    case 'k': 
-      opt.k = atoi(optarg); 
-      break;
-    case 'o': 
-      opt.output = optarg;
-      break;
-    case 'n': 
-      ss << optarg;
-      ss >> opt.nkmers;
-      break;
-    case 'N':
-      ss2 << optarg;
-      ss2>> opt.nkmers2;
-      break;
-    case 'b':
-      opt.bf = atoi(optarg);
-      break;
-    case 'B':
-      opt.bf2 = atoi(optarg);
-      break;
-    case 's':
-      opt.seed = atoi(optarg);
-      break;
-    default: break;
+      case 0: 
+        break;
+      case 'v': 
+        opt.verbose = true; 
+        break;
+      case 't':
+        opt.threads = atoi(optarg);
+        break;
+      case 'k': 
+        opt.k = atoi(optarg); 
+        break;
+      case 'n': 
+        ss << optarg;
+        ss >> opt.nkmers;
+        break;
+      case 'N':
+        ss2 << optarg;
+        ss2 >> opt.nkmers2;
+        break;
+      case 'o': 
+        opt.output = optarg;
+        break;
+      case 'c':
+        opt.read_chunksize = atoi(optarg);
+        break;
+      case 'b':
+        opt.bf = atoi(optarg);
+        break;
+      case 'B':
+        opt.bf2 = atoi(optarg);
+        break;
+      case 's':
+        opt.seed = atoi(optarg);
+        break;
+      default: break;
     }
   }
 
   // all other arguments are fast[a/q] files to be read
-  for (int i = optind; i < argc; i++) {
-    opt.files.push_back(argv[i]);
-  }
-  
-  if (verbose_flag) {
-    opt.verbose = true;
+  while (optind < argc) {
+    opt.files.push_back(argv[optind++]);
   }
 }
 
@@ -136,6 +128,29 @@ void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions 
 // post: (b == true)  <==>  the parameters are valid
 bool FilterReads_CheckOptions(FilterReads_ProgramOptions &opt) {
   bool ret = true;
+  
+  size_t max_threads = 1;
+  #ifdef _OPENMP
+    max_threads = omp_get_max_threads();
+  #endif
+  if (opt.threads == 0 || opt.threads > max_threads) {
+    cerr << "Error: Invalid number of threads " << opt.threads;
+    if (max_threads == 1) {
+      cerr << ", can only use 1 thread on this system" << endl;
+    } else {
+      cerr << ", need a number between 1 and " << max_threads << endl;
+    }
+    ret = false;
+  }
+  
+  if (opt.read_chunksize == 0) {
+    cerr << "Error: Invalid chunk-size: " << opt.read_chunksize
+         << ", need a number greater than 0" << endl;
+    ret = false;
+  } else if (opt.threads == 1) {
+    cerr << "Setting chunksize to 1 because of only 1 thread" << endl;
+    opt.read_chunksize = 1;
+  }
 
   if (opt.k <= 0 || opt.k >= MAX_KMER_SIZE) {
     cerr << "Error, invalid value for kmer-size: " << opt.k << endl;
@@ -152,6 +167,13 @@ bool FilterReads_CheckOptions(FilterReads_ProgramOptions &opt) {
   if (opt.nkmers2 <= 0) {
     cerr << "Error, invalid value for num-kmers2: " << opt.nkmers2 << endl;
     cerr << "Values must be positive integers" << endl;
+    ret = false;
+  }
+  
+  opt.outputfile = fopen(opt.output.c_str(), "wb");
+
+  if (opt.outputfile == NULL) {
+    cerr << "Error: Could not open file for writing, " << opt.outputfile << endl;
     ret = false;
   }
 
@@ -181,10 +203,7 @@ bool FilterReads_CheckOptions(FilterReads_ProgramOptions &opt) {
     ret = false;
   }
 
-  //TODO: check if we have permission to write to outputfile
-  
   return ret;
-
 }
 
 
@@ -193,8 +212,10 @@ bool FilterReads_CheckOptions(FilterReads_ProgramOptions &opt) {
 // post: Information about the two Bloom Filters has been printed to cerr 
 void FilterReads_PrintSummary(const FilterReads_ProgramOptions &opt) {
   double fp;
-  cerr << "Using bloom filter size: " << opt.bf << " bits" << endl;
-  cerr << "Estimated false positive rate: ";
+  cerr << "Kmer size: " << opt.k << endl
+       << "Chunksize: " << opt.read_chunksize << endl
+       << "Using bloom filter size: " << opt.bf << " bits" << endl
+       << "Estimated false positive rate: ";
   fp = pow(pow(.5,log(2.0)),(double) opt.bf);
   cerr << fp << endl;  
   
@@ -208,12 +229,12 @@ void FilterReads_PrintSummary(const FilterReads_ProgramOptions &opt) {
 // use:  FilterReads_Normal(opt);
 // pre:  opt has information about Kmer size, Bloom Filter sizes,
 //       lower bound of Kmer count, upper bound of Kmer count
-//       input file name strings and output file name
+//       input file name strings and outputfile
 // post: Input files have been opened and and all the reads 
 //       have been broken into kmers of given Kmer size. 
 //       The kmers have been filtered through two Bloom Filters
 //       and those that survived through the second Bloom Filter have
-//       been written into the output file
+//       been written into the outputfile
 void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
   /**
    *  outline of algorithm
@@ -227,35 +248,30 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
    *  now BF2 contains at least all the kmers that appear once
    */
 
+  #ifdef _OPENMP
+    omp_set_num_threads(opt.threads);
+  #endif
 
   uint32_t seed = opt.seed;
   if (seed == 0) {
     seed = (uint32_t) time(NULL);
   }
-  BloomFilter BF(opt.nkmers, (size_t) opt.bf, seed);
-  BloomFilter BF2(opt.nkmers2, (size_t) opt.bf2, seed+1); // use different seeds
   
-  char name[8196],s[8196];
-  size_t name_len,len;
-
-  uint64_t n_read = 0;
-  uint64_t num_kmers = 0;  
-  uint64_t num_ins = 0;
+  BloomFilter BF(opt.nkmers, (size_t) opt.bf, seed);
+  BloomFilter BF2(opt.nkmers2, (size_t) opt.bf2, seed + 1); // use different seeds
+  
+  bool done = false;
+  char name[8192], s[8192];
+  size_t name_len, len, read_chunksize = opt.read_chunksize;
+  uint64_t n_read = 0, num_kmers = 0, num_ins = 0;
 
   FastqFile FQ(opt.files);
-
-
-  size_t chunk_size = 20000, reads_now = 0;
   vector<string> readv;
-  bool done = false;
-  #ifdef _OPENMP
-  //omp_set_num_threads(1);
-  #endif
 
   while (!done) {
     readv.clear();
-    reads_now = 0;
-    while (reads_now < chunk_size) {
+    size_t reads_now = 0;
+    while (reads_now < read_chunksize) {
       if (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
         readv.push_back(string(s));
         ++n_read;
@@ -293,13 +309,9 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
       }
     }
   }
-  
-  
-  
- 
-  FQ.close();
 
-  cerr << "closed all files" << endl;
+  FQ.close();
+  cerr << "Closed all fasta/fastq files" << endl;
 
   if (opt.verbose) {
     cerr << "processed " << num_kmers << " kmers in " << n_read  << " reads"<< endl;
@@ -307,23 +319,19 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
   }
 
   if (opt.verbose) {
-    cerr << "Writing bloom filter to file " << opt.output << " .. "; cerr.flush();
-    cerr << "Bloom filter size is" << num_ins << endl;
+    cerr << "Writing bloom filter to " << opt.output << endl
+         << "Bloom filter size is " << num_ins << endl;
   }
 
 
-  FILE* f = fopen(opt.output.c_str(), "wb");
-  if (f == NULL) {
-    cerr << "Error could not write to file!" << endl;
-  } else {
-  // first metadata for bloom filter
+  // First write metadata for bloom filter to opt.outputfile,
   // then the actual filter
-  if (!BF2.WriteBloomFilter(f)) {
-    cerr << "Error writing data to file!" << endl;
+  if (!BF2.WriteBloomFilter(opt.outputfile)) {
+    cerr << "Error writing data to file: " << opt.output << endl;
   }
-  fclose(f);
-  f = NULL;
-  }
+
+  fclose(opt.outputfile);
+
   if (opt.verbose) {
     cerr << " done" << endl;
   }
@@ -331,9 +339,9 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
 
 // use:  FilterReads(argc, argv);
 // pre:  argc is the number of arguments in argv and argv includes 
-//       arguments for "filtering the reads", including filenames
+//       arguments for filtering reads, including filenames
 // post: If the number of arguments is correct and the arguments are valid
-//       the "reads have been filtered" and written to a file 
+//       the reads have been filtered and written to a file 
 void FilterReads(int argc, char **argv) {
   
   FilterReads_ProgramOptions opt;
