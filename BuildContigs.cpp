@@ -12,36 +12,16 @@
 #include <utility>
 #include <vector>
 
-#include "boost/tuple/tuple.hpp"
-
-#include "BloomFilter.hpp"
 #include "Common.hpp"
 #include "CompressedSequence.hpp"
 #include "Contig.hpp"
-#include "HashTables.hpp"
-#include "Kmer.hpp"
-#include "KmerIterator.hpp"
 #include "KmerMapper.hpp"
+#include "BloomFilter.hpp"
+#include "ContigMethods.hpp"
+#include "HashTables.hpp"
+#include "KmerIterator.hpp"
 #include "fastq.hpp"
 
-using boost::tuples::tie;
-
-struct NewContig {
-  string seq;
-  size_t start;
-  size_t end;
-  NewContig(string s, size_t a, size_t b) : seq(s), start(a), end(b) {}
-};
-  
-
-pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s);
-pair<ContigRef, pair<size_t, bool> > check_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
-pair<string, size_t> make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
-void getMappingInfo(const bool repequal, const int32_t pos, const size_t dist, const size_t k, size_t &kmernum, int32_t &cmppos);
-
-
-static const char alpha[4] = {'A','C','G','T'};
-static const char beta[4] = {'T','G','A','C'}; // c -> beta[(c & 7) >> 1] maps: 'A' <-> 'T', 'C' <-> 'G'
 
 struct BuildContigs_ProgramOptions {
   size_t k;
@@ -55,7 +35,7 @@ struct BuildContigs_ProgramOptions {
   bool stride_set;
   vector<string> files;
   BuildContigs_ProgramOptions() : k(0), verbose(false) , contig_size(1000000), read_chunksize(1000), \
-                                  threads(1), stride(-1), stride_set(false) {}
+                                  threads(1), stride(0), stride_set(false) {}
 };
 
 
@@ -304,14 +284,11 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
   KmerIterator iter, iterend;
   FastqFile FQ(opt.files);
-  ContigRef cr, mapcr;
 
-  bool repequal, reversed;
   char name[8192], s[8192];
-  size_t kmernum, dist, name_len, len, k = Kmer::k;
-  int32_t pos, cmppos;
+  size_t kmernum, name_len, len, k = Kmer::k;
+  int32_t cmppos;
   uint64_t n_read = 0; 
-  pair<size_t, bool> disteq;
 
   vector<string> readv;
   vector<NewContig> *smallv, *parray = new vector<NewContig>[num_threads];
@@ -334,7 +311,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
       }
     }
 
-    #pragma omp parallel default(shared) private(dist,mapcr,disteq,kmernum,cmppos,smallv,repequal) shared(mapper,parray,readv,bf,reads_now,k)
+    #pragma omp parallel default(shared) private(kmernum,cmppos,smallv) shared(mapper,parray,readv,bf,reads_now,k)
     {
       KmerIterator iter, iterend;
       size_t threadnum = 0;
@@ -360,15 +337,15 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             // jump over it
             iter.raise(km, rep);
           } else {
-            tie(mapcr, disteq) = check_contig(bf, mapper, km);
-            if (mapcr.isEmpty()) {
+            CheckContig cc = check_contig(bf, mapper, km);
+            if (cc.cr.isEmpty()) {
               // Map contig (or increase coverage) from this sequence after this thread finishes
-              pair<string, size_t> cpair = make_contig(bf, mapper, km);
-              string seq = cpair.first;
+              MakeContig mc = make_contig(bf, mapper, km);
+              string seq = mc.seq;
               
               size_t index = iter->second;
               size_t cmpindex = index + k;
-              size_t seqindex = cpair.second;
+              size_t seqindex = mc.pos;
               size_t seqcmpindex = seqindex + k;
               iter.raise(km, rep);
               
@@ -381,16 +358,16 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
                 ++seqcmpindex;
                 iter.raise(km,rep);
               }
+
               // cstr[index,...,cmpindex-1] == seq[seqindex,...,seqcmpindex-1]
-              // increase coverage of cov[seqindex,...,seqcmpindex-k] by one, later in master thread
+              // Coverage of seq[seqindex,...,seqcmpindex-k] will by increase by one later in master thread
               smallv->push_back(NewContig(seq,seqindex,seqcmpindex-k));
             } else {
-              Contig *contig = mapper.getContig(mapcr).ref.contig;
-              tie(dist, repequal) = disteq;
-              int32_t pos = mapcr.ref.idpos.pos;
+              Contig *contig = mapper.getContig(cc.cr).ref.contig;
+              int32_t pos = cc.cr.ref.idpos.pos;
 
-              getMappingInfo(repequal, pos, dist, k, kmernum, cmppos);
-              bool reversed = (pos >= 0) != repequal;
+              getMappingInfo(cc.repequal, pos, cc.dist, k, kmernum, cmppos);
+              bool reversed = (pos >= 0) != cc.repequal;
               int jumpi = 1 + iter->second + contig->seq.jump(cstr, iter->second + k, cmppos, reversed);
 
               if (reversed) {
@@ -445,11 +422,11 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           // kmers that came from the read
           contig = mapper.getContig(mapcr).ref.contig;
 
-          pos = mapcr.ref.idpos.pos;
-          repequal = (km == km.rep());
+          int32_t pos = mapcr.ref.idpos.pos;
+          bool repequal = (km == km.rep());
 
           getMappingInfo(repequal, pos, 0, k, kmernum, cmppos); // 0 because km is the first or the last kmer in the contig
-          reversed = ((pos >= 0) != repequal);
+          bool reversed = ((pos >= 0) != repequal);
           size_t start = it->start, end = it->end;
           if (reversed) {
             assert(contig->seq.getKmer(kmernum) == km.twin());
@@ -484,30 +461,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 }
 
 
-// use:  getMappingInfo(repequal, pos, dist, k, kmernum, cmppos)
-// pre:  
-// post: cmppos is the first character after the kmer-match at position pos
-void getMappingInfo(const bool repequal, const int32_t pos, const size_t dist, const size_t k, size_t &kmernum, int32_t &cmppos) {
-  // Now we find the right location of the kmer inside the contig
-  // to increase coverage 
-  if (pos >= 0) {
-    if (repequal) {
-      cmppos = pos - dist + k;
-      kmernum = cmppos - k;
-    } else {
-      cmppos = pos - 1 + dist;
-      kmernum = cmppos +1;
-    }
-  } else {
-    if (repequal) {
-      cmppos = -pos + dist -k;
-      kmernum = cmppos +1;
-    } else {
-      cmppos = -pos + 1 - dist; // Original: (-pos +1 -k) - dist + k
-      kmernum = cmppos - k;
-    }
-  }
-}
 
 // use:  BuildContigs(argc, argv);
 // pre:  argc is the number of arguments in argv and argv includes 
@@ -540,176 +493,3 @@ void BuildContigs(int argc, char** argv) {
   BuildContigs_Normal(opt);
 
 }
-
-
-
-// use:  (cr, (dist, eq)) = check_contig_(bf,km,mapper);
-// pre:  
-// post: if km does not map to a contig: cr.isEmpty() == true and dist == 0
-//       else: km is in a contig which cr maps to and dist is the distance 
-//             from km to the mapping location 
-//             (eq == true):  km has the same direction as the contig
-//             else:  km has the opposite direction to the contig
-pair<ContigRef, pair<size_t, bool> > check_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
-  ContigRef cr = mapper.find(km);
-  if (!cr.isEmpty()) {
-    return make_pair(cr, make_pair(0, km == km.rep())); 
-  }
-  int i, j;
-  size_t dist = 1;
-  bool found = false;
-  Kmer end = km;
-  while (dist < mapper.stride) {
-    size_t fw_count = 0;
-    j = -1;
-    for (i = 0; i < 4; ++i) {
-      Kmer fw_rep = end.forwardBase(alpha[i]).rep();
-      if (bf.contains(fw_rep)) {
-        j = i;
-        ++fw_count;
-        if (fw_count > 1) {
-          break;
-        }
-      }
-    }
-
-    if (fw_count != 1) {
-      break;
-    }
-
-    Kmer fw = end.forwardBase(alpha[j]);
-
-    size_t bw_count = 0;
-    for (i = 0; i < 4; ++i) {
-      Kmer bw_rep = fw.backwardBase(alpha[i]).rep();
-      if (bf.contains(bw_rep)) {
-        ++bw_count;
-        if (bw_count > 1) {
-          break;
-        }
-      }
-    }
-
-    assert(bw_count >= 1);
-    if (bw_count != 1) {
-      break;
-    }
-    cr = mapper.find(fw);
-    end = fw;
-    if (!cr.isEmpty()) {
-      found = true;
-      break;
-    }
-    ++dist;
-  }
-  if (found) {
-    return make_pair(cr, make_pair(dist, end == end.rep())); 
-  } else {
-    return make_pair(ContigRef(), make_pair(0,0));
-  }
-}
-
-// use:  seq, pos = make_contig(bf, mapper, km, s);
-// pre:  km is not contained in a mapped contig in mapper 
-// post: Finds the forward and backward limits of the contig
-//       which contains km  according to the bloom filter bf and puts it into seq
-//       pos is the position where km maps into this contig
-pair<string, size_t> make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
-  size_t k  = Kmer::k;
-  string seq, seq_fw(k, 0), seq_bw(k, 0);
-  //pair<Kmer, size_t> p_fw = find_contig_forward(bf, km, &seq_fw);
-  find_contig_forward(bf, km, &seq_fw);
-  pair<Kmer, size_t> p_bw = find_contig_forward(bf, km.twin(), &seq_bw);
-  ContigRef cr_tw_end = mapper.find(p_bw.first);
-  assert(cr_tw_end.isEmpty());
-
-  if (p_bw.second > 1) {
-    seq.reserve(seq_bw.size() + seq_fw.size() - k);
-    // copy reverse part of seq_bw not including k
-    for (size_t j = seq_bw.size() - 1; j >= k; --j) {
-      seq.push_back(beta[(seq_bw[j] & 7) >> 1]);
-    }
-    // append seq_fw
-    seq += seq_fw;
-  } else {
-    seq = seq_fw;
-  }
-  return make_pair(seq, p_bw.second-1);
-}
-
-// use:  tie(end,dist) = find_contig_forward(bf,km,s);
-// pre:  
-// post: km is contained in a contig c with respect to the
-//       bloom filter graph bf and end is the forward endpoint (wrt km direction)
-//       and c contains dist kmers until the end (including km)
-//       if s is not NULL the sequence of the contig is stored in s
-pair<Kmer, size_t> find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
-  int j;
-  size_t i,dist = 1;
-  vector<char> v;
-
-  Kmer end = km;
-
-  assert(bf.contains(km.rep()));
-  if (s != NULL) {
-    char t[Kmer::MAX_K+1];
-    km.toString(t);
-    for (i = 0; i < Kmer::k; ++i) {
-      v.push_back(t[i]);
-    }
-  }
-  
-  while (true) {
-    assert(bf.contains(end.rep()));
-    size_t fw_count = 0;
-    j = -1;
-    for (i = 0; i < 4; ++i) {
-      Kmer fw_rep = end.forwardBase(alpha[i]).rep();
-      if (bf.contains(fw_rep)) {
-        j = i;
-        ++fw_count;
-        if (fw_count > 1) {
-          break;
-        }
-      }
-    }
-
-    if (fw_count != 1) {
-      break;
-    }
-    
-    Kmer fw = end.forwardBase(alpha[j]);
-    assert(0 <= j && j < 4);
-    assert(bf.contains(fw.rep()));
-
-    size_t bw_count = 0;
-    for (i = 0; i < 4; ++i) {
-      Kmer bw_rep = fw.backwardBase(alpha[i]).rep();
-      if (bf.contains(bw_rep)) {
-        ++bw_count;
-        if (bw_count > 1) {
-          break;
-        }
-      }
-    }
-
-    assert(bw_count >= 1);
-    if (bw_count != 1) {
-      break;
-    }
-    
-    end = fw;
-    ++dist;
-    if (s != NULL) {
-      v.push_back(alpha[j]);
-    }
-  }
-
-  if (s != NULL) {
-    s->clear();
-    s->reserve(v.size());
-    s->insert(s->begin(), v.begin(), v.end());
-  }
-  return make_pair(end, dist);
-}
-
