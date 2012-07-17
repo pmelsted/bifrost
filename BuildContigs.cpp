@@ -464,10 +464,10 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     }
   }
 
+  pair<pair<size_t, size_t>, size_t> contigDiff = mapper.splitAndJoinContigs();
   // Print the good contigs
   if (opt.verbose) {
     size_t contigsBefore = mapper.contigCount();
-    pair<pair<size_t, size_t>, size_t> contigDiff = mapper.splitAndJoinContigs();
     int contigsAfter = contigsBefore + contigDiff.first.first - contigDiff.first.second - contigDiff.second;
     cerr << "Before split and join: " << contigsBefore << " contigs" << endl;
     cerr << "After split and join: " << contigsAfter << " contigs" <<  endl;
