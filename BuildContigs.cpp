@@ -292,7 +292,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   size_t reads_now, read_chunksize = opt.read_chunksize;
   cerr << "using chunksize " << read_chunksize << endl;
   cerr << "starting real work" << endl;
-
+  int round = 0;
   while (!done) {
     readv.clear();
     reads_now = 0;
@@ -307,6 +307,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         break;
       }
     }
+    ++round;
+    cerr << "starting round " << round << endl;
 
     #pragma omp parallel default(shared) private(dist,mapcr,disteq,kmernum,cmppos,smallv,repequal) shared(mapper,parray,readv,bf,reads_now,k)
     {
@@ -444,7 +446,11 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         }
       }
       parray[i].clear();
+
     }
+    
+    cerr << " end of round" << endl;
+    cerr << " processed " << mapper.size() << " contigs" << endl;
   }
 
   // Print the good contigs
