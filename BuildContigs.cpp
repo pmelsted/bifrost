@@ -271,7 +271,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   }
   
   if (num_threads > max_threads) {
-    cerr << "Using " << max_threads << " instead of " << num_threads << " due to number of cores" << endl;
+    cerr << "Using " << max_threads << " threads instead of " << num_threads << " due to number of cores" << endl;
     num_threads = max_threads;
   }
 
