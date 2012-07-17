@@ -84,7 +84,7 @@ void BuildContigs_PrintUsage() {
 // post: All the parameters from argv have been parsed into opt
 void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOptions &opt) {
   int verbose_flag = 0;
-  const char* opt_string = "k:o:i:c:t:";
+  const char* opt_string = "k:o:i:c:t:s:";
   static struct option long_options[] =
       {
         {"verbose", no_argument,  &verbose_flag, 1},
