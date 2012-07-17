@@ -1,11 +1,6 @@
 #include "Contig.hpp"
 
 
-Contig::~Contig() {
-}
-
-
-
 // use:  c = allocateCov(full);
 // pre:  cov is a NULL pointer and seq is not NULL
 // post: cov has space to store coverage for all kmers in this contig 

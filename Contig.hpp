@@ -15,7 +15,6 @@ class Contig {
 public:
   Contig() : coveragesum(0) {}
   Contig(const char *s, bool full=false) : seq(s) { initializeCoverage(full); }
-  ~Contig();
   void initializeCoverage(bool full);
   void cover(size_t start, size_t end);
   
@@ -27,5 +26,6 @@ public:
   size_t length() const { return seq.size(); }
   size_t memory() const;
 };
+
 
 #endif // BFG_CONTIG_HPP

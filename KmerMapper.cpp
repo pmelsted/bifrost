@@ -442,11 +442,8 @@ pair<size_t, size_t> KmerMapper::splitContigs() {
       ContigRef newcr;
       Contig *newc = new Contig(s.c_str(), true); // This contig has full coverage
 
-      // Is this definitely right ???
-      //
-      newc->coveragesum = (totalcoverage * (b - a)) / (numkmers - lowcount); 
-      //
-      //
+      // Give the new contig average coverage of the other two w.r.t. its length
+      newc->coveragesum = (totalcoverage * (b - a)) / (numkmers - lowcount);  
       
       newcr.ref.contig = newc;
       contigs.push_back(newcr);
