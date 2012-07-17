@@ -521,30 +521,21 @@ void KmerMapper::writeContigs(FILE* contigfile, FILE* graphfile) {
     infoss << id << " " <<  length << " " << ratio << " ";
 
     Kmer first = c->seq.getKmer(0);
-    Kmer last = c->seq.getKmer(c->seq.size()-Kmer::k);
+    Kmer last = c->seq.getKmer(c->length() - k);
     for (size_t i=0; i<4; ++i) {
       Kmer bw = first.backwardBase(alpha[i]);
       ContigRef prevcr = find(bw);
       if (!prevcr.isEmpty()) {
-        assert(newids.find(prevcr.ref.idpos.id) != newids.end());
-        bool repequal = bw == bw.rep();
-        int32_t pos = prevcr.ref.idpos.pos;
         Contig *oc = getContig(prevcr).ref.contig;
-        if (c->length() != k && oc->length() != k) {
-          if (repequal) {
-            if ((pos == 0 || pos < 0) && (-pos + 1 == c->length())) {
-              fprintf(stderr, "Prevented bad map from contig %zu\n", id);
-              continue;
-            }
-          } else {
-            if ((pos >= 0 && pos + k == c->length()) || (pos < 0 && -pos + 1 == k)) {
-              fprintf(stderr, "Prevented bad map from contig %zu\n", id);
-              continue;
-            }
-          }
+        Kmer oFirst = oc->seq.getKmer(0);
+        Kmer oLast = oc->seq.getKmer(oc->length() - k);
+        if (isNeighbor(oLast, first) || isNeighbor(oFirst.twin(), first)) { 
+          bwss << newids[prevcr.ref.idpos.id] << " ";
+          ++bwcount;
+        } else {
+          // We don't want this to be in the middle somewhere
+          assert(isNeighbor(oLast.twin(), first) || isNeighbor(oFirst, first));
         }
-        bwss << newids[prevcr.ref.idpos.id] << " ";
-        ++bwcount;
       }
     }
 
@@ -552,25 +543,16 @@ void KmerMapper::writeContigs(FILE* contigfile, FILE* graphfile) {
       Kmer fw = last.forwardBase(alpha[i]);
       ContigRef fwcr = find(fw);
       if (!fwcr.isEmpty()) {
-        assert(newids.find(fwcr.ref.idpos.id) != newids.end());
-        bool repequal = fw == fw.rep();
-        int32_t pos = fwcr.ref.idpos.pos;
         Contig *oc = getContig(fwcr).ref.contig;
-        if (c->length() != k && oc->length() != k) {
-          if (repequal) {
-            if ((pos >= 0 && pos + k == c->length()) || (pos < 0 && -pos + 1 == k)) {
-              fprintf(stderr, "Prevented bad map from contig %zu\n", id);
-              continue;
-            }
-          } else {  
-            if ((pos == 0) || (pos < 0 && -pos + 1 == c->length())) {
-              fprintf(stderr, "Prevented bad map from contig %zu\n", id);
-              continue;
-            }
-          }
+        Kmer oFirst = oc->seq.getKmer(0);
+        Kmer oLast = oc->seq.getKmer(oc->length() - k);
+        if (isNeighbor(last, oFirst) || isNeighbor(last, oLast.twin())) {
+          fwss << newids[fwcr.ref.idpos.id] << " ";
+          ++fwcount;
+        } else {
+          // We don't want this to be in the middle somewhere
+          assert(isNeighbor(last, oFirst.twin()) || isNeighbor(last, oLast));
         }
-        fwss << newids[fwcr.ref.idpos.id] << " ";
-        ++fwcount;
       }
     }
     bwss << endl;

@@ -283,7 +283,7 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
     }
 
     KmerIterator iter, iterend;
-    #pragma omp parallel for private(iter) shared(iterend, readv, BF, reads_now) reduction(+:num_ins, +:num_kmers)
+    #pragma omp parallel for private(iter) shared(iterend, readv, BF, reads_now) reduction(+:num_ins,num_kmers)
     for (size_t index = 0; index < reads_now; ++index) {
       iter = KmerIterator(readv[index].c_str());
       for (;iter != iterend; ++iter) {
