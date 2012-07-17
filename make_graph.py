@@ -172,4 +172,5 @@ if __name__ == "__main__":
     dot = makeDot(contigs, KMERSIZE)
     out = open(prefix + ".dot", 'w')
     out.write(dot)
+    print "Wrote the dot graph to %s" % (prefix + ".dot")
     out.close()
