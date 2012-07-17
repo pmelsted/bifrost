@@ -51,8 +51,11 @@ struct BuildContigs_ProgramOptions {
   string output;
   bool verbose;
   size_t threads;
+  size_t stride;
+  bool stride_set;
   vector<string> files;
-  BuildContigs_ProgramOptions() : k(0), verbose(false) , contig_size(1000000), read_chunksize(0), threads(1) {}
+  BuildContigs_ProgramOptions() : k(0), verbose(false) , contig_size(1000000), read_chunksize(1000), \
+                                  threads(1), stride(-1), stride_set(false) {}
 };
 
 
@@ -65,7 +68,8 @@ void BuildContigs_PrintUsage() {
   cerr << "Usage: BFGraph contigs [options] ... FASTQ files";
   cerr << endl << endl <<
       "-k, --kmer-size=INT             Size of k-mers, at most " << (int) (Kmer::MAX_K-1)<< endl << 
-      "-c, --chunk-size=INT            Read chunksize to split betweeen threads" << endl <<
+      "-s, --stride=INT                Distance between saved kmers when mapping (default is the kmer size)" << endl << 
+      "-c, --chunk-size=INT            Read chunksize to split betweeen threads (default 1000)" << endl <<
       "-t, --threads=INT               Number of threads to use (default 1)" << endl << 
       "-i, --input=STRING              Filtered reads" << endl <<
       "-o, --output=STRING             Filename for output" << endl <<
@@ -85,10 +89,11 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
       {
         {"verbose", no_argument,  &verbose_flag, 1},
         {"kmer-size", required_argument, 0, 'k'},
-        {"chunk-size", required_argument, 0, 'c'},
+        {"stride", optional_argument, 0, 's'},
+        {"chunk-size", optional_argument, 0, 'c'},
+        {"threads", optional_argument, 0, 't'},
         {"input", required_argument, 0, 'i'},
         {"output", required_argument, 0, 'o'},
-        {"threads", required_argument, 0, 't'},
         {0,0,0,0}
       };
 
@@ -120,6 +125,10 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
         break;
       case 't':
         opt.threads = atoi(optarg);
+        break;
+      case 's':
+        opt.stride = atoi(optarg);
+        opt.stride_set = true;
         break;
       default: break;
     }
@@ -169,6 +178,15 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
     ret = false;
   }
   
+  if (opt.stride_set) {
+    if (opt.stride < 1) {
+    cerr << "Invalid value for stride " << opt.threads << ", need a number >= 1" << endl;
+    ret = false;
+    }
+  } else {
+    opt.stride = opt.k;
+  }
+  
 
   if (opt.files.size() == 0) {
     cerr << "Need to specify files for input" << endl;
@@ -201,8 +219,8 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
 //       has been printed to cerr 
 void BuildContigs_PrintSummary(const BuildContigs_ProgramOptions &opt) {
   cerr << "Kmer size " << opt.k << endl
+       << "Chunksize " << opt.read_chunksize << endl
        << "Reading input file " << opt.input << endl
-       << "Writing to output " << opt.output << endl
        << "input files: " << endl;
   vector<string>::const_iterator it;
   for (it = opt.files.begin(); it != opt.files.end(); ++it) {
@@ -240,20 +258,26 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
    *            - try to jump over as many kmers as possible
    */
 
-  size_t num_threads = 1;
-  #ifdef _OPENMP
-    omp_set_num_threads(opt.threads);
-  #endif
+  size_t num_threads = opt.threads, max_threads = 1;
   
   #pragma omp parallel
   {
     #pragma omp master 
     {
       #ifdef _OPENMP
-        num_threads = omp_get_num_threads(); 
+        max_threads = omp_get_num_threads(); 
       #endif 
     }
   }
+  
+  if (num_threads > max_threads) {
+    cerr << "Using " << max_threads << " thread(s) instead of " << num_threads << " due to number of cores" << endl;
+    num_threads = max_threads;
+  }
+
+  #ifdef _OPENMP
+    omp_set_num_threads(num_threads);
+  #endif
 
 
   BloomFilter bf;
@@ -273,7 +297,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     f = NULL;
   }
 
-  KmerMapper mapper(opt.contig_size);
+  KmerMapper mapper(opt.contig_size, opt.stride);
 
   KmerIterator iter, iterend;
   FastqFile FQ(opt.files);
@@ -290,7 +314,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   vector<NewContig> *smallv, *parray = new vector<NewContig>[num_threads];
   bool done = false;
   size_t reads_now, read_chunksize = opt.read_chunksize;
-  cerr << "using chunksize " << read_chunksize << endl;
   cerr << "starting real work" << endl;
   int round = 0;
   while (!done) {
@@ -404,44 +427,38 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         const char *seq = it->seq.c_str();
         Contig *contig;
 
-        Kmer km(seq); // Is this definitely the kmer we want to check? 
-        tie(mapcr, disteq) = check_contig(bf, mapper, km);
+        Kmer km(seq); 
+        ContigRef mapcr = mapper.find(km);
         
         if(mapcr.isEmpty()) {
           // The contig has not been mapped so we map it and increase coverage
           // of the kmers that came from the read
           
-          // The coveragesum is set to the right value in Contig constructor
           size_t id = mapper.addContig(seq); 
 
           contig = mapper.getContig(id).ref.contig;
           size_t limit = it->end;
           contig->cover(it->start,limit);
-          // update coverage sum
-          
         } else {
           // The contig has been mapped so we only increase the coverage of the
           // kmers that came from the read
           contig = mapper.getContig(mapcr).ref.contig;
 
-          tie(dist, repequal) = disteq;
-          assert(dist == 0); // km is the first or the last kmer in the contig
           pos = mapcr.ref.idpos.pos;
+          repequal = (km == km.rep());
 
-          getMappingInfo(repequal, pos, dist, k, kmernum, cmppos);
+          getMappingInfo(repequal, pos, 0, k, kmernum, cmppos); // 0 because km is the first or the last kmer in the contig
           reversed = ((pos >= 0) != repequal);
           size_t start = it->start, end = it->end;
           if (reversed) {
             assert(contig->seq.getKmer(kmernum) == km.twin());
             kmernum -= it->start;
             contig->cover(kmernum - (end - start), kmernum);
-            //contig->coveragesum += end - start + 1;
           }
           else {
             assert(contig->seq.getKmer(kmernum) == km);
             kmernum += it->start;
             contig->cover(kmernum, kmernum + end - start);
-            //contig->coveragesum += end - start + 1;
           }
         }
       }
@@ -454,19 +471,20 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   }
 
   // Print the good contigs
-  mapper.writeContigs(opt.output);
   if (opt.verbose) {
     size_t contigsBefore = mapper.contigCount();
-    pair<int, int> contigDiff = mapper.splitAndJoinContigs();
-    int contigsAfter = contigsBefore + contigDiff.first - contigDiff.second;
+    pair<pair<size_t, size_t>, size_t> contigDiff = mapper.splitAndJoinContigs();
+    int contigsAfter = contigsBefore + contigDiff.first.first - contigDiff.first.second - contigDiff.second;
     cerr << "Before split and join: " << contigsBefore << " contigs" << endl;
     cerr << "After split and join: " << contigsAfter << " contigs" <<  endl;
-    cerr << "Contigs splitted: " << contigDiff.first << endl;
+    cerr << "Contigs splitted: " << contigDiff.first.first << endl;
+    cerr << "Contigs deleted: " << contigDiff.first.second << endl;
     cerr << "Contigs joined: " << contigDiff.second << endl;
     cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size() << endl;
     cerr << "Used " << num_threads << " threads and chunksize " << read_chunksize << endl;
     printMemoryUsage(bf, mapper);
   }
+  mapper.writeContigs(opt.output);
   delete [] parray;
 }
 

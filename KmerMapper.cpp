@@ -299,14 +299,14 @@ ContigRef KmerMapper::find_rep(ContigRef a) const {
 // pre:  
 // post: The contigs in mapper have been splitted and joined
 //       d is the increase of contigs after split and join
-pair<int, int> KmerMapper::splitAndJoinContigs() {
+pair<pair<size_t, size_t>, size_t> KmerMapper::splitAndJoinContigs() {
   Kmer km, rep, end, km_del;
   km_del.set_deleted();
   map.set_deleted_key(km_del);
 
-  int splitted = splitContigs();
-  int joined = joinContigs();
-  return make_pair(splitted, joined);
+  pair<size_t, size_t> splitpair = splitContigs();
+  size_t joined = joinContigs();
+  return make_pair(splitpair, joined);
 }
 
 
@@ -314,8 +314,8 @@ pair<int, int> KmerMapper::splitAndJoinContigs() {
 // pre:  
 // post: contigs that really should be connected have been connected 
 //       joined is the number of contigs joined
-int KmerMapper::joinContigs() {
-  int joined = 0;
+size_t KmerMapper::joinContigs() {
+  size_t joined = 0;
   
   Contig *c;
   ContigRef cr;
@@ -372,12 +372,13 @@ bool KmerMapper::checkContigForward(Contig* c, Kmer km, ContigRef &found) {
 }
 
 
-// use:  count = mapper.splitContigs()
+// use:  splitted, deleted = mapper.splitContigs()
 // pre:  
 // post: all contigs with 1 coverage somewhere have been split on those locations
-//       count is the number of contigs splitted
-int KmerMapper::splitContigs() {
-  int splitted = 0;
+//       splitted is the number of contigs splitted
+//       deleted is the number of contigs deleted
+pair<size_t, size_t> KmerMapper::splitContigs() {
+  size_t splitted = 0, deleted = 0;
   size_t k = Kmer::k, contigcount = contigs.size();
   size_t cstr_len = 2*k+1;
   size_t nextid = contigcount;
@@ -430,7 +431,11 @@ int KmerMapper::splitContigs() {
     
 
     // add the subcontigs to contigs and map them
-    splitted += v.size() - 1;
+    if (v.size() == 0) {
+      ++deleted;
+    } else {
+      splitted += v.size() - 1;
+    }
     for(size_t index = 0; index < v.size(); ++index) {
       size_t a = v[index].first, b = v[index].second;
       string s(&cstr[a], (b - a) + k - 1);
@@ -452,7 +457,7 @@ int KmerMapper::splitContigs() {
     contigs[contigid] = ContigRef();
   }
   free(cstr);
-  return splitted;
+  return make_pair(splitted, deleted);
 }
 
 
@@ -552,6 +557,8 @@ void KmerMapper::writeContigs(string output) {
     fprintf(contigfile, ">contig%zu\n%s\n", id, c->seq.toString().c_str());
     fprintf(graphfile, "%s%s%s", infoss.str().c_str(), bwss.str().c_str(), fwss.str().c_str());
   }
+  cerr << "Writing contigs to file: " << contigfilename << endl
+        << "Writing the graph to file: " << graphfilename << endl;
   fclose(contigfile);
   fclose(graphfile);
 }
