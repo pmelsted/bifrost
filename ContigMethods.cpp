@@ -108,7 +108,7 @@ MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
   FindContig fc_fw = find_contig_forward(bf, km, &seq_fw);
 
   if (fc_fw.selfloop) {
-    return MakeContig(seq, 0); 
+    return MakeContig(seq_fw, 0); 
   }
 
   FindContig fc_bw = find_contig_forward(bf, km.twin(), &seq_bw);
