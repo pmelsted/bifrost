@@ -20,7 +20,7 @@ class Contig:
         self.fw = fw
 
     def __repr__(self):
-        return "bw: %s fw: %s length: %d ratio %f seq: %s" % (self.bw, self.fw, self.length, self.ratio, self.bases)
+        return "id: %d bw: %s fw: %s length: %d ratio %f seq: %s" % (self.id, self.bw, self.fw, self.length, self.ratio, self.bases)
 
 
 def isNeighbour(seq1, seq2, KMERSIZE):
@@ -87,9 +87,13 @@ def createDict(prefix):
         s = c.bases
 
         for back in bw:
-            assert isNeighbour(contigs[back].bases, s, KMERSIZE)
-        for forward in bw:
-            assert isNeighbour(contigs[forward].bases, s, KMERSIZE)
+            if not isNeighbour(contigs[back].bases, s, KMERSIZE):
+                print i, s, bw, "Backward to %d" % back
+                assert False
+        for forward in fw:
+            if not isNeighbour(contigs[forward].bases, s, KMERSIZE):
+                print i, s, fw, "Forward to %d" % forward
+                assert False
 
 
     for c in contigs:
@@ -109,8 +113,13 @@ def createDict(prefix):
             _fws.update(lasts.get(twin(fwkm), []))
             _bws.update(lasts.get(bwkm, []))
             _bws.update(firsts.get(twin(bwkm), []))
-        assert _fws == set(c.fw)
-        assert _bws == set(c.bw)
+        if not _fws == set(c.fw):
+            print c, _fws, "Forward"
+            assert False
+
+        if not _bws == set(c.bw):
+            print c, _bws, "Backward"
+            assert False
 
     return contigs, KMERSIZE
 
