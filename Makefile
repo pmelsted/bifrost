@@ -38,12 +38,8 @@ swig: $(OBJECTS) graph.i
 	$(CC) -fPIC -c graph_wrap.cxx -I /usr/include/python$(PYTHON_VERSION)
 	$(CC) -shared $(OBJECTS) graph_wrap.o -o _graph.so $(LDFLAGS) $(LDLIBS)
 
-testread: testread.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(LDFLAGS) $(LDLIBS) $(OBJECTS) testread.o -o testread
-
 BFGraph: BFGraph.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(OBJECTS) BFGraph.o $(LDFLAGS) $(LDLIBS) -o BFGraph
-
 
 
 BFGraph.o: BFGraph.cpp
