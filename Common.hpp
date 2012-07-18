@@ -7,7 +7,7 @@
 
 using namespace std;
 
-#define BFG_VERSION "BFGraph 0.1"
+#define BFG_VERSION "0.1"
 #define BFG_BUG_EMAIL "pmelsted@gmail.com"
 
 #endif // BFG_COMMON_HPP

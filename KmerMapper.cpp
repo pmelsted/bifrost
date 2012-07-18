@@ -116,15 +116,13 @@ bool isNeighbor(Kmer a, Kmer b) {
   return false;
 }
 
-// use:  r = m.joinContigs(a, b);
+// use:  cr, succeded = m.joinContigs(a, b);
 // pre:  a and b are not contig pointers
-//       the last Kmer::k-1 bases in the last kmer in the contig that a refers to
-//       are the same as the first Kmer::k-1 bases in the first kmer or the twin of 
-//       the last kmer in the contig that b refers to
-// post: r is a contigref that points to a newly created contig
-//       formed by joining a+b with proper direction, sequences
-//       pointed to by a and b have been forwarded to the new contig r
-ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
+// post: if a and b are not neighbours neighbours then succeded == 0 and nothing has been done
+//       else a and b have been joined and cr is a contigref  that points to a newly created contig
+//       formed by joining a+b with proper direction.
+//       ContigRefs in the contigs vector have been updated to point to the new contig
+pair<ContigRef, int> KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   //join a to b
   size_t k = Kmer::k;
   a = find_rep(a);
@@ -157,9 +155,10 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
     a_direction = -1;
     b_direction = 1;
   } else {
+    cerr << "Not joining these contigs because they can't be joined:" << endl;
     cerr << "sa:" << endl << sa.toString() << endl << endl;
     cerr << "sb:" << endl << sb.toString() << endl << endl;
-    assert(0);
+    return make_pair(ContigRef(), 0);
   }
 
   Contig *joined = new Contig(); // allocate new contig
@@ -198,14 +197,13 @@ ContigRef KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   }
 
   
-  
   // TODO: fix stride issues, release k-mers, might improve memory
   assert(!contigs[a_id].isContig);
   assert(!contigs[b_id].isContig);
   assert(contigs[id].isContig);
   assert(!contigs[id].isEmpty());
 
-  return ContigRef(id, 0); // points to newly created contig
+  return make_pair(ContigRef(id, 0), 1); // points to newly created contig
 }
 
 
@@ -331,11 +329,11 @@ size_t KmerMapper::joinContigs() {
     Kmer start_twin = c->seq.getKmer(0).twin();
     Kmer end = c->seq.getKmer(c->numKmers()-1);
     if (checkContigForward(c, end, found)) {
-      joinContigs(ContigRef(contigid, 0), found); // this -> found
-      ++joined;
+      pair<ContigRef, int> jp = joinContigs(ContigRef(contigid, 0), found); // this -> found
+      joined += jp.second;
     } else if (checkContigForward(c, start_twin, found)) {
-      joinContigs(found, ContigRef(contigid, 0)); // found -> this
-      ++joined;
+      pair<ContigRef, int> jp = joinContigs(found, ContigRef(contigid, 0)); // found -> this
+      joined += jp.second;
     }
   }
   return joined;
@@ -473,15 +471,11 @@ void KmerMapper::printContigs() {
 }
 
 
-// use:  mapper.writeContigs(output);
-// pre:  output is the filename to write the contigs to
-// post: if output is a valid filename, all the contigs have been written to this file
-//       and backward and forward connections for each contig have been printed as well
-void KmerMapper::writeContigs(string output) {
-  string contigfilename = output + ".contigs";
-  string graphfilename = output + ".graph";
-  FILE* contigfile = fopen(contigfilename.c_str(), "w");
-  FILE* graphfile = fopen(graphfilename.c_str(), "w");
+// use:  mapper.writeContigs(contigfile, graphfile);
+// pre:  contigfile and graphfile are file pointers, not NULL
+// post: all the contigs have been written to contigfile
+//       the De Brujin graph has been written to graphfile
+void KmerMapper::writeContigs(FILE* contigfile, FILE* graphfile) {
   /* 
   --- graphfile:
   contigcount kmersize                    (only in the first line of the file)
@@ -527,14 +521,21 @@ void KmerMapper::writeContigs(string output) {
     infoss << id << " " <<  length << " " << ratio << " ";
 
     Kmer first = c->seq.getKmer(0);
-    Kmer last = c->seq.getKmer(c->seq.size()-Kmer::k);
+    Kmer last = c->seq.getKmer(c->length() - k);
     for (size_t i=0; i<4; ++i) {
       Kmer bw = first.backwardBase(alpha[i]);
       ContigRef prevcr = find(bw);
       if (!prevcr.isEmpty()) {
-        assert(newids.find(prevcr.ref.idpos.id) != newids.end());
-        bwss << newids[prevcr.ref.idpos.id] << " ";
-        ++bwcount;
+        Contig *oc = getContig(prevcr).ref.contig;
+        Kmer oFirst = oc->seq.getKmer(0);
+        Kmer oLast = oc->seq.getKmer(oc->length() - k);
+        if (isNeighbor(oLast, first) || isNeighbor(oFirst.twin(), first)) { 
+          bwss << newids[prevcr.ref.idpos.id] << " ";
+          ++bwcount;
+        } else {
+          // We don't want this to be in the middle somewhere
+          assert(isNeighbor(oLast.twin(), first) || isNeighbor(oFirst, first));
+        }
       }
     }
 
@@ -542,9 +543,16 @@ void KmerMapper::writeContigs(string output) {
       Kmer fw = last.forwardBase(alpha[i]);
       ContigRef fwcr = find(fw);
       if (!fwcr.isEmpty()) {
-        assert(newids.find(fwcr.ref.idpos.id) != newids.end());
-        fwss << newids[fwcr.ref.idpos.id] << " ";
-        ++fwcount;
+        Contig *oc = getContig(fwcr).ref.contig;
+        Kmer oFirst = oc->seq.getKmer(0);
+        Kmer oLast = oc->seq.getKmer(oc->length() - k);
+        if (isNeighbor(last, oFirst) || isNeighbor(last, oLast.twin())) {
+          fwss << newids[fwcr.ref.idpos.id] << " ";
+          ++fwcount;
+        } else {
+          // We don't want this to be in the middle somewhere
+          assert(isNeighbor(last, oFirst.twin()) || isNeighbor(last, oLast));
+        }
       }
     }
     bwss << endl;
@@ -554,10 +562,6 @@ void KmerMapper::writeContigs(string output) {
     fprintf(contigfile, ">contig%zu\n%s\n", id, c->seq.toString().c_str());
     fprintf(graphfile, "%s%s%s", infoss.str().c_str(), bwss.str().c_str(), fwss.str().c_str());
   }
-  cerr << "Writing contigs to file: " << contigfilename << endl
-        << "Writing the graph to file: " << graphfilename << endl;
-  fclose(contigfile);
-  fclose(graphfile);
 }
 
 size_t KmerMapper::memory() const {
