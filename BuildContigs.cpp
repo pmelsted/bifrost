@@ -281,15 +281,11 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   vector<string> readv;
   vector<NewContig> *smallv, *parray = new vector<NewContig>[num_threads];
   bool done = false;
-<<<<<<< HEAD
-  size_t reads_now, read_chunksize = opt.read_chunksize;
-  cerr << "starting real work" << endl;
-  int round = 0;
-=======
+
   size_t read_chunksize = opt.read_chunksize;
+  int round = 0;
   cerr << "Starting real work ....." << endl << endl;
 
->>>>>>> caaa309b244f6bac822d47595b954b2439d39ec7
   while (!done) {
     readv.clear();
     size_t reads_now = 0;
