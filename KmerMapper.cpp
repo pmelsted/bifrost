@@ -116,13 +116,12 @@ bool isNeighbor(Kmer a, Kmer b) {
   return false;
 }
 
-// use:  cr, succeded = m.joinContigs(a, b);
+// use:  succeded = m.joinContigs(a, b);
 // pre:  a and b are not contig pointers
-// post: if a and b are not neighbours neighbours then succeded == 0 and nothing has been done
-//       else a and b have been joined and cr is a contigref  that points to a newly created contig
-//       formed by joining a+b with proper direction.
+// post: if a and b are not joinable neighbours then succeded == 0 and nothing has been done
+//       else a and b have been joined with proper direction.
 //       ContigRefs in the contigs vector have been updated to point to the new contig
-pair<ContigRef, int> KmerMapper::joinContigs(ContigRef a, ContigRef b) {
+int KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   //join a to b
   size_t k = Kmer::k;
   a = find_rep(a);
@@ -158,7 +157,7 @@ pair<ContigRef, int> KmerMapper::joinContigs(ContigRef a, ContigRef b) {
     cerr << "Not joining these contigs because they can't be joined:" << endl;
     cerr << "sa:" << endl << sa.toString() << endl << endl;
     cerr << "sb:" << endl << sb.toString() << endl << endl;
-    return make_pair(ContigRef(), 0);
+    return 0;
   }
 
   Contig *joined = new Contig(); // allocate new contig
@@ -196,14 +195,12 @@ pair<ContigRef, int> KmerMapper::joinContigs(ContigRef a, ContigRef b) {
     contigs[b_id] = ContigRef(id, 1 - sa_size - sb_size);
   }
 
-  
   // TODO: fix stride issues, release k-mers, might improve memory
   assert(!contigs[a_id].isContig);
   assert(!contigs[b_id].isContig);
   assert(contigs[id].isContig);
   assert(!contigs[id].isEmpty());
-
-  return make_pair(ContigRef(id, 0), 1); // points to newly created contig
+  return 1;
 }
 
 
@@ -329,11 +326,9 @@ size_t KmerMapper::joinContigs() {
     Kmer start_twin = c->seq.getKmer(0).twin();
     Kmer end = c->seq.getKmer(c->numKmers()-1);
     if (checkContigForward(c, end, found)) {
-      pair<ContigRef, int> jp = joinContigs(ContigRef(contigid, 0), found); // this -> found
-      joined += jp.second;
+      joined += joinContigs(ContigRef(contigid, 0), found); // this -> found
     } else if (checkContigForward(c, start_twin, found)) {
-      pair<ContigRef, int> jp = joinContigs(found, ContigRef(contigid, 0)); // found -> this
-      joined += jp.second;
+      joined += joinContigs(found, ContigRef(contigid, 0)); // found -> this
     }
   }
   return joined;
