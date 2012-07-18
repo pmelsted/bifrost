@@ -9,7 +9,7 @@
 #include <iostream>
 #include <cstdio>
 
-using namespace libdivide;
+//using namespace libdivide;
 using namespace std;
 
 static const unsigned char mask[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
@@ -28,7 +28,7 @@ protected:
   uint32_t seed_;        // for hash functions
   uint64_t size_;        // number of bits, table_ has (size_/8) number of bytes
   size_t k_;             // number of hash functions
-  divider<uint64_t> fast_div_; // fast division
+  libdivide::divider<uint64_t> fast_div_; // fast division
 public:
   BloomFilter() : seed_(0), size_(0), table_(NULL), k_(0), fast_div_() {}
 

@@ -10,9 +10,9 @@ INCLUDES = -I.
 CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) -fPIC -fopenmp
 LDFLAGS =
 LDLIBS  = -lm -lz -lgomp
-SWIG = /usr/bin/swig
+SWIG = swig
 PYTHON_VERSION = $(shell echo `python -c 'import sys; print sys.version[:3]'`)
-
+UNAME := $(shell uname -s)
 
 all: CXXFLAGS += -O3
 all: target
@@ -34,9 +34,16 @@ OBJECTS = Kmer.o KmerIterator.o KmerIntPair.o hash.o fastq.o FilterReads.o Build
 		  CompressedSequence.o Contig.o CompressedCoverage.o ContigMethods.o
 
 swig: $(OBJECTS) graph.i
+
 	$(SWIG) -python -c++ graph.i
 	$(CC) -fPIC -c graph_wrap.cxx -I /usr/include/python$(PYTHON_VERSION)
+ifeq ($(UNAME),Darwin)
+	$(CC) -dynamiclib -lpython $(OBJECTS) graph_wrap.o -o _graph.so $(LDFLAGS) $(LDLIBS)
+endif	
+ifeq ($(UNAME),Linux)	
 	$(CC) -shared $(OBJECTS) graph_wrap.o -o _graph.so $(LDFLAGS) $(LDLIBS)
+endif
+
 
 BFGraph: BFGraph.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(OBJECTS) BFGraph.o $(LDFLAGS) $(LDLIBS) -o BFGraph

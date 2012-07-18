@@ -437,7 +437,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     }
     
     cerr << " end of round" << endl;
-    cerr << " processed " << mapper.size() << " contigs" << endl;
+    cerr << " processed " << mapper.contigCount() << " contigs" << endl;
   }
   FQ.close();
   cerr << "Closed all fasta/fastq files" << endl;

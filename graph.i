@@ -5,6 +5,8 @@
 #include "Contig.hpp"
 #include "CompressedSequence.hpp"
 #include "CompressedCoverage.hpp"
+#include "BloomFilter.hpp"
+
 %}
 %include "std_string.i"
 %include "std_vector.i"
@@ -14,7 +16,12 @@
 %include "CompressedSequence.hpp"
 %include "CompressedCoverage.hpp"
 
+%include "BloomFilter.hpp"
+
+
 using namespace std;
+
+
 
 
 %ignore int2bin;
@@ -32,3 +39,16 @@ using namespace std;
     return s.c_str();
   }
 }
+
+
+%extend BloomFilter {
+  bool __contains__(const Kmer km) {
+    return $self->contains(km);
+  }
+
+  void open(const char *fn) {
+    FILE *f = fopen(fn,"r");
+    $self->ReadBloomFilter(f);
+    fclose(f);
+  }
+} 
