@@ -4,9 +4,6 @@
 #include <map>
 #include <sstream>
 
-
-static const char alpha[4] = {'A','C','G','T'};
-
 // use:  reverse(s);
 // pre:  s != NULL
 // post: s has been reversed
