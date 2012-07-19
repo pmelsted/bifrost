@@ -1,6 +1,18 @@
 #include <vector>
 #include "FindContig.hpp"
 
+// use:  r = isNeighbor(a,b)
+// pre:
+// post: r is true if a[1:k-1]+c == b for some c
+bool isNeighbor(Kmer a, Kmer b) {
+  for (size_t i = 0; i < 4; ++i) {
+    if (b == a.forwardBase(alpha[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // use:  fc = find_contig_forward(bf,km,s);
 // pre:  
 // post: km is contained in a contig c with respect to the

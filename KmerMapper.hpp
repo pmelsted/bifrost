@@ -8,6 +8,7 @@
 #include "Kmer.hpp"
 #include "CompressedSequence.hpp"
 #include "Contig.hpp"
+#include "FindContig.hpp"
 
 #include "google/sparse_hash_map"
 using google::sparse_hash_map;

@@ -4,16 +4,6 @@
 #include <map>
 #include <sstream>
 
-// use:  reverse(s);
-// pre:  s != NULL
-// post: s has been reversed
-void reverse(uint8_t *s, int len) {
-  for (int i=0; i<len/2; i++) {
-    s[i]^=s[len-i-1];
-    s[len-i-1]^=s[i];
-    s[i]^=s[len-i-1];
-  }
-}
 
 // use:  delete m;
 // pre:  m is a pointer to a KmerMapper
@@ -62,6 +52,10 @@ void KmerMapper::mapContig(uint32_t id, size_t len, const char *s) {
   bool last = false;
   size_t pos;
   int32_t ipos;
+  for (pos = 0; pos < len; pos += 1) {
+    Kmer km(s+pos);                /* Remove this later */
+    assert(find(km).isEmpty());    /* Remove this later */
+  }
   for (pos = 0; pos < len; pos += stride) {
     if (pos == len-1) {
       last = true;
@@ -101,17 +95,6 @@ ContigRef KmerMapper::find(const Kmer km) {
   return a;
 }
 
-// use:  r = isNeighbor(a,b)
-// pre:
-// post: r is true if a[1:k-1]+c == b for some c
-bool isNeighbor(Kmer a, Kmer b) {
-  for (size_t i = 0; i < 4; ++i) {
-    if (b == a.forwardBase(alpha[i])) {
-      return true;
-    }
-  }
-  return false;
-}
 
 // use:  succeded = m.joinContigs(a, b);
 // pre:  a and b are not contig pointers
