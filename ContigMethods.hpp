@@ -33,7 +33,7 @@ struct MakeContig {
 
 /* Methods for Contig and Kmer information and mapping */
 
-void getMappingInfo(const bool repequal, const int32_t pos, const size_t dist, const size_t k, size_t &kmernum, int32_t &cmppos);
+void getMappingInfo(const bool repequal, const int32_t pos, const size_t dist, size_t &kmernum, int32_t &cmppos);
 CheckContig check_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
 MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
 

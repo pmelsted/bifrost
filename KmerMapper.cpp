@@ -508,6 +508,7 @@ void KmerMapper::writeContigs(FILE* contigfile, FILE* graphfile) {
           bwss << newids[prevcr.ref.idpos.id] << " ";
           ++bwcount;
         } else {
+          cerr << "Weird backward map (maybe to a self-looping contig?):" << endl;
           cerr << "c: " << c->seq.toString() << endl;
           cerr << "oc: " << oc->seq.toString() << endl;
           cerr << "first: " << first.toString() << endl;
@@ -515,7 +516,8 @@ void KmerMapper::writeContigs(FILE* contigfile, FILE* graphfile) {
           cerr << "oFirst: " << oFirst.toString() << endl;
           cerr << "olast: " << oLast.toString() << endl;
           // We don't want this to be in the middle somewhere
-          assert(isNeighbor(oLast.twin(), first) || isNeighbor(oFirst, first));
+          // We don't want this to be in the middle somewhere // No that is okay if it maps to self looped contig
+          //assert(isNeighbor(oLast.twin(), first) || isNeighbor(oFirst, first));
         }
       }
     }
@@ -531,14 +533,15 @@ void KmerMapper::writeContigs(FILE* contigfile, FILE* graphfile) {
           fwss << newids[fwcr.ref.idpos.id] << " ";
           ++fwcount;
         } else {
+          cerr << "Weird forward map (maybe to a self-looping contig?):" << endl;
           cerr << "c: " << c->seq.toString() << endl;
           cerr << "oc: " << oc->seq.toString() << endl;
           cerr << "first: " << first.toString() << endl;
           cerr << "last: " << last.toString() << endl;
           cerr << "oFirst: " << oFirst.toString() << endl;
           cerr << "olast: " << oLast.toString() << endl;
-          // We don't want this to be in the middle somewhere
-          assert(isNeighbor(last, oFirst.twin()) || isNeighbor(last, oLast));
+          // We don't want this to be in the middle somewhere // No that is okay if it maps to self looped contig
+          //assert(isNeighbor(last, oFirst.twin()) || isNeighbor(last, oLast));
         }
       }
     }

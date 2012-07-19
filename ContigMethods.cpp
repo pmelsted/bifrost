@@ -2,10 +2,11 @@
 
 static const char beta[4] = {'T','G','A','C'}; // c -> beta[(c & 7) >> 1] maps: 'A' <-> 'T', 'C' <-> 'G'
 
-// use:  getMappingInfo(repequal, pos, dist, k, kmernum, cmppos)
+// use:  getMappingInfo(repequal, pos, dist, kmernum, cmppos)
 // pre:  
 // post: cmppos is the first character after the kmer-match at position pos
-void getMappingInfo(const bool repequal, const int32_t pos, const size_t dist, const size_t k, size_t &kmernum, int32_t &cmppos) {
+void getMappingInfo(const bool repequal, const int32_t pos, const size_t dist, size_t &kmernum, int32_t &cmppos) {
+  size_t k = Kmer::k; 
   // Now we find the right location of the kmer inside the contig
   // to increase coverage 
   if (pos >= 0) {
@@ -100,7 +101,7 @@ CheckContig check_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
 //       which contains km  according to the bloom filter bf and puts it into mc.seq
 //       mc.pos is the position where km maps into this contig
 MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
-  size_t k  = Kmer::k;
+  size_t k = Kmer::k;
   string seq;
   FindContig fc_fw = find_contig_forward(bf, km);
 

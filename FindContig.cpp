@@ -1,4 +1,5 @@
 #include <vector>
+#include <cstdio>
 #include "FindContig.hpp"
 
 // use:  r = isNeighbor(a,b)
@@ -54,6 +55,7 @@ FindContig find_contig_forward(BloomFilter &bf, Kmer km) {
     assert(bf.contains(fw.rep()));
     if (first == fw) {
       selfloop = true;
+      printf("Selfloop in the contig: %s\n", s.c_str());
       break;
     }
 

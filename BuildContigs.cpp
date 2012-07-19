@@ -358,7 +358,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               Contig *contig = mapper.getContig(cc.cr).ref.contig;
               int32_t pos = cc.cr.ref.idpos.pos;
 
-              getMappingInfo(cc.repequal, pos, cc.dist, k, kmernum, cmppos);
+              getMappingInfo(cc.repequal, pos, cc.dist, kmernum, cmppos);
               bool reversed = (pos >= 0) != cc.repequal;
               int jumpi = 1 + iter->second + contig->seq.jump(cstr, iter->second + k, cmppos, reversed);
 
@@ -398,9 +398,11 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         Contig *contig;
 
         Kmer km(seq); 
-        ContigRef mapcr = mapper.find(km);
+        /* We must use this when breaking on self-loops in find_contig_forward, 
+           because then km is not neccessarily the first or the last km then in the contig */
+        CheckContig cc = check_contig(bf, mapper, km);
         
-        if(mapcr.isEmpty()) {
+        if(cc.cr.isEmpty()) {
           // The contig has not been mapped so we map it and increase coverage
           // of the kmers that came from the read
           
@@ -412,23 +414,46 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         } else {
           // The contig has been mapped so we only increase the coverage of the
           // kmers that came from the read
-          contig = mapper.getContig(mapcr).ref.contig;
+          contig = mapper.getContig(cc.cr).ref.contig;
+          int covlength = contig->numKmers();
 
-          int32_t pos = mapcr.ref.idpos.pos;
+          int32_t pos = cc.cr.ref.idpos.pos;
           bool repequal = (km == km.rep());
 
-          getMappingInfo(repequal, pos, 0, k, kmernum, cmppos); // 0 because km is the first or the last kmer in the contig
+          getMappingInfo(repequal, pos, cc.dist, kmernum, cmppos); // 
           bool reversed = ((pos >= 0) != repequal);
           size_t start = it->start, end = it->end;
           if (reversed) {
             assert(contig->seq.getKmer(kmernum) == km.twin());
             kmernum -= it->start;
-            contig->cover(kmernum - (end - start), kmernum);
+            int left = kmernum - (end - start);
+            size_t right = kmernum;
+            /* We could use % covlength in the cover function instead of this if-else catastrophe */
+            if (left < 0) {
+              // Maps to a self-looping contig
+              assert(0 <= left + covlength);
+              assert(cc.dist > 0); 
+              contig->cover(0, right);
+              contig->cover(left + covlength, covlength - 1);
+            } else {
+              contig->cover(left, right);
+            }
           }
           else {
             assert(contig->seq.getKmer(kmernum) == km);
             kmernum += it->start;
-            contig->cover(kmernum, kmernum + end - start);
+            size_t left = kmernum;
+            size_t right = kmernum + end - start;
+            /* We could use % covlength in the cover function instead of this if-else catastrophe */
+            if (right >= covlength) {
+              // Maps to a self-looping contig
+              assert(cc.dist > 0); 
+              assert(right < 2*covlength);
+              contig->cover(0, right - covlength);
+              contig->cover(left, covlength - 1);
+            } else {
+              contig->cover(left, right);
+            }
           }
         }
       }
