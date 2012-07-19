@@ -1,8 +1,12 @@
 #ifndef BFG_CONTIGMETHODS_HPP
 #define BFG_CONTIGMETHODS_HPP
 
+#include <string>
+#include "Common.hpp"
+#include "Kmer.hpp"
 #include "KmerMapper.hpp"
 #include "BloomFilter.hpp"
+#include "FindContig.hpp"
 
 /* Structs for Contig and Kmer information */
 
@@ -20,12 +24,6 @@ struct CheckContig {
   CheckContig(ContigRef ref, size_t i, bool eq) : cr(ref), dist(i), repequal(eq) {}
 };
 
-struct FindContig {
-  Kmer end;
-  size_t dist;
-  bool selfloop;
-  FindContig(Kmer km, size_t i, bool b) : end(km), dist(i), selfloop(b) {}
-};
 
 struct MakeContig {
   string seq;
@@ -36,7 +34,6 @@ struct MakeContig {
 /* Methods for Contig and Kmer information and mapping */
 
 void getMappingInfo(const bool repequal, const int32_t pos, const size_t dist, const size_t k, size_t &kmernum, int32_t &cmppos);
-FindContig find_contig_forward(BloomFilter &bf, Kmer km, string* s);
 CheckContig check_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
 MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
 

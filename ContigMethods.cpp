@@ -1,6 +1,5 @@
 #include "ContigMethods.hpp"
 
-static const char alpha[4] = {'A','C','G','T'};
 static const char beta[4] = {'T','G','A','C'}; // c -> beta[(c & 7) >> 1] maps: 'A' <-> 'T', 'C' <-> 'G'
 
 // use:  getMappingInfo(repequal, pos, dist, k, kmernum, cmppos)
@@ -27,6 +26,7 @@ void getMappingInfo(const bool repequal, const int32_t pos, const size_t dist, c
     }
   }
 }
+
 
 // use:  cc = check_contig_(bf,km,mapper);
 // pre:  
@@ -89,13 +89,10 @@ CheckContig check_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
   }
   if (found) {
     return CheckContig(cr, dist, end == end.rep());
-    //return make_pair(cr, make_pair(dist, end == end.rep())); 
   } else {
     return CheckContig(ContigRef(), 0, 0);
-    //return make_pair(ContigRef(), make_pair(0,0));
   }
 }
-
 
 // use:  mc = make_contig(bf, mapper, km, s);
 // pre:  km is not contained in a mapped contig in mapper 
@@ -104,110 +101,27 @@ CheckContig check_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
 //       mc.pos is the position where km maps into this contig
 MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
   size_t k  = Kmer::k;
-  string seq, seq_fw(k, 0), seq_bw(k, 0);
-  FindContig fc_fw = find_contig_forward(bf, km, &seq_fw);
+  string seq;
+  FindContig fc_fw = find_contig_forward(bf, km);
 
   if (fc_fw.selfloop) {
-    return MakeContig(seq_fw, 0); 
+    return MakeContig(fc_fw.s, 0); 
   }
 
-  FindContig fc_bw = find_contig_forward(bf, km.twin(), &seq_bw);
+  FindContig fc_bw = find_contig_forward(bf, km.twin());
   ContigRef cr_tw_end = mapper.find(fc_bw.end);
   assert(cr_tw_end.isEmpty());
 
   if (fc_bw.dist > 1) {
-    seq.reserve(seq_bw.size() + seq_fw.size() - k);
-    // copy reverse part of seq_bw not including k
-    for (size_t j = seq_bw.size() - 1; j >= k; --j) {
-      seq.push_back(beta[(seq_bw[j] & 7) >> 1]);
+    seq.reserve(fc_bw.s.size() + fc_fw.s.size() - k);
+    // copy reverse part of fc_bw.s not including k
+    for (size_t j = fc_bw.s.size() - 1; j >= k; --j) {
+      seq.push_back(beta[(fc_bw.s[j] & 7) >> 1]);
     }
-    seq += seq_fw; // append seq_fw
+    seq += fc_fw.s; // append fc_fw.s
   } else {
-    seq = seq_fw;
+    seq = fc_fw.s;
   }
 
   return MakeContig(seq, fc_bw.dist - 1);
 }
-
-
-// use:  fc = find_contig_forward(bf,km,s);
-// pre:  
-// post: km is contained in a contig c with respect to the
-//       bloom filter graph bf and fc.end is the forward endpoint (wrt km direction)
-//       and c contains fc.dist kmers until the end (including km)
-//       if s is not NULL the sequence of the contig is stored in s
-FindContig find_contig_forward(BloomFilter &bf, Kmer km, string* s) {
-  int j;
-  bool selfloop = false;
-  size_t i,dist = 1;
-  vector<char> v;
-
-  Kmer first = km, end = km;
-
-  assert(bf.contains(km.rep()));
-  if (s != NULL) {
-    char t[Kmer::MAX_K+1];
-    km.toString(t);
-    for (i = 0; i < Kmer::k; ++i) {
-      v.push_back(t[i]);
-    }
-  }
-  
-  while (true) {
-    assert(bf.contains(end.rep()));
-    size_t fw_count = 0;
-    j = -1;
-    for (i = 0; i < 4; ++i) {
-      Kmer fw_rep = end.forwardBase(alpha[i]).rep();
-      if (bf.contains(fw_rep)) {
-        j = i;
-        ++fw_count;
-        if (fw_count > 1) {
-          break;
-        }
-      }
-    }
-
-    if (fw_count != 1) {
-      break;
-    }
-    
-    Kmer fw = end.forwardBase(alpha[j]);
-    assert(0 <= j && j < 4);
-    assert(bf.contains(fw.rep()));
-    if (first == fw) {
-      selfloop = true;
-      break;
-    }
-
-    size_t bw_count = 0;
-    for (i = 0; i < 4; ++i) {
-      Kmer bw_rep = fw.backwardBase(alpha[i]).rep();
-      if (bf.contains(bw_rep)) {
-        ++bw_count;
-        if (bw_count > 1) {
-          break;
-        }
-      }
-    }
-
-    assert(bw_count >= 1);
-    if (bw_count != 1) {
-      break;
-    }
-    
-    end = fw;
-    ++dist;
-    if (s != NULL) {
-      v.push_back(alpha[j]);
-    }
-  }
-
-  if (s != NULL) {
-    s->clear();
-    s->reserve(v.size());
-    s->insert(s->begin(), v.begin(), v.end());
-  }
-  return FindContig(end, dist, selfloop);
-}
-

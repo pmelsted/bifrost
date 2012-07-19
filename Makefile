@@ -31,10 +31,9 @@ target: BFGraph
 
 
 OBJECTS = Kmer.o KmerIterator.o KmerIntPair.o hash.o fastq.o FilterReads.o BuildContigs.o SimplifyGraph.o KmerMapper.o \
-		  CompressedSequence.o Contig.o CompressedCoverage.o ContigMethods.o
+		  CompressedSequence.o Contig.o CompressedCoverage.o ContigMethods.o FindContig.o
 
 swig: $(OBJECTS) graph.i
-
 	$(SWIG) -python -c++ graph.i
 	$(CC) -fPIC -c graph_wrap.cxx -I /usr/include/python$(PYTHON_VERSION)
 ifeq ($(UNAME),Darwin)
@@ -62,6 +61,7 @@ CompressedSequence.o: CompressedSequence.cpp CompressedSequence.hpp
 CompressedCoverage.o: CompressedCoverage.cpp CompressedCoverage.hpp
 Contig.o: Contig.cpp Contig.hpp 
 ContigMethods.o: ContigMethods.cpp ContigMethods.hpp 
+FindContig.o: FindContig.cpp FindContig.hpp 
 
 #BloomFilter.o: BloomFilter.hpp
 hash.o: hash.hpp hash.cpp	

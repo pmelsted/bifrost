@@ -2,12 +2,13 @@
 #define BFG_BLOOMFILTER_HPP
 
 #include <cmath>
+#include <cstdio>
 #include <cstring>
+#include <iostream>
+
 #include "hash.hpp"
 #include "libdivide.h"
 #include "stdint.h"
-#include <iostream>
-#include <cstdio>
 
 //using namespace libdivide;
 using namespace std;
