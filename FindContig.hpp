@@ -13,6 +13,7 @@ struct FindContig {
   FindContig(Kmer km, size_t i, bool b, string _s) : end(km), dist(i), selfloop(b), s(_s) {}
 };
 
+bool isNeighbor(Kmer a, Kmer b);
 FindContig find_contig_forward(BloomFilter &bf, Kmer km);
 
 #endif // BFG_FINDCONTIG_HPP
