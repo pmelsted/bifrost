@@ -60,7 +60,14 @@ void KmerMapper::mapContig(uint32_t id, int32_t numkmers, const char *s) {
     for (pos = 0; pos < numkmers; pos += 1) {
       Kmer km(s + pos);
       Kmer rep = km.rep();
-      assert(find(rep).isEmpty());
+      ContigRef found = find(km);
+      if (!found.isEmpty()) {
+        ContigRef justBefore = getContig(found);
+        Contig *badContig = justBefore.ref.contig;
+        fprintf(stderr, "THIS JUST CAN'T HAPPEN!? Kmer nr. %d maps to contig with id: %d, ", pos, justBefore.ref.idpos.id);
+        fprintf(stderr, "This is the contig: %s\n", badContig->seq.toString().c_str());
+        assert(0);
+      }
     }
   }
 
@@ -397,29 +404,13 @@ pair<size_t, size_t> KmerMapper::splitContigs() {
     for (int index = 0; index < (numkmers -1); index += stride) {
       Kmer km(cstr + index);
       Kmer rep = km.rep();
-      assert(!find(km).isEmpty());
       map.erase(rep);
-      assert(find(km).isEmpty());
     }
     
     Kmer km(cstr + (numkmers - 1));
     Kmer rep = km.rep();
     map.erase(rep);
-    assert(find(km).isEmpty());
 
-    /* TODO: Delete this loop, it is just for debugging, pretty memory and time expensive */
-    for (int pos = 0; pos < numkmers; pos += 1) {
-      Kmer km(cstr + pos);
-      ContigRef found = find(km);
-      if (!found.isEmpty()) {
-        Contig *badContig = getContig(found).ref.contig;
-        fprintf(stderr, "How on earth? Kmer nr. %d in contig %s still maps???\n", pos, cstr);
-        fprintf(stderr, "It maps to this contig: %s\n", badContig->seq.toString().c_str());
-        fprintf(stderr, "Do we have to unmap all kmers ?\n");
-        assert(badContig == c); 
-        assert(0);
-      }
-    }
     
     // add the subcontigs to contigs and map them
     if (v.size() == 0) {
@@ -427,10 +418,9 @@ pair<size_t, size_t> KmerMapper::splitContigs() {
     } else {
       splitted += v.size() - 1;
     }
-
     for(size_t index = 0; index < v.size(); ++index) {
       size_t a = v[index].first, b = v[index].second;
-      string s(&cstr[a], (b - a) + k - 1);
+      string s(&cstr[a], (b - 1 - a) + k );
       ContigRef newcr;
       Contig *newc = new Contig(s.c_str(), true); // This contig has full coverage
 
@@ -439,8 +429,30 @@ pair<size_t, size_t> KmerMapper::splitContigs() {
       
       newcr.ref.contig = newc;
       contigs.push_back(newcr);
+      
+      /* TODO: Delete this loop, it is just for debugging, pretty memory and time expensive */
+      for (int pos = a; pos < b; pos += 1) {
+        Kmer km(cstr + pos);
+        ContigRef found = find(km);
+        if (!found.isEmpty()) {
+          ContigRef justBefore = getContig(found);
+          Contig *badContig = justBefore.ref.contig;
+          fprintf(stderr, "ERROR while splitting this contig: %s\n", cstr));
+          fprintf(stderr, "Was going to make this contig: %s\n", s.c_str());
+          fprintf(stderr, "Kmer nr. %d maps to this contig: %s\n", pos, badContig->seq.toString().c_str());
+          fprintf(stderr, "nextid: %zu, id of the mapping contig: %u\n", nextid, justBefore.ref.idpos.id);
+          fprintf(stderr, "The splitting vector is: ");
+          for(size_t q = 0; q < v.size(); ++q) {
+            printf("(%d, %d) ", v[q].first, v[q].second);
+          }
+          fprintf(stderr, "\n");
+          assert(0);
+        }
+      }
+      assert(s[0] = cstr[a]);
+      assert(s[b - 1 - a + k] = '\0');
       mapContig(nextid++, newc->numKmers(), s.c_str());
-    }
+      }
 
     delete c;
     contigs[contigid] = ContigRef();
