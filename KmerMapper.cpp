@@ -47,26 +47,28 @@ size_t KmerMapper::addContig(const char *s) {
 
 // use:  mapper.mapContig(id, len, s);
 // pre:  the contig whose string sequence is s has not been mapped before
-// post: the contig has been mapped
+//       len is the number of kmers in the contig
+// post: the contig has been mapped with the id: id
 void KmerMapper::mapContig(uint32_t id, size_t len, const char *s) {
   bool last = false;
-  size_t pos;
+  size_t pos, k = Kmer::k;
   int32_t ipos;
   for (pos = 0; pos < len; pos += 1) {
-    Kmer km(s+pos);                /* Remove this later */
+    Kmer km(s + pos);                /* Remove this later */
     assert(find(km).isEmpty());    /* Remove this later */
   }
 
   for (pos = 0; pos < len; pos += stride) {
-    Kmer km(s+pos);
+    Kmer km(s + pos);
     Kmer rep = km.rep();
-    ipos  = (km == rep) ? (int32_t) pos : -((int32_t)(pos+Kmer::k-1));
+    ipos  = (km == rep) ? (int32_t) pos : -((int32_t)(pos + k - 1));
     map.insert(make_pair(rep, ContigRef(id, ipos)));    
   }
   if ((len % stride) != 1) {
-    Kmer km(s+(len-1));
+    pos = len - 1;
+    Kmer km(s + pos);
     Kmer rep = km.rep();
-    ipos  = (km == rep) ? (int32_t) pos : -((int32_t)(pos+Kmer::k-1));
+    ipos  = (km == rep) ? (int32_t) pos : -((int32_t)(pos + k -1));
     map.insert(make_pair(rep, ContigRef(id, ipos)));  
   }
 
@@ -389,7 +391,7 @@ pair<size_t, size_t> KmerMapper::splitContigs() {
     //for(size_t index = 0; index < numkmers; index += stride) { // use this when everything works
     for(size_t index = 0; index < numkmers; ++index) {
       Kmer km(&cstr[index]);
-      if (index % stride == 0) {
+      if ((index % stride) == 0) {
         assert(!find(km).isEmpty());
         Kmer rep = km.rep();
         map.erase(rep);
