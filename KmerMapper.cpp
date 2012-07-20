@@ -56,23 +56,20 @@ void KmerMapper::mapContig(uint32_t id, size_t len, const char *s) {
     Kmer km(s+pos);                /* Remove this later */
     assert(find(km).isEmpty());    /* Remove this later */
   }
+
   for (pos = 0; pos < len; pos += stride) {
-    if (pos == len-1) {
-      last = true;
-    }
     Kmer km(s+pos);
     Kmer rep = km.rep();
-
     ipos  = (km == rep) ? (int32_t) pos : -((int32_t)(pos+Kmer::k-1));
     map.insert(make_pair(rep, ContigRef(id, ipos)));    
   }
-  if (!last) {
-    pos = len-1;
-    Kmer km(s+pos);
+  if ((len % stride) != 1) {
+    Kmer km(s+(len-1));
     Kmer rep = km.rep();
     ipos  = (km == rep) ? (int32_t) pos : -((int32_t)(pos+Kmer::k-1));
     map.insert(make_pair(rep, ContigRef(id, ipos)));  
   }
+
 }
 
 
@@ -389,18 +386,23 @@ pair<size_t, size_t> KmerMapper::splitContigs() {
     size_t totalcoverage = c->coveragesum - lowsum;
 
     // unmap the contig
+    //for(size_t index = 0; index < numkmers; index += stride) { // use this when everything works
     for(size_t index = 0; index < numkmers; ++index) {
+      Kmer km(&cstr[index]);
       if (index % stride == 0) {
-        Kmer km = Kmer(&cstr[index]);
+        assert(!find(km).isEmpty());
         Kmer rep = km.rep();
         map.erase(rep);
-      }
+      } 
+      assert(find(km).isEmpty());
     }
-    if ((numkmers - 1) % stride != 0) {
-      Kmer km = Kmer(&cstr[numkmers-1]);
+    if ((numkmers % stride) != 1) {
+      Kmer km(&cstr[numkmers-1]);
       Kmer rep = km.rep();
       map.erase(rep);
     }
+    Kmer km(&cstr[numkmers-1]);
+    assert(find(km).isEmpty());
     
 
     // add the subcontigs to contigs and map them
