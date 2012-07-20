@@ -14,6 +14,8 @@ int main(int argc, char *argv[]) {
   srand(time(NULL));
 
   Kmer::set_k(k);
+  Kmer km_del;
+  km_del.set_deleted();
 
   KmerMapper mapper1, mapper2, mapper3, mapper4, mapper5, mapper6, mapper7;
 
@@ -35,8 +37,9 @@ int main(int argc, char *argv[]) {
   cr1 = mapper1.find(km1);
   cr2 = mapper1.find(km2);
 
-  ContigRef joined = mapper1.joinContigs(cr1, cr2);
-  Contig newc = *(mapper1.getContig(joined).ref.contig);
+  int joined = mapper1.joinContigs(cr1, cr2);
+  assert(joined == 1);
+  Contig newc = *(mapper1.getContig(2).ref.contig);
   assert(newc.seq.toString() == "ACGGTTTCCCC");
   assert(newc.numKmers() == 8);
 
@@ -59,11 +62,61 @@ int main(int argc, char *argv[]) {
   cr1 = mapper2.find(km1);
   cr2 = mapper2.find(km2);
   joined = mapper2.joinContigs(cr1, cr2);
-  newc = *(mapper2.getContig(joined).ref.contig);
+  assert(joined == 1);
+  newc = *(mapper2.getContig(5).ref.contig);
   
   assert(newc.numKmers() == 8);
   assert(mapper2.getContig(joined).ref.contig->seq.toString() == "AAGGCCCATAT");
 
+  
+  /* Test the deletion of kmers */
+  KmerMapper dMapper;
+  char dContig[] = "ACGGTTTCCCC";
+  dMapper.addContig(dContig);
+  dMapper.map.set_deleted_key(km_del);
+  Kmer dFirst(dContig);
+  assert(dMapper.stride == 4);
+  int numkmers = strlen(dContig) - 4 + 1;
+  for(int i=0; i < (numkmers - 1); ++i){
+    Kmer km(dContig+i);
+    Kmer rep = km.rep();
+    if ((i % 4) == 0) {
+      assert(!dMapper.find(km).isEmpty());
+      dMapper.map.erase(km.rep());
+    }
+    assert(dMapper.find(km).isEmpty());
+  }
+  Kmer km(dContig + (numkmers -1));
+  Kmer rep = km.rep();
+  assert(!dMapper.find(km).isEmpty());
+  dMapper.map.erase(km.rep());
+  assert(dMapper.find(km).isEmpty());
+
+  /* Test the splitContigs method */
+  KmerMapper splitMapper;
+  char splitContigString[] = "ACACTAGAGTAAAA";
+  splitMapper.addContig(splitContigString);
+  ContigRef splitRef = splitMapper.getContig(0);
+  Contig *splitContig = splitRef.ref.contig;
+  splitContig->cover(0,0);
+  splitContig->cover(0,3);
+  
+  splitContig->cover(5,5);
+  splitContig->cover(5,5);
+  
+  splitContig->cover(10,10);
+  splitContig->cover(10,10);
+  
+  splitMapper.map.set_deleted_key(km_del);
+  pair<size_t, size_t> splitpair = splitMapper.splitContigs();
+  assert(splitpair.first == 2);
+  assert(splitpair.second == 0);
+  assert(splitMapper.getContig(1).ref.contig->seq.toString() == "ACAC");
+  assert(splitMapper.getContig(2).ref.contig->seq.toString() == "AGAG");
+  assert(splitMapper.getContig(3).ref.contig->seq.toString() == "AAAA");
+
+  
+  /* Test the splitAndJoinContigs method */  
   char s5[] = "AAAATCCCC";
   mapper3.addContig(s5);
   cr1 = mapper3.getContig(0);
@@ -126,23 +179,6 @@ int main(int argc, char *argv[]) {
   mapper6.splitAndJoinContigs();
   assert(mapper6.contigs.size() == 2 ); // Two candidates for AAGX
 
-  char s10[] = "AGTCAGTTAAC";
-  char s11[] = "AACGTAGG";
-  mapper7.addContig(s10);
-  mapper7.addContig(s11);
-  cr1 = mapper7.getContig(0);
-  cr2 = mapper7.getContig(1);
-  cr1.ref.contig->cover(0,7);
-  cr1.ref.contig->cover(0,7);
-  
-  cr2.ref.contig->cover(0,4);
-  cr2.ref.contig->cover(0,4);
-
-  mapper7.splitAndJoinContigs();
-  assert(mapper7.contigs.size() == 2); // Two candidates for AACX
-  
-
-  
   
   cout << &argv[0][2] << " completed successfully" << endl;
 }

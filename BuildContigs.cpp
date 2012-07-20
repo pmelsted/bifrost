@@ -433,6 +433,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             /* We could use % covlength in the cover function instead of this if-else catastrophe */
             if (left < 0) {
               // Maps to a self-looping contig
+              // We have to update coverage "out of bounds" (out from the right continues at the beginning)
               assert(0 <= left + covlength);
               assert(cc.dist > 0); 
               contig->cover(0, right);
@@ -449,6 +450,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             /* We could use % covlength in the cover function instead of this if-else catastrophe */
             if (right >= covlength) {
               // Maps to a self-looping contig
+              // We have to update coverage "out of bounds" (out from the right continues at the beginning)
               assert(cc.dist > 0); 
               assert(right < 2*covlength);
               contig->cover(0, right - covlength);
@@ -472,6 +474,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   cerr << "Closed all fasta/fastq files" << endl;
 
   size_t contigsBefore = mapper.contigCount();
+  cerr << "Splitting and joining the contigs" << endl;
   pair<pair<size_t, size_t>, size_t> contigDiff = mapper.splitAndJoinContigs();
   int contigsAfter = contigsBefore + contigDiff.first.first - contigDiff.first.second - contigDiff.second;
   if (opt.verbose) {

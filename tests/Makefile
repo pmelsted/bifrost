@@ -21,7 +21,7 @@ profile: LDFLAGS += -p -g
 profile: clean
 profile: target
 
-OBJECTS = ../Kmer.o ../hash.o ../CompressedSequence.o ../Contig.o ../KmerMapper.o ../KmerIterator.o ../CompressedCoverage.o
+OBJECTS = ../Kmer.o ../hash.o ../CompressedSequence.o ../Contig.o ../KmerMapper.o ../KmerIterator.o ../CompressedCoverage.o ../ContigMethods.o ../FindContig.o
 
 KmerTest: KmerTest.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(OBJECTS) KmerTest.o $(LDFLAGS) -o KmerTest
@@ -66,6 +66,9 @@ CompressedCoverageTest.o: ../CompressedCoverage.o
 ../KmerMapper.o: ../KmerMapper.hpp ../KmerMapper.cpp
 ../KmerIterator.o: ../KmerIterator.hpp ../KmerIterator.cpp
 ../CompressedCoverage.o: ../CompressedCoverage.hpp ../CompressedCoverage.cpp
+../Contig.o: ../Contig.hpp ../Contig.cpp
+../ContigMethods.o: ../ContigMethods.hpp ../ContigMethods.cpp
+../FindContig.o: ../FindContig.hpp ../FindContig.cpp
 
 clean:
 	rm -rf *.o
