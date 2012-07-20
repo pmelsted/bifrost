@@ -18,8 +18,8 @@ all: CXXFLAGS += -O3
 all: target
 
 
-debug: CXXFLAGS += -g -O0
-debug: LDFLAGS += -g
+debug: CXXFLAGS += -gstabs+ -O0
+debug: LDFLAGS += -gstabs+
 debug: target
 
 profile: CXXFLAGS += -p -g -O2
