@@ -98,16 +98,19 @@ int main(int argc, char *argv[]) {
   splitMapper.addContig(splitContigString);
   ContigRef splitRef = splitMapper.getContig(0);
   Contig *splitContig = splitRef.ref.contig;
+  splitContig->cover(0,10);
   splitContig->cover(0,0);
-  splitContig->cover(0,3);
-  
   splitContig->cover(5,5);
-  splitContig->cover(5,5);
-  
-  splitContig->cover(10,10);
   splitContig->cover(10,10);
   
   splitMapper.map.set_deleted_key(km_del);
+  vector<pair<int, int> > spv = splitContig->ccov.splittingVector();
+  assert(spv[0].first == 0); 
+  assert(spv[0].second == 1); 
+  assert(spv[1].first == 5); 
+  assert(spv[1].second == 6); 
+  assert(spv[2].first == 10); 
+  assert(spv[2].second == 11); 
   pair<size_t, size_t> splitpair = splitMapper.splitContigs();
   assert(splitpair.first == 2);
   assert(splitpair.second == 0);

@@ -246,7 +246,14 @@ pair<size_t, size_t> CompressedCoverage::lowCoverageInfo() const {
   return make_pair(low, sum);
 }
 
-
+ 
+// use:  v = ccov.splittingVector();
+// pre:  ccov.isFull() == false
+// post: v is a vector of pairs (a1,b1), (a2,b2),...,(an,bn)
+//       where ai < aj if i < j 
+//         and bi < bj if i < j
+//       these pairs are all the fully covered subintervals of the corresponding contig
+//       i.e. [ai,...,bi-1] is fully covered
 vector<pair<int, int> > CompressedCoverage::splittingVector() const {
   size_t a = 0, b = 0, sz = size();
   vector<pair<int, int> > v;
