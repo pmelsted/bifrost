@@ -4,6 +4,8 @@
 #include <map>
 #include <sstream>
 
+// To debug the mapContigs method in the split and join phase
+bool splitPhase = false;
 
 // use:  delete m;
 // pre:  m is a pointer to a KmerMapper
@@ -45,35 +47,38 @@ size_t KmerMapper::addContig(const char *s) {
 }
 
 
-// use:  mapper.mapContig(id, len, s);
+// use:  mapper.mapContig(id, numkmers, s);
 // pre:  the contig whose string sequence is s has not been mapped before
-//       len is the number of kmers in the contig
+//       numkmers is the number of kmers in the contig
 // post: the contig has been mapped with the id: id
-void KmerMapper::mapContig(uint32_t id, size_t len, const char *s) {
-  bool last = false;
-  size_t pos, k = Kmer::k;
-  int32_t ipos;
-  for (pos = 0; pos < len; pos += 1) {
-    Kmer km(s + pos);                /* Remove this later */
-    assert(find(km).isEmpty());    /* Remove this later */
+void KmerMapper::mapContig(uint32_t id, int32_t numkmers, const char *s) {
+  int32_t pos, ipos;
+  size_t k = Kmer::k;
+
+  /* TODO: Delete this loop, it is just for debugging, pretty memory and time expensive */
+  if (splitPhase) {
+    for (pos = 0; pos < numkmers; pos += 1) {
+      Kmer km(s + pos);
+      Kmer rep = km.rep();
+      assert(find(rep).isEmpty());
+    }
   }
 
-  for (pos = 0; pos < len; pos += stride) {
+  // Map every stride-th kmer
+  for (pos = 0; pos < (numkmers -1); pos += stride) {
     Kmer km(s + pos);
     Kmer rep = km.rep();
-    ipos  = (km == rep) ? (int32_t) pos : -((int32_t)(pos + k - 1));
+    ipos = (km == rep) ? pos : -(pos + k - 1);
     map.insert(make_pair(rep, ContigRef(id, ipos)));    
   }
-  if ((len % stride) != 1) {
-    pos = len - 1;
-    Kmer km(s + pos);
-    Kmer rep = km.rep();
-    ipos  = (km == rep) ? (int32_t) pos : -((int32_t)(pos + k -1));
-    map.insert(make_pair(rep, ContigRef(id, ipos)));  
-  }
 
+  // Map the last kmer
+  pos = numkmers - 1;
+  Kmer km(s + pos);
+  Kmer rep = km.rep();
+  ipos = (km == rep) ? pos : -(pos + k -1);
+  map.insert(make_pair(rep, ContigRef(id, ipos)));  
 }
-
 
 // use:  cr = mapper.find(km);
 // pre:  
@@ -274,6 +279,7 @@ ContigRef KmerMapper::find_rep(ContigRef a) const {
 // post: The contigs in mapper have been splitted and joined
 //       d is the increase of contigs after split and join
 pair<pair<size_t, size_t>, size_t> KmerMapper::splitAndJoinContigs() {
+  splitPhase = true;
   Kmer km, rep, end, km_del;
   km_del.set_deleted();
   map.set_deleted_key(km_del);
@@ -378,8 +384,8 @@ pair<size_t, size_t> KmerMapper::splitContigs() {
       cstr = (char*) realloc(cstr, cstr_len);
     }
     
-    strcpy(cstr, c->seq.toString().c_str());
-    cstr[seqlength] = 0;
+    c->seq.toString(cstr);
+    assert(cstr[seqlength] == '\0');
 
     vector<pair<int, int> > v = c->ccov.splittingVector();
     pair<size_t, size_t> lowpair = c->ccov.lowCoverageInfo();
@@ -388,31 +394,40 @@ pair<size_t, size_t> KmerMapper::splitContigs() {
     size_t totalcoverage = c->coveragesum - lowsum;
 
     // unmap the contig
-    //for(size_t index = 0; index < numkmers; index += stride) { // use this when everything works
-    for(size_t index = 0; index < numkmers; ++index) {
-      Kmer km(&cstr[index]);
-      if ((index % stride) == 0) {
-        assert(!find(km).isEmpty());
-        Kmer rep = km.rep();
-        map.erase(rep);
-      } 
+    for (int index = 0; index < (numkmers -1); index += stride) {
+      Kmer km(cstr + index);
+      Kmer rep = km.rep();
+      assert(!find(km).isEmpty());
+      map.erase(rep);
       assert(find(km).isEmpty());
     }
-    if ((numkmers % stride) != 1) {
-      Kmer km(&cstr[numkmers-1]);
-      Kmer rep = km.rep();
-      map.erase(rep);
-    }
-    Kmer km(&cstr[numkmers-1]);
-    assert(find(km).isEmpty());
     
+    Kmer km(cstr + (numkmers - 1));
+    Kmer rep = km.rep();
+    map.erase(rep);
+    assert(find(km).isEmpty());
 
+    /* TODO: Delete this loop, it is just for debugging, pretty memory and time expensive */
+    for (int pos = 0; pos < numkmers; pos += 1) {
+      Kmer km(cstr + pos);
+      ContigRef found = find(km);
+      if (!found.isEmpty()) {
+        Contig *badContig = getContig(found).ref.contig;
+        fprintf(stderr, "How on earth? Kmer nr. %d in contig %s still maps???\n", pos, cstr);
+        fprintf(stderr, "It maps to this contig: %s\n", badContig->seq.toString().c_str());
+        fprintf(stderr, "Do we have to unmap all kmers ?\n");
+        assert(badContig == c); 
+        assert(0);
+      }
+    }
+    
     // add the subcontigs to contigs and map them
     if (v.size() == 0) {
       ++deleted;
     } else {
       splitted += v.size() - 1;
     }
+
     for(size_t index = 0; index < v.size(); ++index) {
       size_t a = v[index].first, b = v[index].second;
       string s(&cstr[a], (b - a) + k - 1);

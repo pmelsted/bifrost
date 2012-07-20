@@ -59,7 +59,7 @@ typedef google::sparse_hash_map<Kmer, ContigRef, KmerHash> hmap_contig_t;
 
   size_t addContig(const string &s);
   size_t addContig(const char *s);
-  void mapContig(uint32_t id, size_t len, const char *s);
+  void mapContig(uint32_t id, int32_t len, const char *s);
   
 
   ContigRef find(const Kmer km); // maybe change 
