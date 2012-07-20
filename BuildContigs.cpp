@@ -301,7 +301,9 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
       }
     }
     ++round;
-    cerr << "starting round " << round << endl;
+    if (read_chunksize > 1) {
+      //cerr << "starting round " << round << endl;
+    }
 
     #pragma omp parallel default(shared) private(kmernum,cmppos,smallv) shared(mapper,parray,readv,bf,reads_now,k)
     {
@@ -461,8 +463,10 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
     }
     
-    cerr << " end of round" << endl;
-    cerr << " processed " << mapper.contigCount() << " contigs" << endl;
+    if (read_chunksize > 1) {
+      cerr << " end of round" << endl;
+      cerr << " processed " << mapper.contigCount() << " contigs" << endl;
+    }
   }
   FQ.close();
   cerr << "Closed all fasta/fastq files" << endl;
