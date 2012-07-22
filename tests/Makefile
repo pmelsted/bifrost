@@ -71,4 +71,4 @@ CompressedCoverageTest.o: ../CompressedCoverage.o
 ../FindContig.o: ../FindContig.hpp ../FindContig.cpp
 
 clean:
-	rm -f *.o $(EXECUTABLES) 
+	rm -f *.o ../*.o $(EXECUTABLES) 

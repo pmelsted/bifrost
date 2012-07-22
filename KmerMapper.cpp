@@ -437,20 +437,20 @@ pair<size_t, size_t> KmerMapper::splitContigs() {
         if (!found.isEmpty()) {
           ContigRef justBefore = getContig(found);
           Contig *badContig = justBefore.ref.contig;
-          fprintf(stderr, "ERROR while splitting this contig: %s\n", cstr));
+          fprintf(stderr, "ERROR while splitting this contig: %s\n", cstr);
           fprintf(stderr, "Was going to make this contig: %s\n", s.c_str());
           fprintf(stderr, "Kmer nr. %d maps to this contig: %s\n", pos, badContig->seq.toString().c_str());
           fprintf(stderr, "nextid: %zu, id of the mapping contig: %u\n", nextid, justBefore.ref.idpos.id);
           fprintf(stderr, "The splitting vector is: ");
           for(size_t q = 0; q < v.size(); ++q) {
-            printf("(%d, %d) ", v[q].first, v[q].second);
+            fprintf(stderr, "(%d, %d) ", v[q].first, v[q].second);
           }
           fprintf(stderr, "\n");
           assert(0);
         }
       }
       assert(s[0] = cstr[a]);
-      assert(s[b - 1 - a + k] = '\0');
+      assert(s[b - 1 - a + k] == '\0');
       mapContig(nextid++, newc->numKmers(), s.c_str());
       }
 
