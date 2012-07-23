@@ -408,7 +408,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           // The contig has not been mapped so we map it and increase coverage
           // of the kmers that came from the read
           
-          size_t id = mapper.addContig(seq); 
+          size_t id = mapper.addContig(seq);
           contig = mapper.getContig(id).ref.contig;
           // Be careful here!! Is this definitiely updating coverage in the correct location??
           contig->cover(it->start,it->end);  
@@ -418,7 +418,11 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           size_t start = it->start, end = it->end;
           contig = mapper.getContig(cc.cr).ref.contig;
           size_t numkmers = contig->numKmers();
-          assert(it->seq.size() == numkmers + k - 1);
+          if (it->seq.size() != numkmers + k - 1) {
+            fprintf(stderr, "it->seq = %s , contig->seq = %s\nstart = %zu , end = %zu\n", 
+              it->seq.c_str(), contig->seq.toString().c_str(), start, end);
+            assert(0);
+          }
           for (size_t index = 0; index + start <= end; ++index) { 
             assert(index + start < numkmers);
             Kmer km(seq + index + start); 
