@@ -409,55 +409,35 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           // of the kmers that came from the read
           
           size_t id = mapper.addContig(seq); 
-
           contig = mapper.getContig(id).ref.contig;
-          size_t limit = it->end;
-          contig->cover(it->start,limit);
+          // Be careful here!! Is this definitiely updating coverage in the correct location??
+          contig->cover(it->start,it->end);  
         } else {
           // The contig has been mapped so we only increase the coverage of the
           // kmers that came from the read
+          size_t start = it->start, end = it->end;
           contig = mapper.getContig(cc.cr).ref.contig;
           int covlength = contig->numKmers();
+          for (size_t index = 0; index + start <= end; ++index) { 
+            Kmer km(seq + index + start); 
+            CheckContig cc = check_contig(bf, mapper, km);
 
-          int32_t pos = cc.cr.ref.idpos.pos;
-          bool repequal = (km == km.rep());
+            int32_t ccpos = cc.cr.ref.idpos.pos;
 
-          getMappingInfo(repequal, pos, cc.dist, kmernum, cmppos); // 
-          bool reversed = ((pos >= 0) != repequal);
-          size_t start = it->start, end = it->end;
-          if (reversed) {
-            assert(contig->seq.getKmer(kmernum) == km.twin());
-            kmernum -= it->start;
-            int left = kmernum - (end - start);
-            size_t right = kmernum;
-            /* We could use % covlength in the cover function instead of this if-else catastrophe */
-            if (left < 0) {
-              // Maps to a self-looping contig
-              // We have to update coverage "out of bounds" (out from the right continues at the beginning)
-              assert(0 <= left + covlength);
-              assert(cc.dist > 0); 
-              contig->cover(0, right);
-              contig->cover(left + covlength, covlength - 1);
+            getMappingInfo(cc.repequal, ccpos, cc.dist, kmernum, cmppos); // 
+            if (cc.repequal) {
+              assert(contig->seq.getKmer(kmernum) == km);
+              //kmernum -= it->start;
+              //int left = kmernum - (end - start);
+              //size_t right = kmernum;
             } else {
-              contig->cover(left, right);
+              assert(contig->seq.getKmer(kmernum) == km.twin());
+              //kmernum += it->start;
+              //size_t left = kmernum;
+              //size_t right = kmernum + end - start;
             }
-          }
-          else {
-            assert(contig->seq.getKmer(kmernum) == km);
-            kmernum += it->start;
-            size_t left = kmernum;
-            size_t right = kmernum + end - start;
-            /* We could use % covlength in the cover function instead of this if-else catastrophe */
-            if (right >= covlength) {
-              // Maps to a self-looping contig
-              // We have to update coverage "out of bounds" (out from the right continues at the beginning)
-              assert(cc.dist > 0); 
-              assert(right < 2*covlength);
-              contig->cover(0, right - covlength);
-              contig->cover(left, covlength - 1);
-            } else {
-              contig->cover(left, right);
-            }
+            //TODO: cover the chunks inside the contig
+            contig->cover(kmernum, kmernum);
           }
         }
       }
