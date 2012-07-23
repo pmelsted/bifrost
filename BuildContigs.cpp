@@ -361,7 +361,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               int32_t pos = cc.cr.ref.idpos.pos;
 
               getMappingInfo(cc.repequal, pos, cc.dist, kmernum, cmppos);
-              bool reversed = (pos >= 0) != cc.repequal;
+              bool reversed = ((pos >= 0) != cc.repequal);
               int jumpi = 1 + iter->second + contig->seq.jump(cstr, iter->second + k, cmppos, reversed);
 
               if (reversed) {
@@ -425,13 +425,14 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             int32_t ccpos = cc.cr.ref.idpos.pos;
 
             getMappingInfo(cc.repequal, ccpos, cc.dist, kmernum, cmppos); // 
-            if (cc.repequal) {
-              assert(contig->seq.getKmer(kmernum) == km);
+            bool reversed = (cc.repequal != (ccpos >= 0));
+            if (reversed) {
+              assert(contig->seq.getKmer(kmernum) == km.twin());
               //kmernum -= it->start;
               //int left = kmernum - (end - start);
               //size_t right = kmernum;
             } else {
-              assert(contig->seq.getKmer(kmernum) == km.twin());
+              assert(contig->seq.getKmer(kmernum) == km);
               //kmernum += it->start;
               //size_t left = kmernum;
               //size_t right = kmernum + end - start;
