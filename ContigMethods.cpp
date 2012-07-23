@@ -106,12 +106,13 @@ MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
   FindContig fc_fw = find_contig_forward(bf, km);
 
   if (fc_fw.selfloop == 1) {
+    fprintf(stderr, "Regular selfloop in the contig: %s\n", fc_fw.s.c_str());
     return MakeContig(fc_fw.s, 0); 
   } else if (fc_fw.selfloop == 2) {
     FindContig fc_bw = find_contig_forward(bf, km.twin());
-    Kmer realfirsttwin(fc_bw.s.substr(fc_bw.s.size() - k, k).c_str());
-    Kmer realfirst = realfirsttwin.twin();
+    Kmer realfirst = fc_bw.end.twin();
     fc_fw = find_contig_forward(bf, realfirst);
+    fprintf(stderr, "Reverse selfloop in the contig: %s\n", fc_fw.s.c_str());
     return MakeContig(fc_fw.s, fc_bw.s.size() - k); 
   }
 

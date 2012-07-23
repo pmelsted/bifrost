@@ -34,12 +34,9 @@ int main(int argc, char **argv) {
   fclose(f);
 
   /* Custom tests */
-  Kmer km1("GTATATATACTATATAGTATATATACTATAT");
-  Kmer km2("TATATATACTATATAGTATATATACTATATA");
-  string seq = "GTATATATACTATATAGTATATATACTATATAGTATATATA";
+  Kmer km1("ATATATACTATATAGTATATATACTATATAGTATATATAC");
+  //string seq = "GTATATATACTATATAGTATATATACTATATAGTATATATA";
   MakeContig mc = make_contig(BF, m, km1);
-  cout << mc.seq << endl;
-  mc = make_contig(BF, m, km2);
   cout << mc.seq << endl;
 
 
