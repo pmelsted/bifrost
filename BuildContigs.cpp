@@ -136,8 +136,8 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
          << ", need a number greater than 0" << endl;
     ret = false;
   } else if (opt.threads == 1) {
-    cerr << "Setting chunksize to 1 because of only 1 thread" << endl;
-    opt.read_chunksize = 1;
+    //cerr << "Setting chunksize to 1 because of only 1 thread" << endl;
+    //opt.read_chunksize = 1;
   }
 
   if (opt.k == 0 || opt.k >= MAX_KMER_SIZE) {
@@ -417,8 +417,10 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           // kmers that came from the read
           size_t start = it->start, end = it->end;
           contig = mapper.getContig(cc.cr).ref.contig;
-          int covlength = contig->numKmers();
+          size_t numkmers = contig->numKmers();
+          assert(it->seq.size() == numkmers + k - 1);
           for (size_t index = 0; index + start <= end; ++index) { 
+            assert(index + start < numkmers);
             Kmer km(seq + index + start); 
             CheckContig cc = check_contig(bf, mapper, km);
 
@@ -426,6 +428,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
             getMappingInfo(cc.repequal, ccpos, cc.dist, kmernum, cmppos); // 
             bool reversed = (cc.repequal != (ccpos >= 0));
+            assert(kmernum < numkmers);
             if (reversed) {
               assert(contig->seq.getKmer(kmernum) == km.twin());
               //kmernum -= it->start;
