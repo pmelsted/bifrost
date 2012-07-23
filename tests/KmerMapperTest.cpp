@@ -6,6 +6,7 @@
 #define private public 
 #include "../KmerMapper.hpp"
 #undef private
+#include "../ContigMethods.hpp"
 
 using namespace std;
 
@@ -181,6 +182,10 @@ int main(int argc, char *argv[]) {
   
   mapper6.splitAndJoinContigs();
   assert(mapper6.contigs.size() == 2 ); // Two candidates for AAGX
+
+
+  KmerMapper revself;
+
 
   
   cout << &argv[0][2] << " completed successfully" << endl;

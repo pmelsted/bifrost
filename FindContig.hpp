@@ -8,9 +8,9 @@
 struct FindContig {
   Kmer end;
   size_t dist;
-  bool selfloop;
+  int selfloop; // 0 for no selfloop, 1 for regular, 2 for reversed
   string s;
-  FindContig(Kmer km, size_t i, bool b, string _s) : end(km), dist(i), selfloop(b), s(_s) {}
+  FindContig(Kmer km, size_t i, int b, string _s) : end(km), dist(i), selfloop(b), s(_s) {}
 };
 
 bool isNeighbor(Kmer a, Kmer b);

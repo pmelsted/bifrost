@@ -25,7 +25,7 @@ FindContig find_contig_forward(BloomFilter &bf, Kmer km) {
   assert(bf.contains(km.rep()));
 
   int j;
-  bool selfloop = false;
+  int selfloop = 0;
   size_t i, dist = 1;
   
   Kmer first = km, end = km;
@@ -54,9 +54,14 @@ FindContig find_contig_forward(BloomFilter &bf, Kmer km) {
     Kmer fw = end.forwardBase(alpha[j]);
     assert(0 <= j && j < 4);
     assert(bf.contains(fw.rep()));
-    if (first == fw || firsttwin == fw) {
-      selfloop = true;
-      printf("Selfloop in the contig: %s\n", s.c_str());
+    if (first == fw) {
+      selfloop = 1;
+      printf("Regular selfloop in the contig: %s\n", s.c_str());
+      break;
+    }
+    if (firsttwin == fw) {
+      selfloop = 2;
+      printf("Reverse selfloop in the contig: %s\n", s.c_str());
       break;
     }
 

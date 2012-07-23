@@ -105,8 +105,14 @@ MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
   string seq;
   FindContig fc_fw = find_contig_forward(bf, km);
 
-  if (fc_fw.selfloop) {
+  if (fc_fw.selfloop == 1) {
     return MakeContig(fc_fw.s, 0); 
+  } else if (fc_fw.selfloop == 2) {
+    FindContig fc_bw = find_contig_forward(bf, km.twin());
+    Kmer realfirsttwin(fc_bw.s.substr(fc_bw.s.size() - k, k).c_str());
+    Kmer realfirst = realfirsttwin.twin();
+    fc_fw = find_contig_forward(bf, realfirst);
+    return MakeContig(fc_fw.s, fc_bw.s.size() - k); 
   }
 
   FindContig fc_bw = find_contig_forward(bf, km.twin());

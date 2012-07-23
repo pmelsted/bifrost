@@ -5,7 +5,7 @@ CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -fPIC
 LDFLAGS =
 
 EXECUTABLES = KmerTest KmerTestExtended CompressedSequenceTest BloomFilterTest BlockedBloomFilterTest KmerMapperTest KmerIteratorTest \
-			  CompressedCoverageTest
+			  CompressedCoverageTest ContigMethodsTest
 
 all: CXXFLAGS += -O3
 all: target
@@ -46,6 +46,10 @@ KmerIteratorTest: KmerIteratorTest.o $(OBJECTS)
 
 CompressedCoverageTest: CompressedCoverageTest.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(OBJECTS) CompressedCoverageTest.o $(LDFLAGS) -o CompressedCoverageTest
+
+ContigMethodsTest: ContigMethodsTest.o $(OBJECTS)
+	$(CC) $(INCLUDES) $(OBJECTS) ContigMethodsTest.o $(LDFLAGS) -o ContigMethodsTest
+
 
 KmerTest.o: ../Kmer.o ../hash.o
 KmerTestExtended.o: ../Kmer.o ../hash.o

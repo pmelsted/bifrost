@@ -7,4 +7,5 @@ KmerMapperTest
 KmerIteratorTest
 SimpleMultithreadTest
 CompressedCoverageTest
+ContigMethodsTest
 *.txt
