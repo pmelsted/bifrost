@@ -27,8 +27,9 @@ struct CheckContig {
 
 struct MakeContig {
   string seq;
+  int selfloop; // 0 for no selfloop, 1 for regular, 2 for reversed
   size_t pos;
-  MakeContig(string s, size_t i) : seq(s), pos(i) {}
+  MakeContig(string s, int l, size_t p) : seq(s), selfloop(l), pos(p) {}
 };
 
 /* Methods for Contig and Kmer information and mapping */

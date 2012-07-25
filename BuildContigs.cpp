@@ -335,6 +335,10 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             if (cc.cr.isEmpty()) {
               // Map contig (or increase coverage) from this sequence after this thread finishes
               MakeContig mc = make_contig(bf, mapper, km);
+              if (mc.selfloop > 0) {
+                fprintf(stderr, "made (in thread %zu) this self-looping (%d) contig: %s from this kmer: %s from this read: %s\n",
+                    threadnum, mc.selfloop, mc.seq.c_str(), km.toString().c_str(), cstr);
+              }
               string seq = mc.seq;
               
               size_t index = iter->second;

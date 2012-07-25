@@ -104,21 +104,20 @@ MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
   size_t k = Kmer::k;
   string seq;
   FindContig fc_fw = find_contig_forward(bf, km);
+  int selfloop = fc_fw.selfloop;
 
-  if (fc_fw.selfloop == 1) {
-    fprintf(stderr, "Regular selfloop in the contig: %s\n", fc_fw.s.c_str());
-    return MakeContig(fc_fw.s, 0); 
-  } else if (fc_fw.selfloop == 2) {
-    FindContig fc_bw = find_contig_forward(bf, km.twin());
-    Kmer realfirst = fc_bw.end.twin();
-    fc_fw = find_contig_forward(bf, realfirst);
-    fprintf(stderr, "Reverse selfloop in the contig: %s\n", fc_fw.s.c_str());
-    return MakeContig(fc_fw.s, fc_bw.s.size() - k); 
-  }
+  if (selfloop == 1) {
+    return MakeContig(fc_fw.s, selfloop, 0); 
+  } 
 
   FindContig fc_bw = find_contig_forward(bf, km.twin());
   ContigRef cr_tw_end = mapper.find(fc_bw.end);
   assert(cr_tw_end.isEmpty());
+  assert(fc_bw.selfloop != 1);
+
+  if (fc_bw.selfloop > 0) {
+    selfloop = fc_bw.selfloop;
+  }
 
   if (fc_bw.dist > 1) {
     seq.reserve(fc_bw.s.size() + fc_fw.s.size() - k);
@@ -131,5 +130,5 @@ MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
     seq = fc_fw.s;
   }
 
-  return MakeContig(seq, fc_bw.dist - 1);
+  return MakeContig(seq, selfloop, fc_bw.dist - 1);
 }

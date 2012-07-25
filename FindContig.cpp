@@ -2,6 +2,7 @@
 #include <cstdio>
 #include "FindContig.hpp"
 
+
 // use:  r = isNeighbor(a,b)
 // pre:
 // post: r is true if a[1:k-1]+c == b for some c
@@ -14,7 +15,8 @@ bool isNeighbor(Kmer a, Kmer b) {
   return false;
 }
 
-// use:  fc = find_contig_forward(bf,km,s);
+
+// use:  fc = find_contig_forward(bf, km);
 // pre:  
 // post: km is contained in a contig c with respect to the
 //       bloom filter graph bf and fc.end is the forward endpoint (wrt km direction)
@@ -30,6 +32,7 @@ FindContig find_contig_forward(BloomFilter &bf, Kmer km) {
   
   Kmer first = km, end = km;
   Kmer firsttwin = first.twin();
+  
   string s = km.toString();
   
   while (true) {
@@ -54,11 +57,12 @@ FindContig find_contig_forward(BloomFilter &bf, Kmer km) {
     Kmer fw = end.forwardBase(alpha[j]);
     assert(0 <= j && j < 4);
     assert(bf.contains(fw.rep()));
+
     if (first == fw) {
       selfloop = 1;
       break;
     }
-    if (firsttwin == fw) {
+    if (end.twin() == fw) {
       selfloop = 2;
       break;
     }
