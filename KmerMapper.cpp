@@ -5,7 +5,7 @@
 #include <sstream>
 
 // To debug the mapContigs method in the split and join phase
-bool splitPhase = false;
+//bool splitPhase = false;
 
 // use:  delete m;
 // pre:  m is a pointer to a KmerMapper
@@ -56,6 +56,7 @@ void KmerMapper::mapContig(uint32_t id, int32_t numkmers, const char *s) {
   size_t k = Kmer::k;
 
   /* TODO: Delete this loop, it is just for debugging, pretty memory and time expensive */
+  /*
   if (splitPhase) {
     for (pos = 0; pos < numkmers; pos += 1) {
       Kmer km(s + pos);
@@ -70,6 +71,7 @@ void KmerMapper::mapContig(uint32_t id, int32_t numkmers, const char *s) {
       }
     }
   }
+  */
 
   // Map every stride-th kmer
   for (pos = 0; pos < (numkmers -1); pos += stride) {
@@ -286,7 +288,7 @@ ContigRef KmerMapper::find_rep(ContigRef a) const {
 // post: The contigs in mapper have been splitted and joined
 //       d is the increase of contigs after split and join
 pair<pair<size_t, size_t>, size_t> KmerMapper::splitAndJoinContigs() {
-  splitPhase = true;
+  //splitPhase = true;
   Kmer km, rep, end, km_del;
   km_del.set_deleted();
   map.set_deleted_key(km_del);
@@ -431,6 +433,7 @@ pair<size_t, size_t> KmerMapper::splitContigs() {
       contigs.push_back(newcr);
       
       /* TODO: Delete this loop, it is just for debugging, pretty memory and time expensive */
+      /*
       for (int pos = a; pos < b; pos += 1) {
         Kmer km(cstr + pos);
         ContigRef found = find(km);
@@ -449,7 +452,8 @@ pair<size_t, size_t> KmerMapper::splitContigs() {
           assert(0);
         }
       }
-      assert(s[0] = cstr[a]);
+      */
+      assert(s[0] == cstr[a]);
       assert(s[b - 1 - a + k] == '\0');
       mapContig(nextid++, newc->numKmers(), s.c_str());
       }
