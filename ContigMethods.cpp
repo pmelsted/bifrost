@@ -138,7 +138,7 @@ MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
 
   if (fc_bw.selfloop == 0) {
     // (selfloop == 0) => Case 0
-    // (selfloop == 2) => Case 2c
+    // (selfloop == 2) => Case 2a
   } else if (fc_bw.selfloop == 1) { 
     // Case 1
     // Since selfloop != 1, there are two connections from km, into the loop and out of it
