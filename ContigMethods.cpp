@@ -114,12 +114,12 @@ MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
     // We don't want to grow the contig backwards, it would duplicate kmers
     return MakeContig(fc_fw.s, selfloop, 0); 
   } else if (selfloop == 2) {
-    // Reverse self-looped found on forward strand but maybe we don't have all the contig yet
+    // Reverse self-loop found on forward strand but maybe we don't have all the contig yet
     // Reversely self-looped contigs can namely behave in three ways:
     // Case 2a) firstkm -> ... -> lastkm -> twin(lastkm) -> ... -> twin(firstkm)
     // Case 2b) twin(lastkm) -> ... -> twin(firstkm) -> firstkm -> ... -> lastkm
     // Case 2c) firstkm -> ... -> lastkm -> twin(lastkm) -> ... -> twin(firstkm) -> firstkm -> ... -> lastkm -> ... (can repeat infinitely)
-    // We continue backwards because km is maybe not equal to firstkm
+    // We now explore the kmers behind km, because km might not be equal to firstkm
   } 
 
   FindContig fc_bw = find_contig_forward(bf, km.twin());
