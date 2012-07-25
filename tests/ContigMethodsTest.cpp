@@ -34,10 +34,25 @@ int main(int argc, char **argv) {
   fclose(f);
 
   /* Custom tests */
-  Kmer km1("ATATATACTATATAGTATATATACTATATAGTATATATAC");
+  //Kmer km1("ATATATACTATATAGTATATATACTATATAGTATATATAC");
+  char s[] = "ATATATACTATATAGTATATATACTATATAGTATATATAC";
+  int len = strlen(s);
+  for(int i=0; i+31 <= len; ++i) {
+    Kmer km(s + i);
+    MakeContig mc = make_contig(BF, m, km);
+    printf("km: %s contig: %s\n", km.toString().c_str(), mc.seq.c_str());
+    /*
+    FindContig fc1 =  find_contig_forward(BF, km);
+    printf("sl: %d km: %s seq: %s\n", fc1.selfloop, km.toString().c_str(), fc1.s.c_str());
+    if (fc1.selfloop == 2) {
+        Kmer end =  find_contig_forward(BF, km.twin()).end.twin();
+        printf("end=%s\n", end.toString().c_str());
+        FindContig fc2 =  find_contig_forward(BF, end);
+        printf("Contig after end trix seq: %s\n", fc2.s.c_str());
+    }
+    */
+  }
   //string seq = "GTATATATACTATATAGTATATATACTATATAGTATATATA";
-  MakeContig mc = make_contig(BF, m, km1);
-  cout << mc.seq << endl;
 
 
   
