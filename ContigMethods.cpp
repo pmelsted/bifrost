@@ -101,46 +101,57 @@ CheckContig check_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
 //       which contains km  according to the bloom filter bf and puts it into mc.seq
 //       mc.pos is the position where km maps into this contig
 MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
+  /** There are several cases here:
+   *
+   * Case 0: Regular contig, no self-loops
+   * Case 1: Self-looping contig:  firstkm -> ... -> lastkm -> firstkm -> ... ->lastkm
+   * Case 2: Reversely self-looping contigs:
+   *  a) firstkm -> ... -> lastkm -> twin(lastkm) -> ... -> twin(firstkm)
+   *  b) twin(lastkm) -> ... -> twin(firstkm) -> firstkm -> ... -> lastkm
+   *  c) firstkm -> ... -> lastkm -> twin(lastkm) -> ... -> twin(firstkm) -> firstkm -> ... -> lastkm -> ... (can repeat infinitely)
+   *
+   **/
+
   size_t k = Kmer::k;
   string seq;
   FindContig fc_fw = find_contig_forward(bf, km);
   int selfloop = fc_fw.selfloop;
 
   if (selfloop == 0) {
-    // Case 0: Regular contig, grow it backwards if possible
+    // Case 0, Case 1 or Case 2b 
+    // No reverse self-loop on forward strand or two connections from km
   } else if (selfloop == 1) {
-    // Found a regular self-looping contig: 
-    // Case 1: firstkm -> ... ->lastkm -> firstkm -> ... ->lastkm
+    // Case 1
     // We don't want to grow the contig backwards, it would duplicate kmers
     return MakeContig(fc_fw.s, selfloop, 0); 
   } else if (selfloop == 2) {
-    // Reverse self-loop found on forward strand but maybe we don't have all the contig yet
-    // Reversely self-looped contigs can namely behave in three ways:
-    // Case 2a) firstkm -> ... -> lastkm -> twin(lastkm) -> ... -> twin(firstkm)
-    // Case 2b) twin(lastkm) -> ... -> twin(firstkm) -> firstkm -> ... -> lastkm
-    // Case 2c) firstkm -> ... -> lastkm -> twin(lastkm) -> ... -> twin(firstkm) -> firstkm -> ... -> lastkm -> ... (can repeat infinitely)
-    // We now explore the kmers behind km, because km might not be equal to firstkm
+    // Case 2a or Case 2c
+    // Reverse self-loop found on forward strand
+    // Maybe we don't have all the contig yet, because km might not be equal to 
+    // firstkm as described in Case 2a and Case 2c above
   } 
 
   FindContig fc_bw = find_contig_forward(bf, km.twin());
   ContigRef cr_tw_end = mapper.find(fc_bw.end);
   assert(cr_tw_end.isEmpty());
 
-  if (fc_bw.selfloop == 1) { 
-    // According to the BF, km is contained in a regularly self-looping contig. 
-    // Since fc_fw.selfloop != 1 there are two connections from km, into the loop or out of it
-    // We although have: Case 1
-    assert(fc_fw.dist == 1);  
-  }
 
-  if (fc_bw.selfloop == 2) {
+  if (fc_bw.selfloop == 0) {
+    // (selfloop == 0) => Case 0
+    // (selfloop == 2) => Case 2c
+  } else if (fc_bw.selfloop == 1) { 
+    // Case 1
+    // Since selfloop != 1, there are two connections from km, into the loop and out of it
+    assert(selfloop == 0);
+    assert(fc_fw.dist == 1);  
+  } else if (fc_bw.selfloop == 2) {
     // Reverse self-loop found on backward strand
-    // if selfloop == 0 we have Case 2b
-    // if selfloop == 2 we have Case 2c
+    // (selfloop == 0) => Case 2a
+    // (selfloop == 2) => Case 2c
     selfloop = fc_bw.selfloop;
   }
 
-  // post: seq == twin(fc_bw.s)[:-k] + fc_fw.s
+  // After: seq == twin(fc_bw.s)[:-k] + fc_fw.s
   if (fc_bw.dist > 1) {
     seq.reserve(fc_bw.s.size() + fc_fw.s.size() - k);
     for (size_t j = fc_bw.s.size() - 1; j >= k; --j) {

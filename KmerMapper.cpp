@@ -532,6 +532,8 @@ void KmerMapper::writeContigs(FILE* contigfile, FILE* graphfile) {
 
     Kmer first = c->seq.getKmer(0);
     Kmer last = c->seq.getKmer(c->length() - k);
+    
+    // TODO: If a contig maps into a self-looping contig, print special info
     for (size_t i=0; i<4; ++i) {
       Kmer bw = first.backwardBase(alpha[i]);
       ContigRef prevcr = find(bw);
@@ -556,7 +558,8 @@ void KmerMapper::writeContigs(FILE* contigfile, FILE* graphfile) {
         }
       }
     }
-
+    
+    // TODO: If a contig maps into a self-looping contig, print special info
     for (size_t i=0; i<4; ++i) {
       Kmer fw = last.forwardBase(alpha[i]);
       ContigRef fwcr = find(fw);
