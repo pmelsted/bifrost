@@ -61,7 +61,6 @@ def createDict(prefix):
     firsts = {}
     lasts = {}
     for i in xrange(contigcount):
-        assert clines[2*i] == ">contig%d" % i
         s = clines[1 + 2*i]
         contigs.append(Contig(i, s))
 
