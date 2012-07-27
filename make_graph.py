@@ -74,14 +74,14 @@ def createDict(prefix):
 
 
     for i in xrange(contigcount):
-        line = glines[1 + 3*i].split(" ")
+        line = glines[1 + 5*i].split("_")
         assert int(line[0]) == i
         length = int(line[1])
         ratio = float(line[2])
-        bwcount = int(line[3])
-        fwcount = int(line[4])
-        bw = map(int, glines[2 + 3*i].split(" ")) if bwcount else []
-        fw = map(int, glines[3 + 3*i].split(" ")) if fwcount else []
+        bw = map(int, glines[2 + 5*i].split(" ")) if glines[2 + 5*i] else []
+        fw = map(int, glines[3 + 5*i].split(" ")) if glines[3 + 5*i] else []
+        ibw = map(int, glines[4 + 5*i].split(" ")) if glines[4+ 5*i] else []
+        ifw = map(int, glines[5 + 5*i].split(" ")) if glines[5 + 5*i]  else []
         c = contigs[i]
         c.addinfo(length, ratio, bw, fw)
         s = c.bases

@@ -5,6 +5,7 @@
 #include <functional>
 #include <getopt.h>
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include <stdint.h>
 #include <string>
@@ -27,19 +28,18 @@ struct BuildContigs_ProgramOptions {
   bool verbose;
   size_t threads, k;
   string freads, output, contigfilename, graphfilename;
-  FILE *contigfile, *graphfile;
   size_t stride;
   bool stride_set;
   size_t read_chunksize;
   size_t contig_size; // not configurable
   vector<string> files;
   BuildContigs_ProgramOptions() : verbose(false), threads(1), k(0), stride(0), stride_set(false), \
-                                  contigfile(NULL), graphfile(NULL), read_chunksize(1000), contig_size(1000000) {}
+                                  read_chunksize(1000), contig_size(1000000) {}
 };
 
 // use:  BuildContigs_PrintUsage();
 // pre:   
-// post: Information about how to "build contigs" has been inted to cerr
+// post: Information about the correct parameters to build contigs has been printed to cerr
 void BuildContigs_PrintUsage() {
   cerr << endl << "BFGraph " << BFG_VERSION << endl;
   cerr << "Creates contigs from filtered fasta/fastq files and saves results" << endl << endl;
@@ -158,17 +158,22 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
   
   opt.contigfilename = opt.output + ".contigs";
   opt.graphfilename = opt.output + ".graph";
-  opt.contigfile = fopen(opt.contigfilename.c_str(), "w");
-  opt.graphfile = fopen(opt.graphfilename.c_str(), "w"); 
   
-  if (opt.contigfile == NULL) {                                                                                                                  
-    cerr << "Error: Could not open file for writing, " << opt.contigfile << endl;
+  FILE *fp;
+  if ((fp = fopen(opt.contigfilename.c_str(), "w")) == NULL) {
+    cerr << "Error: Could not open file for writing: " << opt.contigfilename << endl;
     ret = false;
-  } 
-  if (opt.graphfile == NULL) {
-    cerr << "Error: Could not open file for writing, " << opt.graphfile << endl;
+  } else {
+    fclose(fp);
+  }
+
+
+  if ((fp = fopen(opt.graphfilename.c_str(), "w")) == NULL) {
+    cerr << "Error: Could not open file for writing: " << opt.graphfilename << endl;
     ret = false;
-  } 
+  } else {
+    fclose(fp);
+  }
 
   
   if (opt.stride_set) {
@@ -468,10 +473,10 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   size_t contigsBefore = mapper.contigCount();
   cerr << "Splitting and joining the contigs" << endl;
   pair<pair<size_t, size_t>, size_t> contigDiff = mapper.splitAndJoinContigs();
-  int contigsAfter = contigsBefore + contigDiff.first.first - contigDiff.first.second - contigDiff.second;
+  int contigsAfter1 = contigsBefore + contigDiff.first.first - contigDiff.first.second - contigDiff.second;
   if (opt.verbose) {
     cerr << "Before split and join: " << contigsBefore << " contigs" << endl;
-    cerr << "After split and join: " << contigsAfter << " contigs" <<  endl;
+    cerr << "After split and join: " << contigsAfter1 << " contigs" <<  endl;
     cerr << "Contigs splitted: " << contigDiff.first.first << endl;
     cerr << "Contigs deleted: " << contigDiff.first.second << endl;
     cerr << "Contigs joined: " << contigDiff.second << endl;
@@ -479,13 +484,12 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     printMemoryUsage(bf, mapper);
   }
 
-  mapper.writeContigs(opt.contigfile, opt.graphfile);
+  int contigsAfter2 = mapper.writeContigs(contigsAfter1, opt.contigfilename, opt.graphfilename);
   cerr << "Writing contigs to file: " << opt.contigfilename << endl
        << "Writing the graph to file: " << opt.graphfilename << endl;
 
-  fclose(opt.contigfile);
-  fclose(opt.graphfile);
   delete [] parray;
+  assert(contigsAfter1 == contigsAfter2);
 }
 
 

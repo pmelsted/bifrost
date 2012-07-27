@@ -73,7 +73,7 @@ typedef google::sparse_hash_map<Kmer, ContigRef, KmerHash> hmap_contig_t;
 
   void printContig(const size_t id);
   void printContigs();
-  void writeContigs(FILE *contigfile, FILE *graphfile);
+  int writeContigs(int count1, string contigfilename, string graphfilename);
 
   int joinContigs(ContigRef a, ContigRef b);
   size_t joinContigs();

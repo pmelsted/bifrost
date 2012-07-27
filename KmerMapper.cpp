@@ -1,7 +1,7 @@
 #include "KmerMapper.hpp"
 #include <cmath>
 #include <iostream>
-#include <map>
+#include <fstream>
 #include <sstream>
 
 // To debug the mapContigs method in the split and join phase
@@ -413,7 +413,6 @@ pair<size_t, size_t> KmerMapper::splitContigs() {
     Kmer rep = km.rep();
     map.erase(rep);
 
-    
     // add the subcontigs to contigs and map them
     if (v.size() == 0) {
       ++deleted;
@@ -481,115 +480,100 @@ void KmerMapper::printContigs() {
 }
 
 
-// use:  mapper.writeContigs(contigfile, graphfile);
-// pre:  contigfile and graphfile are file pointers, not NULL
+// use:  count2 = mapper.writeContigs(count1, contigfilename, graphfilename);
+// pre:  the program has permissions to open contigfilename name graphfilename 
 // post: all the contigs have been written to contigfile
 //       the De Brujin graph has been written to graphfile
-void KmerMapper::writeContigs(FILE* contigfile, FILE* graphfile) {
-  /* 
-  --- graphfile:
-  contigcount kmersize                    (only in the first line of the file)
-  id length ratio bwcount fwcount
-  bw1 bw2 bw3 bw4                         (at most 4)
-  fw1 fw2 fw3 fw4                         (at most 4)
-  ...
+//       count2 is the number of real contigs and should be the same as count1
+int KmerMapper::writeContigs(int count1, string contigfilename, string graphfilename) {
+  /* This is the schema for the outputfiles: 
+    --- graphfile:
+    contigcount kmersize                    (only in the first line of the file)
+    id_length_ratio
+    bw1 bw2 bw3 bw4                         (at most 4) // Backward maps
+    fw1 fw2 fw3 fw4                         (at most 4) // Forward maps
+    ibw1 ibw2 ibw3 ibw4                     (at most 4) // Irregular backward maps
+    ifw1 ifw2 ifw3 ifw4                     (at most 4) // Irregular forward maps
+    ...
 
-  --- contigfile:
-  >contigID
-  sequence
-  ...
+    --- contigfile:
+    >contigID
+    sequence
+    ...
   */
+  ofstream contigfile, graphfile;
+  contigfile.open(contigfilename.c_str());
+  graphfile.open(graphfilename.c_str());
+  assert(!contigfile.fail() && !graphfile.fail());
 
-  if (contigfile == NULL) {
-    cerr << "Could not open file for writing, " << contigfile << endl;
-    exit(1);
-  } else if (graphfile == NULL) {
-    cerr << "Could not open file for writing, " << graphfile << endl;
-    exit(1);
-  } 
-
-  std::map<size_t,size_t> newids;
-  size_t nextid = 0, k = Kmer::k;
+  size_t k = Kmer::k;
+  int count2 = 0;
   size_t contigcount = contigs.size();
-  vector<ContigRef> realrefs;
-  for(size_t contigid = 0; contigid < contigcount; ++contigid) {
-    ContigRef cr = contigs[contigid];
-    if (cr.isContig && !cr.isEmpty()) {
-      realrefs.push_back(cr);
-      newids[contigid] = nextid++;
+ 
+  graphfile << count1 << " " << k << endl; 
+
+  for(size_t id = 0; id < contigcount; ++id) {
+    ContigRef cr = contigs[id];
+    if (!cr.isContig || cr.isEmpty()) {
+      continue;
     }
-  }
+    ++count2;
 
-  fprintf(graphfile, "%zu %zu\n", nextid, k);
-  for(size_t id = 0; id < nextid; ++id) {
-    ContigRef cr = realrefs[id];
     Contig *c = cr.ref.contig;
-    stringstream infoss, bwss, fwss;
-    size_t length = c->length(), fwcount = 0, bwcount = 0;
-    size_t numkmers = length - k + 1, coveragesum = c->coveragesum;
+   
+    size_t length = c->length(), numkmers = length - k + 1, coveragesum = c->coveragesum;
     float ratio = coveragesum / (0.0 + numkmers);
-    infoss << id << " " <<  length << " " << ratio << " ";
-
-    Kmer first = c->seq.getKmer(0);
-    Kmer last = c->seq.getKmer(c->length() - k);
     
-    // TODO: If a contig maps into a self-looping contig, print special info
+    Kmer first = c->seq.getKmer(0), last = c->seq.getKmer(length - k);
+    
+    contigfile << ">contig" << id << endl << c->seq.toString() << endl;
+    graphfile << id << "_" <<  length << "_" << ratio << endl;
+    stringstream irrmaps;
+
+    
     for (size_t i=0; i<4; ++i) {
       Kmer bw = first.backwardBase(alpha[i]);
       ContigRef prevcr = find(bw);
       if (!prevcr.isEmpty()) {
         Contig *oc = getContig(prevcr).ref.contig;
+        size_t oid = prevcr.ref.idpos.id;
         Kmer oFirst = oc->seq.getKmer(0);
         Kmer oLast = oc->seq.getKmer(oc->length() - k);
         if (isNeighbor(oLast, first) || isNeighbor(oFirst.twin(), first)) { 
-          bwss << newids[prevcr.ref.idpos.id] << " ";
-          ++bwcount;
+          graphfile << oid << " ";
         } else {
-          cerr << "Weird backward map (maybe to a self-looping contig?):" << endl;
-          cerr << "c: " << c->seq.toString() << endl;
-          cerr << "oc: " << oc->seq.toString() << endl;
-          cerr << "first: " << first.toString() << endl;
-          cerr << "last: " << last.toString() << endl;
-          cerr << "oFirst: " << oFirst.toString() << endl;
-          cerr << "olast: " << oLast.toString() << endl;
-          // We don't want this to be in the middle somewhere
-          // We don't want this to be in the middle somewhere // No that is okay if it maps to self looped contig
-          //assert(isNeighbor(oLast.twin(), first) || isNeighbor(oFirst, first));
+          irrmaps << oid << " ";
+          cerr << "Irregular backward map: " << oid << " -> " << id << endl;
         }
       }
     }
-    
-    // TODO: If a contig maps into a self-looping contig, print special info
+
+    irrmaps << endl;
+    graphfile << endl;
+
     for (size_t i=0; i<4; ++i) {
       Kmer fw = last.forwardBase(alpha[i]);
       ContigRef fwcr = find(fw);
       if (!fwcr.isEmpty()) {
         Contig *oc = getContig(fwcr).ref.contig;
+        size_t oid = fwcr.ref.idpos.id;
         Kmer oFirst = oc->seq.getKmer(0);
         Kmer oLast = oc->seq.getKmer(oc->length() - k);
         if (isNeighbor(last, oFirst) || isNeighbor(last, oLast.twin())) {
-          fwss << newids[fwcr.ref.idpos.id] << " ";
-          ++fwcount;
+          graphfile << oid << " ";
         } else {
-          cerr << "Weird forward map (maybe to a self-looping contig?):" << endl;
-          cerr << "c: " << c->seq.toString() << endl;
-          cerr << "oc: " << oc->seq.toString() << endl;
-          cerr << "first: " << first.toString() << endl;
-          cerr << "last: " << last.toString() << endl;
-          cerr << "oFirst: " << oFirst.toString() << endl;
-          cerr << "olast: " << oLast.toString() << endl;
-          // We don't want this to be in the middle somewhere // No that is okay if it maps to self looped contig
-          //assert(isNeighbor(last, oFirst.twin()) || isNeighbor(last, oLast));
+          irrmaps << oid << " ";
+          cerr << "Irregular forward map: " << id << " -> " << oid << endl;
         }
       }
     }
-    bwss << endl;
-    fwss << endl;
-    infoss << bwcount << " " << fwcount << endl;
 
-    fprintf(contigfile, ">contig%zu\n%s\n", id, c->seq.toString().c_str());
-    fprintf(graphfile, "%s%s%s", infoss.str().c_str(), bwss.str().c_str(), fwss.str().c_str());
+    graphfile << endl << irrmaps.str() << endl;
   }
+  
+  contigfile.close();
+  graphfile.close();
+  return count2;
 }
 
 size_t KmerMapper::memory() const {
