@@ -510,7 +510,7 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
   int count2 = 0;
   size_t contigcount = contigs.size();
  
-  graphfile << count1 << " " << k << endl; 
+  graphfile << count1 << " " << k << "\n"; 
 
   for(size_t id = 0; id < contigcount; ++id) {
     ContigRef cr = contigs[id];
@@ -526,9 +526,9 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
     
     Kmer first = c->seq.getKmer(0), last = c->seq.getKmer(length - k);
     
-    contigfile << ">contig" << id << endl << c->seq.toString() << endl;
-    graphfile << id << "_" <<  length << "_" << ratio << endl;
+    contigfile << ">contig" << id << "\n" << c->seq.toString() << "\n";
     stringstream irrmaps;
+    graphfile << id << "_" <<  length << "_" << ratio << "\n";
 
     
     for (size_t i=0; i<4; ++i) {
@@ -548,8 +548,8 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
       }
     }
 
-    irrmaps << endl;
-    graphfile << endl;
+    graphfile << "\n";
+    irrmaps << "\n";
 
     for (size_t i=0; i<4; ++i) {
       Kmer fw = last.forwardBase(alpha[i]);
@@ -568,11 +568,12 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
       }
     }
 
-    graphfile << endl << irrmaps.str() << endl;
+    graphfile << "\n" << irrmaps.str() << "\n";
   }
-  
-  contigfile.close();
-  graphfile.close();
+
+  // Flush and close
+  contigfile.close(); 
+  graphfile.close();  
   return count2;
 }
 

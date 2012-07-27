@@ -427,11 +427,15 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           size_t start = it->start, end = it->end;
           contig = mapper.getContig(cc.cr).ref.contig;
           size_t numkmers = contig->numKmers();
+
           if (it->seq.size() != numkmers + k - 1) {
             fprintf(stderr, "it->seq = %s , contig->seq = %s\nstart = %zu , end = %zu\n", 
               it->seq.c_str(), contig->seq.toString().c_str(), start, end);
             assert(0);
           }
+          
+
+          /* TODO: Update this in chunks */
           for (size_t index = 0; index + start <= end; ++index) { 
             assert(index + start < numkmers);
             Kmer km(seq + index + start); 
@@ -484,9 +488,9 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     printMemoryUsage(bf, mapper);
   }
 
-  int contigsAfter2 = mapper.writeContigs(contigsAfter1, opt.contigfilename, opt.graphfilename);
   cerr << "Writing contigs to file: " << opt.contigfilename << endl
        << "Writing the graph to file: " << opt.graphfilename << endl;
+  int contigsAfter2 = mapper.writeContigs(contigsAfter1, opt.contigfilename, opt.graphfilename);
 
   delete [] parray;
   assert(contigsAfter1 == contigsAfter2);
