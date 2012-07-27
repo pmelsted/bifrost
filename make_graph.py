@@ -56,13 +56,15 @@ def createDict(prefix):
 
     contigcount, KMERSIZE = map(int, glines[0].split(" "))
 
-    contigs = []
+    contigs = {}
 
     firsts = {}
     lasts = {}
-    for i in xrange(contigcount):
-        s = clines[1 + 2*i]
-        contigs.append(Contig(i, s))
+    for j in xrange(contigcount):
+        # i is the id of the contig
+        i = int(clines[2*j][7:])
+        s = clines[1 + 2*j]
+        contigs[i] = Contig(i, s)
 
         # For asserting that the fw and bw contigs are right
         first = s[:KMERSIZE]
@@ -72,15 +74,16 @@ def createDict(prefix):
 
 
 
-    for i in xrange(contigcount):
-        line = glines[1 + 5*i].split("_")
-        assert int(line[0]) == i
+    for j in xrange(contigcount):
+        # i is the id of the contig
+        line = glines[1 + 5*j].split("_")
+        i = int(line[0])
         length = int(line[1])
         ratio = float(line[2])
-        bw = map(int, glines[2 + 5*i].split(" ")) if glines[2 + 5*i] else []
-        fw = map(int, glines[3 + 5*i].split(" ")) if glines[3 + 5*i] else []
-        ibw = map(int, glines[4 + 5*i].split(" ")) if glines[4+ 5*i] else []
-        ifw = map(int, glines[5 + 5*i].split(" ")) if glines[5 + 5*i]  else []
+        bw = map(int, glines[2 + 5*j].split(" ")) if glines[2 + 5*j] else []
+        fw = map(int, glines[3 + 5*j].split(" ")) if glines[3 + 5*j] else []
+        ibw = map(int, glines[4 + 5*j].split(" ")) if glines[4+ 5*j] else []
+        ifw = map(int, glines[5 + 5*j].split(" ")) if glines[5 + 5*j]  else []
         c = contigs[i]
         c.addinfo(length, ratio, bw, fw)
         s = c.bases
@@ -95,13 +98,11 @@ def createDict(prefix):
                 assert False
 
 
-    for c in contigs:
+    for i, c in contigs.items():
         s = c.bases
         first = s[:KMERSIZE]
         last = s[-KMERSIZE:]
 
-
-        #print ">contig%d\n%s" % (c.id, s)
 
         _fws = set()
         _bws = set()
@@ -127,16 +128,14 @@ def makeDot(contigs, KMERSIZE):
     lines = ["digraph G {", "graph [rankdir=LR, fontcolor=red, fontname=\"Courier\"];", "node [shape=record];"]
     struct = {}
     score = {}
-    i = 0
-    for c in contigs:
+    for i, c in contigs.items():
         x = c.bases
         if x not in struct:
             struct[x] = (i,0)
             struct[twin(x)] = (i,1)
-            i +=1
         score[x] = c.ratio
     max_score = max(score.values())
-    for c in contigs:
+    for i, c in contigs.items():
         x = c.bases
         form = "style=filled, "
         form += "fillcolor=gray%s" % (int(100.0 - round(70*score[x]/max_score)),)
@@ -149,7 +148,7 @@ def makeDot(contigs, KMERSIZE):
 
 
     done = {}
-    for c in contigs:
+    for i, c in contigs.items():
         x = c.bases
         for nbr in c.fw + c.bw:
             o = contigs[nbr].bases
