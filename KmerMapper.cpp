@@ -166,11 +166,13 @@ int KmerMapper::joinContigs(ContigRef a, ContigRef b, int a_direction, int b_dir
   assert(cb->coveragesum >= 2* cb->numKmers());
   joined->coveragesum = ca->coveragesum + cb->coveragesum;
   
+  /*
   Kmer first = joined->seq.getKmer(0);
   Kmer last = joined->seq.getKmer(joined->length()-k);
   if (isNeighbor(first, last)) {
     cerr << "Made a self-looping contig in joinContigs from :\n" << sa.toString() << "\n" << sb.toString() << endl;
   }
+  */
 
   // invalidated old contigs
   delete contigs[a_id].ref.contig;
@@ -333,7 +335,7 @@ size_t KmerMapper::joinContigs() {
 int KmerMapper::checkContigForward(Contig* c, Kmer km, ContigRef &found) {
   ContigRef b, cand;
   Kmer fw_km;
-  size_t fw_count = 0, bw_count = 0;
+  size_t fw_count = 0, bw_count = 0, k = Kmer::k;
 
   for(size_t i = 0; i < 4; ++i) {
     Kmer fw = km.forwardBase(alpha[i]);
@@ -349,7 +351,7 @@ int KmerMapper::checkContigForward(Contig* c, Kmer km, ContigRef &found) {
   if (fw_count == 1 && (oc = getContig(cand).ref.contig) != c) { // one fw-neighbor and no self-loop
     Kmer oFirst = oc->seq.getKmer(0);
     Kmer oLast = oc->seq.getKmer(oc->numKmers() - 1);
-    if (isNeighbor(km, oLast) || isNeighbor(km, oFirst.twin())) {
+    if (oc->length() > k && (isNeighbor(km, oLast) || isNeighbor(km, oFirst.twin()))) {
       return 0;
     }
 
@@ -363,6 +365,7 @@ int KmerMapper::checkContigForward(Contig* c, Kmer km, ContigRef &found) {
         bw_count += 1;
       }
     }
+
     if (bw_count == 1) {
       found = cand;
       return 1 - 2 * reversed;
