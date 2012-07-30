@@ -5,7 +5,7 @@
 
 // use:  r = isNeighbor(a,b)
 // pre:
-// post: r is true if a[1:k-1]+c == b for some c
+// post: r is true if a[-k+1:]+c == b for some c
 bool isNeighbor(Kmer a, Kmer b) {
   for (size_t i = 0; i < 4; ++i) {
     if (b == a.forwardBase(alpha[i])) {
