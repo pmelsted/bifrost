@@ -114,7 +114,7 @@ ContigRef KmerMapper::find(const Kmer km) {
 // post: if a and b are not joinable neighbours then succeded == 0 and nothing has been done
 //       else a and b have been joined with proper direction.
 //       ContigRefs in the contigs vector have been updated to point to the new contig
-int KmerMapper::joinContigs(ContigRef a, ContigRef b) {
+int KmerMapper::joinContigs(ContigRef a, ContigRef b, int a_direction, int b_direction) {
   //join a to b
   size_t k = Kmer::k;
   a = find_rep(a);
@@ -128,30 +128,24 @@ int KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   CompressedSequence &sa = ca->seq;
   CompressedSequence &sb = cb->seq;
 
-  int a_direction = 0, b_direction = 0;
   Kmer aFirst = sa.getKmer(0).twin();
   Kmer aLast = sa.getKmer(sa.size() - k);
   Kmer bFirst = sb.getKmer(0);
   Kmer bLast = sb.getKmer(sb.size() - k).twin();
 
-  if (isNeighbor(aLast,bFirst)) {
-    a_direction = 1;
-    b_direction = 1;
-  } else if (isNeighbor(aLast,bLast)) {
-    a_direction = 1;
-    b_direction = -1;
-  } else if (isNeighbor(aFirst, bLast)) {
-    a_direction = -1;
-    b_direction = -1;
-  } else if (isNeighbor(aFirst, bFirst)) {
-    a_direction = -1;
-    b_direction = 1;
+  if (a_direction == 1) {
+    if (b_direction == 1) {
+      assert(isNeighbor(aLast,bFirst));
+    } else {
+      assert(isNeighbor(aLast,bLast));
+    }
   } else {
-    cerr << "Not joining these contigs because they can't be joined:" << endl;
-    cerr << "sa:" << endl << sa.toString() << endl << endl;
-    cerr << "sb:" << endl << sb.toString() << endl << endl;
-    return 0;
-  }
+    if (b_direction == -1) {
+      assert(isNeighbor(aFirst, bLast));
+    } else {
+      assert(isNeighbor(aFirst, bFirst));
+    }
+  } 
 
   Contig *joined = new Contig(); // allocate new contig
   joined->seq.reserveLength(sa.size() + sb.size() - k + 1);
@@ -172,6 +166,12 @@ int KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   assert(cb->coveragesum >= 2* cb->numKmers());
   joined->coveragesum = ca->coveragesum + cb->coveragesum;
   
+  Kmer first = joined->seq.getKmer(0);
+  Kmer last = joined->seq.getKmer(joined->length()-k);
+  if (isNeighbor(first, last)) {
+    cerr << "Made a self-looping contig in joinContigs from :\n" << sa.toString() << "\n" << sb.toString() << endl;
+  }
+
   // invalidated old contigs
   delete contigs[a_id].ref.contig;
   delete contigs[b_id].ref.contig;
@@ -193,13 +193,14 @@ int KmerMapper::joinContigs(ContigRef a, ContigRef b) {
   assert(!contigs[b_id].isContig);
   assert(contigs[id].isContig);
   assert(!contigs[id].isEmpty());
+
   return 1;
 }
 
 
-// use:  contig = mapper.getContig(_id);
+// use:  cr = mapper.getContig(_id);
 // pre:  
-// post: contig is the contig with id _id
+// post: cr.ref.contig is the Contig with id _id
 ContigRef KmerMapper::getContig(const size_t id) const {
   ContigRef a = contigs[id];
   if (!a.isContig) {
@@ -210,9 +211,9 @@ ContigRef KmerMapper::getContig(const size_t id) const {
 }
 
 
-// use:  contig = mapper.getContig(cr);
+// use:  cr = mapper.getContig(cr);
 // pre:  
-// post: contig is the contig that cr maps to 
+// post: cr.ref.contig is the contig that cr maps to 
 ContigRef KmerMapper::getContig(const ContigRef ref) const {
   if (ref.isContig) {
     return ref;
@@ -319,19 +320,21 @@ size_t KmerMapper::joinContigs() {
     ContigRef found;
     Kmer start_twin = c->seq.getKmer(0).twin();
     Kmer end = c->seq.getKmer(c->numKmers()-1);
-    if (checkContigForward(c, end, found)) {
-      joined += joinContigs(ContigRef(contigid, 0), found); // this -> found
-    } else if (checkContigForward(c, start_twin, found)) {
-      joined += joinContigs(found, ContigRef(contigid, 0)); // found -> this
+    int dir;
+    if ((dir = checkContigForward(c, end, found)) != 0) {
+      joined += joinContigs(ContigRef(contigid, 0), found, 1, dir); // this -> found
+    } else if ((dir = checkContigForward(c, start_twin, found)) != 0) {
+      joined += joinContigs(found, ContigRef(contigid, 0), -dir, 1); // found -> this
     }
   }
   return joined;
 }
 
-bool KmerMapper::checkContigForward(Contig* c, Kmer km, ContigRef &found) {
-  ContigRef b,cand;
+int KmerMapper::checkContigForward(Contig* c, Kmer km, ContigRef &found) {
+  ContigRef b, cand;
   Kmer fw_km;
-  size_t fw_count=0,bw_count=0;
+  size_t fw_count = 0, bw_count = 0;
+
   for(size_t i = 0; i < 4; ++i) {
     Kmer fw = km.forwardBase(alpha[i]);
     ContigRef b = find(fw);
@@ -342,7 +345,17 @@ bool KmerMapper::checkContigForward(Contig* c, Kmer km, ContigRef &found) {
     }
   }
 
-  if (fw_count == 1 && getContig(cand).ref.contig != c) { // one fw-neighbor and no self-loop
+  Contig *oc;
+  if (fw_count == 1 && (oc = getContig(cand).ref.contig) != c) { // one fw-neighbor and no self-loop
+    Kmer oFirst = oc->seq.getKmer(0);
+    Kmer oLast = oc->seq.getKmer(oc->numKmers() - 1);
+    if (isNeighbor(km, oLast) || isNeighbor(km, oFirst.twin())) {
+      return 0;
+    }
+
+    int reversed = isNeighbor(km, oLast.twin());
+    assert(isNeighbor(km, oFirst) || reversed);
+
     for (size_t i = 0; i < 4; i++) {
       Kmer bw = fw_km.backwardBase(alpha[i]);
       b = find(bw);
@@ -352,10 +365,10 @@ bool KmerMapper::checkContigForward(Contig* c, Kmer km, ContigRef &found) {
     }
     if (bw_count == 1) {
       found = cand;
-      return true;
+      return 1 - 2 * reversed;
     }
   }
-  return false;
+  return 0;
 }
 
 
@@ -539,6 +552,7 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
         if (isNeighbor(oLast, first) || isNeighbor(oFirst.twin(), first)) { 
           graphfile << oid << " ";
         } else {
+          assert(isNeighbor(oLast.twin(), first) || isNeighbor(oFirst, first));
           //cout << "Backwards: " << oc->seq.toString() << " -> " << c->seq.toString() << endl;
         }
       }
@@ -557,6 +571,7 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
         if (isNeighbor(last, oFirst) || isNeighbor(last, oLast.twin())) {
           graphfile << oid << " ";
         } else {
+          assert(isNeighbor(last, oFirst.twin()) || isNeighbor(last, oLast));
           //cout << "Forward: " << c->seq.toString() << " -> " << oc->seq.toString() << endl;
         }
       }
