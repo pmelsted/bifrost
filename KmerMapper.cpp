@@ -539,7 +539,7 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
         if (isNeighbor(oLast, first) || isNeighbor(oFirst.twin(), first)) { 
           graphfile << oid << " ";
         } else {
-          assert(isNeighbor(oLast.twin(), first) || isNeighbor(oFirst, first));
+          //cout << "Backwards: " << oc->seq.toString() << " -> " << c->seq.toString() << endl;
         }
       }
     }
@@ -557,7 +557,7 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
         if (isNeighbor(last, oFirst) || isNeighbor(last, oLast.twin())) {
           graphfile << oid << " ";
         } else {
-          assert(isNeighbor(last, oFirst.twin()) || isNeighbor(last, oLast));
+          //cout << "Forward: " << c->seq.toString() << " -> " << oc->seq.toString() << endl;
         }
       }
     }
