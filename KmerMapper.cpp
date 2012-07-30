@@ -73,7 +73,7 @@ void KmerMapper::mapContig(uint32_t id, int32_t numkmers, const char *s) {
   }
   */
 
-  // Map every stride-th kmer
+  // Map every stride-th kmer except last
   for (pos = 0; pos < (numkmers -1); pos += stride) {
     Kmer km(s + pos);
     Kmer rep = km.rep();
@@ -492,8 +492,6 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
     id_length_ratio
     bw1 bw2 bw3 bw4                         (at most 4) // Backward maps
     fw1 fw2 fw3 fw4                         (at most 4) // Forward maps
-    ibw1 ibw2 ibw3 ibw4                     (at most 4) // Irregular backward maps
-    ifw1 ifw2 ifw3 ifw4                     (at most 4) // Irregular forward maps
     ...
 
     --- contigfile:
@@ -527,7 +525,6 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
     Kmer first = c->seq.getKmer(0), last = c->seq.getKmer(length - k);
     
     contigfile << ">contig" << id << "\n" << c->seq.toString() << "\n";
-    stringstream irrmaps;
     graphfile << id << "_" <<  length << "_" << ratio << "\n";
 
     
@@ -542,14 +539,12 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
         if (isNeighbor(oLast, first) || isNeighbor(oFirst.twin(), first)) { 
           graphfile << oid << " ";
         } else {
-          irrmaps << oid << " ";
-          cerr << "Irregular backward map: " << oid << " -> " << id << endl;
+          assert(isNeighbor(oLast, last) || isNeighbor(oFirst, first));
         }
       }
     }
 
     graphfile << "\n";
-    irrmaps << "\n";
 
     for (size_t i=0; i<4; ++i) {
       Kmer fw = last.forwardBase(alpha[i]);
@@ -562,13 +557,12 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
         if (isNeighbor(last, oFirst) || isNeighbor(last, oLast.twin())) {
           graphfile << oid << " ";
         } else {
-          irrmaps << oid << " ";
-          cerr << "Irregular forward map: " << id << " -> " << oid << endl;
+          assert(isNeighbor(oLast, last) || isNeighbor(oFirst, first));
         }
       }
     }
 
-    graphfile << "\n" << irrmaps.str() << "\n";
+    graphfile << "\n";
   }
 
   // Flush and close
