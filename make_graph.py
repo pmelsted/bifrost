@@ -124,13 +124,9 @@ def createDict(prefix):
 
 def makeDot(contigs, KMERSIZE):
     lines = ["digraph G {", "graph [rankdir=LR, fontcolor=red, fontname=\"Courier\"];", "node [shape=record];"]
-    struct = {}
     score = {}
     for i, c in contigs.items():
         x = c.bases
-        if x not in struct:
-            struct[x] = (i,0)
-            struct[twin(x)] = (i,1)
         score[x] = c.ratio
     max_score = max(score.values())
     for i, c in contigs.items():
@@ -142,7 +138,7 @@ def makeDot(contigs, KMERSIZE):
         if c.length >= 2*KMERSIZE:
             lx = "%s .. (%d) .. %s" % (lx[:KMERSIZE], c.length, lx[-KMERSIZE:])
             ltx = "%s .. (%d) .. %s" % (ltx[:KMERSIZE], c.length, ltx[-KMERSIZE:])
-        lines.append("%s[label=\"<%s> %s | <%s> %s\", %s];" % (struct[x][0],0,lx,1,ltx,form))
+        lines.append("%s[label=\"<%s> %s | <%s> %s\", %s];" % (i,0,lx,1,ltx,form))
 
 
     done = {}
@@ -150,11 +146,19 @@ def makeDot(contigs, KMERSIZE):
         x = c.bases
         for nbr in c.fw + c.bw:
             o = contigs[nbr].bases
-            if (x,o) not in done:
+            if (i, nbr) not in done:
                 a, b = isNeighbour(x, o, KMERSIZE)
-                lines.append('%s:%s -> %s:%s;' % (struct[x][0],a,struct[o][0], b))
-                done[(x, o)] = 1
-                done[(o, x)] = 1
+                if i == nbr:
+                    if x[:30] == x[-30:]:        # Self-looped
+                        lines.append('%s -> %s [headport=nw, tailport=ne];' % (i, nbr))
+                    if x[-30:] == twin(x[-30:]): # Hair-pinned
+                        lines.append('%s -> %s [headport=sw, tailport=ne];' % (i, nbr))
+                    if twin(x[:30]) == x[:30]:   # Hair-pinned
+                        lines.append('%s -> %s [headport=nw, tailport=se];' % (i, nbr))
+                else:
+                    lines.append('%s:%s -> %s:%s;' % (i, a, nbr, b))
+                done[(i, nbr)] = 1
+                done[(nbr, i)] = 1
     lines.append("}")
     return "\n".join(lines)
 

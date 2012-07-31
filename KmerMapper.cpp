@@ -516,11 +516,17 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
         size_t oid = prevcr.ref.idpos.id;
         Kmer oFirst = oc->seq.getKmer(0);
         Kmer oLast = oc->seq.getKmer(oc->length() - k);
+        if (oid == id) {
+          if (isNeighbor(oLast, first)) {
+            cerr << "Self-looped, id: " << id << ", seq: " << c->seq.toString() << endl; 
+          } else {
+            cerr << "Hair-pinned, id: " << id << ", seq: " << c->seq.toString() << endl; 
+          }
+        }
         if (isNeighbor(oLast, first) || isNeighbor(oFirst.twin(), first)) { 
           graphfile << oid << " ";
         } else {
           assert(isNeighbor(oLast.twin(), first) || isNeighbor(oFirst, first));
-          //cout << "Backwards: " << oc->seq.toString() << " -> " << c->seq.toString() << endl;
         }
       }
     }
@@ -535,11 +541,17 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
         size_t oid = fwcr.ref.idpos.id;
         Kmer oFirst = oc->seq.getKmer(0);
         Kmer oLast = oc->seq.getKmer(oc->length() - k);
+        if (oid == id) {
+          if (isNeighbor(last, oFirst)) {
+            cerr << "Self-looped, id: " << id << ", seq: " << c->seq.toString() << endl; 
+          } else {
+            cerr << "Hair-pinned, id: " << id << ", seq: " << c->seq.toString() << endl; 
+          }
+        }
         if (isNeighbor(last, oFirst) || isNeighbor(last, oLast.twin())) {
           graphfile << oid << " ";
         } else {
           assert(isNeighbor(last, oFirst.twin()) || isNeighbor(last, oLast));
-          //cout << "Forward: " << c->seq.toString() << " -> " << oc->seq.toString() << endl;
         }
       }
     }
