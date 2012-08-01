@@ -14,7 +14,8 @@ struct NewContig {
   string seq;
   size_t start;
   size_t end;
-  NewContig(string s, size_t i, size_t j) : seq(s), start(i), end(j) {}
+  size_t read_index;
+  NewContig(string s, size_t i, size_t j, size_t ri) : seq(s), start(i), end(j), read_index(ri) {}
 };
 
 struct CheckContig {
