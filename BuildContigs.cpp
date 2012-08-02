@@ -136,8 +136,8 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
          << ", need a number greater than 0" << endl;
     ret = false;
   } else if (opt.threads == 1) {
-    //cerr << "Setting chunksize to 1 because of only 1 thread" << endl;
-    //opt.read_chunksize = 1;
+    cerr << "Setting chunksize to 1 because of only 1 thread" << endl;
+    opt.read_chunksize = 1;
   }
 
   if (opt.k == 0 || opt.k >= MAX_KMER_SIZE) {
@@ -415,7 +415,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
               // cstr[iterindex,...,cmpindex-1] == seq[seqindex,...,seqcmpindex-1]
               // Coverage of seq[seqindex,...,seqcmpindex-k] will by increase by one later in master thread
-              smallv->push_back(NewContig(seq, seqindex, seqcmpindex-k, index));
+              smallv->push_back(NewContig(seq, seqindex, seqcmpindex-k, index, mc.selfloop));
             } else {
               Contig *contig = mapper.getContig(cc.cr).ref.contig;
               mappingSS[index] << cc.cr.ref.idpos.id << "|" << cc.cr.ref.idpos.pos << " ";
@@ -431,22 +431,29 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               } else {
                 assert(contig->seq.getKmer(kmernum) == km);
               }
-              contig->cover(kmernum,kmernum);
 
-              int32_t direction = reversed ? -1 : 1;
-              kmernum += direction;
+              int32_t direction = 1 - 2*reversed;
+              int32_t end = kmernum + direction;
               iter.raise(km, rep);
 
               while (iter != iterend && iter->second < jumpi) {
-                assert(cstr[iter->second+k-1] != 'N');
-                assert(kmernum >= 0);
-                assert(kmernum < contig->numKmers());
-
-                // Update coverage
-                contig->cover(kmernum,kmernum);
-
-                kmernum += direction;
+                if (reversed) {
+                  assert(contig->seq.getKmer(end) == km.twin()); 
+                } else {
+                  assert(contig->seq.getKmer(end) == km); 
+                }
+                end += direction;
                 iter.raise(km, rep);
+              }
+              end -= direction; // One too high/low
+
+              assert(end >= 0);
+              assert(end < contig->numKmers());
+
+              if (reversed) {
+                contig->cover(end, kmernum);
+              } else {
+                contig->cover(kmernum, end);
               }
             }
           }     
@@ -485,42 +492,55 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           
           mappingSS[it->read_index] << cc.cr.ref.idpos.id << "|" << cc.cr.ref.idpos.pos << " ";
 
-          if (it->seq.size() != numkmers + k - 1) {
-            fprintf(stderr, "it->seq = %s , contig->seq = %s\nstart = %zu , end = %zu\n", 
-              it->seq.c_str(), contig->seq.toString().c_str(), start, end);
-            assert(0);
+          assert(it->seq.size() == numkmers + k - 1);
+          Kmer km(seq + start); 
+          CheckContig cc = check_contig(bf, mapper, km);
+
+          int32_t ccpos = cc.cr.ref.idpos.pos;
+
+          getMappingInfo(cc.repequal, ccpos, cc.dist, kmernum, cmppos); // 
+          assert(kmernum < numkmers);
+          bool reversed = (cc.repequal != (ccpos >= 0));
+
+          // Assert that the first kmer is correct
+          if (reversed) {
+            assert(contig->seq.getKmer(kmernum) == km.twin());
+          } else {
+            assert(contig->seq.getKmer(kmernum) == km);
           }
-          
 
-          /* TODO: Update this in chunks */
-          for (size_t j = 0; j + start <= end; ++j) { 
-            assert(j + start < numkmers);
-            Kmer km(seq + j + start); 
-            CheckContig cc = check_contig(bf, mapper, km);
-
-            int32_t ccpos = cc.cr.ref.idpos.pos;
-
-            getMappingInfo(cc.repequal, ccpos, cc.dist, kmernum, cmppos); // 
-            bool reversed = (cc.repequal != (ccpos >= 0));
-            assert(kmernum < numkmers);
+          if (it->selfloop == 0) {
             if (reversed) {
-              assert(contig->seq.getKmer(kmernum) == km.twin());
-              //kmernum -= it->start;
-              //int left = kmernum - (end - start);
-              //size_t right = kmernum;
+              assert((end - start) <= kmernum);
+              // Assert that the last kmer is correct
+              assert(contig->seq.getKmer(kmernum - (end - start)) == Kmer(seq + end).twin()); // last kmer correct
+              contig->cover(kmernum - (end-start), kmernum);
             } else {
-              assert(contig->seq.getKmer(kmernum) == km);
-              //kmernum += it->start;
-              //size_t left = kmernum;
-              //size_t right = kmernum + end - start;
+              assert(kmernum + (end-start) < numkmers);
+              assert(contig->seq.getKmer(kmernum + (end - start)) == Kmer(seq + end)); // last kmer correct
+              contig->cover(kmernum, kmernum + (end-start));
             }
-            //TODO: cover the chunks inside the contig
-            contig->cover(kmernum, kmernum);
+          } else {
+            for (size_t j = 0; j + start <= end; ++j) { 
+              assert(j + start < numkmers);
+              Kmer km(seq + j + start); 
+              cc = check_contig(bf, mapper, km);
+              ccpos = cc.cr.ref.idpos.pos;
+              getMappingInfo(cc.repequal, ccpos, cc.dist, kmernum, cmppos); // 
+
+              reversed = (cc.repequal != (ccpos >= 0));
+              assert(kmernum < numkmers);
+              if (reversed) {
+                assert(contig->seq.getKmer(kmernum) == km.twin());
+              } else {
+                assert(contig->seq.getKmer(kmernum) == km);
+              }
+              contig->cover(kmernum, kmernum);
+            }
           }
         }
       }
       parray[i].clear();
-
     }
 
     for(size_t index=0; index < reads_now; ++index) {

@@ -2,9 +2,13 @@
 set -e  # Exit on errors
 
 #0) Check that make has been run
-if [ ! -f "../BFGraph" ]
+if [ -f "BFGraph" ] 
 then
-    echo "../BFGraph not found, did you run make in the parent directory?"
+    echo "Go into the directory example, i.e. do 'cd example'"
+    exit 1
+elif [ ! -f "../BFGraph" ]
+then
+    echo "BFGraph not found, did you run make in the parent directory?"
     exit 1
 fi
 
