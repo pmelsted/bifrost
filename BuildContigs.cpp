@@ -519,7 +519,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               contig->cover(kmernum, kmernum + (end-start));
             }
           } else {
-            // Self loop so we update coverage of one kmer at a time
+            // Self-loop or hair-pin so we update coverage of one kmer at a time
             for (size_t j = 0; j + start <= end; ++j) { 
               assert(j + start < numkmers);
               Kmer km(seq + j + start); 
