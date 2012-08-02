@@ -433,19 +433,19 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               }
 
               int32_t direction = 1 - 2*reversed;
-              int32_t end = kmernum + direction;
+              int32_t end = kmernum;
               iter.raise(km, rep);
 
               while (iter != iterend && iter->second < jumpi) {
+                end += direction;
+                /* TODO: Remove these two asserts */
                 if (reversed) {
                   assert(contig->seq.getKmer(end) == km.twin()); 
                 } else {
                   assert(contig->seq.getKmer(end) == km); 
                 }
-                end += direction;
                 iter.raise(km, rep);
               }
-              end -= direction; // One too high/low
 
               assert(end >= 0);
               assert(end < contig->numKmers());
@@ -502,17 +502,15 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           assert(kmernum < numkmers);
           bool reversed = (cc.repequal != (ccpos >= 0));
 
-          // Assert that the first kmer is correct
           if (reversed) {
-            assert(contig->seq.getKmer(kmernum) == km.twin());
+            assert(contig->seq.getKmer(kmernum) == km.twin()); // first kmer correct
           } else {
-            assert(contig->seq.getKmer(kmernum) == km);
+            assert(contig->seq.getKmer(kmernum) == km); // first kmer correct
           }
 
           if (it->selfloop == 0) {
             if (reversed) {
               assert((end - start) <= kmernum);
-              // Assert that the last kmer is correct
               assert(contig->seq.getKmer(kmernum - (end - start)) == Kmer(seq + end).twin()); // last kmer correct
               contig->cover(kmernum - (end-start), kmernum);
             } else {
@@ -521,6 +519,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               contig->cover(kmernum, kmernum + (end-start));
             }
           } else {
+            // Self loop so we update coverage of one kmer at a time
             for (size_t j = 0; j + start <= end; ++j) { 
               assert(j + start < numkmers);
               Kmer km(seq + j + start); 
