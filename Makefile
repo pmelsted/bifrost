@@ -15,7 +15,7 @@ PYTHON_VERSION = $(shell echo `python -c 'import sys; print sys.version[:3]'`)
 UNAME = $(shell uname -s)
 PYTHON_FLAGS = -shared
 ifeq ($(UNAME), Darwin)
-	$(PYTHON_FLAGS) = -dynamiclib -lpython
+PYTHON_FLAGS = -dynamiclib -lpython
 endif
 
 all: CXXFLAGS += -O3
@@ -66,4 +66,4 @@ FindContig.o: FindContig.cpp FindContig.hpp
 hash.o: hash.hpp hash.cpp	
 
 clean:
-	rm -f *.o *.so *.pyc *_wrap.cxx BFGraph
+	rm -f *.o *.so *.pyc *_wrap.cxx graph.py BFGraph

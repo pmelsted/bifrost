@@ -21,10 +21,14 @@ To run the program use
 
 To list available commands
 
-% ./BFGraph count
-% ./BFGraph dump
+% ./BFGraph filter
+% ./BFGraph contigs
 
 will provide more complete help.
+
+Example of usage
+===============
+Take a look at the directory example and example/README
 
 Notes
 =====
