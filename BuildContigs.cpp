@@ -295,7 +295,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   int32_t cmppos;
   uint64_t n_read = 0; 
 
-  vector<string> readv;
   vector<NewContig> *smallv, *parray = new vector<NewContig>[num_threads];
 
   ofstream readMappingFile;
@@ -310,19 +309,19 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
   size_t read_chunksize = opt.read_chunksize;
   stringstream *mappingSS = new stringstream[read_chunksize];
+  string *readv = new string[read_chunksize];
 
   cerr << "Starting real work ....." << endl << endl;
 
   int round = 0;
   bool done = false, filechange = false;
   while (!done) {
-    readv.clear();
     size_t reads_now = 0;
 
     if (filechange) {
       mappingSS[reads_now].str("");
       mappingSS[reads_now] << name << "\n";
-      readv.push_back(string(s));
+      readv[0].assign(s);
       filechange = false;
      
       // Change the readmap file
@@ -346,7 +345,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         }
         mappingSS[reads_now].str("");
         mappingSS[reads_now] << name << "\n";
-        readv.push_back(string(s));
+        readv[reads_now].assign(s);
         ++reads_now;
         ++n_read;
       } else {
@@ -572,6 +571,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
        << "Writing the graph to file: " << opt.graphfilename << endl;
   int contigsAfter2 = mapper.writeContigs(contigsAfter1, opt.contigfilename, opt.graphfilename);
 
+  delete [] readv;
   delete [] parray;
   delete [] mappingSS;
   assert(contigsAfter1 == contigsAfter2);
