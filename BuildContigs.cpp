@@ -57,8 +57,8 @@ void BuildContigs_PrintUsage() {
 
 
 // use:  BuildContigs_ParseOptions(argc, argv, opt);
-// pre:  argc is the parameter count, argv is a list of valid parameters for 
-//       "building contigs" and opt is ready to contain the parsed parameters
+// pre:  argc is the parameter count, argv is a list of valid parameters 
+//       like BuildContigs_PrintUsage describes and opt is ready to contain the parsed parameters
 // post: All the parameters from argv have been parsed into opt
 void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOptions &opt) {
   const char* opt_string = "vt:k:f:o:c:s:";
@@ -112,7 +112,7 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
 
 
 // use:  b = BuildContigs_CheckOptions(opt);
-// pre:  opt contains parameters for "building contigs"
+// pre:  opt contains parameters for building contigs
 // post: (b == true)  <==>  the parameters are valid
 bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
   bool ret = true;
@@ -219,8 +219,7 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
 
 // use:  BuildContigs_PrintSummary(opt);
 // pre:  opt has information about Kmer size, input file and output file
-// post: Information about the Kmer size and the input and output files 
-//       has been printed to cerr 
+// post: Information about the Kmer size and the input and output files has been printed to cerr 
 void BuildContigs_PrintSummary(const BuildContigs_ProgramOptions &opt) {
   cerr << "Kmer size: " << opt.k << endl
        << "Chunksize: " << opt.read_chunksize << endl
@@ -233,6 +232,8 @@ void BuildContigs_PrintSummary(const BuildContigs_ProgramOptions &opt) {
   }
 }
 
+// use:  printeMemoryUsage(bf, mapper);
+// post: The memory usage of bf and mapper has been printed to cerr 
 void printMemoryUsage(BloomFilter &bf, KmerMapper &mapper) {
   size_t total = 0;
   cerr << "   -----  Memory usage  -----   " << endl;

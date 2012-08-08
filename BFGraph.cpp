@@ -9,8 +9,8 @@
 using namespace std;
 
 
-// use: PrintUsage(); 
-// post: Usage for how to run `./BFGraph` has been printed to cerr
+// use:  PrintUsage(); 
+// post: How to run BFGraph has been printed to cerr
 void PrintUsage() {
   cerr << "BFGraph " << BFG_VERSION << endl << endl;
   cerr << "A memory efficient de Bruijn graph assembler." << endl << endl;
@@ -34,7 +34,7 @@ void PrintVersion() {
 
 
 // use:  PrintCite(); 
-// post: Information of how to cite this software has been printed 
+// post: Information of how to cite this software has been printed to cerr
 void PrintCite() {
   cerr << "The paper describing this software has not been published." << endl;
   //  cerr << "When using this program in your research, please cite" << endl << endl;

@@ -3,12 +3,17 @@
 static const char beta[4] = {'T','G','A','C'}; // c -> beta[(c & 7) >> 1] maps: 'A' <-> 'T', 'C' <-> 'G'
 
 // use:  getMappingInfo(repequal, pos, dist, kmernum, cmppos)
-// pre:  
-// post: cmppos is the first character after the kmer-match at position pos
+// pre:  Originally we have a kmer, call it km1. We go forward from this kmer dist times and get another kmer, call it km2.
+//       repequal is true <==> km2 == km2.rep() 
+//       km2.rep() maps to position pos in some contig, call it c.
+// post: if (pos >= 0) == repequal: 
+//            c.seq.getKmer(kmernum) == km1
+//            kmernum + k == cmppos
+//        else: 
+//            c.seq.getKmer(kmernum) == km1.twin()
+//            kmernum - 1 == cmppos
 void getMappingInfo(const bool repequal, const int32_t pos, const size_t dist, size_t &kmernum, int32_t &cmppos) {
   size_t k = Kmer::k; 
-  // Now we find the right location of the kmer inside the contig
-  // to increase coverage 
   if (pos >= 0) {
     if (repequal) {
       cmppos = pos - dist + k;
@@ -22,15 +27,14 @@ void getMappingInfo(const bool repequal, const int32_t pos, const size_t dist, s
       cmppos = -pos + dist -k;
       kmernum = cmppos +1;
     } else {
-      cmppos = -pos + 1 - dist; // Original: (-pos +1 -k) - dist + k
+      cmppos = -pos + 1 - dist; // Equivalent: (-pos +1 -k) - dist + k
       kmernum = cmppos - k;
     }
   }
 }
 
 
-// use:  cc = check_contig_(bf,km,mapper);
-// pre:  
+// use:  cc = check_contig(bf, km, mapper);
 // post: if km does not map to a contig: cc.cr.isEmpty() == true and cc.dist == 0
 //       else: km is in a contig which cc.cr maps to and cc.dist is the distance 
 //             from km to the mapping location 
@@ -105,7 +109,7 @@ MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
    *
    * Case 0: Regular contig, no self-loops
    * Case 1: Self-looping contig:  firstkm -> ... -> lastkm -> firstkm -> ... ->lastkm
-   * Case 2: Reversely self-looping contigs:
+   * Case 2: Hairpinned contigs:
    *  a) firstkm -> ... -> lastkm -> twin(lastkm) -> ... -> twin(firstkm)
    *  b) twin(lastkm) -> ... -> twin(firstkm) -> firstkm -> ... -> lastkm
    *  c) firstkm -> ... -> lastkm -> twin(lastkm) -> ... -> twin(firstkm) -> firstkm -> ... -> lastkm -> ... (can repeat infinitely)

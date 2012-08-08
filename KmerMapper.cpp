@@ -27,12 +27,10 @@ size_t KmerMapper::addContig(const string &s) {
 
 
 // use:  id = mapper.addContig(s);
-// pre:  s is a string of 'A','C','G' and 'T's
-// post: a contig with s as string has been added to mapper
-//       the reps of the first and last kmer in this contig now map to this contig
-//       the reps of the kmers between the first and last that do not overlap each other
-//       also map to this contig
-//       id is the id of the contig
+// pre:  s is a DNA string of A,C,G,T (no N)
+//       mapper does not contain any kmer from s
+// post: the kmers in the contig have been mapped with mapContig
+//       id is the id of the new contig
 size_t KmerMapper::addContig(const char *s) {
   // check that it doesn't map, our responsibility or not?
   ContigRef cr;
@@ -49,6 +47,8 @@ size_t KmerMapper::addContig(const char *s) {
 // pre:  the contig with sequence s, is unmapped
 //       numkmers is the number of kmers in the contig
 // post: the contig has been mapped with the id: id
+//       the first and the last kmer were mapped
+//       every stride-th kmer has been mapped as well
 void KmerMapper::mapContig(uint32_t id, int32_t numkmers, const char *s) {
   int32_t pos, ipos;
   size_t k = Kmer::k;
@@ -69,8 +69,8 @@ void KmerMapper::mapContig(uint32_t id, int32_t numkmers, const char *s) {
   map.insert(make_pair(rep, ContigRef(id, ipos)));  
 }
 
+
 // use:  cr = mapper.find(km);
-// pre:  
 // post: If the rep of kmer km maps to a contig, cr is the contigref that maps the rep
 //       to a contig, else cr is an empty contigref 
 ContigRef KmerMapper::find(const Kmer km) {
@@ -93,44 +93,41 @@ ContigRef KmerMapper::find(const Kmer km) {
 // pre:  a and b are not contig pointers, a_dir == ±1, b_dir == ±1
 // post: a new contig has been made from a and b joined together, i is the id of the new contig
 //       the new contig is: (twin(a) if a_dir == -1 else a )[:-k+1] + (twin(b) if b_dir == -1 else b)
-//       the old ContigRefs now point to the new contig
+//       the old ContigRefs now point to the correct locations in the new contig
 size_t KmerMapper::joinContigs(ContigRef a, ContigRef b, int a_direction, int b_direction) {
   size_t k = Kmer::k;
   a = find_rep(a);
-  uint32_t a_id = a.ref.idpos.id;
   b = find_rep(b);
-  uint32_t b_id = b.ref.idpos.id;
+  uint32_t a_id = a.ref.idpos.id, b_id = b.ref.idpos.id;
   assert(contigs[a_id].isContig && contigs[b_id].isContig);
 
-  Contig *ca = contigs[a_id].ref.contig;
-  Contig *cb = contigs[b_id].ref.contig;
-  CompressedSequence &sa = ca->seq;
-  CompressedSequence &sb = cb->seq;
+  Contig *ca = contigs[a_id].ref.contig, *cb = contigs[b_id].ref.contig;
+  CompressedSequence &sa = ca->seq, &sb = cb->seq;
 
-  Kmer aFirst = sa.getKmer(0).twin();
+  Kmer aFirstTwin = sa.getKmer(0).twin();
   Kmer aLast = sa.getKmer(sa.size() - k);
   Kmer bFirst = sb.getKmer(0);
-  Kmer bLast = sb.getKmer(sb.size() - k).twin();
+  Kmer bLastTwin = sb.getKmer(sb.size() - k).twin();
 
   // Assert that the two Contigs can be joined according to a_direction and b_direction
   if (a_direction == 1) {
     if (b_direction == 1) {
-      assert(isNeighbor(aLast,bFirst));
+      assert(isNeighbor(aLast, bFirst));
     } else {
-      assert(isNeighbor(aLast,bLast));
+      assert(isNeighbor(aLast, bLastTwin));
     }
   } else {
     if (b_direction == -1) {
-      assert(isNeighbor(aFirst, bLast));
+      assert(isNeighbor(aFirstTwin, bLastTwin));
     } else {
-      assert(isNeighbor(aFirst, bFirst));
+      assert(isNeighbor(aFirstTwin, bFirst));
     }
   } 
 
   Contig *joined = new Contig(); // allocate new contig
   joined->seq.reserveLength(sa.size() + sb.size() - k + 1);
-  joined->seq.setSequence(sa, 0, sa.size(), 0, a_direction == -1); // copy all from a, keep orientation of a
-  joined->seq.setSequence(sb, k - 1, sb.size() - k + 1, sa.size(), b_direction == -1); // copy from b, reverse if neccessary
+  joined->seq.setSequence(sa, 0, sa.size(), 0, a_direction == -1); // copy all from a
+  joined->seq.setSequence(sb, k - 1, sb.size() - k + 1, sa.size(), b_direction == -1); // copy after k-1 from b
 
   joined->initializeCoverage(true); // true because the joined contig will have full coverage
 
@@ -174,7 +171,6 @@ size_t KmerMapper::joinContigs(ContigRef a, ContigRef b, int a_direction, int b_
 
 
 // use:  cr = mapper.getContig(_id);
-// pre:  
 // post: cr.ref.contig is the Contig with id: _id
 ContigRef KmerMapper::getContig(const size_t id) const {
   ContigRef a = contigs[id];
@@ -187,7 +183,6 @@ ContigRef KmerMapper::getContig(const size_t id) const {
 
 
 // use:  cr = mapper.getContig(cr);
-// pre:  
 // post: cr.ref.contig is the contig that cr points to 
 ContigRef KmerMapper::getContig(const ContigRef ref) const {
   if (ref.isContig) {
@@ -230,9 +225,7 @@ void KmerMapper::printContig(const size_t id) {
 
 
 // use:  r = m.find_rep(a);
-// pre:  
 // post: r is the contigref just before the contig pointer
-//       
 //       if a.isContig is false, then r.isContig is false and
 //       m.contig[a.ref.idpos.id].isContig is true, otherwise r == a
 ContigRef KmerMapper::find_rep(ContigRef a) const {
@@ -260,12 +253,15 @@ ContigRef KmerMapper::find_rep(ContigRef a) const {
 }
 
 
-// use:  d = mapper.splitAndJoinContigs();
-// pre:  
+// use:  <<splitted, deleted>, joined> = mapper.splitAndJoinContigs();
 // post: The contigs in mapper have been splitted and joined
-//       d is the increase of contigs after split and join
+//       splitted: the number of splitted contigs 
+//       deleted: the number of deleted contigs 
+//       joined: the number of joined contigs 
 pair<pair<size_t, size_t>, size_t> KmerMapper::splitAndJoinContigs() {
   Kmer km, rep, end, km_del;
+
+  // Set the deleted key so we can unmap contigs in splitContigs 
   km_del.set_deleted();
   map.set_deleted_key(km_del);
 
@@ -276,14 +272,12 @@ pair<pair<size_t, size_t>, size_t> KmerMapper::splitAndJoinContigs() {
 
 
 // use:  joined = mapper.joinContigs()
-// pre:  
-// post: contigs that really should be connected have been connected 
+// post: all contigs that could be connected have been connected 
 //       joined is the number of joined contigs
 size_t KmerMapper::joinContigs() {
-  size_t joined = 0;
-  
   Contig *c;
   ContigRef cr;
+  size_t joined = 0;
 
   for(size_t contigid = 0; contigid < contigs.size(); ++contigid) {
     cr = contigs[contigid];
@@ -301,16 +295,17 @@ size_t KmerMapper::joinContigs() {
     } else if ((dir = checkContigForward(c, start_twin, found)) != 0) {
       joinContigs(found, ContigRef(contigid, 0), -dir, 1); // found -> this, -dir because we used twin(first)
     }
-    joined += (dir != 0); // increase joined by 0 or 1
+    joined += (dir != 0); // increase joined by 1 if (dir == ±1) else increase by 0
   }
+
   return joined;
 }
 
 
 // use:  i = checkContigForward(c, km, found);
 // pre:  km is the last kmer of the contig c
-// post: if i == 0 then there is not exactly one connection from this contig to another contig
-//       else there is a connection to the contig that found points to. 
+// post: if i == 0 then there is NOT only one connection from this contig to another contig
+//       else there is ONE connection to the contig that found points to. 
 //         if i == 1  km connects to the first kmer of the other contig
 //         if i == -1 km connects to the twin of the last kmer of the other contig
 int KmerMapper::checkContigForward(Contig* c, Kmer km, ContigRef &found) {
@@ -351,25 +346,22 @@ int KmerMapper::checkContigForward(Contig* c, Kmer km, ContigRef &found) {
 
     if (bw_count == 1) {
       found = cand;
-      return 1 - 2 * reversed; // 1 or -1
+      return 1 - 2 * reversed; // return 1 or -1 without branching
     }
   }
+
   return 0;
 }
 
 
 // use:  splitted, deleted = mapper.splitContigs()
-// pre:  
 // post: All contigs with 1 coverage somewhere have been split where the coverage is 1
 //       splitted is the number of contigs splitted
 //       deleted is the number of contigs deleted
-//
 //       Now every contig in mapper has coverage >= 2 everywhere
 pair<size_t, size_t> KmerMapper::splitContigs() {
-  size_t splitted = 0, deleted = 0;
-  size_t k = Kmer::k, contigcount = contigs.size();
-  size_t cstr_len = 2*k+1;
-  size_t nextid = contigcount;
+  size_t splitted = 0, deleted = 0, k = Kmer::k, contigcount = contigs.size();
+  size_t cstr_len = 2*k+1, nextid = contigcount;
   char *cstr = (char*) malloc(cstr_len);
 
   for(size_t contigid = 0; contigid < contigcount; ++contigid) {
@@ -380,14 +372,12 @@ pair<size_t, size_t> KmerMapper::splitContigs() {
     }
 
     Contig *c = cr.ref.contig;
-
     
     if (c->ccov.isFull()) {
       continue;
     }
     
-    size_t numkmers = c->numKmers();
-    size_t seqlength = c->length();
+    size_t numkmers = c->numKmers(), seqlength = c->length();
 
     if (seqlength >= cstr_len) {
       cstr_len = 2*seqlength+1;
@@ -440,13 +430,13 @@ pair<size_t, size_t> KmerMapper::splitContigs() {
     delete c;
     contigs[contigid] = ContigRef();
   }
+
   free(cstr);
   return make_pair(splitted, deleted);
 }
 
 
 // use:  mapper.printContigs()
-// pre:  
 // post: All the contigs in mapper have been printed, line by line, to stdout
 void KmerMapper::printContigs() {
   size_t contigcount = contigs.size();
@@ -462,9 +452,9 @@ void KmerMapper::printContigs() {
 
 // use:  count2 = mapper.writeContigs(count1, contigfilename, graphfilename);
 // pre:  the program has permissions to open contigfilename and graphfilename 
-// post: all the contigs have been written to contigfile
-//       the De Brujin graph has been written to graphfile
-//       count2 is the number of real contigs and should be the same as count1
+// post: all the contigs have been written to the file: contigfilename
+//       the De Brujin graph has been written to the file: graphfilename
+//       count2 is the number of real contigs and we assert that count1 == count2 
 int KmerMapper::writeContigs(int count1, string contigfilename, string graphfilename) {
   /* This is the schema for the outputfiles: 
     --- graphfile:
@@ -520,7 +510,7 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
           if (isNeighbor(oLast, first)) {
             cerr << "Self-looped, id: " << id << ", seq: " << c->seq.toString() << endl; 
           } else {
-            cerr << "Hair-pinned, id: " << id << ", seq: " << c->seq.toString() << endl; 
+            cerr << "Hairpinned, id: " << id << ", seq: " << c->seq.toString() << endl; 
           }
         }
         if (isNeighbor(oLast, first) || isNeighbor(oFirst.twin(), first)) { 
@@ -545,7 +535,7 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
           if (isNeighbor(last, oFirst)) {
             cerr << "Self-looped, id: " << id << ", seq: " << c->seq.toString() << endl; 
           } else {
-            cerr << "Hair-pinned, id: " << id << ", seq: " << c->seq.toString() << endl; 
+            cerr << "Hairpinned, id: " << id << ", seq: " << c->seq.toString() << endl; 
           }
         }
         if (isNeighbor(last, oFirst) || isNeighbor(last, oLast.twin())) {
@@ -567,24 +557,23 @@ int KmerMapper::writeContigs(int count1, string contigfilename, string graphfile
 
 
 // use:  mem = m.memory();
-// pre:  
 // post: mem is the memory usage of m in bytes
 //       detailed memory usage of m has been printed to cerr
 size_t KmerMapper::memory() const {
   size_t contigcount = contigs.size();
   size_t _contigs = 0;
+  
   for (size_t id=0; id<contigcount; ++id) {
     ContigRef cr = contigs[id];
     if (cr.isContig && !cr.isEmpty()) {
       _contigs += cr.ref.contig->memory();
     }
   }
+
   size_t _contigrefs = contigcount * sizeof(ContigRef);
   size_t _map = sizeof(map) + map.size() * sizeof(ContigRef);
-  size_t _kmermapper = sizeof(KmerMapper) ;
   fprintf(stderr, "ContigRefs:\t\t%zuMB\n", _contigrefs >> 20);
   fprintf(stderr, "Contigs:\t\t%zuMB\n", _contigs >> 20);
-  fprintf(stderr, "KmerMapper:\t\t%zuMB\n", _kmermapper >> 20);
   fprintf(stderr, "Map:\t\t\t%zuMB\n", _map >> 20);
-  return _contigrefs + _contigs + _map + _kmermapper;
+  return _contigrefs + _contigs + _map;
 }
