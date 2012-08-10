@@ -248,20 +248,20 @@ void printMemoryUsage(BloomFilter &bf, KmerMapper &mapper) {
 // post: The contigs have been written to the output file 
 void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   /**
-   *  outline of algorithm
-   *   - open bloom filter file
-   *   - create contig datastructures
-   *   - for each read
-   *     - for all kmers in read
-   *        - if kmer is in bf
-   *          - if it maps to contig
-   *            - try to jump over as many kmers as possible
-   *          - else
-   *            - create new contig from kmers in both directions
-   *            - from this kmer while there is only one possible next kmer
-   *            - with respect to the bloom filter
-   *            - when the contig is ready, 
-   *            - try to jump over as many kmers as possible
+   *  outline of algorithm:
+   *  open bloom filter file
+   *    create contig datastructures
+   *    for each read
+   *      for all kmers in read
+   *        if kmer is in bf
+   *          if it maps to contig
+   *            try to jump over as many kmers as possible
+   *          else
+   *            create new contig from kmers in both directions \
+   *            from this kmer while there is only one possible next kmer \
+   *            with respect to the bloom filter
+   *            when the contig is ready, 
+   *            try to jump over as many kmers as possible
    */
 
   size_t num_threads = opt.threads;

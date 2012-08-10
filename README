@@ -27,8 +27,13 @@ To list available commands
 will provide more complete help.
 
 Example of usage
-===============
+================
 Take a look at the directory example and example/README
+
+
+Doxygen automatic documentation
+===============================
+Run `doxygen Doxyfile` to get html, latex and man documentation
 
 Notes
 =====

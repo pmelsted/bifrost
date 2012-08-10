@@ -1,0 +1,21 @@
+/**
+\mainpage BFGraph documentation 
+
+Excluded classes from this documentation (see Doxyfile): 
+
+# Because they are created by someone else:
+ - google 
+ - libdivide 
+ - kseq
+
+
+# Because they are not used at the moment:
+ - CountBF
+ - DumpBF
+ - BlockedBloomFilter 
+ - bloom_filter
+
+
+If you find a bug in the code, please notify: pmelsted@gmail.com
+
+*/
