@@ -55,6 +55,7 @@ int main(int argc, char **argv) {
     } else if (strcmp(argv[1], "contigs") == 0) {
       BuildContigs(argc-1,argv+1);
     } else if (strcmp(argv[1], "simplify") == 0) {
+      cout << "This has not been implemented yet" << endl;
       SimplifyGraph(argc-1,argv+1);
     } else {
       cout << "Did not understand command " << argv[1] << endl;
