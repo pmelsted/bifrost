@@ -28,7 +28,8 @@ will provide more complete help.
 
 Example of usage
 ================
-Take a look at the directory example and example/README
+The directory example contains two small read files. 
+See the file 'example.sh' to see how to run the program on these files.
 
 
 Doxygen automatic documentation

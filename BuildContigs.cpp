@@ -356,7 +356,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     }
     ++round;
 
-    if (read_chunksize > 1) {
+    if (read_chunksize > 1 && opt.verbose) {
       cerr << "starting round " << round << endl;
     }
 
@@ -546,7 +546,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
       readMappingFile << mappingSS[index].str() << "\n";
     }
     
-    if (read_chunksize > 1) {
+    if (read_chunksize > 1 && opt.verbose) {
       cerr << " end of round" << endl;
       cerr << " processed " << mapper.contigCount() << " contigs" << endl;
     }

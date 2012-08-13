@@ -1,7 +1,9 @@
 #!/usr/bin/python
 #! -*- coding: utf-8 -*-
-from Bio import Seq
 import sys
+
+alpha = {'A':'T', 'C':'G', 'G':'C', 'T':'A', 'N':'N'}
+twin  = lambda x : ''.join(map(lambda z: alpha[z], list(x[::-1])))
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
@@ -12,7 +14,7 @@ if __name__ == "__main__":
     cs = []
     for line in f.readlines():
         line = line.replace('\n', '')
-        tmp = Seq.reverse_complement(line)
+        tmp = twin(line)
         if tmp < line:
             cs.append(tmp)
         else:
