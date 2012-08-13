@@ -81,9 +81,16 @@ The memory usage of BFGraph is a lot lower than that of most other assemblers, a
 
 
 \chapter{Definitions}
-\b{kmer}\cite{wiki:kmer}: string of A,C,G,T which has length $k$ ($k$ is often $31$) \\
-\b{twin}: interchange A <-> T and C <-> G in a string and then reverse it \\
-\b{contig}: string of A,C,G,T which has length greater or equal to the kmer size\\[8pt]
+\b{kmer}\cite{wiki:kmer}: String of A,C,G,T which has length $k$ ($k$ is often equal to $31$) \\
+\b{backward-kmer}: Add a base to the beginning of a kmer and skip the last character\\
+\b{forward-kmer}: Add a base to the end of a kmer and skip the first character\\
+\b{one kmer is a neighbor of another kmer}: Either one kmer is a backward-kmer of the other or a forward-kmer\\
+\b{twin}: Interchange A <-> T and C <-> G in a string and then reverse it \\
+\b{contig}: String of A,C,G,T which has length greater or equal to the kmer size\\
+\b{self-looped contig}: The first and the last kmer of the contig are neighbors.\\
+\b{hairpinned contig}: Either the last kmer of the contig is a neighbor of its forward-kmer or
+the first kmer of the contig is a neighbor of its backward-kmer. 
+\\[8pt]
 
 \chapter{Dependencies}
 Inside the program directory are a few programs made by others:
@@ -169,8 +176,36 @@ on the command name. Both those methods go through all the reads (in a while loo
 
 The OpenMP\cite{openmp} library is used for parallel programming in BFGraph.\\[4pt] 
 
+\section{FilterReads\_Normal in FilterReads.cpp}
+This method creates two Bloom Filters (by using the class \i{BloomFilter}), one big based on the parameter 
+\b{-n} and one small based on the paramter \b{-N}. \\[4pt]
+
+Then a while loop goes through all the reads in parallel. Each kmer in every read is taken and checked if is already in the first Bloom Filter,
+if so it is put into the second Bloom Filter. If it is not in the first Bloom Filter it is put there. \\[4pt]
+
+When this has finished the second Bloom Filter contains all the kmers that were seen at least twice, but it contains more kmers
+whose count is affected by the false positive rate of the Bloom Filter, which is controlled by \b{-n}. Thus if a kmer is in the second Bloom Filter it was "probably" seen twice. This Bloom Filter is
+then saved to a file provided by the parameter \b{-o}. 
 
 
+\newpage
+\section{BuildContigs\_Normal in BuildContigs.cpp}
+This method reads the Bloom Filter, with the parameter \b{-f}, that was created with \i{FilterReads}. It also creates an instance
+of \i{KmerMapper} which uses the \i{sparse\_hash\_map} from Google to store where kmers are located within contigs. We say 
+that a kmer 'maps' to a contig if the kmer or its twin is a part of the contig. \\[4pt]
+
+
+Now a while loop goes through all the reads in parallel. Each kmer in every read is taken and the Bloom Filter is asked whether
+it contains this kmer or not. If not nothing is done, but if the Bloom Filter contains it a few things are done.
+
+First the method \i{check\_contig} is called to check if the kmer is inside an already created contig. If so the coverage of this kmer
+is increased in that contig (the method \i{getMappingInfo} is used to get the correct location inside the contig, implemented in 
+\e{ContigMethods.cpp}). 
+
+Else if the kmer does not map to a contig the method \i{make\_contig} is called, implemented in \e{ContigMethods.cpp}. 
+This method calls the method \i{find\_contig\_forward} which uses the Bloom Filter to travel from the original kmer, implemented in 
+\e{FindContig.cpp}. It travels as far as possible but stops if there is not exactly one possibility forward or backward. 
+It also stops if a self-loop is found and it also stops if the resulting contig will be hairpinned.
 
 
 \chapter{Files}
@@ -191,39 +226,71 @@ Every file in BFGraph's base directory is used by the program except the followi
 
 \section{Used files}
 The following classes reside in files by a similar name except ContigRef, it is located in \emph{KmerMapper.hpp} and
-FastqFile is located in \emph{fastq.hpp}
+FastqFile is located in \emph{fastq.hpp}. After each class name is a short description of its purpose.
+
 \subsection{Classes}
 \begin{itemize}
-\item BloomFilter 
-\item CompressedCoverage  
-\item CompressedSequence  
-\item Contig  
-\item ContigRef   
-\item FastqFile   
-\item Kmer    
-\item KmerIterator    
-\item KmerMapper  
+\item \i{BloomFilter}: Store a Bloom Filter in memory, write the Bloom Filter to a file, read a Bloom Filter from a file.
+\item \i{CompressedCoverage}: Store the coverage of each kmer in a contig with as few bits as possible.
+\item \i{CompressedSequence}: Store the bases in a contig with as few bits as possible.
+\item \i{Contig}: Store bases in a contig with CompressedSequence and store its coverage with CompressedSequence
+\item \i{ContigRef}: Store a mapping location inside a contig or store a pointer to a Contig instance.
+\item \i{FastqFile}: Open multiple fasta/fastq files.
+\item \i{Kmer}: Store the bases in a kmer with as few bits as possible, give the twin kmer, give the forward or backward kmer. 
+\item \i{KmerIterator}: Iterate through kmers in a read.
+\item \i{KmerMapper}: Store where kmers map to contigs, make new contigs, map contigs, join or split contigs while preserving the mapping and coverage info.
+
 \end{itemize}
 
 \subsection{Structs}
 \begin{itemize}
-\item \i{FilterReads\_ProgramOptions} is used as the name indicates to store parameter values from the user 
-        for the subcommand \b{filter}, located in \e{FilterReads.cpp}
-\item \i{BuildContigs\_ProgramOptions} is used to store parameter values from the user for 
-    the subcommand \b{contigs}, located in \e{BuildContigs.cpp}7
-\item \i{CheckContig} 
-\item \i{FindContig}  
-\item \i{MakeContig}
-\item \i{NewContig}
-\item \i{KmerHash}
+\item \i{FilterReads\_ProgramOptions}: Store parameter values from the user for the subcommand 'filter'
+\item \i{BuildContigs\_ProgramOptions}: Store parameter values from the user for the subcommand 'contigs'
+\item \i{CheckContig}: Store results from the fuction \i{check\_contig}
+\item \i{FindContig}: Store results from the fuction \i{find\_contig\_forward}  
+\item \i{MakeContig}: Store results from the fuction \i{make\_contig}
+\item \i{NewContig}: Store contig information, used in \i{BuildContigs\_Normal}.
+\item \i{KmerHash}: Calculate the hash of a Kmer instance.
 \end{itemize}
 
-\chapter{Important methods in the program}
+\chapter{Important methods/functions and their locations}
+
+\section{In \i{KmerMapper.cpp}}
+\begin{itemize}
+\item \i{mapContig}: Map a contig
+\item \i{addContig}: Add a contig to the map
+\item \i{joinTwoContigs}: Join two contigs and preserve their mapping and coverage info
+\item \i{joinAllContigs}: Call joinTwoContigs for all contigs that can be joined
+\item \i{splitAllContigs}: Split all contigs that have low coverage, make new contigs with correct mapping and coverage info.
+\end{itemize}
+
+\section{In \i{Kmer.cpp}}
+
+\begin{itemize}
+\item \i{forwardBase}: Puts a character after the end of a kmer and returns the resulting kmer
+\item \i{backwardBase}: Puts a character before the beginning of a kmer and returns the resulting kmer
+\item \i{twin}: Returns the twin of the given kmer.
+\end{itemize}
+
+\section{In \i{FindContig.cpp}}
+
+\begin{itemize}
+\item \i{find\_contig\_forward}: Call the method forwardBase of a given kmer successively while there is only one resulting kmer
+in a given Bloom Filter. Prevents self-loops and hairpinned contigs.
+\end{itemize}
+
+\section{In \i{ContigMethods.cpp}}
+\begin{itemize}
+\item \i{getMappingInfo}: Gets the correct location of a kmer inside a contig
+\item \i{check\_contig}: Checks whether a kmer maps to a contig or not, and stores the results in an instance of \i{CheckContig}.
+\item \i{make\_contig}: Creates a contig around a kmer with help from the function \i{find\_contig\_forward}.
+\end{itemize}
+
 
 
 \chapter{Final words}
 
-Thanks.
+Thanks for reading!
 
 \vfill
 

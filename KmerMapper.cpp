@@ -89,12 +89,12 @@ ContigRef KmerMapper::find(const Kmer km) {
 }
 
 
-// use:  i = m.joinContigs(a, b, a_dir, b_dir);
+// use:  i = m.joinTwoContigs(a, b, a_dir, b_dir);
 // pre:  a and b are not contig pointers, a_dir == ±1, b_dir == ±1
 // post: a new contig has been made from a and b joined together, i is the id of the new contig
 //       the new contig is: (twin(a) if a_dir == -1 else a )[:-k+1] + (twin(b) if b_dir == -1 else b)
 //       the old ContigRefs now point to the correct locations in the new contig
-size_t KmerMapper::joinContigs(ContigRef a, ContigRef b, int a_direction, int b_direction) {
+size_t KmerMapper::joinTwoContigs(ContigRef a, ContigRef b, int a_direction, int b_direction) {
   size_t k = Kmer::k;
   a = find_rep(a);
   b = find_rep(b);
@@ -253,28 +253,28 @@ ContigRef KmerMapper::find_rep(ContigRef a) const {
 }
 
 
-// use:  <<splitted, deleted>, joined> = mapper.splitAndJoinContigs();
+// use:  <<splitted, deleted>, joined> = mapper.splitAndJoinAllContigs();
 // post: The contigs in mapper have been splitted and joined
 //       splitted: the number of splitted contigs 
 //       deleted: the number of deleted contigs 
 //       joined: the number of joined contigs 
-pair<pair<size_t, size_t>, size_t> KmerMapper::splitAndJoinContigs() {
+pair<pair<size_t, size_t>, size_t> KmerMapper::splitAndJoinAllContigs() {
   Kmer km, rep, end, km_del;
 
-  // Set the deleted key so we can unmap contigs in splitContigs 
+  // Set the deleted key so we can unmap contigs in splitAllContigs 
   km_del.set_deleted();
   map.set_deleted_key(km_del);
 
-  pair<size_t, size_t> splitpair = splitContigs();
-  size_t joined = joinContigs();
+  pair<size_t, size_t> splitpair = splitAllContigs();
+  size_t joined = joinAllContigs();
   return make_pair(splitpair, joined);
 }
 
 
-// use:  joined = mapper.joinContigs()
+// use:  joined = mapper.joinAllContigs()
 // post: all contigs that could be connected have been connected 
 //       joined is the number of joined contigs
-size_t KmerMapper::joinContigs() {
+size_t KmerMapper::joinAllContigs() {
   Contig *c;
   ContigRef cr;
   size_t joined = 0;
@@ -291,9 +291,9 @@ size_t KmerMapper::joinContigs() {
     Kmer end = c->seq.getKmer(c->numKmers()-1);
     int dir = 0;
     if ((dir = checkContigForward(c, end, found)) != 0) {
-      joinContigs(ContigRef(contigid, 0), found, 1, dir); // this -> found
+      joinTwoContigs(ContigRef(contigid, 0), found, 1, dir); // this -> found
     } else if ((dir = checkContigForward(c, start_twin, found)) != 0) {
-      joinContigs(found, ContigRef(contigid, 0), -dir, 1); // found -> this, -dir because we used twin(first)
+      joinTwoContigs(found, ContigRef(contigid, 0), -dir, 1); // found -> this, -dir because we used twin(first)
     }
     joined += (dir != 0); // increase joined by 1 if (dir == ±1) else increase by 0
   }
@@ -354,12 +354,12 @@ int KmerMapper::checkContigForward(Contig* c, Kmer km, ContigRef &found) {
 }
 
 
-// use:  splitted, deleted = mapper.splitContigs()
+// use:  splitted, deleted = mapper.splitAllContigs()
 // post: All contigs with 1 coverage somewhere have been split where the coverage is 1
 //       splitted is the number of contigs splitted
 //       deleted is the number of contigs deleted
 //       Now every contig in mapper has coverage >= 2 everywhere
-pair<size_t, size_t> KmerMapper::splitContigs() {
+pair<size_t, size_t> KmerMapper::splitAllContigs() {
   size_t splitted = 0, deleted = 0, k = Kmer::k, contigcount = contigs.size();
   size_t cstr_len = 2*k+1, nextid = contigcount;
   char *cstr = (char*) malloc(cstr_len);

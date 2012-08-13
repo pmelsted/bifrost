@@ -556,7 +556,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
   size_t contigsBefore = mapper.contigCount();
   cerr << "Splitting and joining the contigs" << endl;
-  pair<pair<size_t, size_t>, size_t> contigDiff = mapper.splitAndJoinContigs();
+  pair<pair<size_t, size_t>, size_t> contigDiff = mapper.splitAndJoinAllContigs();
   int contigsAfter1 = contigsBefore + contigDiff.first.first - contigDiff.first.second - contigDiff.second;
   if (opt.verbose) {
     cerr << "Before split and join: " << contigsBefore << " contigs" << endl;
