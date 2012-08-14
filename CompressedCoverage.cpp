@@ -10,6 +10,8 @@ using namespace std;
 size_t round_to_bytes(const size_t len)  { return (len+3)/4; }
  
 
+// use:  cc = CompressedCoverage(sz, full);
+// post: if (sz > 0) then initialize the instance else skip initializing
 CompressedCoverage::CompressedCoverage(size_t sz, bool full) {
   if (sz > 0) {
     initialize(sz, full);
@@ -19,6 +21,9 @@ CompressedCoverage::CompressedCoverage(size_t sz, bool full) {
 }
 
 
+// use:  cc.initialize(sz, full);
+// post: the data structure has been initialized either as a small local array on the stack
+//       or a bigger array on the heap if sz > size_limit
 void CompressedCoverage::initialize(size_t sz, bool full) {
   if (sz <= size_limit) {
     asBits = 0; // zero out
@@ -43,11 +48,15 @@ void CompressedCoverage::initialize(size_t sz, bool full) {
 }
 
 
+// use:  delete cc; 
+// post: the memory for cc has been freed
 CompressedCoverage::~CompressedCoverage() {
   releasePointer();
 }
 
 
+// use:  cc.releasePointer();  
+// post: if there was data on the heap then it has been freed
 void CompressedCoverage::releasePointer() {
   if ((asBits & tagMask) == 0 && (asBits & fullMask) != fullMask) {
     // release pointer
@@ -67,6 +76,8 @@ void CompressedCoverage::releasePointer() {
 }
 
 
+// use:  i = cc.size();
+// post: i is the number of kmers that cc can hold coverage for
 size_t CompressedCoverage::size() const {
   if ((asBits & tagMask) == tagMask) {
     return ((asBits & sizeMask) >> 2);
@@ -80,6 +91,8 @@ size_t CompressedCoverage::size() const {
 }
 
 
+// use:  s = cc.toString();
+// post: s contains all important information about cc
 string CompressedCoverage::toString() const {
   bool isPtr = ((asBits & tagMask) == 0);
   size_t sz = size();
@@ -131,6 +144,9 @@ string CompressedCoverage::toString() const {
 }
 
 
+// use:  cc.cover(start, end);
+// pre:  start <= end, end < cc.size()
+// post: the coverage of kmers: start,...,end has been increased by one
 void CompressedCoverage::cover(size_t start, size_t end) {
   assert(end < size());
 
@@ -212,6 +228,9 @@ void CompressedCoverage::cover(size_t start, size_t end) {
 }
 
 
+// use:  k = cc.covat(index);
+// pre:  0 <= index < size(), cc is not full
+// post: k is the coverage at index
 uint8_t CompressedCoverage::covAt(size_t index) const {
   assert((asBits & fullMask) != fullMask);
   if ((asBits & tagMask) == tagMask) { 
@@ -277,6 +296,8 @@ vector<pair<int, int> > CompressedCoverage::splittingVector() const {
 }
 
 
+// use:  b = cc.isFull();
+// post: (b == true) <==> cc is full
 bool CompressedCoverage::isFull() const {
   if ((asBits & fullMask) == fullMask) {
     return true;

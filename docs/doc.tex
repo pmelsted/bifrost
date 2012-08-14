@@ -63,43 +63,48 @@ keepaspectratio]{img/DNA_Overview2.png}%
 \addtocounter{footnote}{-1}
 \let\thefootnote\relax\footnotetext{Cover photo is from Wikipedia\cite{wiki:coverphoto}}
 \newpage
-%\addcontentsline{toc}{chapter}{\protect\numberline{}Introduction}
 \chapter{Introduction} 
 This is a documentation for the program BFGraph. BFGraph is a De Brujin graph assembler.
 Currently it makes the pregraph but does not simplify it like SOAPdenovo\cite{wiki:soap} and Velvet\cite{wiki:velvet}.
 It makes the pregraph by using Bloom Filters in contrast to most other assemblers, that use hash tables.
 This saves a lot of memory and the result is independent of the false positive rate of the Bloom Filter.\\[2pt]
 
-A Bloom Filter is quite similar to a hash table but. If a Bloom Filter is queried for a specific key,
-it answer correctly if the key is not stored but answers incorrectly according to the false positive rate if the key is stored within it.
+A Bloom Filter is quite similar to a hash table. The difference is that if a Bloom Filter is queried for a specific key,
+it answer correctly if the key is not stored 
+but answers incorrectly according to the false positive rate if the key is stored within it.\\[4pt]
 
 The first phase of BFGraph makes the pregraph according to a Bloom Filter but then fixes the graph afterwards which makes it
-independent of the probabilistic nature of the Bloom Filter. 
+independent of the probabilistic nature of the Bloom Filter.\\[4pt]
+
 The memory usage of BFGraph is a lot lower than that of most other assemblers, and it is compared in the paper about this program.
 
 
 
 
 \chapter{Definitions}
-\b{kmer}\cite{wiki:kmer}: String of A,C,G,T which has length $k$ ($k$ is often equal to $31$) \\
-\b{backward-kmer}: Add a base to the beginning of a kmer and skip the last character\\
-\b{forward-kmer}: Add a base to the end of a kmer and skip the first character\\
-\b{one kmer is a neighbor of another kmer}: Either one kmer is a backward-kmer of the other or a forward-kmer\\
-\b{twin}: Interchange A <-> T and C <-> G in a string and then reverse it \\
-\b{contig}: String of A,C,G,T which has length greater or equal to the kmer size\\
-\b{self-looped contig}: The first and the last kmer of the contig are neighbors.\\
-\b{hairpinned contig}: Either the last kmer of the contig is a neighbor of its forward-kmer or
-the first kmer of the contig is a neighbor of its backward-kmer. 
+\b{kmer}\cite{wiki:kmer}: String of A,C,G,T which has length $k$ ($k$ is often equal to $31$) \\[2pt]
+\b{backward-kmer}: Add a base to the beginning of a kmer and skip the last character\\[2pt]
+\b{forward-kmer}: Add a base to the end of a kmer and skip the first character\\[2pt]
+\b{one kmer is a neighbor of another kmer}: Either one kmer is a backward-kmer of the other or a forward-kmer\\[2pt]
+\b{twin}: Interchange A <-> T and C <-> G in a string and then reverse it \\[2pt]
+\b{contig}: String of A,C,G,T which has length greater or equal to the kmer size\\[2pt]
+\b{self-looped contig}: The first and the last kmer of the contig are neighbors.\\[2pt]
+\b{hairpinned contig}: Either the last kmer of the contig is a neighbor of the twin of its forward-kmer or
+the first kmer of the contig is a neighbor of the twin of its backward-kmer.
+A contig can be hairpinned both forward and backward but it is rare.\\[2pt]
+\b{read}: A sequence of A,C,G,T or N from a sequencing machine\cite{wiki:dnaseq}, we only use kmers that
+have no 'N's.
 \\[8pt]
 
 \chapter{Dependencies}
-Inside the program directory are a few programs made by others:
+The program uses few programs made by others and are included in the program directory:
 
 \begin{itemize}
-\item \b{sparse\_hash}\cite{sparsehash} is inside the directory google, a memory efficient hash table made by Google
+\item \b{sparsehash}\cite{sparsehash} is inside the directory google, a memory efficient hash table made by Google
     used in this program for storing common kmers.
 \item \b{libdivide}\cite{libdivide} in the file \emph{libdivide.h} is used for fast integer division.
 \item \b{kseq}\cite{kseq} in the file \emph{kseq.h} is used for fasta/fastq file reading.
+\item \b{MurmurHash}\cite{smhasher} in the files \emph{hash.cpp} and \emph{hash.hpp} is used for hash functions in the Bloom Filter.
 \end{itemize}
 
 \chapter{Usage}
@@ -110,7 +115,7 @@ The directory \e{example} contains two small  read files in fastq format:
 Here follows a guide on how to run the program on these two files with one thread and kmer-size 31.
 The script \e{example.sh} does the same as described below.
 
-\section{Part I: Filter the reads}
+\section{Part I: Filter the reads (FilterReads)}
 This command filters the reads and saves the result to a new file, \e{example/output/tiny.bf} (it will contain a Bloom Filter).
 \begin{verbatim}
 $ ./BFGraph filter example/tinyread_*.fq -k 31 -t 1 -o example/output/tiny.bf -n 8000 -N 4000 -v
@@ -132,7 +137,7 @@ is: $40\cdot 2000=8000$. \\[4pt]
 We can expect that an average kmer will be seen at least twice so $4000$ is not a bad value for \b{-N}.
 
 \newpage
-\section{Part II: Create the contigs}
+\section{Part II: Create the contigs (BuildContigs)}
 This phase of the program reads the file \e{example/output/tiny.bf}, which is a Bloom Filter, and creates contigs from the kmers. 
 The program must be run with the same kmer-size as the Bloom Filter file was created with, in this case 31.
 This command creates the contigs in one thread and saves the results into files with the prefix: \e{example/output/tiny}.
@@ -158,10 +163,75 @@ This file can be read a native \b{.dot} file reader like ZGRViewer\cite{zgr} or 
 $ dot -Tpng example/output/tiny.dot -o example/output/tiny.png
 \end{verbatim}
 
+\chapter{Outline of the algorithm}
+
+\section{FilterReads}
+
+\subsection{Short description}
+Filter out erroneous kmers.
+
+\subsection{Detailed description}
+Go through every kmer in every read (we skip kmers that contain 'N's). If a kmer is not in the first Bloom Filter, insert it. Else check 
+if it is in the second Bloom Filter, if not insert it there.\\[4pt]
+
+The size of the first Bloom Filter is controlled by the parameter \b{-n} and the size of the second Bloom Filter
+is controlled by the parameter \b{-N}.\\[4pt]
+
+The first Bloom Filter is for keeping track of all the kmers but the second Bloom Filter
+is only for keeping track of kmers that are seen more than once.\\[4pt]
+
+The parameter \b{-n} should be close to the number of all distinct kmers in the reads but \b{-N} should be close to the
+number of distinct kmers that are seen more than once. Thus the \b{-n} parameter should always be bigger than \b{-N}.\\[4pt]
+
+The first Bloom Filter works like a sieve to filter out the erroneus kmers.\\[4pt]
+
+After filtering all the kmers in all the reads the second Bloom Filter will contain every kmer that occurs more than once and some more kmers in direct ratio to the false positive rate, which is controlled by the parameter -N. Those extra kmers do not pose a problem because they are handled in BuildContigs.\\[4pt]
+
+\newpage
+\section{BuildContigs}
+
+\subsection{Short description}
+Here we make the pregraph using the second Bloom Filter created in FilterReads. 
+
+Detailed description:
+\subsection{Detailed description}
+Here we iterate again through every kmer in every read. We skip kmers not in the second Bloom Filter (and of course kmers 
+containing any 'N's). 
+Other kmers are most likely seen more than once and we use the second Bloom Filter to create a contig surrounding those kmers.\\[4pt]
+
+The process is as follows.\\ 
+If a kmer is not a part of an already created contig see (a) else see (b):
+\begin{enumerate}[(a)]
+\item
+\begin{itemize} 
+\item Create a contig which starts by being just the kmer itself.
+\item There are always four possible forward-kmers from every kmer (add A,C,G or T). If only one of those 
+forward-kmers is in the second Bloom Filter we add this character to the contig and then repeat this process
+with the corresponding forward-kmer.
+\item If some forward-kmer is the same as the original kmer we stop increasing the contig (self-loop).
+\item If a kmer is a neighbor of the twin of its forward-kmer we stop increasing the contig (hairpin).
+\item We do the same repetitively for all possible backward-kmers.
+\item If a kmer is a neighbor of the twin of its backward-kmer we stop increasing the contig (hairpin).
+\end{itemize}
+
+Every contig is created along with data structure to keep track of how many times each kmer within it occurs (coverage of kmers).
+Initially every kmer has zero coverage. 
+When the contig has been created we increase the coverage of the kmers that came from the read by one.\\[4pt]
+
+Since the contigs are created with respect to the (second) Bloom Filter the read does not have to intersect with all of the contig. Hence
+the beginning or the end might be partially zero covered.\\[4pt]
+\item Increase the coverage of all kmers from the read that intersect with the already created contig.
+\end{enumerate}
 
 
+When we have finished iterating through all the kmers from every read we have a lot of contigs. But some of these contigs might have 
+kmers with zero or one coverage, which means that the Bloom Filters lied to us. Then we split the contigs one those kmers.\\[4pt]
 
+There might also be contigs that can be joined together but the Bloom Filter told us that there were two or more connections. We join all
+such contigs.\\[4pt]
 
+We now save all contigs along with unique ids to a file. We also save all connections between contigs to a file. It is easy to see
+that those contigs are independent on the probabilistic nature of the Bloom Filters since we split and join the contigs afterwards.\\[4pt]
 
 
 \chapter{Structure of the program}
@@ -169,15 +239,24 @@ The file \e{BFGraph.cpp} is compiled into the executable file \e{BFGraph} when `
 \e{BFGraph} runs the correct functions based on the input.\\[4pt]
 When the command 'filter' is given, the method \i{FilterReads} is called, (implemented in \e{FilterReads.cpp}).\\
 When the command 'contigs' is given, the method \i{BuildContigs} is called, (implemented in \e{BuildContigs.cpp}).\\
+A detailed call graph is shown on Figure~\ref{callgraph}.\\[4pt]
 
 The program flow is quite similar for those two commands. Parameters are first validated and an appropriate error message is given
 on any error. If all the parameters are valid, either \i{FilterReads\_Normal} or \i{BuildContigs\_Normal} is called depending
 on the command name. Both those methods go through all the reads (in a while loop) in as many threads as given by the parameter \b{-t}.\\[4pt]
 
-The OpenMP\cite{openmp} library is used for parallel programming in BFGraph.\\[4pt] 
+The OpenMP\cite{openmp} library is used for parallel programming in BFGraph.\\[4pt]
 
-\section{FilterReads\_Normal in FilterReads.cpp}
-This method creates two Bloom Filters (by using the class \i{BloomFilter}), one big based on the parameter 
+
+\begin{figure}
+\hspace*{-50pt}\includegraphics[scale=0.4]{img/Call_graph.png}
+\caption{The call graph from the main function in BFGraph.cpp. Generated by Doxygen\cite{doxygen}}
+\label{callgraph}
+\end{figure}
+
+\section{FilterReads.cpp}
+\subsection{FilterReads\_Normal}
+This methodcreates two Bloom Filters (by using the class \i{BloomFilter}), one big based on the parameter 
 \b{-n} and one small based on the paramter \b{-N}. \\[4pt]
 
 Then a while loop goes through all the reads in parallel. Each kmer in every read is taken and checked if is already in the first Bloom Filter,
@@ -189,7 +268,8 @@ then saved to a file provided by the parameter \b{-o}.
 
 
 \newpage
-\section{BuildContigs\_Normal in BuildContigs.cpp}
+\section{BuildContigs.cpp}
+\subsection{BuildContigs\_Normal}
 This method reads the Bloom Filter, with the parameter \b{-f}, that was created with \i{FilterReads}. It also creates an instance
 of \i{KmerMapper} which uses the \i{sparse\_hash\_map} from Google to store where kmers are located within contigs. We say 
 that a kmer 'maps' to a contig if the kmer or its twin is a part of the contig. \\[4pt]
@@ -253,7 +333,7 @@ FastqFile is located in \emph{fastq.hpp}. After each class name is a short descr
 \item \i{KmerHash}: Calculate the hash of a Kmer instance.
 \end{itemize}
 
-\chapter{Important methods/functions and their locations}
+\chapter{Important functions}
 
 \section{In \i{KmerMapper.cpp}}
 \begin{itemize}
@@ -270,6 +350,19 @@ FastqFile is located in \emph{fastq.hpp}. After each class name is a short descr
 \item \i{forwardBase}: Puts a character after the end of a kmer and returns the resulting kmer
 \item \i{backwardBase}: Puts a character before the beginning of a kmer and returns the resulting kmer
 \item \i{twin}: Returns the twin of the given kmer.
+\item \i{rep}: Returns the alphabetically smaller, the kmer or the twin of the kmer
+\end{itemize}
+
+\section{In \i{CompressedCoverage.cpp}}
+
+\begin{itemize}
+\item \i{cover}: Increase coverage of kmers
+\end{itemize}
+
+\section{In \i{CompressedSequence.cpp}}
+
+\begin{itemize}
+\item \i{jump}: Compare a read string to a compressed dna sequence and return how long the continuous intersection is.
 \end{itemize}
 
 \section{In \i{FindContig.cpp}}
@@ -281,7 +374,7 @@ in a given Bloom Filter. Prevents self-loops and hairpinned contigs.
 
 \section{In \i{ContigMethods.cpp}}
 \begin{itemize}
-\item \i{getMappingInfo}: Gets the correct location of a kmer inside a contig
+\item \i{getMappingInfo}: Gets the correct location of a kmer inside a contig.
 \item \i{check\_contig}: Checks whether a kmer maps to a contig or not, and stores the results in an instance of \i{CheckContig}.
 \item \i{make\_contig}: Creates a contig around a kmer with help from the function \i{find\_contig\_forward}.
 \end{itemize}
@@ -289,6 +382,9 @@ in a given Bloom Filter. Prevents self-loops and hairpinned contigs.
 
 
 \chapter{Final words}
+
+The code has been tested quite extensively both on many different read inputs and there are custom tests in the directory \b{tests}.
+We still appreciate all bug reports to \href{mailto:pmelsted@gmail.com}{pmelsted@gmail.com}.\\[4pt]
 
 Thanks for reading!
 

@@ -238,13 +238,13 @@ void FilterReads_PrintSummary(const FilterReads_ProgramOptions &opt) {
 void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
   /**
    *  outline of algorithm
-   *   - create two bloom filters, BF and BF2
-   *   - for each read in all files 
-   *     - for all kmers in read
-   *       - if kmer in BF 
-   *         - insert kmer into BF2
-   *       - else 
-   *         - insert kmer into BF
+   *    create two bloom filters, BF and BF2
+   *    for each read in all files 
+   *      for all kmers in read
+   *        if kmer in BF 
+   *          insert kmer into BF2
+   *        else 
+   *          insert kmer into BF
    *  now BF2 contains at least all the kmers that appear once
    */
 

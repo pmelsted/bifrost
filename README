@@ -26,15 +26,19 @@ To list available commands
 
 will provide more complete help.
 
+Documentation
+=============
+See docs/BFGDocumentation.pdf
+You can recompile the documentation by running make inside the directory docs.
+
 Example of usage
 ================
 The directory example contains two small read files. 
 See the file 'example.sh' to see how to run the program on these files.
 
-
 Doxygen automatic documentation
 ===============================
-Run `doxygen Doxyfile` to get html, latex and man documentation
+Run `doxygen Doxyfile` to get html, latex and man documentation.
 
 Notes
 =====
@@ -48,7 +52,7 @@ Notes
 License
 =======
 
-* The Bloom filter library is copyrighted by Arash Partow and distributed under
+* The Bloom filter library (bloom_filter.hpp) is copyrighted by Arash Partow and distributed under
   the Common Public License. http://www.partow.net/programming/hashfunctions/index.html
 
 * The hash functions used are from the MurmurHash Library, version 3, released under the
