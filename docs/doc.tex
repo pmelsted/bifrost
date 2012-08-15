@@ -194,6 +194,21 @@ This file can be read a native \b{.dot} file reader like ZGRViewer\cite{zgr} or 
 $ dot -Tpng example/output/tiny.dot -o example/output/tiny.png
 \end{verbatim}
 
+\subsection{Graphs of time vs threads}
+
+\begin{figure}
+\hspace*{-50pt}\includegraphics[scale=0.4]{graphs/threadtime_filter1.png}
+\caption{Running FilterReads on a file with million reads using a quad-core Intel i7 3770K processor}
+\label{filtertime1}
+\end{figure}
+
+\begin{figure}
+\hspace*{-50pt}\includegraphics[scale=0.4]{graphs/threadtime_contigs1.png}
+\caption{Running BuildContigs on a file with million reads using a quad-core Intel i7 3770K processor}
+\label{contigtime1}
+\end{figure}
+
+
 \chapter{Outline of the algorithm}
 
 \section{FilterReads}
