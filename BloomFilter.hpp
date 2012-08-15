@@ -182,7 +182,7 @@ protected:
     } else {
       k_ = k+1;
     }
-    cout << "k="<<k_<<", fpp="<<fpp(bits,k_) << endl;
+    cerr << "k="<<k_<<", fpp="<<fpp(bits,k_) << endl;
   }
 
   double fpp(size_t bits, size_t k) {
