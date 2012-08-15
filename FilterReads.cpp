@@ -159,13 +159,13 @@ bool FilterReads_CheckOptions(FilterReads_ProgramOptions &opt) {
   }
 
   if (opt.nkmers <= 0) {
-    cerr << "Error, invalid value for num-kmers: " << opt.nkmers << endl;
+    cerr << "Error, invalid value for num-kmers (parameter -n): " << opt.nkmers << endl;
     cerr << "Values must be positive integers" << endl;
     ret = false;
   }
 
   if (opt.nkmers2 <= 0) {
-    cerr << "Error, invalid value for num-kmers2: " << opt.nkmers2 << endl;
+    cerr << "Error, invalid value for num-kmers2 (parameter -N):" << opt.nkmers2 << endl;
     cerr << "Values must be positive integers" << endl;
     ret = false;
   }
