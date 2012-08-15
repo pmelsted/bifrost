@@ -42,7 +42,8 @@ keepaspectratio]{img/DNA_Overview2.png}%
 \definecolor{linkcolour}{rgb}{0,0,0.7}
 \hypersetup{colorlinks,breaklinks,urlcolor=linkcolour,urlcolor=linkcolour,linkcolor=linkcolour}
 
-
+\setcounter{secnumdepth}{5}
+\setcounter{tocdepth}{5}
 
 \begin{document}
 \AddToShipoutPicture*{\BackgroundPic}
@@ -66,7 +67,7 @@ keepaspectratio]{img/DNA_Overview2.png}%
 \chapter{Introduction} 
 This is a documentation for the program BFGraph. BFGraph is a De Brujin graph assembler.
 Currently it makes the pregraph but does not simplify it like SOAPdenovo\cite{wiki:soap} and Velvet\cite{wiki:velvet}.
-It makes the pregraph by using Bloom Filters in contrast to most other assemblers, that use hash tables.
+It makes the pregraph by using Bloom Filters\cite{wiki:bloomfilter} in contrast to most other assemblers, that use hash tables.
 This saves a lot of memory and the result is independent of the false positive rate of the Bloom Filter.\\[2pt]
 
 A Bloom Filter is quite similar to a hash table. The difference is that if a Bloom Filter is queried for a specific key,
@@ -93,7 +94,8 @@ The memory usage of BFGraph is a lot lower than that of most other assemblers, a
 the first kmer of the contig is a neighbor of the twin of its backward-kmer.
 A contig can be hairpinned both forward and backward but it is rare.\\[2pt]
 \b{read}: A sequence of A,C,G,T or N from a sequencing machine\cite{wiki:dnaseq}, we only use kmers that
-have no 'N's.
+have no 'N's.\\[2pt]
+\b{false positive rate of a Bloom Filter}: The odds that a Bloom Filter contains an element even though it was not inserted.
 \\[8pt]
 
 \chapter{Dependencies}
@@ -112,19 +114,19 @@ First the program has to be compiled. Run {\verb `make` } to do that.
 The directory \e{example} contains two small  read files in fastq format: 
 \e{tinyread\_1.fq} and \e{tinyread\_2.fq}.\\[4pt]
 
-Here follows a guide on how to run the program on these two files with one thread and kmer-size 31.
+Here follows a guide on how to run the program on these two files with kmer-size 31 (parameter \b{-k}).
 The script \e{example.sh} does the same as described below.
 
 \section{Part I: Filter the reads (FilterReads)}
 This command filters the reads and saves the result to a new file, \e{example/output/tiny.bf} (it will contain a Bloom Filter).
 \begin{verbatim}
-$ ./BFGraph filter example/tinyread_*.fq -k 31 -t 1 -o example/output/tiny.bf -n 8000 -N 4000 -v
+$ ./BFGraph filter example/tinyread_*.fq -k 31 -o example/output/tiny.bf -n 8000 -N 4000 -v
 \end{verbatim}
 
 The parameter \b{-n} is an upper bound of the number of kmers from the read files and the parameter \b{-N} is an upper bound
 of the number of \textit{different} kmers from the read files. The parameter \b{-v} is for verbose mode.\\[4pt]
 
-\subsection{Values for -N and -n}  %TODO: Change this part when the estimate program using streaming algorithm has been written
+\subsection{Values for the parameters \b{-N} and \b{-n}}  %TODO: Change this part when the estimate program using streaming algorithm has been written
 On the TODO list for BFGraph is to write a program to estimate these numbers from the reads. But until it has been written the user has to estimate
 them by himself. \\[4pt]
 
@@ -136,6 +138,24 @@ is: $40\cdot 2000=8000$. \\[4pt]
 
 We can expect that an average kmer will be seen at least twice so $4000$ is not a bad value for \b{-N}.
 
+\subsection{Optional parameters}
+
+\subsubsection{\b{-v}}
+The parameter \b{-v} enables verbose mode. It is disabled by default.
+\subsubsection{\b{-t}}
+The parameter \b{-t} sets the number of threads. The default value is $1$.
+\subsubsection{\b{-c}}
+The parameter \b{-c} sets the chunk-size for reads, i.e. how many reads are split between all the threads in every iteration. 
+The default value is $20000$.
+\subsubsection{\b{-b}}
+The parameter \b{-b} sets the number of bits to use in the first Bloom Filter. 
+The default value is $4$.
+\subsubsection{\b{-B}}
+The parameter \b{-b} sets the number of bits to use in the second Bloom Filter. 
+The default value is $8$.
+\subsubsection{\b{-s}}
+The parameter \b{-s} is the seed to use for randomization. The default value is time based.
+
 \newpage
 \section{Part II: Create the contigs (BuildContigs)}
 This phase of the program reads the file \e{example/output/tiny.bf}, which is a Bloom Filter, and creates contigs from the kmers. 
@@ -143,10 +163,21 @@ The program must be run with the same kmer-size as the Bloom Filter file was cre
 This command creates the contigs in one thread and saves the results into files with the prefix: \e{example/output/tiny}.
 \footnotesize
 \begin{verbatim}
-$ ./BFGraph contigs example/tinyread_*.fq -k 31 -t 1 -f example/output/tiny.bf -o example/output/tiny -v
+$ ./BFGraph contigs example/tinyread_*.fq -k 31 -f example/output/tiny.bf -o example/output/tiny -v
 \end{verbatim}
 \normalsize
 
+\subsection{Optional parameters}
+
+\subsubsection{\b{-v}}
+The parameter \b{-v} enables verbose mode. It is disabled by default.
+\subsubsection{\b{-t}}
+The parameter \b{-t} sets the number of threads. The default value is $1$.
+\subsubsection{\b{-c}}
+The parameter \b{-c} sets the chunk-size for reads, i.e. how many reads are split between all the threads in every iteration. 
+The default value is $1000$ (Note that the default values are different for filter and contigs).
+\subsubsection{\b{-s}}
+The parameter \b{-s} is the stride. Every stride-th kmer in a contig is mapped to the contig. The default value is the kmer size. 
 \section{Extra: Visualize the De Brujin graph}
 For small read files the Python program \e{make\_graph.py} can create a \b{.dot} file with Graphviz\cite{graphviz} 
 to visualize the De Brujin graph.
