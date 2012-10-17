@@ -33,8 +33,9 @@ struct BuildContigs_ProgramOptions {
   size_t read_chunksize;
   size_t contig_size; // not configurable
   vector<string> files;
+  bool del_iso;
   BuildContigs_ProgramOptions() : verbose(false), threads(1), k(0), stride(0), stride_set(false), \
-                                  read_chunksize(1000), contig_size(1000000) {}
+                                  read_chunksize(1000), contig_size(1000000), del_iso(true) {}
 };
 
 // use:  BuildContigs_PrintUsage();
