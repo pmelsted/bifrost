@@ -38,8 +38,8 @@ int main(int argc, char *argv[]) {
   cr1 = mapper1.find(km1);
   cr2 = mapper1.find(km2);
 
-  int joined = mapper1.joinContigs(cr1, cr2);
-  assert(joined == 1);
+  int id = mapper1.joinContigs(cr1, cr2, 1, 1);
+  assert(id == 2);
   Contig newc = *(mapper1.getContig(2).ref.contig);
   assert(newc.seq.toString() == "ACGGTTTCCCC");
   assert(newc.numKmers() == 8);
@@ -62,12 +62,12 @@ int main(int argc, char *argv[]) {
   km2 = Kmer(s4+3);
   cr1 = mapper2.find(km1);
   cr2 = mapper2.find(km2);
-  joined = mapper2.joinContigs(cr1, cr2);
-  assert(joined == 1);
+  id = mapper2.joinContigs(cr1, cr2, 1, -1);
+  assert(id == 2);
   newc = *(mapper2.getContig(5).ref.contig);
   
   assert(newc.numKmers() == 8);
-  assert(mapper2.getContig(joined).ref.contig->seq.toString() == "AAGGCCCATAT");
+  assert(mapper2.getContig(id).ref.contig->seq.toString() == "AAGGCCCATAT");
 
   
   /* Test the deletion of kmers */

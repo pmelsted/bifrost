@@ -67,7 +67,6 @@ std::pair<Kmer, int>* KmerIterator::operator->() {
 
 
 // use:  iter.raise(km, rep);
-// pre: 
 // post: iter has been incremented by one
 //       if iter is not invalid, km is iter->first and rep is km.rep()
 void KmerIterator::raise(Kmer &km, Kmer &rep) {

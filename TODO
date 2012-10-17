@@ -1,11 +1,1 @@
-Comment and add use/pre/post:
- fastq.cpp
- hash.cpp
- KmerIntPair.cpp
-
-Other:
- - Run gProfile on 200MB file
-
-BuildContigs.cpp
- - Use jump method in CompressedSequence when jumping over contigs
- - Add joinContigs when finished through reads
+Implement SimplifyGraph

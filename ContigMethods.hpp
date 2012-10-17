@@ -14,7 +14,10 @@ struct NewContig {
   string seq;
   size_t start;
   size_t end;
-  NewContig(string s, size_t i, size_t j) : seq(s), start(i), end(j) {}
+  size_t read_index;
+  int selfloop; // 0 for no selfloop, 1 for regular, 2 for reversed
+  NewContig(string s, size_t i, size_t j, size_t ri, int sl) 
+       : seq(s), start(i), end(j), read_index(ri), selfloop(sl) {}
 };
 
 struct CheckContig {

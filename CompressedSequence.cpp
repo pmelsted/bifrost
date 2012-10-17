@@ -22,10 +22,10 @@ static const char bases[256] = {
   'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N'
 };
 
-// bits['A'] = bits['a'] = 0 
-// bits['C'] = bits['c'] = 1
-// bits['G'] = bits['g'] = 2 
-// bits['T'] = bits['t'] = 3
+// bits['A'] == bits['a'] , 0 
+// bits['C'] == bits['c'] , 1
+// bits['G'] == bits['g'] , 2 
+// bits['T'] == bits['t'] , 3
 static const uint8_t bits[256] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
@@ -90,7 +90,7 @@ CompressedSequence& CompressedSequence::operator=(const CompressedSequence& o) {
 }
   
 
-// use:  cs = CompressedSequence(s);
+// use:  s
 // pre:  s has only the characters 'A','C','G' and 'T' and can have any length
 // post: the DNA string in cs is now the same as s
 CompressedSequence::CompressedSequence(const char *s) {
@@ -101,7 +101,7 @@ CompressedSequence::CompressedSequence(const char *s) {
 }
 
 
-// same as above except with a string not a char array 
+// same as with char *s but with string 
 CompressedSequence::CompressedSequence(const string& s) {
   initShort();
   setSequence(s.c_str(), s.size());
@@ -379,8 +379,10 @@ CompressedSequence CompressedSequence::rev() const {
 
 // use:  j = cs.jump(s,i,pos,reversed)
 // pre:  0 <= i < s.length, -1 <= pos < cs._length if reversed true, 0 <= pos <= cs._length if reversed false
-// post: if reversed == false: s[i...i+j-1] == cs._data[pos...pos+j-1], 0 <= j <= min(s.length-i, cs._length-pos)
-//       if reversed == true : reverse_complement(s[i...i+j-1]) == cs._data[pos-j+1...pos], 0 <= j <= min(s.length-i, pos+1)
+// post: if reversed == false  
+//         s[i...i+j-1] == cs._data[pos...pos+j-1], 0 <= j <= min(s.length-i, cs._length-pos)
+//       else 
+//         reverse_complement(s[i...i+j-1]) == cs._data[pos-j+1...pos], 0 <= j <= min(s.length-i, pos+1)
 size_t CompressedSequence::jump(const char *s, size_t i, int pos, bool reversed) const {
   const char *data = getPointer();
   assert(i>=0);

@@ -20,7 +20,6 @@ graph.py
 *.dot
 *.contigs
 *.graph
-*.png
 *.txt
 *.out
 *.swp
@@ -36,4 +35,7 @@ BFGraph
 Naive
 data/
 core
-[dD]oxy*
+html/
+latex/
+man/
+example/output/

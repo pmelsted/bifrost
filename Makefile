@@ -12,7 +12,11 @@ LDFLAGS =
 LDLIBS  = -lm -lz -lgomp
 SWIG = swig
 PYTHON_VERSION = $(shell echo `python -c 'import sys; print sys.version[:3]'`)
-UNAME := $(shell uname -s)
+UNAME = $(shell uname -s)
+PYTHON_FLAGS = -shared
+ifeq ($(UNAME), Darwin)
+PYTHON_FLAGS = -dynamiclib -lpython
+endif
 
 all: CXXFLAGS += -O3
 all: target
@@ -36,12 +40,7 @@ OBJECTS = Kmer.o KmerIterator.o KmerIntPair.o hash.o fastq.o FilterReads.o Build
 swig: $(OBJECTS) graph.i
 	$(SWIG) -python -c++ graph.i
 	$(CC) -fPIC -c graph_wrap.cxx -I /usr/include/python$(PYTHON_VERSION)
-ifeq ($(UNAME),Darwin)
-	$(CC) -dynamiclib -lpython $(OBJECTS) graph_wrap.o -o _graph.so $(LDFLAGS) $(LDLIBS)
-endif	
-ifeq ($(UNAME),Linux)	
-	$(CC) -shared $(OBJECTS) graph_wrap.o -o _graph.so $(LDFLAGS) $(LDLIBS)
-endif
+	$(CC) $(PYTHON_FLAGS) $(OBJECTS) graph_wrap.o -o _graph.so $(LDFLAGS) $(LDLIBS)
 
 
 BFGraph: BFGraph.o $(OBJECTS)
@@ -67,4 +66,4 @@ FindContig.o: FindContig.cpp FindContig.hpp
 hash.o: hash.hpp hash.cpp	
 
 clean:
-	rm -f *.o *.so *.pyc *_wrap.cxx BFGraph
+	rm -f *.o *.so *.pyc *_wrap.cxx graph.py BFGraph

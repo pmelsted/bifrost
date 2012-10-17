@@ -22,6 +22,8 @@ void Contig::cover(size_t start, size_t end) {
 }
 
 
+// use:  i = c.memory();
+// post: i is the total memory used by c in bytes 
 size_t Contig::memory() const {
   size_t m = sizeof(ccov) + sizeof(seq);
   size_t numkmers = numKmers();

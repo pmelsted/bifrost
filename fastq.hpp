@@ -24,17 +24,17 @@ class FastqFile {
 
   void close();
   void reopen();
-  int read_next(char *read, size_t *read_len, char *seq, size_t *seq_len, unsigned int *file_id, char* qual = 0);
+  int read_next(char *read, size_t *read_len, char *seq, size_t *seq_len, unsigned int *file_id, char* qual = NULL);
 
-  
- private:
-  vector<string>::const_iterator open_next();
-
-  vector<string>::const_iterator fnit;
+  vector<string>::const_iterator fnit; // Current filename
   unsigned int file_no;
-  vector<string> fnames;
+
+ private:
+  vector<string>::const_iterator open_next(); // Method
+
+  vector<string> fnames; // All fasta/fastq files
   gzFile fp;
   kseq_t *kseq;
 };
 
-#endif
+#endif // FASTQ_H

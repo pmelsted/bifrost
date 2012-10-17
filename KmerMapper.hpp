@@ -75,12 +75,12 @@ typedef google::sparse_hash_map<Kmer, ContigRef, KmerHash> hmap_contig_t;
   void printContigs();
   int writeContigs(int count1, string contigfilename, string graphfilename);
 
-  int joinContigs(ContigRef a, ContigRef b);
-  size_t joinContigs();
-  pair<size_t, size_t> splitContigs(); 
-  pair<pair<size_t, size_t>, size_t> splitAndJoinContigs(); 
+  size_t joinTwoContigs(ContigRef a, ContigRef b, int a_direction, int b_direction);
+  size_t joinAllContigs();
+  pair<size_t, size_t> splitAllContigs(); 
+  pair<pair<size_t, size_t>, size_t> splitAndJoinAllContigs(); 
 
-  bool checkContigForward(Contig* c, Kmer km, ContigRef &found);
+  int checkContigForward(Contig* c, Kmer km, ContigRef &found);
 private:
   ContigRef find_rep(ContigRef a) const;
 

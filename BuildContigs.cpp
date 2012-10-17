@@ -58,8 +58,8 @@ void BuildContigs_PrintUsage() {
 
 
 // use:  BuildContigs_ParseOptions(argc, argv, opt);
-// pre:  argc is the parameter count, argv is a list of valid parameters for 
-//       "building contigs" and opt is ready to contain the parsed parameters
+// pre:  argc is the parameter count, argv is a list of valid parameters 
+//       like BuildContigs_PrintUsage describes and opt is ready to contain the parsed parameters
 // post: All the parameters from argv have been parsed into opt
 void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOptions &opt) {
   const char* opt_string = "vt:k:f:o:c:s:";
@@ -113,7 +113,7 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
 
 
 // use:  b = BuildContigs_CheckOptions(opt);
-// pre:  opt contains parameters for "building contigs"
+// pre:  opt contains parameters for building contigs
 // post: (b == true)  <==>  the parameters are valid
 bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
   bool ret = true;
@@ -137,8 +137,8 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
          << ", need a number greater than 0" << endl;
     ret = false;
   } else if (opt.threads == 1) {
-    //cerr << "Setting chunksize to 1 because of only 1 thread" << endl;
-    //opt.read_chunksize = 1;
+    cerr << "Setting chunksize to 1 because of only 1 thread" << endl;
+    opt.read_chunksize = 1;
   }
 
   if (opt.k == 0 || opt.k >= MAX_KMER_SIZE) {
@@ -176,6 +176,18 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
     fclose(fp);
   }
 
+  char readMappingFilename[8192];
+  for (unsigned int file_no = 0; file_no < opt.files.size(); ++file_no) {
+    sprintf(readMappingFilename, "%s.readmap%u", opt.output.c_str(), file_no);
+    if ((fp = fopen(readMappingFilename, "w")) == NULL) {
+      cerr << "Error: Could not open file for writing: " << readMappingFilename << endl;
+      ret = false;
+    } else {
+      cerr << "Will write readmaps here: " << readMappingFilename << endl;
+      fclose(fp);
+    }
+  }
+    
   
   if (opt.stride_set) {
     if (opt.stride == 0) {
@@ -208,8 +220,7 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
 
 // use:  BuildContigs_PrintSummary(opt);
 // pre:  opt has information about Kmer size, input file and output file
-// post: Information about the Kmer size and the input and output files 
-//       has been printed to cerr 
+// post: Information about the Kmer size and the input and output files has been printed to cerr 
 void BuildContigs_PrintSummary(const BuildContigs_ProgramOptions &opt) {
   cerr << "Kmer size: " << opt.k << endl
        << "Chunksize: " << opt.read_chunksize << endl
@@ -222,6 +233,8 @@ void BuildContigs_PrintSummary(const BuildContigs_ProgramOptions &opt) {
   }
 }
 
+// use:  printeMemoryUsage(bf, mapper);
+// post: The memory usage of bf and mapper has been printed to cerr 
 void printMemoryUsage(BloomFilter &bf, KmerMapper &mapper) {
   size_t total = 0;
   cerr << "   -----  Memory usage  -----   " << endl;
@@ -236,20 +249,20 @@ void printMemoryUsage(BloomFilter &bf, KmerMapper &mapper) {
 // post: The contigs have been written to the output file 
 void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   /**
-   *  outline of algorithm
-   *   - open bloom filter file
-   *   - create contig datastructures
-   *   - for each read
-   *     - for all kmers in read
-   *        - if kmer is in bf
-   *          - if it maps to contig
-   *            - try to jump over as many kmers as possible
-   *          - else
-   *            - create new contig from kmers in both directions
-   *            - from this kmer while there is only one possible next kmer
-   *            - with respect to the bloom filter
-   *            - when the contig is ready, 
-   *            - try to jump over as many kmers as possible
+   *  outline of algorithm:
+   *  open bloom filter file
+   *    create contig datastructures
+   *    for each read
+   *      for all kmers in read
+   *        if kmer is in bf
+   *          if it maps to contig
+   *            try to jump over as many kmers as possible
+   *          else
+   *            create new contig from kmers in both directions \
+   *            from this kmer while there is only one possible next kmer \
+   *            with respect to the bloom filter
+   *            when the contig is ready, 
+   *            try to jump over as many kmers as possible
    */
 
   size_t num_threads = opt.threads;
@@ -284,34 +297,71 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   int32_t cmppos;
   uint64_t n_read = 0; 
 
-  vector<string> readv;
   vector<NewContig> *smallv, *parray = new vector<NewContig>[num_threads];
-  bool done = false;
+
+  ofstream readMappingFile;
+  char readMappingFilename[8192];
+  unsigned int file_no = 0;
+  assert(file_no == FQ.file_no);
+  sprintf(readMappingFilename, "%s.readmap%u", opt.output.c_str(), file_no);
+  readMappingFile.open(readMappingFilename);
+  assert(!readMappingFile.fail());
+  readMappingFile << *FQ.fnit << "\n";
+
 
   size_t read_chunksize = opt.read_chunksize;
-  int round = 0;
+  stringstream *mappingSS = new stringstream[read_chunksize];
+  string *readv = new string[read_chunksize];
+
   cerr << "Starting real work ....." << endl << endl;
 
+  int round = 0;
+  bool done = false, filechange = false;
   while (!done) {
-    readv.clear();
     size_t reads_now = 0;
+
+    if (filechange) {
+      mappingSS[reads_now].str("");
+      mappingSS[reads_now] << name << "\n";
+      readv[0].assign(s);
+      filechange = false;
+     
+      // Change the readmap file
+      readMappingFile.close(); // Flush and close
+      sprintf(readMappingFilename, "%s.readmap%u", opt.output.c_str(), file_no);
+      readMappingFile.open(readMappingFilename);
+      assert(!readMappingFile.fail());
+      readMappingFile << *FQ.fnit << "\n";
+      
+      ++reads_now;
+      ++n_read;
+    }
+
 
     while (reads_now < read_chunksize) {
       if (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
-        readv.push_back(string(s));
-        ++n_read;
+        if (FQ.file_no != file_no) {
+          filechange = true;
+          file_no = FQ.file_no;
+          break;
+        }
+        mappingSS[reads_now].str("");
+        mappingSS[reads_now] << name << "\n";
+        readv[reads_now].assign(s);
         ++reads_now;
+        ++n_read;
       } else {
         done = true;
         break;
       }
     }
     ++round;
-    if (read_chunksize > 1) {
-      //cerr << "starting round " << round << endl;
+
+    if (read_chunksize > 1 && opt.verbose) {
+      cerr << "starting round " << round << endl;
     }
 
-    #pragma omp parallel default(shared) private(kmernum,cmppos,smallv) shared(mapper,parray,readv,bf,reads_now,k)
+    #pragma omp parallel default(shared) private(kmernum,cmppos,smallv) shared(mappingSS,mapper,parray,readv,bf,reads_now,k)
     {
       KmerIterator iter, iterend;
       size_t threadnum = 0;
@@ -337,6 +387,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             // jump over it
             iter.raise(km, rep);
           } else {
+
             CheckContig cc = check_contig(bf, mapper, km);
             if (cc.cr.isEmpty()) {
               // Map contig (or increase coverage) from this sequence after this thread finishes
@@ -347,8 +398,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               }
               string seq = mc.seq;
               
-              size_t index = iter->second;
-              size_t cmpindex = index + k;
+              size_t iterindex = iter->second;
+              size_t cmpindex = iterindex + k;
               size_t seqindex = mc.pos;
               size_t seqcmpindex = seqindex + k;
               iter.raise(km, rep);
@@ -363,11 +414,13 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
                 iter.raise(km,rep);
               }
 
-              // cstr[index,...,cmpindex-1] == seq[seqindex,...,seqcmpindex-1]
+              // cstr[iterindex,...,cmpindex-1] == seq[seqindex,...,seqcmpindex-1]
               // Coverage of seq[seqindex,...,seqcmpindex-k] will by increase by one later in master thread
-              smallv->push_back(NewContig(seq,seqindex,seqcmpindex-k));
+              smallv->push_back(NewContig(seq, seqindex, seqcmpindex-k, index, mc.selfloop));
             } else {
               Contig *contig = mapper.getContig(cc.cr).ref.contig;
+              mappingSS[index] << cc.cr.ref.idpos.id << "|" << cc.cr.ref.idpos.pos << " ";
+
               int32_t pos = cc.cr.ref.idpos.pos;
 
               getMappingInfo(cc.repequal, pos, cc.dist, kmernum, cmppos);
@@ -379,22 +432,29 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
               } else {
                 assert(contig->seq.getKmer(kmernum) == km);
               }
-              contig->cover(kmernum,kmernum);
 
-              int32_t direction = reversed ? -1 : 1;
-              kmernum += direction;
+              int32_t direction = 1 - 2*reversed;
+              int32_t end = kmernum;
               iter.raise(km, rep);
 
               while (iter != iterend && iter->second < jumpi) {
-                assert(cstr[iter->second+k-1] != 'N');
-                assert(kmernum >= 0);
-                assert(kmernum < contig->numKmers());
-
-                // Update coverage
-                contig->cover(kmernum,kmernum);
-
-                kmernum += direction;
+                end += direction;
+                /* TODO: Remove these two asserts */
+                if (reversed) {
+                  assert(contig->seq.getKmer(end) == km.twin()); 
+                } else {
+                  assert(contig->seq.getKmer(end) == km); 
+                }
                 iter.raise(km, rep);
+              }
+
+              assert(end >= 0);
+              assert(end < contig->numKmers());
+
+              if (reversed) {
+                contig->cover(end, kmernum);
+              } else {
+                contig->cover(kmernum, end);
               }
             }
           }     
@@ -419,6 +479,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           // of the kmers that came from the read
           
           size_t id = mapper.addContig(seq);
+          mappingSS[it->read_index] << id << "|" << (it->start) << " ";
+
           contig = mapper.getContig(id).ref.contig;
           // Be careful here!! Is this definitiely updating coverage in the correct location??
           contig->cover(it->start,it->end);  
@@ -428,46 +490,64 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           size_t start = it->start, end = it->end;
           contig = mapper.getContig(cc.cr).ref.contig;
           size_t numkmers = contig->numKmers();
-
-          if (it->seq.size() != numkmers + k - 1) {
-            fprintf(stderr, "it->seq = %s , contig->seq = %s\nstart = %zu , end = %zu\n", 
-              it->seq.c_str(), contig->seq.toString().c_str(), start, end);
-            assert(0);
-          }
           
+          mappingSS[it->read_index] << cc.cr.ref.idpos.id << "|" << cc.cr.ref.idpos.pos << " ";
 
-          /* TODO: Update this in chunks */
-          for (size_t index = 0; index + start <= end; ++index) { 
-            assert(index + start < numkmers);
-            Kmer km(seq + index + start); 
-            CheckContig cc = check_contig(bf, mapper, km);
+          assert(it->seq.size() == numkmers + k - 1);
+          Kmer km(seq + start); 
+          CheckContig cc = check_contig(bf, mapper, km);
 
-            int32_t ccpos = cc.cr.ref.idpos.pos;
+          int32_t ccpos = cc.cr.ref.idpos.pos;
 
-            getMappingInfo(cc.repequal, ccpos, cc.dist, kmernum, cmppos); // 
-            bool reversed = (cc.repequal != (ccpos >= 0));
-            assert(kmernum < numkmers);
+          getMappingInfo(cc.repequal, ccpos, cc.dist, kmernum, cmppos); // 
+          assert(kmernum < numkmers);
+          bool reversed = (cc.repequal != (ccpos >= 0));
+
+          if (reversed) {
+            assert(contig->seq.getKmer(kmernum) == km.twin()); // first kmer correct
+          } else {
+            assert(contig->seq.getKmer(kmernum) == km); // first kmer correct
+          }
+
+          if (it->selfloop == 0) {
             if (reversed) {
-              assert(contig->seq.getKmer(kmernum) == km.twin());
-              //kmernum -= it->start;
-              //int left = kmernum - (end - start);
-              //size_t right = kmernum;
+              assert((end - start) <= kmernum);
+              assert(contig->seq.getKmer(kmernum - (end - start)) == Kmer(seq + end).twin()); // last kmer correct
+              contig->cover(kmernum - (end-start), kmernum);
             } else {
-              assert(contig->seq.getKmer(kmernum) == km);
-              //kmernum += it->start;
-              //size_t left = kmernum;
-              //size_t right = kmernum + end - start;
+              assert(kmernum + (end-start) < numkmers);
+              assert(contig->seq.getKmer(kmernum + (end - start)) == Kmer(seq + end)); // last kmer correct
+              contig->cover(kmernum, kmernum + (end-start));
             }
-            //TODO: cover the chunks inside the contig
-            contig->cover(kmernum, kmernum);
+          } else {
+            // Self-loop or hair-pin so we update coverage of one kmer at a time
+            for (size_t j = 0; j + start <= end; ++j) { 
+              assert(j + start < numkmers);
+              Kmer km(seq + j + start); 
+              cc = check_contig(bf, mapper, km);
+              ccpos = cc.cr.ref.idpos.pos;
+              getMappingInfo(cc.repequal, ccpos, cc.dist, kmernum, cmppos); // 
+
+              reversed = (cc.repequal != (ccpos >= 0));
+              assert(kmernum < numkmers);
+              if (reversed) {
+                assert(contig->seq.getKmer(kmernum) == km.twin());
+              } else {
+                assert(contig->seq.getKmer(kmernum) == km);
+              }
+              contig->cover(kmernum, kmernum);
+            }
           }
         }
       }
       parray[i].clear();
+    }
 
+    for(size_t index=0; index < reads_now; ++index) {
+      readMappingFile << mappingSS[index].str() << "\n";
     }
     
-    if (read_chunksize > 1) {
+    if (read_chunksize > 1 && opt.verbose) {
       cerr << " end of round" << endl;
       cerr << " processed " << mapper.contigCount() << " contigs" << endl;
     }
@@ -477,7 +557,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
   size_t contigsBefore = mapper.contigCount();
   cerr << "Splitting and joining the contigs" << endl;
-  pair<pair<size_t, size_t>, size_t> contigDiff = mapper.splitAndJoinContigs();
+  pair<pair<size_t, size_t>, size_t> contigDiff = mapper.splitAndJoinAllContigs();
   int contigsAfter1 = contigsBefore + contigDiff.first.first - contigDiff.first.second - contigDiff.second;
   if (opt.verbose) {
     cerr << "Before split and join: " << contigsBefore << " contigs" << endl;
@@ -493,7 +573,9 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
        << "Writing the graph to file: " << opt.graphfilename << endl;
   int contigsAfter2 = mapper.writeContigs(contigsAfter1, opt.contigfilename, opt.graphfilename);
 
+  delete [] readv;
   delete [] parray;
+  delete [] mappingSS;
   assert(contigsAfter1 == contigsAfter2);
 }
 
