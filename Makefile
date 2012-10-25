@@ -2,7 +2,7 @@
 # we use 1 byte for every 4 bp in kmers. Ideally
 # this parameter should be a multiple of 4.
 # Actual maximum kmer size is 1 less.
-MAX_KMER_SIZE = 32
+MAX_KMER_SIZE = 64
 
 CC = g++
 CXX = g++

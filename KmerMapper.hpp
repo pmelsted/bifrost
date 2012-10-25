@@ -48,7 +48,7 @@ public:
  *  */
 class KmerMapper {
 public:
-typedef google::sparse_hash_map<Kmer, ContigRef, KmerHash> hmap_contig_t;
+  typedef google::sparse_hash_map<Kmer, ContigRef, KmerHash> hmap_contig_t;
   typedef hmap_contig_t::iterator iterator;
   typedef hmap_contig_t::const_iterator const_iterator;
 

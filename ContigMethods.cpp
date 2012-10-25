@@ -120,6 +120,7 @@ MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
   string seq;
   FindContig fc_fw = find_contig_forward(bf, km);
   int selfloop = fc_fw.selfloop;
+  bool empty = false;
 
   if (selfloop == 0) {
     // Case 0, Case 1 or Case 2b 
@@ -127,7 +128,7 @@ MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
   } else if (selfloop == 1) {
     // Case 1
     // We don't want to grow the contig backwards, it would duplicate kmers
-    return MakeContig(fc_fw.s, selfloop, 0); 
+    return MakeContig(fc_fw.s, selfloop, 0,false); 
   } else if (selfloop == 2) {
     // Case 2a or Case 2c
     // Reverse self-loop found on forward strand
@@ -139,6 +140,13 @@ MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
   ContigRef cr_tw_end = mapper.find(fc_bw.end);
   assert(cr_tw_end.isEmpty());
 
+  // isolated contig, TODO: set min size limit 
+  if (fc_fw.deg == 0 && fc_bw.deg == 0) {
+    size_t seqlen = fc_fw.s.size() + fc_bw.s.size() - k + 1;
+    if (seqlen < 2*k) {
+      empty=true;
+    }
+  }
 
   if (fc_bw.selfloop == 0) {
     // (selfloop == 0) => Case 0
@@ -166,5 +174,5 @@ MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
     seq = fc_fw.s;
   }
 
-  return MakeContig(seq, selfloop, fc_bw.dist - 1);
+  return MakeContig(seq, selfloop, fc_bw.dist - 1,empty);
 }

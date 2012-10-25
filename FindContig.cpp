@@ -29,6 +29,7 @@ FindContig find_contig_forward(BloomFilter &bf, Kmer km) {
   int j;
   int selfloop = 0;
   size_t i, dist = 1;
+  size_t d = 0;
   
   Kmer first = km, end = km;
   Kmer firsttwin = first.twin();
@@ -44,13 +45,11 @@ FindContig find_contig_forward(BloomFilter &bf, Kmer km) {
       if (bf.contains(fw_rep)) {
         j = i;
         ++fw_count;
-        if (fw_count > 1) {
-          break;
-        }
       }
     }
 
     if (fw_count != 1) {
+      d = fw_count;
       break;
     }
     
@@ -60,10 +59,12 @@ FindContig find_contig_forward(BloomFilter &bf, Kmer km) {
 
     if (first == fw) {
       selfloop = 1;
+      d = 1;
       break;
     }
     if (end.twin() == fw) {
       selfloop = 2;
+      d = 1;
       break;
     }
 
@@ -87,5 +88,5 @@ FindContig find_contig_forward(BloomFilter &bf, Kmer km) {
     ++dist;
     s += alpha[j];
   }
-  return FindContig(end, dist, selfloop, s);
+  return FindContig(end, dist, selfloop, s, d);
 }

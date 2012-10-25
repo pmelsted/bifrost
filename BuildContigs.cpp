@@ -392,9 +392,12 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             if (cc.cr.isEmpty()) {
               // Map contig (or increase coverage) from this sequence after this thread finishes
               MakeContig mc = make_contig(bf, mapper, km);
+
+
+              // proper contig
               if (mc.selfloop > 0) {
                 fprintf(stderr, "made (in thread %zu) this self-looping (%d) contig: %s from this kmer: %s from this read: %s\n",
-                    threadnum, mc.selfloop, mc.seq.c_str(), km.toString().c_str(), cstr);
+                        threadnum, mc.selfloop, mc.seq.c_str(), km.toString().c_str(), cstr);
               }
               string seq = mc.seq;
               
@@ -414,9 +417,12 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
                 iter.raise(km,rep);
               }
 
-              // cstr[iterindex,...,cmpindex-1] == seq[seqindex,...,seqcmpindex-1]
-              // Coverage of seq[seqindex,...,seqcmpindex-k] will by increase by one later in master thread
-              smallv->push_back(NewContig(seq, seqindex, seqcmpindex-k, index, mc.selfloop));
+
+              if (!mc.empty) {
+                // cstr[iterindex,...,cmpindex-1] == seq[seqindex,...,seqcmpindex-1]
+                // Coverage of seq[seqindex,...,seqcmpindex-k] will by increase by one later in master thread
+                smallv->push_back(NewContig(seq, seqindex, seqcmpindex-k, index, mc.selfloop));
+              }
             } else {
               Contig *contig = mapper.getContig(cc.cr).ref.contig;
               mappingSS[index] << cc.cr.ref.idpos.id << "|" << cc.cr.ref.idpos.pos << " ";
@@ -472,7 +478,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
         Kmer km(seq); 
         /* We must use this when breaking on self-loops in find_contig_forward, 
            because then km is not neccessarily the first or the last km then in the contig */
-        CheckContig cc = check_contig(bf, mapper, km);
+        CheckContig cc = check_contig(bf, mapper, km); //TODO: check if simpler method exists
         
         if(cc.cr.isEmpty()) {
           // The contig has not been mapped so we map it and increase coverage
