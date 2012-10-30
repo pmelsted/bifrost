@@ -14,7 +14,16 @@
 using namespace std;
 
 static const unsigned char mask[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
- 
+
+/*static const unsigned char BitsSetTable256[256] = 
+{
+#   define B2(n) n,     n+1,     n+1,     n+2
+#   define B4(n) B2(n), B2(n+1), B2(n+1), B2(n+2)
+#   define B6(n) B4(n), B4(n+1), B4(n+1), B4(n+2)
+    B6(0), B6(1), B6(1), B6(2)
+};
+*/
+
 
 /* Short description: 
  *  - Use the very fast MurmurHash to hash keys into a Bloom Filter 
@@ -156,6 +165,26 @@ public:
     // done
 
     return true;
+  }
+
+  size_t count() const {
+    size_t c = 0;
+    for (size_t i = 0; i < (size_ >> 3); i++) {
+      unsigned char u = table_[i]; 
+      for (size_t j = 255; j != 0; j = j>>1) {
+        if (u & j != 0) {
+          c++;
+        }
+      }
+    }
+    cout << c << " bits set out of " << size_ << " with k = " << k_ << endl;
+    if (c != 0) {
+      double n = size_*(-log(1.0-((double)c)/size_))/k_;
+      cout << "estimate =" << (size_t)n  << endl;
+      return (size_t) n;
+    } else {
+      return 0;
+    }
   }
 
 

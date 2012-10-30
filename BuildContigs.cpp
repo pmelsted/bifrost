@@ -553,7 +553,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
       readMappingFile << mappingSS[index].str() << "\n";
     }
     
-    if (read_chunksize > 1 && opt.verbose) {
+    if (read_chunksize > 1 && opt.verbose ) {
       cerr << " end of round" << endl;
       cerr << " processed " << mapper.contigCount() << " contigs" << endl;
     }
