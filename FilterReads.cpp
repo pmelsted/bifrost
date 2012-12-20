@@ -336,11 +336,9 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
     cerr << " done" << endl;
   }
 
-  cout << "Bloomfilter 1 summary: " << endl;
-  BF.count();
-
-  cout << "Bloomfilter 2 summary: " << endl;
-  BF2.count();
+  cout << "Bloomfilter 1 count: " << BF.count() << endl;
+  cout << "Bloomfilter 2 count: " << BF2.count() << endl;
+    
 }
 
 // use:  FilterReads(argc, argv);

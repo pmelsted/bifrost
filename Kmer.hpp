@@ -30,7 +30,8 @@ class Kmer {
 
   Kmer();
   Kmer(const Kmer& o);
-  explicit Kmer(const char *s); 
+  explicit Kmer(const char *s);
+
   
 
   Kmer& operator=(const Kmer& o);

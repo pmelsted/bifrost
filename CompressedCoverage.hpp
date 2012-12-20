@@ -37,6 +37,7 @@ public:
   void cover(size_t start, size_t end); 
 
   bool isFull() const;
+  void setFull();
   size_t size() const;
   uint8_t covAt(size_t index) const;
   std::string toString() const; // for debugging

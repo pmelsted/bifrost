@@ -13,7 +13,7 @@ void Contig::initializeCoverage(bool full) {
 
 // use:   c.cover(start,end)
 // pre:   0 <= start <= end < c.numKmers();
-// post:  contig is covered from start to end and coveragesum is updated, threadsafe
+// post:  contig is covered from start to end (inclusive) and coveragesum is updated, threadsafe
 void Contig::cover(size_t start, size_t end) {
   assert(0 <= start);
   assert(start <= end);

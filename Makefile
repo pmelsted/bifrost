@@ -22,9 +22,15 @@ all: CXXFLAGS += -O3
 all: target
 
 
-debug: CXXFLAGS += -gstabs+ -O0
-debug: LDFLAGS += -gstabs+
+debug: CXXFLAGS += -g -O0
+debug: LDFLAGS += -g
 debug: target
+
+
+debugswig: CXXFLAGS += -g -O0
+debugswig: LDFLAGS += -g
+debugswig: swig
+
 
 profile: CXXFLAGS += -p -g -O2
 profile: LDFLAGS += -p -g
@@ -35,16 +41,21 @@ target: BFGraph
 
 
 OBJECTS = Kmer.o KmerIterator.o KmerIntPair.o hash.o fastq.o FilterReads.o BuildContigs.o SimplifyGraph.o KmerMapper.o \
-		  CompressedSequence.o Contig.o CompressedCoverage.o ContigMethods.o FindContig.o
+		  CompressedSequence.o Contig.o CompressedCoverage.o ContigMethods.o FindContig.o ContigMapper.o
 
 swig: $(OBJECTS) graph.i
 	$(SWIG) -python -c++ graph.i
-	$(CC) -fPIC -c graph_wrap.cxx -I /usr/include/python$(PYTHON_VERSION)
+	$(CC) -fPIC -c graph_wrap.cxx $(INCLUDES) -I /usr/include/python$(PYTHON_VERSION)
 	$(CC) $(PYTHON_FLAGS) $(OBJECTS) graph_wrap.o -o _graph.so $(LDFLAGS) $(LDLIBS)
 
+debugtest: CXXFLAGS += -g -O0
+debugtest: LDFLAGS += -g
+debugtest: debugtest.o $(OBJECTS)
+	$(CC) $(INCLUDES) $(OBJECTS) debugtest.o $(LDFLAGS) $(LDLIBS) -o debugtest
 
 BFGraph: BFGraph.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(OBJECTS) BFGraph.o $(LDFLAGS) $(LDLIBS) -o BFGraph
+
 
 
 BFGraph.o: BFGraph.cpp
@@ -61,7 +72,8 @@ CompressedCoverage.o: CompressedCoverage.cpp CompressedCoverage.hpp
 Contig.o: Contig.cpp Contig.hpp 
 ContigMethods.o: ContigMethods.cpp ContigMethods.hpp 
 FindContig.o: FindContig.cpp FindContig.hpp 
-
+ContigMapper.o: ContigMapper.cpp ContigMapper.hpp
+debugtest.o: debugtest.cpp
 #BloomFilter.o: BloomFilter.hpp
 hash.o: hash.hpp hash.cpp	
 

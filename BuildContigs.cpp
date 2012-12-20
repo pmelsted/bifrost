@@ -297,20 +297,24 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   int32_t cmppos;
   uint64_t n_read = 0; 
 
-  vector<NewContig> *smallv, *parray = new vector<NewContig>[num_threads];
+  vector<NewContig> *smallv;
+  vector<NewContig> *parray = new vector<NewContig>[num_threads];
 
+  /*
   ofstream readMappingFile;
   char readMappingFilename[8192];
-  unsigned int file_no = 0;
+  
   assert(file_no == FQ.file_no);
   sprintf(readMappingFilename, "%s.readmap%u", opt.output.c_str(), file_no);
   readMappingFile.open(readMappingFilename);
   assert(!readMappingFile.fail());
   readMappingFile << *FQ.fnit << "\n";
+  */
+  unsigned int file_no = 0;
 
 
   size_t read_chunksize = opt.read_chunksize;
-  stringstream *mappingSS = new stringstream[read_chunksize];
+  //stringstream *mappingSS = new stringstream[read_chunksize];
   string *readv = new string[read_chunksize];
 
   cerr << "Starting real work ....." << endl << endl;
@@ -321,17 +325,19 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     size_t reads_now = 0;
 
     if (filechange) {
-      mappingSS[reads_now].str("");
-      mappingSS[reads_now] << name << "\n";
+      //mappingSS[reads_now].str("");
+      //mappingSS[reads_now] << name << "\n";
       readv[0].assign(s);
       filechange = false;
      
       // Change the readmap file
+      /*
       readMappingFile.close(); // Flush and close
       sprintf(readMappingFilename, "%s.readmap%u", opt.output.c_str(), file_no);
       readMappingFile.open(readMappingFilename);
       assert(!readMappingFile.fail());
       readMappingFile << *FQ.fnit << "\n";
+      */
       
       ++reads_now;
       ++n_read;
@@ -345,8 +351,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           file_no = FQ.file_no;
           break;
         }
-        mappingSS[reads_now].str("");
-        mappingSS[reads_now] << name << "\n";
+        //mappingSS[reads_now].str("");
+        //mappingSS[reads_now] << name << "\n";
         readv[reads_now].assign(s);
         ++reads_now;
         ++n_read;
@@ -361,7 +367,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
       cerr << "starting round " << round << endl;
     }
 
-    #pragma omp parallel default(shared) private(kmernum,cmppos,smallv) shared(mappingSS,mapper,parray,readv,bf,reads_now,k)
+#pragma omp parallel default(shared) private(kmernum,cmppos,smallv) shared(/*mappingSS,*/mapper,parray,readv,bf,reads_now,k)
     {
       KmerIterator iter, iterend;
       size_t threadnum = 0;
@@ -388,19 +394,25 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             iter.raise(km, rep);
           } else {
 
-            CheckContig cc = check_contig(bf, mapper, km);
+            CheckContig cc = check_contig(bf, mapper, km/*, readv[index]*/);
+            
             if (cc.cr.isEmpty()) {
               // Map contig (or increase coverage) from this sequence after this thread finishes
               MakeContig mc = make_contig(bf, mapper, km);
 
 
               // proper contig
+              /*
               if (mc.selfloop > 0) {
                 fprintf(stderr, "made (in thread %zu) this self-looping (%d) contig: %s from this kmer: %s from this read: %s\n",
-                        threadnum, mc.selfloop, mc.seq.c_str(), km.toString().c_str(), cstr);
+                threadnum, mc.selfloop, mc.seq.c_str(), km.toString().c_str(), cstr);
               }
+              */
+
+              // check how many k-mers we can skip
               string seq = mc.seq;
-              
+
+              // TODO: refactor into a separate function
               size_t iterindex = iter->second;
               size_t cmpindex = iterindex + k;
               size_t seqindex = mc.pos;
@@ -419,13 +431,16 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
 
               if (!mc.empty) {
+                // ok, a proper contig we will store, push back for later
                 // cstr[iterindex,...,cmpindex-1] == seq[seqindex,...,seqcmpindex-1]
                 // Coverage of seq[seqindex,...,seqcmpindex-k] will by increase by one later in master thread
                 smallv->push_back(NewContig(seq, seqindex, seqcmpindex-k, index, mc.selfloop));
               }
             } else {
+              // map the read to the contig, update coverage if neccessary
+              
               Contig *contig = mapper.getContig(cc.cr).ref.contig;
-              mappingSS[index] << cc.cr.ref.idpos.id << "|" << cc.cr.ref.idpos.pos << " ";
+              //mappingSS[index] << cc.cr.ref.idpos.id << "|" << cc.cr.ref.idpos.pos << " ";
 
               int32_t pos = cc.cr.ref.idpos.pos;
 
@@ -468,6 +483,9 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
       }
     }
 
+
+    // This part is serial
+    
     for (size_t i=0; i < num_threads; i++) {
       for (vector<NewContig>::iterator it=parray[i].begin(); it != parray[i].end(); ++it) {
         // The kmer did not map when it was added to this vector
@@ -485,7 +503,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           // of the kmers that came from the read
           
           size_t id = mapper.addContig(seq);
-          mappingSS[it->read_index] << id << "|" << (it->start) << " ";
+          //mappingSS[it->read_index] << id << "|" << (it->start) << " ";
 
           contig = mapper.getContig(id).ref.contig;
           // Be careful here!! Is this definitiely updating coverage in the correct location??
@@ -497,7 +515,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
           contig = mapper.getContig(cc.cr).ref.contig;
           size_t numkmers = contig->numKmers();
           
-          mappingSS[it->read_index] << cc.cr.ref.idpos.id << "|" << cc.cr.ref.idpos.pos << " ";
+          //mappingSS[it->read_index] << cc.cr.ref.idpos.id << "|" << cc.cr.ref.idpos.pos << " ";
 
           assert(it->seq.size() == numkmers + k - 1);
           Kmer km(seq + start); 
@@ -549,9 +567,11 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
       parray[i].clear();
     }
 
+    /*
     for(size_t index=0; index < reads_now; ++index) {
       readMappingFile << mappingSS[index].str() << "\n";
     }
+    */
     
     if (read_chunksize > 1 && opt.verbose ) {
       cerr << " end of round" << endl;
@@ -581,7 +601,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
   delete [] readv;
   delete [] parray;
-  delete [] mappingSS;
+  //delete [] mappingSS;
   assert(contigsAfter1 == contigsAfter2);
 }
 

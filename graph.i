@@ -8,6 +8,7 @@
 #include "CompressedCoverage.hpp"
 #include "BloomFilter.hpp"
 #include "FindContig.hpp"
+#include "ContigMapper.hpp"
 %}
 %include "Common.hpp"
 %include "std_string.i"
@@ -19,6 +20,8 @@
 %include "CompressedCoverage.hpp"
 %include "BloomFilter.hpp"
 %include "FindContig.hpp"
+
+%include "ContigMapper.hpp"
 
 
 using namespace std;

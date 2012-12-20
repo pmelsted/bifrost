@@ -27,6 +27,18 @@ struct CheckContig {
   CheckContig(ContigRef ref, size_t i, bool eq) : cr(ref), dist(i), repequal(eq) {}
 };
 
+struct ContigMap {
+  Kmer head; // reference to start of contig
+  size_t dist; // 0-based distance from start of contig
+  size_t len;  // length of match, >= 1
+  size_t size; // length of the contig in k-mers
+  bool isEmpty; // true if proper match found
+  bool isShort; // true if the contig is short
+  bool repequal; // true for forward strand
+  ContigMap(Kmer ref, size_t i, size_t l,  size_t sz, bool eq, bool sh) : dist(i), repequal(eq), size(sz), len(l), isShort(sh), head(ref), isEmpty(false){}
+  ContigMap(size_t l = 1) : isEmpty(true), len(l) {}
+};
+
 
 struct MakeContig {
   string seq;

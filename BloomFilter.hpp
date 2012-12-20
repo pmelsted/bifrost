@@ -62,7 +62,7 @@ public:
   }
 
   template<typename T>
-  bool contains(T x) {
+  bool contains(T x) const {
     return (search(x) == 0);
   }
 
@@ -71,7 +71,7 @@ public:
   // post: r is the number of bits that need to be set to 1 so that
   //       x is a member of bf
   template<typename T>
-  size_t search(T x) 
+  size_t search(T x) const 
   {
     size_t r = k_;
     uint64_t id;
@@ -172,7 +172,7 @@ public:
     for (size_t i = 0; i < (size_ >> 3); i++) {
       unsigned char u = table_[i]; 
       for (size_t j = 255; j != 0; j = j>>1) {
-        if (u & j != 0) {
+        if ((u & j) != 0) {
           c++;
         }
       }
@@ -180,7 +180,7 @@ public:
     cout << c << " bits set out of " << size_ << " with k = " << k_ << endl;
     if (c != 0) {
       double n = size_*(-log(1.0-((double)c)/size_))/k_;
-      cout << "estimate =" << (size_t)n  << endl;
+      //cout << "estimate =" << (size_t)n  << endl;
       return (size_t) n;
     } else {
       return 0;
@@ -214,12 +214,12 @@ protected:
     cerr << "k="<<k_<<", fpp="<<fpp(bits,k_) << endl;
   }
 
-  double fpp(size_t bits, size_t k) {
+  double fpp(size_t bits, size_t k) const {
     //    cout << bits<<","<<k<<","<<(-((double)k)/((double)bits)) << endl;
     return pow(1-exp(-((double)k)/((double)bits)),(double)k);
   }
   
-  uint64_t rndup(uint64_t x) {
+  uint64_t rndup(uint64_t x) const {
     return ((x+63) >> 6)<<6;
   }
    

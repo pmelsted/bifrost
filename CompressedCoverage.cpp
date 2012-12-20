@@ -49,9 +49,8 @@ void CompressedCoverage::initialize(size_t sz, bool full) {
 
 
 // use:  delete cc; 
-// post: the memory for cc has been freed
+// post: 
 CompressedCoverage::~CompressedCoverage() {
-  releasePointer();
 }
 
 
@@ -307,5 +306,14 @@ bool CompressedCoverage::isFull() const {
     return (asBits >> 8) == (localCoverageMask >> 2*(28 - size()));
   } else {
     return *(getConst32Pointer() + 1) == 0;
+  }
+}
+
+// use: cc.setFull()
+// pre:
+// post: cc is full and any memory is released
+void CompressedCoverage::setFull() {
+  if (!isFull()) {
+    releasePointer();   
   }
 }
