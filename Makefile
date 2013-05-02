@@ -40,8 +40,8 @@ profile: target
 target: BFGraph
 
 
-OBJECTS = Kmer.o KmerIterator.o KmerIntPair.o hash.o fastq.o FilterReads.o BuildContigs.o SimplifyGraph.o KmerMapper.o \
-		  CompressedSequence.o Contig.o CompressedCoverage.o ContigMethods.o FindContig.o ContigMapper.o
+OBJECTS = Kmer.o KmerIterator.o  hash.o fastq.o FilterReads.o BuildContigs.o SimplifyGraph.o \
+		  CompressedSequence.o Contig.o CompressedCoverage.o  ContigMapper.o
 
 swig: $(OBJECTS) graph.i
 	$(SWIG) -python -c++ graph.i
