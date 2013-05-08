@@ -21,7 +21,7 @@ profile: LDFLAGS += -p -g
 profile: clean
 profile: target
 
-OBJECTS = ../Kmer.o ../hash.o ../CompressedSequence.o ../Contig.o ../KmerMapper.o ../KmerIterator.o ../CompressedCoverage.o ../ContigMethods.o ../FindContig.o
+OBJECTS = ../Kmer.o ../hash.o ../CompressedSequence.o ../Contig.o  ../KmerIterator.o ../CompressedCoverage.o 
 
 KmerTest: KmerTest.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(OBJECTS) KmerTest.o $(LDFLAGS) -o KmerTest

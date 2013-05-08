@@ -46,8 +46,8 @@ struct ContigMap {
   size_t size; // length of the contig in k-mers
   bool isEmpty; // true if proper match found
   bool isShort; // true if the contig is short
-  bool repequal; // true for forward strand
-  ContigMap(Kmer ref, size_t i, size_t l,  size_t sz, bool eq, bool sh) : dist(i), repequal(eq), size(sz), len(l), isShort(sh), head(ref), isEmpty(false){}
+  bool strand; // true for forward strand
+  ContigMap(Kmer ref, size_t i, size_t l,  size_t sz, bool eq, bool sh) : dist(i), strand(eq), size(sz), len(l), isShort(sh), head(ref), isEmpty(false){}
   ContigMap(size_t l = 1) : isEmpty(true), len(l) {}
 };
 

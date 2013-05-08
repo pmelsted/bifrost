@@ -49,16 +49,12 @@ void ContigMapper::mapRead(const ContigMap& cc) {
     hmap_short_contig_t::iterator it = sContigs.find(cc.head);
     CompressedCoverage& cov = it->second; // reference to the info
     // increase coverage
-    cov.cover(cc.dist, cc.dist+ ((cc.repequal) ? cc.len -1 : -cc.len+1));
+    cov.cover(cc.dist, cc.dist + cc.len-1);
   } else {
     // find long contig
     hmap_long_contig_t::iterator it = lContigs.find(cc.head);
     Contig* cont = it->second;
-    if (cc.repequal) {
-      cont->cover(cc.dist, cc.dist + cc.len -1);
-    } else {
-      cont->cover(cc.dist -cc.len+2, cc.dist);
-    }
+    cont->cover(cc.dist, cc.dist+cc.len-1);
   }
 }
 
@@ -77,31 +73,33 @@ bool ContigMapper::addContig(Kmer km, const string& read, size_t pos) {
   const char* c = s.c_str();
   size_t len = s.size();
 
-  Kmer headrep = Kmer(c).rep();
+  Kmer head = Kmer(c);
   
-  ContigMap cc = this->find(headrep);
+  ContigMap cc = this->find(head);
   bool found = !cc.isEmpty;
 
   if (!found) {
+
     // proper new contig
     if (s.size() < limit) {
       // create a short contig
-      sContigs.insert(make_pair(headrep, CompressedCoverage(s.size()-k+1)));
+      sContigs.insert(make_pair(head, CompressedCoverage(s.size()-k+1)));
     } else {
-      lContigs.insert(make_pair(headrep, new Contig(c)));
+      lContigs.insert(make_pair(head, new Contig(c)));
       
-      for (size_t i = k; i < len-k+1; i += k) {
-        shortcuts.insert(make_pair(Kmer(c+i),make_pair(headrep,i)));
+      // insert shortcuts every k k-mers
+      for (size_t i = k; i < len-k; i += k) {
+        shortcuts.insert(make_pair(Kmer(c+i),make_pair(head,i)));
       }
+      // also insert shortcut for last k-mer
+      shortcuts.insert(make_pair(Kmer(c+len-k),make_pair(head,len-k)));
       
     }
   }
   
-  
   // map the read
   cc = findContig(km,read, pos);
   mapRead(cc);
-
   return found;
 }
 
@@ -109,8 +107,8 @@ bool ContigMapper::addContig(Kmer km, const string& read, size_t pos) {
 // use:  s = cm.findContigSequence(km)
 // pre:  km is in the bloom filter
 // post: s is the contig containing the kmer km
-//       and the rep of the first k-mer in s is smaller (wrt. < operator)
-//       rep of the last kmer
+//       and the first k-mer in s is smaller (wrt. < operator)
+//       than the last kmer
 void ContigMapper::findContigSequence(Kmer km, string& s) {
   string fw_s;
   Kmer end = km;
@@ -138,13 +136,13 @@ void ContigMapper::findContigSequence(Kmer km, string& s) {
   const char *t = s.c_str();
   Kmer head(t);
   Kmer tail(t+s.size()-k);
-  if (tail.rep() < head.rep()) { // reverse complement the string
+  if (tail < head) { // reverse complement the string
     s = CompressedSequence(s).rev().toString();
   }
 }
 
 
-// use:  cc = cm.findContig(km)
+// use:  cc = cm.findContig(km,s,pos)
 // pre:  s[pos,pos+k-1] is the kmer km
 // post: cc contains either the reference to the contig position
 //       or empty if none found
@@ -152,76 +150,83 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
   assert(bf != NULL);
   size_t k = Kmer::k;
   
-  // dist is the distance to the beginning.
-  size_t dist = 0;
   Kmer end = km;
+  Kmer front;
 
-  // need to check if we find it right away
+  // need to check if we find it right away, need to treat this common case
   ContigMap cc;
-  cc = this->find(end);
+  //  cc = this->find(end);
 
   char c;
   string fw_s;
+  size_t fw_dist = 0;
   // check <k steps ahead in fw direction
-  while (cc.isEmpty && dist < k && fwBfStep(end, end, c)) {
+  while (fw_dist < k && fwBfStep(end, end, c)) {
     fw_s.push_back(c);
-    cc = this->find(end);
-    ++dist;
+    ++fw_dist;
   }
 
-  
-  if (!cc.isEmpty) {
-    //TODO: check this logic
-    if (cc.isShort) {
-      // figure out length of match.
-      size_t len = 1 + stringMatch(fw_s, s, pos+k);
-      return ContigMap(cc.head, dist, cc.size, len, end == cc.head, true);
+  size_t len = 1 + stringMatch(fw_s, s, pos+k);
+
+  string bw_s;
+  size_t bw_dist = 0;
+  while (bw_dist < k && bwBfStep(front,front,c)) {
+    ++bw_dist;
+  }
+
+  cc = this->find(end);
+  if (! cc.isEmpty) {
+    size_t km_dist = cc.dist; // is 0 if we have reached the end
+    if (cc.strand) {
+      km_dist -= fw_dist;
     } else {
-      size_t len = 1 + stringMatch(fw_s, s, pos+k);
-
-      if (len == 1+dist) {
-        // end is now the matching k-mer
-        const CompressedSequence& seq = lContigs.find(cc.head)->second->seq;
-        //len += seq.jump(s.c_str(), pos+dist+k, cc.dist+k, cc.repequal) -1;
-        //cout << "end kmer:     " << end.toString() << endl;
-        //cout << "read match:   "  <<s.substr(pos+dist) << endl;
-        //cout << "contig match: " << seq.toString().substr(cc.dist) << endl;
-        //cout << "contig:       " << seq.toString() << endl;
-        //cout << "len before" << len << endl;
-        //len += stringMatch(seq.toString().substr(cc.dist+k),s, pos+dist+k);
-        len += seq.jump(s.c_str(), pos+dist+k, cc.dist+k,!cc.repequal); // TODO: check arithmetic here!
-        //cout << "len after" << len << endl;
-
-      } else {
-        // read does not match the contig string
-        
-      }
-      size_t km_dist = cc.dist + ((cc.repequal) ? -dist : dist);
-      return ContigMap(cc.head, km_dist,len,  cc.size, cc.repequal, false);
+      km_dist += fw_dist - (len-1);
     }
-  } 
-
-  //TODO check logic in backwards matching strings. is it really 1?
-  Kmer front = km;
-  while (cc.isEmpty && dist < k && bwBfStep(front,front,c)) {
+    
+    return ContigMap(cc.head, km_dist, len, cc.size, cc.strand, cc.isShort);
+  } else { 
     cc = this->find(front);
-    ++dist;
-  }
+    if (! cc.isEmpty) {
+      size_t km_dist = cc.dist;
+      if (cc.strand) {
+	km_dist += bw_dist;
+      } else {
+	km_dist -= (bw_dist + len-1);
+      }
 
-  // 
-
-  if (!cc.isEmpty) {
-    if (cc.isShort) {
-      return ContigMap(cc.head, dist, cc.size, 1, front == cc.head, true);
-    } else {
-      dist = cc.dist + (cc.repequal) ? dist : (-dist);
-      return ContigMap(cc.head, dist, cc.size, 1, front == cc.head, false);
+      return ContigMap(cc.head, km_dist, len, cc.size, cc.strand, cc.isShort);
     }
   }
 
+  if (bw_dist == k || fw_dist == k) {
+    Kmer short_end = km;
+    size_t fd = 0;
+    while (fd < k && fwBfStep(short_end,short_end,c)) {
+      ++fd;
+      cc = this->find(short_end);
+      if (! cc.isEmpty) {
+	const CompressedSequence& seq = lContigs.find(cc.head)->second->seq;
+	size_t km_dist = cc.dist;
+	size_t jlen = 0;
+	
+	if (cc.strand) {
+	  km_dist -= fd;
+	  jlen = seq.jump(s.c_str(), pos, km_dist, false) -k + 1;
+	  assert(jlen > 0);
+	} else {
+	  km_dist += fd; // location of the start k-mer
+	  jlen = seq.jump(s.c_str(), pos, km_dist+k-1, true) -k + 1;
+	  // jlen is how much of the fw_s matches the contig
+	  assert(jlen > 0);
+	  km_dist -= (jlen-1);
+	}
+	return ContigMap(cc.head, km_dist, jlen, cc.size, cc.strand, cc.isShort);
+      }
+    }
+  }
 
-  // ok, no match but how many steps can we jump ahead
-  return ContigMap(1+stringMatch(fw_s,s,pos+k));
+  // nothing found, how much can we skip ahead?
+  return ContigMap(len);
 }
 
 // use:  b = cm.bwBfStep(km,front,c)
@@ -349,23 +354,26 @@ ContigMap ContigMapper::find(Kmer km) const {
   hmap_long_contig_t::const_iterator lit;
   hmap_shortcut_t::const_iterator sc_it;
 
-  Kmer rep = km.rep();
+  Kmer tw = km.twin();
   
-  if ((sit = sContigs.find(rep)) != sContigs.end()) {
-    return ContigMap(rep, 0, sit->second.size(), 1, km == rep,true);
-  } else if ((lit = lContigs.find(rep)) != lContigs.end()) {
-    return ContigMap(rep, 0, lit->second->length(), 1, km == rep, false);
+  if ((sit = sContigs.find(km)) != sContigs.end()) {
+    return ContigMap(km, 0, 1, sit->second.size(), true ,true);
+  } else if ((sit = sContigs.find(tw)) != sContigs.end()) {
+    return ContigMap(tw, 0, 1, sit->second.size(), false, true);
+  } else if ((lit = lContigs.find(km)) != lContigs.end()) {
+    return ContigMap(km, 0, 1, lit->second->length(), true, false);
+  } else if ((lit = lContigs.find(tw)) != lContigs.end()) {
+    return ContigMap(tw, 0, 1, lit->second->length(), false, false);
   } else {
     if ((sc_it = shortcuts.find(km)) != shortcuts.end()) {
       lit = lContigs.find(sc_it->second.first);
-      return ContigMap(lit->first,sc_it->second.second, lit->second->ccov.size(), 1, true,false); // found on fw strand
-    } else if ((sc_it = shortcuts.find(rep)) != shortcuts.end()) {
+      return ContigMap(lit->first, sc_it->second.second, 1, lit->second->ccov.size(), true, false); // found on fw strand
+    } else if ((sc_it = shortcuts.find(tw)) != shortcuts.end()) {
       lit = lContigs.find(sc_it->second.first);
-      return ContigMap(lit->first,sc_it->second.second, lit->second->ccov.size(), 1, false,false); // found on rev strand
+      return ContigMap(lit->first, sc_it->second.second, 1, lit->second->ccov.size(), false, false); // found on rev strand
     }
   }
   return ContigMap();
-  
 }
 
 
