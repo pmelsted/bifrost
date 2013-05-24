@@ -151,7 +151,7 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
   size_t k = Kmer::k;
   
   Kmer end = km;
-  Kmer front;
+  Kmer front = km;
 
   // need to check if we find it right away, need to treat this common case
   ContigMap cc;
