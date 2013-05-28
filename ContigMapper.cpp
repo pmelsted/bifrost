@@ -3,7 +3,7 @@
 #include <string>
 #include <iterator>
 #include <algorithm>
-
+#include <fstream>
 
 // for debugging
 #include <iostream>
@@ -600,13 +600,35 @@ size_t ContigMapper::writeContigs(int count1, string contigfilename, string grap
     sequence
     ...
   */
-  size_t count2 = 0;
-  /*
+  // TODO: change graph file format, write out full graph
+  size_t id = 0;
+
   ofstream contigfile, graphfile;
   contigfile.open(contigfilename.c_str());
   graphfile.open(graphfilename.c_str());
+  graphfile.close();
   assert(!contigfile.fail() && !graphfile.fail());
+  string s;
+  for (hmap_short_contig_t::iterator it = sContigs.begin(); it != sContigs.end(); ++it) {
+    assert(it->second.isFull());
+    s.clear();
+    findContigSequence(it->first, s);
+    id++;
+    contigfile << ">contig" << id << "\n" << s << "\n";
+  }
+  s.clear();
 
+  for (hmap_long_contig_t::iterator it = lContigs.begin(); it != lContigs.end(); ++it) {
+    assert(it->second->ccov.isFull());
+    id++;
+    contigfile << ">contig" << id << "\n" << it->second->seq.toString() << "\n";
+  }
+
+  contigfile.close();
+
+  return id;
+
+  /*
   size_t k = Kmer::k;
   int count2 = 0;
   size_t contigcount = contigs.size();
@@ -685,6 +707,7 @@ size_t ContigMapper::writeContigs(int count1, string contigfilename, string grap
   // Flush and close
   contigfile.close(); 
   graphfile.close();  
-  */
   return count2;
+  */
+
 }
