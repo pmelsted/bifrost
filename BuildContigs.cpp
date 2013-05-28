@@ -405,7 +405,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   delete [] readv;
   delete [] parray;
 
-  assert(contigsAfter1 == contigsAfter2);  
+  //assert(contigsAfter1 == contigsAfter2);  
 }
 
 
