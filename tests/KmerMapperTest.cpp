@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
   cr1 = mapper1.find(km1);
   cr2 = mapper1.find(km2);
 
-  int id = mapper1.joinContigs(cr1, cr2, 1, 1);
+  int id = mapper1.joinTwoContigs(cr1, cr2, 1, 1);
   assert(id == 2);
   Contig newc = *(mapper1.getContig(2).ref.contig);
   assert(newc.seq.toString() == "ACGGTTTCCCC");
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
   km2 = Kmer(s4+3);
   cr1 = mapper2.find(km1);
   cr2 = mapper2.find(km2);
-  id = mapper2.joinContigs(cr1, cr2, 1, -1);
+  id = mapper2.joinTwoContigs(cr1, cr2, 1, -1);
   assert(id == 2);
   newc = *(mapper2.getContig(5).ref.contig);
   
@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
   dMapper.map.erase(km.rep());
   assert(dMapper.find(km).isEmpty());
 
-  /* Test the splitContigs method */
+  /* Test the splitAllContigs method */
   KmerMapper splitMapper;
   char splitContigString[] = "ACACTAGAGTAAAA";
   splitMapper.addContig(splitContigString);
@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
   assert(spv[1].second == 6); 
   assert(spv[2].first == 10); 
   assert(spv[2].second == 11); 
-  pair<size_t, size_t> splitpair = splitMapper.splitContigs();
+  pair<size_t, size_t> splitpair = splitMapper.splitAllContigs();
   assert(splitpair.first == 2);
   assert(splitpair.second == 0);
   assert(splitMapper.getContig(1).ref.contig->seq.toString() == "ACAC");
@@ -120,7 +120,7 @@ int main(int argc, char *argv[]) {
   assert(splitMapper.getContig(3).ref.contig->seq.toString() == "AAAA");
 
   
-  /* Test the splitAndJoinContigs method */  
+  /* Test the splitAndJoinAllContigs method */  
   char s5[] = "AAAATCCCC";
   mapper3.addContig(s5);
   cr1 = mapper3.getContig(0);
@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
   cn->cover(0,5);
   cn->cover(0,2);
   cn->cover(4,5);
-  mapper3.splitAndJoinContigs();
+  mapper3.splitAndJoinAllContigs();
   assert(mapper3.contigCount() == 3);
   assert(mapper3.contigs[0].isEmpty());
   assert(!mapper3.contigs[1].isEmpty());
@@ -144,7 +144,7 @@ int main(int argc, char *argv[]) {
   cn = cr1.ref.contig;
   cn->cover(0,5);
   cn->cover(2,4);
-  mapper4.splitAndJoinContigs();
+  mapper4.splitAndJoinAllContigs();
   assert(mapper4.contigCount() == 2);
   assert(mapper4.contigs[0].isEmpty());
   assert(!mapper4.contigs[1].isEmpty());
@@ -159,7 +159,7 @@ int main(int argc, char *argv[]) {
   cn->cover(0,5);
   cn->cover(1,1);
   cn->cover(3,4);
-  mapper5.splitAndJoinContigs();
+  mapper5.splitAndJoinAllContigs();
   assert(mapper5.contigCount() == 3);
   assert(mapper5.contigs[0].isEmpty());
   assert(!mapper5.contigs[1].isEmpty());
@@ -180,7 +180,7 @@ int main(int argc, char *argv[]) {
   cr2.ref.contig->cover(0,3);
   cr2.ref.contig->cover(0,3);
   
-  mapper6.splitAndJoinContigs();
+  mapper6.splitAndJoinAllContigs();
   assert(mapper6.contigs.size() == 2 ); // Two candidates for AAGX
 
 
