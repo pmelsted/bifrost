@@ -5,7 +5,7 @@ CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -fPIC
 LDFLAGS =
 
 EXECUTABLES = KmerTest KmerTestExtended CompressedSequenceTest BloomFilterTest BlockedBloomFilterTest KmerMapperTest KmerIteratorTest \
-			  CompressedCoverageTest ContigMethodsTest
+			  CompressedCoverageTest 
 
 all: CXXFLAGS += -O3
 all: target
@@ -21,7 +21,7 @@ profile: LDFLAGS += -p -g
 profile: clean
 profile: target
 
-OBJECTS = ../Kmer.o ../hash.o ../CompressedSequence.o ../Contig.o  ../KmerIterator.o ../CompressedCoverage.o 
+OBJECTS = ../FindContig.o ../KmerMapper.o ../Kmer.o ../hash.o ../CompressedSequence.o ../Contig.o  ../KmerIterator.o ../CompressedCoverage.o 
 
 KmerTest: KmerTest.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(OBJECTS) KmerTest.o $(LDFLAGS) -o KmerTest
@@ -47,9 +47,6 @@ KmerIteratorTest: KmerIteratorTest.o $(OBJECTS)
 CompressedCoverageTest: CompressedCoverageTest.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(OBJECTS) CompressedCoverageTest.o $(LDFLAGS) -o CompressedCoverageTest
 
-ContigMethodsTest: ContigMethodsTest.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) ContigMethodsTest.o $(LDFLAGS) -o ContigMethodsTest
-
 
 KmerTest.o: ../Kmer.o ../hash.o
 KmerTestExtended.o: ../Kmer.o ../hash.o
@@ -71,7 +68,6 @@ CompressedCoverageTest.o: ../CompressedCoverage.o
 ../KmerIterator.o: ../KmerIterator.hpp ../KmerIterator.cpp
 ../CompressedCoverage.o: ../CompressedCoverage.hpp ../CompressedCoverage.cpp
 ../Contig.o: ../Contig.hpp ../Contig.cpp
-../ContigMethods.o: ../ContigMethods.hpp ../ContigMethods.cpp
 ../FindContig.o: ../FindContig.hpp ../FindContig.cpp
 
 clean:
