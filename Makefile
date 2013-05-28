@@ -7,7 +7,7 @@ MAX_KMER_SIZE = 64
 CC = g++
 CXX = g++
 INCLUDES = -I.
-CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) -fPIC -fopenmp
+CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) -fPIC -fopenmp -lstdc++
 LDFLAGS =
 LDLIBS  = -lm -lz -lgomp
 SWIG = swig
@@ -18,7 +18,7 @@ ifeq ($(UNAME), Darwin)
 PYTHON_FLAGS = -dynamiclib -lpython
 endif
 
-all: CXXFLAGS += -O3
+all: CXXFLAGS += -O3 
 all: target
 
 
@@ -54,7 +54,7 @@ debugtest: debugtest.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(OBJECTS) debugtest.o $(LDFLAGS) $(LDLIBS) -o debugtest
 
 BFGraph: BFGraph.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) BFGraph.o $(LDFLAGS) $(LDLIBS) -o BFGraph
+	$(CXX) $(INCLUDES) $(OBJECTS) BFGraph.o $(LDFLAGS) $(LDLIBS) -o BFGraph -lstdc++
 
 
 

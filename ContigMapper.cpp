@@ -404,7 +404,18 @@ pair<pair<size_t, size_t>, size_t> ContigMapper::splitAndJoinAllContigs() {
 //       joined is the number of joined contigs
 size_t ContigMapper::joinAllContigs() {
   size_t joined = 0;
+  /*
+  typedef vector<pair<int,int> > split_vector_t;
+  vector<string> joined_contigs;
 
+  for (hmap_short_contig_t::iterator it = sContigs.begin(); it != sContigs.end(); ) {
+    string s;
+    findContigSequence(it->first, s);
+    
+  }
+  */
+
+  
   /*
   for(size_t contigid = 0; contigid < contigs.size(); ++contigid) {
     cr = contigs[contigid];
@@ -430,17 +441,19 @@ size_t ContigMapper::joinAllContigs() {
 }
 
 
-// use:  splitted, deleted = mapper.splitAllContigs()
+// use:  split, deleted = mapper.splitAllContigs()
 // post: All contigs with 1 coverage somewhere have been split where the coverage is 1
-//       splitted is the number of contigs splitted
+//       split is the number of contigs splitted
 //       deleted is the number of contigs deleted
 //       Now every contig in mapper has coverage >= 2 everywhere
 pair<size_t, size_t> ContigMapper::splitAllContigs() {
   size_t k = Kmer::k;
+  
+  size_t split = 0, deleted =0 ;
 
-  size_t l_contigcount = lContigs.size();
+    /*  size_t l_contigcount = lContigs.size();
   size_t s_contigcount = sContigs.size();
-
+    */
 
   // for each short-contig
   typedef vector<pair<int,int> > split_vector_t;
@@ -452,7 +465,14 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
       findContigSequence(it->first,s);
       split_vector_t sp = it->second.splittingVector();
 
+      if (sp.empty()) {
+	deleted++;
+      } else {
+	split++;
+      }
+
       // remember small contigs
+      // TODO: insert only middle part, if we are discarding small ones
       for (split_vector_t::iterator sit = sp.begin(); sit != sp.end(); ++sit) {
 	size_t pos = sit->first;
 	size_t len = sit->second - pos;
@@ -499,6 +519,13 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
 
       // remember pieces
       split_vector_t sp = it->second->ccov.splittingVector();
+      if (sp.empty()) {
+	deleted++;
+      } else {
+	split++;
+      }
+
+      // TODO: discard short middle pieces
       for (split_vector_t::iterator sit = sp.begin(); sit != sp.end(); ++sit) {
 	size_t pos = sit->first;
 	size_t len = sit->second - pos;
@@ -550,7 +577,7 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
 
   long_split_contigs.clear();
 
-  return make_pair(0,0); // TODO: return actual numbers
+  return make_pair(split,deleted); // TODO: return actual numbers
 }
 
 
