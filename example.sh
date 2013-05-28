@@ -2,7 +2,7 @@
 set -e  # Exit on errors
 
 #0) Make sure the program has been compiled
-if [! -f "BFGraph" ]
+if [ ! -f "BFGraph" ]
 then
     echo "BFGraph not found, did you run make?"
     exit 1

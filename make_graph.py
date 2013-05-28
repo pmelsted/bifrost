@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 #! -*- coding: utf-8 -*-
 import sys
 
@@ -44,11 +44,13 @@ def createDict(prefix):
     graphfile = prefix + ".graph"
     try:
         clines = map(non, open(prefix + ".contigs", 'r').readlines())
+        assert clines
     except:
         print "Could not find file %s.contigs, did you run ./BFGraph contigs -o %s ...?" % (prefix, prefix)
         exit()
     try:
         glines = map(non, open(prefix + ".graph", 'r').readlines())
+        assert glines
     except:
         print "Could not find file %s.graph, did you run ./BFGraph contigs -o %s ...?" % (prefix, prefix)
         exit()
