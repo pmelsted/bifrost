@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <sstream>
+#include <algorithm>
 #include "CompressedCoverage.hpp"
 
 using namespace std;
@@ -144,9 +145,15 @@ string CompressedCoverage::toString() const {
 
 
 // use:  cc.cover(start, end);
-// pre:  start <= end, end < cc.size()
-// post: the coverage of kmers: start,...,end has been increased by one
+// pre:  0 <= start , end < cc.size()
+// post: the coverage of kmers: start,...,end (or reverse)
+//       has been increased by one
 void CompressedCoverage::cover(size_t start, size_t end) {
+  
+  if (end < start) {
+    std::swap(start,end);
+  }
+
   assert(end < size());
 
   if (isFull()) {

@@ -16,12 +16,12 @@
 #include "Common.hpp"
 #include "CompressedSequence.hpp"
 #include "Contig.hpp"
-#include "KmerMapper.hpp"
 #include "BloomFilter.hpp"
 #include "ContigMethods.hpp"
 #include "HashTables.hpp"
 #include "KmerIterator.hpp"
 #include "fastq.hpp"
+#include "ContigMapper.hpp"
 
 
 struct BuildContigs_ProgramOptions {
@@ -176,19 +176,6 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
     fclose(fp);
   }
 
-  char readMappingFilename[8192];
-  for (unsigned int file_no = 0; file_no < opt.files.size(); ++file_no) {
-    sprintf(readMappingFilename, "%s.readmap%u", opt.output.c_str(), file_no);
-    if ((fp = fopen(readMappingFilename, "w")) == NULL) {
-      cerr << "Error: Could not open file for writing: " << readMappingFilename << endl;
-      ret = false;
-    } else {
-      cerr << "Will write readmaps here: " << readMappingFilename << endl;
-      fclose(fp);
-    }
-  }
-    
-  
   if (opt.stride_set) {
     if (opt.stride == 0) {
       cerr << "Error: Invalid stride " << opt.stride << ", need a number >= 1" << endl;
@@ -235,11 +222,11 @@ void BuildContigs_PrintSummary(const BuildContigs_ProgramOptions &opt) {
 
 // use:  printeMemoryUsage(bf, mapper);
 // post: The memory usage of bf and mapper has been printed to cerr 
-void printMemoryUsage(BloomFilter &bf, KmerMapper &mapper) {
+void printMemoryUsage(BloomFilter &bf, ContigMapper &cmap) {
   size_t total = 0;
   cerr << "   -----  Memory usage  -----   " << endl;
   total += bf.memory();
-  total += mapper.memory();
+  //total += cmap.memory(); //TODO add this method
   total >>= 20;
   cerr << "Total:\t\t\t" << total << "MB" << endl << endl;
 }
@@ -287,31 +274,18 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     f = NULL;
   }
 
-  KmerMapper mapper(opt.contig_size, opt.stride);
+  ContigMapper cmap;
+  cmap.mapBloomFilter(&bf);
 
   KmerIterator iter, iterend;
   FastqFile FQ(opt.files);
 
   char name[8192], s[8192];
-  size_t kmernum, name_len, len, k = Kmer::k;
-  int32_t cmppos;
+  size_t name_len, len;
   uint64_t n_read = 0; 
 
   vector<NewContig> *smallv;
   vector<NewContig> *parray = new vector<NewContig>[num_threads];
-
-  /*
-  ofstream readMappingFile;
-  char readMappingFilename[8192];
-  
-  assert(file_no == FQ.file_no);
-  sprintf(readMappingFilename, "%s.readmap%u", opt.output.c_str(), file_no);
-  readMappingFile.open(readMappingFilename);
-  assert(!readMappingFile.fail());
-  readMappingFile << *FQ.fnit << "\n";
-  */
-  unsigned int file_no = 0;
-
 
   size_t read_chunksize = opt.read_chunksize;
   //stringstream *mappingSS = new stringstream[read_chunksize];
@@ -320,39 +294,12 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   cerr << "Starting real work ....." << endl << endl;
 
   int round = 0;
-  bool done = false, filechange = false;
+  bool done = false;
   while (!done) {
     size_t reads_now = 0;
 
-    if (filechange) {
-      //mappingSS[reads_now].str("");
-      //mappingSS[reads_now] << name << "\n";
-      readv[0].assign(s);
-      filechange = false;
-     
-      // Change the readmap file
-      /*
-      readMappingFile.close(); // Flush and close
-      sprintf(readMappingFilename, "%s.readmap%u", opt.output.c_str(), file_no);
-      readMappingFile.open(readMappingFilename);
-      assert(!readMappingFile.fail());
-      readMappingFile << *FQ.fnit << "\n";
-      */
-      
-      ++reads_now;
-      ++n_read;
-    }
-
-
     while (reads_now < read_chunksize) {
       if (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
-        if (FQ.file_no != file_no) {
-          filechange = true;
-          file_no = FQ.file_no;
-          break;
-        }
-        //mappingSS[reads_now].str("");
-        //mappingSS[reads_now] << name << "\n";
         readv[reads_now].assign(s);
         ++reads_now;
         ++n_read;
@@ -367,12 +314,12 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
       cerr << "starting round " << round << endl;
     }
 
-#pragma omp parallel default(shared) private(kmernum,cmppos,smallv) shared(/*mappingSS,*/mapper,parray,readv,bf,reads_now,k)
+#pragma omp parallel default(shared) private(smallv) shared(cmap,parray,readv,bf,reads_now)
     {
       KmerIterator iter, iterend;
       size_t threadnum = 0;
       #ifdef _OPENMP
-        threadnum= omp_get_thread_num();
+        threadnum = omp_get_thread_num();
       #endif
       smallv = &parray[threadnum];
 
@@ -393,216 +340,72 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             // jump over it
             iter.raise(km, rep);
           } else {
+	    // find mapping contig
+	    ContigMap cm = cmap.findContig(km,readv[index],iter->second);
 
-            CheckContig cc = check_contig(bf, mapper, km/*, readv[index]*/);
-            
-            if (cc.cr.isEmpty()) {
-              // Map contig (or increase coverage) from this sequence after this thread finishes
-              MakeContig mc = make_contig(bf, mapper, km);
+	    if (cm.isEmpty) {
+	      // kmer did not map, 
+	      // push into queue for next contig generation round
+	      smallv->push_back(NewContig(km,readv[index],iter->second));
+	    } 
 
+	    // map the read, has no effect for newly created contigs
+	    cmap.mapRead(cm);
 
-              // proper contig
-              /*
-              if (mc.selfloop > 0) {
-                fprintf(stderr, "made (in thread %zu) this self-looping (%d) contig: %s from this kmer: %s from this read: %s\n",
-                threadnum, mc.selfloop, mc.seq.c_str(), km.toString().c_str(), cstr);
-              }
-              */
-
-              // check how many k-mers we can skip
-              string seq = mc.seq;
-
-              // TODO: refactor into a separate function
-              size_t iterindex = iter->second;
-              size_t cmpindex = iterindex + k;
-              size_t seqindex = mc.pos;
-              size_t seqcmpindex = seqindex + k;
-              iter.raise(km, rep);
-              
-              while (cstr[cmpindex] == seq[seqcmpindex] && cstr[cmpindex] != '\0') {
-                assert(cstr[cmpindex] != 'N');
-                Kmer k1(&cstr[cmpindex-k]);
-                Kmer k2(&seq[seqcmpindex-k]);
-                assert(k1 == k2);
-                ++cmpindex;
-                ++seqcmpindex;
-                iter.raise(km,rep);
-              }
-
-
-              if (!mc.empty) {
-                // ok, a proper contig we will store, push back for later
-                // cstr[iterindex,...,cmpindex-1] == seq[seqindex,...,seqcmpindex-1]
-                // Coverage of seq[seqindex,...,seqcmpindex-k] will by increase by one later in master thread
-                smallv->push_back(NewContig(seq, seqindex, seqcmpindex-k, index, mc.selfloop));
-              }
-            } else {
-              // map the read to the contig, update coverage if neccessary
-              
-              Contig *contig = mapper.getContig(cc.cr).ref.contig;
-              //mappingSS[index] << cc.cr.ref.idpos.id << "|" << cc.cr.ref.idpos.pos << " ";
-
-              int32_t pos = cc.cr.ref.idpos.pos;
-
-              getMappingInfo(cc.repequal, pos, cc.dist, kmernum, cmppos);
-              bool reversed = ((pos >= 0) != cc.repequal);
-              int jumpi = 1 + iter->second + contig->seq.jump(cstr, iter->second + k, cmppos, reversed);
-
-              if (reversed) {
-                assert(contig->seq.getKmer(kmernum) == km.twin());
-              } else {
-                assert(contig->seq.getKmer(kmernum) == km);
-              }
-
-              int32_t direction = 1 - 2*reversed;
-              int32_t end = kmernum;
-              iter.raise(km, rep);
-
-              while (iter != iterend && iter->second < jumpi) {
-                end += direction;
-                /* TODO: Remove these two asserts */
-                if (reversed) {
-                  assert(contig->seq.getKmer(end) == km.twin()); 
-                } else {
-                  assert(contig->seq.getKmer(end) == km); 
-                }
-                iter.raise(km, rep);
-              }
-
-              assert(end >= 0);
-              assert(end < contig->numKmers());
-
-              if (reversed) {
-                contig->cover(end, kmernum);
-              } else {
-                contig->cover(kmernum, end);
-              }
-            }
+	    // how many k-mers in the read we can skip
+	    size_t jump_i = 0; // already moved one forward
+	    while (jump_i < cm.len) {
+	      jump_i++;
+	      iter.raise(km,rep); // any N's will not map to contigs, so normal skipping is fine
+	      
+	    }
           }     
-        }
-      }
-    }
+        } // done iterating through read
+      } // done iterating through read batch
+    } // 
 
 
     // This part is serial
     
     for (size_t i=0; i < num_threads; i++) {
       for (vector<NewContig>::iterator it=parray[i].begin(); it != parray[i].end(); ++it) {
-        // The kmer did not map when it was added to this vector
-        // so we make the contig if it has not been made yet
-        const char *seq = it->seq.c_str();
-        Contig *contig;
-
-        Kmer km(seq); 
-        /* We must use this when breaking on self-loops in find_contig_forward, 
-           because then km is not neccessarily the first or the last km then in the contig */
-        CheckContig cc = check_contig(bf, mapper, km); //TODO: check if simpler method exists
-        
-        if(cc.cr.isEmpty()) {
-          // The contig has not been mapped so we map it and increase coverage
-          // of the kmers that came from the read
-          
-          size_t id = mapper.addContig(seq);
-          //mappingSS[it->read_index] << id << "|" << (it->start) << " ";
-
-          contig = mapper.getContig(id).ref.contig;
-          // Be careful here!! Is this definitiely updating coverage in the correct location??
-          contig->cover(it->start,it->end);  
-        } else {
-          // The contig has been mapped so we only increase the coverage of the
-          // kmers that came from the read
-          size_t start = it->start, end = it->end;
-          contig = mapper.getContig(cc.cr).ref.contig;
-          size_t numkmers = contig->numKmers();
-          
-          //mappingSS[it->read_index] << cc.cr.ref.idpos.id << "|" << cc.cr.ref.idpos.pos << " ";
-
-          assert(it->seq.size() == numkmers + k - 1);
-          Kmer km(seq + start); 
-          CheckContig cc = check_contig(bf, mapper, km);
-
-          int32_t ccpos = cc.cr.ref.idpos.pos;
-
-          getMappingInfo(cc.repequal, ccpos, cc.dist, kmernum, cmppos); // 
-          assert(kmernum < numkmers);
-          bool reversed = (cc.repequal != (ccpos >= 0));
-
-          if (reversed) {
-            assert(contig->seq.getKmer(kmernum) == km.twin()); // first kmer correct
-          } else {
-            assert(contig->seq.getKmer(kmernum) == km); // first kmer correct
-          }
-
-          if (it->selfloop == 0) {
-            if (reversed) {
-              assert((end - start) <= kmernum);
-              assert(contig->seq.getKmer(kmernum - (end - start)) == Kmer(seq + end).twin()); // last kmer correct
-              contig->cover(kmernum - (end-start), kmernum);
-            } else {
-              assert(kmernum + (end-start) < numkmers);
-              assert(contig->seq.getKmer(kmernum + (end - start)) == Kmer(seq + end)); // last kmer correct
-              contig->cover(kmernum, kmernum + (end-start));
-            }
-          } else {
-            // Self-loop or hair-pin so we update coverage of one kmer at a time
-            for (size_t j = 0; j + start <= end; ++j) { 
-              assert(j + start < numkmers);
-              Kmer km(seq + j + start); 
-              cc = check_contig(bf, mapper, km);
-              ccpos = cc.cr.ref.idpos.pos;
-              getMappingInfo(cc.repequal, ccpos, cc.dist, kmernum, cmppos); // 
-
-              reversed = (cc.repequal != (ccpos >= 0));
-              assert(kmernum < numkmers);
-              if (reversed) {
-                assert(contig->seq.getKmer(kmernum) == km.twin());
-              } else {
-                assert(contig->seq.getKmer(kmernum) == km);
-              }
-              contig->cover(kmernum, kmernum);
-            }
-          }
-        }
+	cmap.addContig(it->km, it->read, it->pos);
       }
       parray[i].clear();
     }
-
-    /*
-    for(size_t index=0; index < reads_now; ++index) {
-      readMappingFile << mappingSS[index].str() << "\n";
-    }
-    */
     
     if (read_chunksize > 1 && opt.verbose ) {
       cerr << " end of round" << endl;
-      cerr << " processed " << mapper.contigCount() << " contigs" << endl;
+      cerr << " processed " << cmap.contigCount() << " contigs" << endl;
     }
   }
   FQ.close();
   cerr << "Closed all fasta/fastq files" << endl;
 
-  size_t contigsBefore = mapper.contigCount();
+
+  size_t contigsBefore = cmap.contigCount();
   cerr << "Splitting and joining the contigs" << endl;
-  pair<pair<size_t, size_t>, size_t> contigDiff = mapper.splitAndJoinAllContigs();
+  pair<pair<size_t, size_t>, size_t> contigDiff = cmap.splitAndJoinAllContigs();
   int contigsAfter1 = contigsBefore + contigDiff.first.first - contigDiff.first.second - contigDiff.second;
+  
   if (opt.verbose) {
     cerr << "Before split and join: " << contigsBefore << " contigs" << endl;
     cerr << "After split and join: " << contigsAfter1 << " contigs" <<  endl;
     cerr << "Contigs splitted: " << contigDiff.first.first << endl;
     cerr << "Contigs deleted: " << contigDiff.first.second << endl;
     cerr << "Contigs joined: " << contigDiff.second << endl;
-    cerr << "Number of reads " << n_read  << ", kmers stored " << mapper.size() << endl << endl;
-    printMemoryUsage(bf, mapper);
+    cerr << "Number of reads " << n_read  << ", kmers stored " << 0 << endl << endl;
+    printMemoryUsage(bf, cmap);
   }
-
+  
   cerr << "Writing contigs to file: " << opt.contigfilename << endl
        << "Writing the graph to file: " << opt.graphfilename << endl;
-  int contigsAfter2 = mapper.writeContigs(contigsAfter1, opt.contigfilename, opt.graphfilename);
+  int contigsAfter2 = cmap.writeContigs(contigsAfter1, opt.contigfilename, opt.graphfilename);
 
   delete [] readv;
   delete [] parray;
-  //delete [] mappingSS;
-  assert(contigsAfter1 == contigsAfter2);
+
+  assert(contigsAfter1 == contigsAfter2);  
 }
 
 

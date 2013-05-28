@@ -23,6 +23,7 @@ graph.py
 *.txt
 *.out
 *.swp
+*.bf
 *~
 \#*
 .\#*

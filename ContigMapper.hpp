@@ -34,6 +34,14 @@ class ContigMapper {
   bool addContig(Kmer km, const string& read, size_t pos);
   void findContigSequence(Kmer km, string& s);
 
+  size_t contigCount() const;
+
+  
+  size_t writeContigs(int count1, string contigfilename, string graphfilename);
+  size_t joinAllContigs();
+  pair<size_t, size_t> splitAllContigs(); 
+  pair<pair<size_t, size_t>, size_t> splitAndJoinAllContigs(); 
+
   
  private:
   const BloomFilter *bf;
@@ -42,6 +50,8 @@ class ContigMapper {
   ContigMap find(Kmer km) const;
   bool fwBfStep(Kmer km, Kmer &end, char &c) const;
   bool bwBfStep(Kmer km, Kmer &front, char &c) const;
+
+  size_t joinTwoContigs(ContigRef a, ContigRef b, int a_direction, int b_direction);
   
   typedef google::sparse_hash_map<Kmer, CompressedCoverage, KmerHash> hmap_short_contig_t;
   typedef google::sparse_hash_map<Kmer, Contig*, KmerHash> hmap_long_contig_t;

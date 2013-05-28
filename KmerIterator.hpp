@@ -9,6 +9,7 @@
  *  - Easily iterate through kmers in a read
  *  - If the read contains any N, then the N is skipped and checked whether
  *    there is a kmer to the right of the N
+ *  - iter->first gives the kmer, iter->second gives the position within the reads
  * */
 class KmerIterator : public std::iterator<std::input_iterator_tag, std::pair<Kmer, int>, int> {
 public:
