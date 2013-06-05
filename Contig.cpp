@@ -6,9 +6,9 @@
 // post: cov has space to store coverage for all kmers in this contig 
 void Contig::initializeCoverage(bool full) {
   size_t ssz = seq.size(), k = Kmer::k;
-  assert(ssz >= k);
+  //assert(ssz >= k);
   coveragesum = 0;
-  ccov.initialize(ssz - k + 1, full);
+  ccov.initialize((ssz >=k) ? (ssz - k + 1) : 0, full);
 } 
 
 // use:   c.cover(start,end)

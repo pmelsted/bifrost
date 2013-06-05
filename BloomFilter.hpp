@@ -188,8 +188,6 @@ public:
   }
 
 
-protected:
-
   void clear() {
     if (table_ != NULL) {
       delete[] table_;
@@ -197,6 +195,8 @@ protected:
     table_ = NULL;
     size_ = 0;
   }
+
+private:
 
   void init_table() {
     fast_div_ = libdivide::divider<uint64_t>(size_);

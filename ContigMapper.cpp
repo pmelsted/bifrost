@@ -377,45 +377,67 @@ ContigMap ContigMapper::find(Kmer km) const {
 }
 
 
-// use:  <<splitted, deleted>, joined> = mapper.splitAndJoinAllContigs();
-// post: The contigs in mapper have been splitted and joined
-//       splitted: the number of splitted contigs 
-//       deleted: the number of deleted contigs 
-//       joined: the number of joined contigs 
-pair<pair<size_t, size_t>, size_t> ContigMapper::splitAndJoinAllContigs() {
-  Kmer km, rep, end, km_del;
 
-  // Set the deleted key so we can unmap contigs in splitAllContigs 
-  km_del.set_deleted();
-  
-  lContigs.set_deleted_key(km_del);
-  sContigs.set_deleted_key(km_del);
-  shortcuts.set_deleted_key(km_del);
+// use:  mapper.moveShortContigs()
+// pre:  nothing
+// post: all short contigs have been moved from sContigs to lContigs
+//       in lContigs kmer head maps to sequence[k:] i.e. what comes after the 
+void ContigMapper::moveShortContigs() {
+  size_t k = Kmer::k;
+  for (hmap_short_contig_t::iterator it = sContigs.begin(); it != sContigs.end(); ) {
+    string s;
+    findContigSequence(it->first,s);
+    Contig *c = new Contig(s.c_str()+k, true);
+    c->coveragesum = 2*(s.size() - k+1);
+    lContigs.insert(make_pair(it->first,c));
+    sContigs.erase(it++); // note post-increment
+  }
+  assert(sContigs.size() == 0);
+}
 
+// use:  mapper.fixShortContigs()
+// pre:  
+// post: all short contigs moved in method moveShortContigs have been fixed
+void ContigMapper::fixShortContigs() {
+  size_t k = Kmer::k;
 
-  pair<size_t, size_t> splitpair = splitAllContigs();
-  size_t joined = joinAllContigs();
-  return make_pair(splitpair, joined);
+  for (hmap_long_contig_t::iterator it = lContigs.begin(); it != lContigs.end(); ++it) {
+    Contig *c = it->second;
+    if (c->length() < k) { // check the strict inequality here
+      CompressedSequence &seq = c->seq;
+      string s = seq.toString(); // copy
+      seq.reserveLength(seq.size()+k);
+      seq.setSequence(it->first, k);
+      seq.setSequence(s,s.size(),k);
+      
+      if (seq.size() > k) {
+	size_t i = seq.size()-k;
+	shortcuts.insert(make_pair(seq.getKmer(i), make_pair(it->first,i)));
+      }
+    }
+  }
 }
 
 
 // use:  joined = mapper.joinAllContigs()
+// pre:  no short contigs extis in sContigs.
 // post: all contigs that could be connected have been connected 
 //       joined is the number of joined contigs
 size_t ContigMapper::joinAllContigs() {
   size_t joined = 0;
-  /*
-  typedef vector<pair<int,int> > split_vector_t;
-  vector<string> joined_contigs;
-
-  for (hmap_short_contig_t::iterator it = sContigs.begin(); it != sContigs.end(); ) {
-    string s;
-    findContigSequence(it->first, s);
-    
-  }
-  */
+  size_t k = Kmer::k;
+  
+  assert(sContigs.size() == 0);
 
   
+  typedef pair<pair<Kmer, Kmer>,bool> Join_t; // a->b if true, a->~b (~b is reverse) if false
+  vector<Join_t> joins;
+
+  for (hmap_long_contig_t::iterator it = lContigs.begin(); it != lContigs.end(); ++it) {
+    CompressedSequence &seq = it->second.seq;
+    //todo: finish this implementation
+  }
+
   /*
   for(size_t contigid = 0; contigid < contigs.size(); ++contigid) {
     cr = contigs[contigid];
@@ -447,6 +469,16 @@ size_t ContigMapper::joinAllContigs() {
 //       deleted is the number of contigs deleted
 //       Now every contig in mapper has coverage >= 2 everywhere
 pair<size_t, size_t> ContigMapper::splitAllContigs() {
+
+  Kmer km,km_del;
+
+  // Set the deleted key so we can unmap contigs in splitAllContigs 
+  km_del.set_deleted();
+  
+  lContigs.set_deleted_key(km_del);
+  sContigs.set_deleted_key(km_del);
+  shortcuts.set_deleted_key(km_del);
+
   size_t k = Kmer::k;
   
   size_t split = 0, deleted =0 ;
@@ -496,8 +528,8 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
 	swap(head,tail);
       } 
       // insert contigs into the long contigs, so that the sequence is stored!
-      Contig *cont = new Contig(s,true);
-      cont->coveragesum = 2 * (it->size()-k); // fake sum, TODO: keep track of this!
+      Contig *cont = new Contig(s+k,true);
+      cont->coveragesum = 2 * (it->size()-k+1); // fake sum, TODO: keep track of this!
       lContigs.insert(make_pair(head,cont));
     }
   }
@@ -577,7 +609,7 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
 
   long_split_contigs.clear();
 
-  return make_pair(split,deleted); // TODO: return actual numbers
+  return make_pair(split,deleted); 
 }
 
 
@@ -608,6 +640,9 @@ size_t ContigMapper::writeContigs(int count1, string contigfilename, string grap
   graphfile.open(graphfilename.c_str());
   graphfile.close();
   assert(!contigfile.fail() && !graphfile.fail());
+  assert(sContigs.size() == 0);
+  
+  /*
   string s;
   for (hmap_short_contig_t::iterator it = sContigs.begin(); it != sContigs.end(); ++it) {
     assert(it->second.isFull());
@@ -617,6 +652,7 @@ size_t ContigMapper::writeContigs(int count1, string contigfilename, string grap
     contigfile << ">contig" << id << "\n" << s << "\n";
   }
   s.clear();
+  */
 
   for (hmap_long_contig_t::iterator it = lContigs.begin(); it != lContigs.end(); ++it) {
     assert(it->second->ccov.isFull());

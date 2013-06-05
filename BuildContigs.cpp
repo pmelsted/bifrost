@@ -384,16 +384,22 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
 
   size_t contigsBefore = cmap.contigCount();
-  cerr << "Splitting and joining the contigs" << endl;
-  pair<pair<size_t, size_t>, size_t> contigDiff = cmap.splitAndJoinAllContigs();
-  int contigsAfter1 = contigsBefore + contigDiff.first.first - contigDiff.first.second - contigDiff.second;
+  cerr << "Splitting contigs" << endl;
+  pair<size_t, size_t> contigSplit = cmap.splitAllContigs();
+  int contigsAfter1 = contigsBefore + contigSplit.first - contigSplit.second;
   
   if (opt.verbose) {
     cerr << "Before split and join: " << contigsBefore << " contigs" << endl;
     cerr << "After split and join: " << contigsAfter1 << " contigs" <<  endl;
-    cerr << "Contigs splitted: " << contigDiff.first.first << endl;
-    cerr << "Contigs deleted: " << contigDiff.first.second << endl;
-    cerr << "Contigs joined: " << contigDiff.second << endl;
+    cerr << "Contigs splitted: " << contigSplit.first << endl;
+    cerr << "Contigs deleted: " << contigSplit.second << endl;
+  }
+
+  cmap.moveShortContigs();
+  bf.clear();
+  cmap.fixShortContigs();
+
+  if (opt.verbose) {
     cerr << "Number of reads " << n_read  << ", kmers stored " << 0 << endl << endl;
     printMemoryUsage(bf, cmap);
   }

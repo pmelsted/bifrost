@@ -40,7 +40,9 @@ class ContigMapper {
   size_t writeContigs(int count1, string contigfilename, string graphfilename);
   size_t joinAllContigs();
   pair<size_t, size_t> splitAllContigs(); 
-  pair<pair<size_t, size_t>, size_t> splitAndJoinAllContigs(); 
+
+  void moveShortContigs();
+  void fixShortContigs();
 
   
  private:
@@ -51,12 +53,13 @@ class ContigMapper {
   bool fwBfStep(Kmer km, Kmer &end, char &c) const;
   bool bwBfStep(Kmer km, Kmer &front, char &c) const;
 
-  size_t joinTwoContigs(ContigRef a, ContigRef b, int a_direction, int b_direction);
+
+
   
   typedef google::sparse_hash_map<Kmer, CompressedCoverage, KmerHash> hmap_short_contig_t;
   typedef google::sparse_hash_map<Kmer, Contig*, KmerHash> hmap_long_contig_t;
   typedef google::sparse_hash_map<Kmer, pair<Kmer, size_t>, KmerHash> hmap_shortcut_t; //TODO: switch to smaller type
-  
+
   hmap_short_contig_t sContigs;
   hmap_long_contig_t  lContigs;
   hmap_shortcut_t     shortcuts;

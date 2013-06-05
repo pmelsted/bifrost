@@ -12,12 +12,16 @@ size_t round_to_bytes(const size_t len)  { return (len+3)/4; }
  
 
 // use:  cc = CompressedCoverage(sz, full);
-// post: if (sz > 0) then initialize the instance else skip initializing
+// post: if (sz > 0) then initialize the instance else skip initializing, if full is true, initialize as full regardlesss of sz.
 CompressedCoverage::CompressedCoverage(size_t sz, bool full) {
   if (sz > 0) {
     initialize(sz, full);
   } else {
-    asBits = tagMask;
+    if (full) {
+      asBits = fullMask;
+    } else {
+      asBits = tagMask;
+    }
   }
 }
 
