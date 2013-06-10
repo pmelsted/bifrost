@@ -389,8 +389,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   int contigsAfter1 = contigsBefore + contigSplit.first - contigSplit.second;
   
   if (opt.verbose) {
-    cerr << "Before split and join: " << contigsBefore << " contigs" << endl;
-    cerr << "After split and join: " << contigsAfter1 << " contigs" <<  endl;
+    cerr << "Before split: " << contigsBefore << " contigs" << endl;
+    cerr << "After split: " << contigsAfter1 << " contigs" <<  endl;
     cerr << "Contigs splitted: " << contigSplit.first << endl;
     cerr << "Contigs deleted: " << contigSplit.second << endl;
   }
@@ -398,6 +398,13 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   cmap.moveShortContigs();
   bf.clear();
   cmap.fixShortContigs();
+  
+  size_t joined = cmap.joinAllContigs(); 
+  if (opt.verbose) {
+    cerr << "Contigs joined: " << joined << endl;
+    cerr << "After join " << cmap.contigCount() << " contigs" << endl;
+  }
+
 
   if (opt.verbose) {
     cerr << "Number of reads " << n_read  << ", kmers stored " << 0 << endl << endl;

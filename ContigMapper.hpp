@@ -23,7 +23,7 @@
 
 class ContigMapper {
  public:
-  ContigMapper(size_t init = 10000) : bf(NULL), limit(Kmer::MAX_K-1) {};
+  ContigMapper(size_t init = 10000);
   ~ContigMapper();
   void mapBloomFilter(const BloomFilter* bf);
 
@@ -44,10 +44,16 @@ class ContigMapper {
   void moveShortContigs();
   void fixShortContigs();
 
+  bool checkJoin(Kmer a, Kmer &b, bool& dir);
+  bool checkEndKmer(Kmer b, bool& dir);
+
   
  private:
   const BloomFilter *bf;
   size_t limit;
+
+  void removeShortcuts(const string& s);
+  bool checkShortcuts();
 
   ContigMap find(Kmer km) const;
   bool fwBfStep(Kmer km, Kmer &end, char &c) const;

@@ -24,6 +24,23 @@ ContigMapper::~ContigMapper() {
   }
 }
 
+// use:  ContigMapper(sz)
+// pre:  sz >= 0
+// post: new contigmapper object
+ContigMapper::ContigMapper(size_t init) :  bf(NULL) {
+  limit = Kmer::k;
+  
+  Kmer km_del;
+ 
+  // Set the deleted key so we can unmap contigs in splitAllContigs 
+  km_del.set_deleted();
+  
+  lContigs.set_deleted_key(km_del);
+  sContigs.set_deleted_key(km_del);
+  shortcuts.set_deleted_key(km_del);
+}
+
+
 // user: i = cm.contigCount()
 // pre:  
 // post: i is the number of contigs in the mapper
@@ -416,8 +433,33 @@ void ContigMapper::fixShortContigs() {
       }
     }
   }
+
+  assert(checkShortcuts());
 }
 
+
+bool ContigMapper::checkShortcuts() {
+  size_t k = Kmer::k;
+  for (hmap_long_contig_t::iterator it = lContigs.begin(); it != lContigs.end(); ++it) {
+    CompressedSequence &seq = it->second->seq;
+    Kmer tail = seq.getKmer(seq.size()-k);
+    Kmer head = seq.getKmer(0);
+
+    if (it->first != head) {
+      cout << "seq:  " << seq.toString() << endl;
+      cout << "it:   " << it->first.toString() << endl;
+      cout << "head: " << head.toString() << endl;
+      return false;
+    }
+
+    if (shortcuts.find(tail) == shortcuts.end()) {
+      cout << "seq:  " << seq.toString() << endl;
+      cout << "tail: " << tail.toString() << endl; 
+      return false;
+    }
+  }
+  return true;
+}
 
 // use:  joined = mapper.joinAllContigs()
 // pre:  no short contigs extis in sContigs.
@@ -429,37 +471,172 @@ size_t ContigMapper::joinAllContigs() {
   
   assert(sContigs.size() == 0);
 
-  
-  typedef pair<pair<Kmer, Kmer>,bool> Join_t; // a->b if true, a->~b (~b is reverse) if false
+  // a->b if true,true
+  // a->~b if true, false
+  // ~a->b if false, true
+  // ~a->~b if false, false
+  typedef pair<pair<Kmer, Kmer>,pair<bool,bool> > Join_t; 
   vector<Join_t> joins;
 
   for (hmap_long_contig_t::iterator it = lContigs.begin(); it != lContigs.end(); ++it) {
-    CompressedSequence &seq = it->second.seq;
-    //todo: finish this implementation
+    CompressedSequence &seq = it->second->seq;
+    Kmer head = seq.getKmer(0), tail = seq.getKmer(seq.size()-k);
+
+    Kmer fw,bw;
+    bool fw_dir = true,bw_dir = true;
+    
+    if (checkJoin(tail,fw,fw_dir)) {
+      joins.push_back(make_pair(make_pair(tail,fw),make_pair(true, fw_dir)));
+    }
+    if (checkJoin(head.twin(),bw,bw_dir)) {
+      joins.push_back(make_pair(make_pair(bw.twin(), head), make_pair(true, !bw_dir)));
+    }
+     
   }
 
-  /*
-  for(size_t contigid = 0; contigid < contigs.size(); ++contigid) {
-    cr = contigs[contigid];
-    if (!cr.isContig || cr.isEmpty()) {
-      continue;
-    }
-    c = cr.ref.contig;
+  
+
+  for (vector<Join_t>::iterator it = joins.begin(); it != joins.end(); it++) {
+    Kmer head = it->first.first;
+    Kmer tail = it->first.second;
+    bool headDir = it->second.first;
+    bool tailDir = it->second.second;
+
+    ContigMap cHead = find(head);
+    ContigMap cTail = find(tail);
     
-    ContigRef found;
-    Kmer start_twin = c->seq.getKmer(0).twin();
-    Kmer end = c->seq.getKmer(c->numKmers()-1);
-    int dir = 0;
-    if ((dir = checkContigForward(c, end, found)) != 0) {
-      joinTwoContigs(ContigRef(contigid, 0), found, 1, dir); // this -> found
-    } else if ((dir = checkContigForward(c, start_twin, found)) != 0) {
-      joinTwoContigs(found, ContigRef(contigid, 0), -dir, 1); // found -> this, -dir because we used twin(first)
+    cout << head.toString() << " -> " << tail.toString() << endl;
+        
+    if (!cHead.isEmpty && !cTail.isEmpty) {
+      
+      // both kmers are still end-kmers
+      cout << tailDir << " " << cTail.dist << endl;
+      cout << headDir << " " << cHead.dist << endl;
+      if (((tailDir && cTail.dist == 0) || (!tailDir && cTail.dist == cTail.size-1))
+	  &&((headDir && cHead.dist == 0) || (!headDir && cHead.dist == cHead.size-1))) {
+	// ok, tail is the first/last k-mer if dir is true/false
+	Contig* headContig = lContigs.find(cHead.head)->second;
+	Contig* tailContig = lContigs.find(cTail.head)->second;
+	string headSeq = headContig->seq.toString();
+	string tailSeq = tailContig->seq.toString();
+	
+	// remove shortcuts
+	removeShortcuts(headSeq);
+	removeShortcuts(tailSeq);
+	
+	if (!headDir) {
+	  headSeq = CompressedSequence(headSeq).rev().toString();
+	}
+	if (!tailDir) {
+	  tailSeq = CompressedSequence(tailSeq).rev().toString();
+	}
+	
+	cout << "joining" << endl << headSeq << endl;
+	
+	assert(headSeq.substr(headSeq.size()-k+1) == tailSeq.substr(0,k-1));
+	string joinSeq;
+	joinSeq.append(tailSeq, k-1, string::npos);
+	joinSeq.append(headSeq);
+	
+	
+	cout << string(headSeq.size()-k+1, ' ') << tailSeq << endl;
+	cout << joinSeq << endl;
+	
+	
+	Contig* c = new Contig(joinSeq.c_str(), true);
+	c->coveragesum = headContig->coveragesum + tailContig->coveragesum;
+	lContigs.erase(cHead.head);
+	lContigs.erase(cTail.head);
+	delete headContig;
+	delete tailContig;
+	Kmer cHead(joinSeq.c_str());
+	lContigs.insert(make_pair(cHead,c));
+	shortcuts.insert(make_pair(Kmer(joinSeq.c_str()+joinSeq.size()-k), make_pair(cHead, joinSeq.size()-k)));
+	joined++;
+      }
     }
-    joined += (dir != 0); // increase joined by 1 if (dir == ±1) else increase by 0
   }
-  */
 
   return joined;
+}
+
+// use:  r = mapper.checkJoin(a,b,dir)
+// pre:  a is and endpoint
+// pos:  r is true iff a->b (dir is true) or a->~b (dir is false) 
+//       and this is the only such pair with a or b in it
+bool ContigMapper::checkJoin(Kmer a, Kmer& b, bool& dir) {
+  
+  size_t fw_count = 0, bw_count = 0;
+  bool fw_dir, bw_dir;
+  Kmer fw_cand, bw_cand;
+  
+  //cout << string(Kmer::k, '-') << endl <<  a.toString() << endl;
+  
+  for (size_t i = 0; i < 4; i++) {
+    Kmer fw = a.forwardBase(alpha[i]);
+    //cout << " " << fw.toString();
+
+    if (checkEndKmer(fw,fw_dir)) {
+      fw_count++;
+      fw_cand = fw;
+      //cout << " * ";
+    }
+
+    //cout << endl;
+  }
+  
+  if (fw_count == 1) {
+    ContigMap cand = find(fw_cand);
+    ContigMap ac = find(a);
+    if (cand.head != ac.head) {
+      // no self-loop
+      for (size_t j = 0; j < 4; j++) {
+	Kmer bw = fw_cand.backwardBase(alpha[j]);
+	//cout << bw.toString();
+	if (checkEndKmer(bw.twin(), bw_dir)) {
+	  bw_count++;
+	  bw_cand = bw;
+	  //cout << " * ";
+	}
+	//cout << endl;
+      }
+      
+      if (bw_count == 1) {
+	// ok join up
+	b = fw_cand;
+	dir = fw_dir;
+	//cout << a.toString() << " -> " << b.toString() << endl;
+	return true;
+      }
+    } else {
+      //cout << " self loop" << endl;
+    }
+  }
+  return false;
+}
+
+
+// use: r = mapper.checkGraphConnection(b,dir)
+// pre: 
+// post: true iff b is an end contig in mapper and r is 
+//       set to true if beginning or false if b is the end
+
+bool ContigMapper::checkEndKmer(Kmer b, bool& dir) {
+  ContigMap cand = find(b);
+  if (cand.isEmpty) {
+    return false;
+  }
+
+  
+  if (cand.dist == 0) {
+    dir = true;
+    return true;
+  } else if (cand.dist == cand.size-1) {
+    dir = false;
+    return true;
+  } else {
+    return false; // doesn't match, can this ever happen?
+  }
 }
 
 
@@ -470,14 +647,7 @@ size_t ContigMapper::joinAllContigs() {
 //       Now every contig in mapper has coverage >= 2 everywhere
 pair<size_t, size_t> ContigMapper::splitAllContigs() {
 
-  Kmer km,km_del;
-
-  // Set the deleted key so we can unmap contigs in splitAllContigs 
-  km_del.set_deleted();
-  
-  lContigs.set_deleted_key(km_del);
-  sContigs.set_deleted_key(km_del);
-  shortcuts.set_deleted_key(km_del);
+  Kmer km;
 
   size_t k = Kmer::k;
   
@@ -531,6 +701,10 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
       Contig *cont = new Contig(s+k,true);
       cont->coveragesum = 2 * (it->size()-k+1); // fake sum, TODO: keep track of this!
       lContigs.insert(make_pair(head,cont));
+      if (it->size() > k) {
+	size_t lastpos = it->size()-k;
+	shortcuts.insert(make_pair(head, make_pair(s+lastpos, lastpos)));
+      }
     }
   }
 
@@ -565,10 +739,7 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
       }
 
       // remove shortcuts 
-      const char *c = s.c_str();
-      for (size_t i = k; i < s.size()-k+1; i += k) {
-	shortcuts.erase(Kmer(c+i));
-      }
+      removeShortcuts(s);
 
       // erase the split contig
       delete it->second;
@@ -604,12 +775,30 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
       for (size_t i = k; i < len; i+= k) {
 	shortcuts.insert(make_pair(Kmer(s+i),make_pair(head,i)));
       }
+      shortcuts.insert(make_pair(Kmer(s+len-k), make_pair(head,len-k)));
     }
   }
 
   long_split_contigs.clear();
 
   return make_pair(split,deleted); 
+}
+
+
+
+// use:  mapper.removeShortcuts(s)
+// pre:  s.size >= k
+// post: no shortcuts map to kmers in s
+void ContigMapper::removeShortcuts(const string& s)
+{
+  size_t k = Kmer::k;
+  const char *c = s.c_str();
+      
+  for (size_t i = k; i < s.size()-k+1; i += k) {
+    shortcuts.erase(Kmer(c+i));
+  }
+  shortcuts.erase(Kmer(c+s.size()-k)); // erase last k-mer
+  
 }
 
 
