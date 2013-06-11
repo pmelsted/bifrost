@@ -6,12 +6,12 @@ MAX_KMER_SIZE = 64
 
 CC = g++
 CXX = g++
-INCLUDES = -I.
-CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) -fPIC -fopenmp -lstdc++
+INCLUDES = -I. -I /usr/include/python2.7/
+CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) -fPIC -fopenmp -lstdc++ 
 LDFLAGS =
 LDLIBS  = -lm -lz -lgomp
 SWIG = swig
-PYTHON_VERSION = $(shell echo `python -c 'import sys; print sys.version[:3]'`)
+PYTHON_VERSION = $(shell echo `python -c 'import sys; print(sys.version[:3])'`)
 UNAME = $(shell uname -s)
 PYTHON_FLAGS = -shared
 ifeq ($(UNAME), Darwin)
@@ -76,6 +76,9 @@ ContigMapper.o: ContigMapper.cpp ContigMapper.hpp
 debugtest.o: debugtest.cpp
 #BloomFilter.o: BloomFilter.hpp
 hash.o: hash.hpp hash.cpp	
+style:
+	@astyle --style=java --indent=spaces=2 --pad-oper --pad-header --align-pointer=name --add-brackets --brackets=attach --convert-tabs *.[ch]pp
+
 
 clean:
 	rm -f *.o *.so *.pyc *_wrap.cxx graph.py BFGraph
