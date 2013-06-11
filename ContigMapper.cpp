@@ -486,16 +486,17 @@ size_t ContigMapper::joinAllContigs() {
     bool fw_dir = true,bw_dir = true;
     
     if (checkJoin(tail,fw,fw_dir)) {
+      //cout << "Tail: " <<  tail.toString() << " -> " << fw.toString() << " " << fw_dir << endl;
       joins.push_back(make_pair(make_pair(tail,fw),make_pair(true, fw_dir)));
     }
     if (checkJoin(head.twin(),bw,bw_dir)) {
-      joins.push_back(make_pair(make_pair(bw.twin(), head), make_pair(true, !bw_dir)));
+      //cout << "Head: " <<  head.twin().toString() << " -> " << bw.toString() << " " << bw_dir << endl;
+      joins.push_back(make_pair(make_pair(head.twin(), bw), make_pair(false, bw_dir)));
     }
      
   }
 
   
-
   for (vector<Join_t>::iterator it = joins.begin(); it != joins.end(); it++) {
     Kmer head = it->first.first;
     Kmer tail = it->first.second;
@@ -505,56 +506,54 @@ size_t ContigMapper::joinAllContigs() {
     ContigMap cHead = find(head);
     ContigMap cTail = find(tail);
     
-    cout << head.toString() << " -> " << tail.toString() << endl;
+    //cout << head.toString() << " -> " << tail.toString() << endl;
         
     if (!cHead.isEmpty && !cTail.isEmpty) {
       
       // both kmers are still end-kmers
-      cout << tailDir << " " << cTail.dist << endl;
-      cout << headDir << " " << cHead.dist << endl;
-      if (((tailDir && cTail.dist == 0) || (!tailDir && cTail.dist == cTail.size-1))
-	  &&((headDir && cHead.dist == 0) || (!headDir && cHead.dist == cHead.size-1))) {
-	// ok, tail is the first/last k-mer if dir is true/false
-	Contig* headContig = lContigs.find(cHead.head)->second;
-	Contig* tailContig = lContigs.find(cTail.head)->second;
-	string headSeq = headContig->seq.toString();
-	string tailSeq = tailContig->seq.toString();
+      Contig* headContig = lContigs.find(cHead.head)->second;
+      Contig* tailContig = lContigs.find(cTail.head)->second;
+      string headSeq = headContig->seq.toString();
+      string tailSeq = tailContig->seq.toString();
 	
 	// remove shortcuts
-	removeShortcuts(headSeq);
-	removeShortcuts(tailSeq);
+      removeShortcuts(headSeq);
+      removeShortcuts(tailSeq);
 	
-	if (!headDir) {
-	  headSeq = CompressedSequence(headSeq).rev().toString();
-	}
-	if (!tailDir) {
-	  tailSeq = CompressedSequence(tailSeq).rev().toString();
-	}
-	
-	cout << "joining" << endl << headSeq << endl;
-	
-	assert(headSeq.substr(headSeq.size()-k+1) == tailSeq.substr(0,k-1));
-	string joinSeq;
-	joinSeq.append(tailSeq, k-1, string::npos);
-	joinSeq.append(headSeq);
-	
-	
-	cout << string(headSeq.size()-k+1, ' ') << tailSeq << endl;
-	cout << joinSeq << endl;
-	
-	
-	Contig* c = new Contig(joinSeq.c_str(), true);
-	c->coveragesum = headContig->coveragesum + tailContig->coveragesum;
-	lContigs.erase(cHead.head);
-	lContigs.erase(cTail.head);
-	delete headContig;
-	delete tailContig;
-	Kmer cHead(joinSeq.c_str());
-	lContigs.insert(make_pair(cHead,c));
-	shortcuts.insert(make_pair(Kmer(joinSeq.c_str()+joinSeq.size()-k), make_pair(cHead, joinSeq.size()-k)));
-	joined++;
+      //cout << "headdir, tailDir: " << headDir << ", " << tailDir << endl;
+      if (!headDir) {
+	headSeq = CompressedSequence(headSeq).rev().toString();
       }
+      if (!tailDir) {
+	tailSeq = CompressedSequence(tailSeq).rev().toString();
+      }
+      
+      //cout << "joining" << endl << headSeq << endl;
+      
+
+      string joinSeq;
+      joinSeq.append(headSeq);
+      joinSeq.append(tailSeq, k-1, string::npos);
+      
+      
+      //cout << string(headSeq.size()-k+1, ' ') << tailSeq << endl;
+      //cout << joinSeq << endl;
+      
+
+      assert(headSeq.substr(headSeq.size()-k+1) == tailSeq.substr(0,k-1));
+      
+      Contig* c = new Contig(joinSeq.c_str(), true);
+      c->coveragesum = headContig->coveragesum + tailContig->coveragesum;
+      lContigs.erase(cHead.head);
+      lContigs.erase(cTail.head);
+      delete headContig;
+      delete tailContig;
+      Kmer cHead(joinSeq.c_str());
+      lContigs.insert(make_pair(cHead,c));
+      shortcuts.insert(make_pair(Kmer(joinSeq.c_str()+joinSeq.size()-k), make_pair(cHead, joinSeq.size()-k)));
+      joined++;
     }
+    
   }
 
   return joined;
@@ -565,7 +564,7 @@ size_t ContigMapper::joinAllContigs() {
 // pos:  r is true iff a->b (dir is true) or a->~b (dir is false) 
 //       and this is the only such pair with a or b in it
 bool ContigMapper::checkJoin(Kmer a, Kmer& b, bool& dir) {
-  
+  size_t k = Kmer::k;
   size_t fw_count = 0, bw_count = 0;
   bool fw_dir, bw_dir;
   Kmer fw_cand, bw_cand;
@@ -588,7 +587,7 @@ bool ContigMapper::checkJoin(Kmer a, Kmer& b, bool& dir) {
   if (fw_count == 1) {
     ContigMap cand = find(fw_cand);
     ContigMap ac = find(a);
-    if (cand.head != ac.head) {
+    if (cand.head != ac.head) { // not a self loop or hair-pin
       // no self-loop
       for (size_t j = 0; j < 4; j++) {
 	Kmer bw = fw_cand.backwardBase(alpha[j]);
@@ -603,13 +602,35 @@ bool ContigMapper::checkJoin(Kmer a, Kmer& b, bool& dir) {
       
       if (bw_count == 1) {
 	// ok join up
-	b = fw_cand;
-	dir = fw_dir;
-	//cout << a.toString() << " -> " << b.toString() << endl;
+	//CompressedSequence& ourSeq  = lContigs.find(ac.head)->second->seq;
+	CompressedSequence& candSeq = lContigs.find(cand.head)->second->seq;
+	Kmer candFirst = candSeq.getKmer(0);
+	Kmer candLast  = candSeq.getKmer(candSeq.size()-k);
+
+	assert(candFirst == cand.head);
+
+	//cout << "match " << a.toString() << " -> " << fw_cand.toString() << endl;
+	//cout << "candFirst: " << candFirst.toString() << endl;
+	//cout << "~candLast:  " << candLast.twin().toString() << endl;
+	
+	if (candFirst == fw_cand) {
+	  //cout << "a->b" << endl;
+	  b = fw_cand;
+	  dir = true;
+	  return true;
+	}
+
+	if (candLast.twin() == fw_cand) {
+	  //cout << "a->~b" << endl;
+	  b = fw_cand;
+	  dir = false;
+	  return true;
+	}
 	return true;
       }
     } else {
       //cout << " self loop" << endl;
+      return false;
     }
   }
   return false;
