@@ -7,7 +7,6 @@
 #include "CompressedSequence.hpp"
 #include "CompressedCoverage.hpp"
 #include "BloomFilter.hpp"
-#include "FindContig.hpp"
 #include "ContigMapper.hpp"
 %}
 %include "Common.hpp"
@@ -19,7 +18,6 @@
 %include "CompressedSequence.hpp"
 %include "CompressedCoverage.hpp"
 %include "BloomFilter.hpp"
-%include "FindContig.hpp"
 
 %include "ContigMapper.hpp"
 
