@@ -152,7 +152,7 @@ void ContigMapper::findContigSequence(Kmer km, string& s) {
 
   const char *t = s.c_str();
   Kmer head(t);
-  Kmer tail(t+s.size()-k);
+  Kmer tail = Kmer(t+s.size()-k).twin();
   if (tail < head) { // reverse complement the string
     s = CompressedSequence(s).rev().toString();
   }
@@ -404,6 +404,7 @@ void ContigMapper::moveShortContigs() {
   for (hmap_short_contig_t::iterator it = sContigs.begin(); it != sContigs.end(); ) {
     string s;
     findContigSequence(it->first,s);
+    assert(it->first == Kmer(s.c_str()));
     Contig *c = new Contig(s.c_str()+k, true);
     c->coveragesum = 2*(s.size() - k+1);
     lContigs.insert(make_pair(it->first,c));
@@ -775,9 +776,9 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
   for (vector<pair<string, uint64_t> >::iterator it = long_split_contigs.begin(); it != long_split_contigs.end(); ++it) {
     if (it->first.size() >= k) {
       const char *s = it->first.c_str();
-      size_t len = it->first.size()-k+1;
-      Kmer head = Kmer(s).rep();
-      Kmer tail = Kmer((s+len-1)).rep();
+      size_t len = it->first.size()-k;
+      Kmer head = Kmer(s);
+      Kmer tail = Kmer((s+len)).twin(); 
       string tmp;
 
       if (tail < head) {
@@ -796,7 +797,7 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
       for (size_t i = k; i < len; i+= k) {
 	shortcuts.insert(make_pair(Kmer(s+i),make_pair(head,i)));
       }
-      shortcuts.insert(make_pair(Kmer(s+len-k), make_pair(head,len-k)));
+      shortcuts.insert(make_pair(Kmer(s+len), make_pair(head,len)));
     }
   }
 
