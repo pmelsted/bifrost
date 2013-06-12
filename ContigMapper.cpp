@@ -127,15 +127,31 @@ bool ContigMapper::addContig(Kmer km, const string& read, size_t pos) {
 //       and the first k-mer in s is smaller (wrt. < operator)
 //       than the last kmer
 void ContigMapper::findContigSequence(Kmer km, string& s) {
+  cout << " s = " << s << endl;
   string fw_s;
   Kmer end = km;
+  Kmer twin = km.twin();
   char c;
+  size_t j = 0;
+  cout << end.toString();
   while (fwBfStep(end,end,c)) {
+    if (end == km) {
+      cout << "Got a self-loop in contig: " << fw_s << endl;
+      cout << km.toString() << " => " << end.toString() << endl;
+      break;
+    }
+    j++;
     fw_s.push_back(c);
+    cout << string(j,' ') << end.toString() << endl;
   }
   string bw_s;
   Kmer front = km;
   while (bwBfStep(front,front,c)) {
+    if (front == km) {
+      cout << "Got a self-loop in contig: " << fw_s << endl;
+      cout << km.toString() << " => " << end.toString() << endl;
+      break;
+    }
     bw_s.push_back(c);
   }
   reverse(bw_s.begin(), bw_s.end());
@@ -143,19 +159,24 @@ void ContigMapper::findContigSequence(Kmer km, string& s) {
   size_t k = Kmer::k;
   s.reserve(k + fw_s.size()+bw_s.size());
   s.append(bw_s);
+  cout << "bw_s = " << bw_s << endl;
 
   char tmp[Kmer::MAX_K];
   km.toString(tmp);
+  cout << "tmp = " << tmp << endl;
   s.append(tmp);
+  cout << "fw_s = " << fw_s << endl;
 
   s.append(fw_s);
 
   const char *t = s.c_str();
   Kmer head(t);
   Kmer tail(t+s.size()-k);
+  cout << "After append, s = " << s << endl;
   if (tail < head) { // reverse complement the string
     s = CompressedSequence(s).rev().toString();
   }
+  cout << "After reverse, s = " << s << endl;
 }
 
 
