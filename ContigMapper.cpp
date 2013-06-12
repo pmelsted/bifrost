@@ -152,7 +152,7 @@ void ContigMapper::findContigSequence(Kmer km, string& s) {
 
   const char *t = s.c_str();
   Kmer head(t);
-  Kmer tail(t+s.size()-k);
+  Kmer tail = Kmer(t+s.size()-k).twin();
   if (tail < head) { // reverse complement the string
     s = CompressedSequence(s).rev().toString();
   }
@@ -471,11 +471,8 @@ size_t ContigMapper::joinAllContigs() {
   
   assert(sContigs.size() == 0);
 
-  // a->b if true,true
-  // a->~b if true, false
-  // ~a->b if false, true
-  // ~a->~b if false, false
-  typedef pair<pair<Kmer, Kmer>,pair<bool,bool> > Join_t; 
+  // a and b are candidates for joining
+  typedef pair<Kmer, Kmer> Join_t; 
   vector<Join_t> joins;
 
   for (hmap_long_contig_t::iterator it = lContigs.begin(); it != lContigs.end(); ++it) {
@@ -487,21 +484,19 @@ size_t ContigMapper::joinAllContigs() {
     
     if (checkJoin(tail,fw,fw_dir)) {
       //cout << "Tail: " <<  tail.toString() << " -> " << fw.toString() << " " << fw_dir << endl;
-      joins.push_back(make_pair(make_pair(tail,fw),make_pair(true, fw_dir)));
+      joins.push_back(make_pair(tail,fw));
     }
     if (checkJoin(head.twin(),bw,bw_dir)) {
       //cout << "Head: " <<  head.twin().toString() << " -> " << bw.toString() << " " << bw_dir << endl;
-      joins.push_back(make_pair(make_pair(head.twin(), bw), make_pair(false, bw_dir)));
+      joins.push_back(make_pair(head.twin(), bw));
     }
      
   }
 
   
   for (vector<Join_t>::iterator it = joins.begin(); it != joins.end(); it++) {
-    Kmer head = it->first.first;
-    Kmer tail = it->first.second;
-    bool headDir = it->second.first;
-    bool tailDir = it->second.second;
+    Kmer head = it->first;
+    Kmer tail = it->second;
 
     ContigMap cHead = find(head);
     ContigMap cTail = find(tail);
@@ -516,9 +511,31 @@ size_t ContigMapper::joinAllContigs() {
       string headSeq = headContig->seq.toString();
       string tailSeq = tailContig->seq.toString();
 	
-	// remove shortcuts
+      bool headDir = true;
+      bool tailDir = true;
+
+      if (head == headContig->seq.getKmer(headContig->seq.size()-k)) {
+	headDir = true;
+      } else if (head.twin() == headContig->seq.getKmer(0)) {
+	headDir = false;
+      } else {
+	continue; // can't join up
+      }
+
+      if (tail == tailContig->seq.getKmer(0)) {
+	tailDir = true;
+      } else if (tail == tailContig->seq.getKmer(tailContig->seq.size()-k)) {
+	tailDir = false;
+      } else {
+	continue; // can't join up
+      }
+      
+
+
+      // remove shortcuts
       removeShortcuts(headSeq);
       removeShortcuts(tailSeq);
+
 	
       //cout << "headdir, tailDir: " << headDir << ", " << tailDir << endl;
       if (!headDir) {
@@ -775,9 +792,9 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
   for (vector<pair<string, uint64_t> >::iterator it = long_split_contigs.begin(); it != long_split_contigs.end(); ++it) {
     if (it->first.size() >= k) {
       const char *s = it->first.c_str();
-      size_t len = it->first.size()-k+1;
-      Kmer head = Kmer(s).rep();
-      Kmer tail = Kmer((s+len-1)).rep();
+      size_t len = it->first.size();
+      Kmer head = Kmer(s);
+      Kmer tail = Kmer((s+len-k)).twin();
       string tmp;
 
       if (tail < head) {
@@ -793,7 +810,7 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
       lContigs.insert(make_pair(head, cont));
       
       // create new shortcuts
-      for (size_t i = k; i < len; i+= k) {
+      for (size_t i = k; i < len-k; i+= k) {
 	shortcuts.insert(make_pair(Kmer(s+i),make_pair(head,i)));
       }
       shortcuts.insert(make_pair(Kmer(s+len-k), make_pair(head,len-k)));
