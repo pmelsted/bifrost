@@ -47,7 +47,8 @@ struct ContigMap {
   bool isEmpty; // true if proper match found
   bool isShort; // true if the contig is short
   bool strand; // true for forward strand
-  ContigMap(Kmer ref, size_t i, size_t l,  size_t sz, bool eq, bool sh) : dist(i), strand(eq), size(sz), len(l), isShort(sh), head(ref), isEmpty(false){}
+  bool selfLoop; // true if this is a self-loop or hairpin
+  ContigMap(Kmer ref, size_t i, size_t l,  size_t sz, bool eq, bool sh) : dist(i), strand(eq), size(sz), len(l), isShort(sh), head(ref), isEmpty(false), selfLoop(false) {}
   ContigMap(size_t l = 1) : isEmpty(true), len(l) {}
 };
 
