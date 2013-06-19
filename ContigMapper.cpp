@@ -589,7 +589,7 @@ size_t ContigMapper::joinAllContigs() {
 
       if (tail == tailContig->seq.getKmer(0)) {
 	tailDir = true;
-      } else if (tail == tailContig->seq.getKmer(tailContig->seq.size()-k)) {
+      } else if (tail.twin() == tailContig->seq.getKmer(tailContig->seq.size()-k)) {
 	tailDir = false;
       } else {
 	continue; // can't join up
@@ -785,8 +785,8 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
       // TODO: insert only middle part, if we are discarding small ones
       for (split_vector_t::iterator sit = sp.begin(); sit != sp.end(); ++sit) {
         size_t pos = sit->first;
-        size_t len = sit->second - pos;
-        split_contigs.push_back(s.substr(pos,len+k));	
+	size_t len = sit->second - pos;
+	split_contigs.push_back(s.substr(pos,len+k-1));	
       }
       
       
@@ -844,7 +844,7 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
       for (split_vector_t::iterator sit = sp.begin(); sit != sp.end(); ++sit) {
 	size_t pos = sit->first;
 	size_t len = sit->second - pos;
-	long_split_contigs.push_back(make_pair(s.substr(pos,len+k),(totalcoverage * len)/(ccov.size() - lowcount)));
+	long_split_contigs.push_back(make_pair(s.substr(pos,len+k-1),(totalcoverage * len)/(ccov.size() - lowcount)));
       }
 
       // remove shortcuts 
