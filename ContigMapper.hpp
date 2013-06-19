@@ -32,7 +32,7 @@ class ContigMapper {
   void mapRead(const ContigMap& cc);
 
   bool addContig(Kmer km, const string& read, size_t pos);
-  void findContigSequence(Kmer km, string& s);
+  void findContigSequence(Kmer km, string& s, bool& selfLoop);
 
   size_t contigCount() const;
 

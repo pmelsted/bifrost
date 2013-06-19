@@ -1,5 +1,6 @@
 #include "ContigMapper.hpp"
 #include "CompressedSequence.hpp"
+#include "KmerIterator.hpp"
 #include <string>
 #include <iterator>
 #include <algorithm>
@@ -72,6 +73,8 @@ void ContigMapper::mapRead(const ContigMap& cc) {
     hmap_long_contig_t::iterator it = lContigs.find(cc.head);
     Contig* cont = it->second;
     cont->cover(cc.dist, cc.dist+cc.len-1);
+    //cout << cc.head.toString() << " : " << cc.dist << " - " << cc.dist + cc.len-1 << endl;
+    //cout << cont->ccov.toString() << endl;
   }
 }
 
@@ -83,9 +86,25 @@ void ContigMapper::mapRead(const ContigMap& cc) {
 bool ContigMapper::addContig(Kmer km, const string& read, size_t pos) {
   // find the contig string to add
   string s;
-  findContigSequence(km,s);
+  bool selfLoop = false;
+  findContigSequence(km,s,selfLoop);
   size_t k = Kmer::k;
-  
+  bool found = false;
+  if (selfLoop) {
+    KmerIterator it(s.c_str()), it_end;
+    // ok, check if any other k-mer is mapped
+    for (; it != it_end; ++it) {
+      ContigMap loopCC = find(it->first);
+      if (!loopCC.isEmpty) {
+        //cout << it->first.toString() << "matches, pos " << it->second << " to contig with " << loopCC.head.toString() << endl;
+        //cout << "strand: " << loopCC.strand << ", dist = " << loopCC.dist << endl;
+        found = true;
+        break;
+      }
+    }
+  } 
+
+   
   // head is the front 
   const char* c = s.c_str();
   size_t len = s.size();
@@ -93,7 +112,7 @@ bool ContigMapper::addContig(Kmer km, const string& read, size_t pos) {
   Kmer head = Kmer(c);
   
   ContigMap cc = this->find(head);
-  bool found = !cc.isEmpty;
+  found = found ||  !cc.isEmpty;
 
   if (!found) {
 
@@ -116,22 +135,24 @@ bool ContigMapper::addContig(Kmer km, const string& read, size_t pos) {
   
   // map the read
   cc = findContig(km,read, pos);
+  cc.selfLoop = selfLoop;
   mapRead(cc);
   return found;
 }
 
 
-// use:  s = cm.findContigSequence(km)
+// use:  cm.findContigSequence(km, s, selfLoop)
 // pre:  km is in the bloom filter
 // post: s is the contig containing the kmer km
 //       and the first k-mer in s is smaller (wrt. < operator)
 //       than the last kmer
-void ContigMapper::findContigSequence(Kmer km, string& s) {
+//       selfLoop is true of the contig is a loop or hairpin
+void ContigMapper::findContigSequence(Kmer km, string& s, bool& selfLoop) {
   //cout << " s = " << s << endl;
   string fw_s;
   Kmer end = km;
   Kmer twin = km.twin();
-  bool selfLoop = false;
+  selfLoop = false;
   char c;
   size_t j = 0;
   //cout << end.toString();
@@ -203,8 +224,14 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
   char c;
   string fw_s;
   size_t fw_dist = 0;
+  bool selfLoop = false;
+  
   // check <k steps ahead in fw direction
   while (fw_dist < k && fwBfStep(end, end, c)) {
+    if (end == km) {
+      selfLoop = true;
+      break;
+    }
     fw_s.push_back(c);
     ++fw_dist;
   }
@@ -214,9 +241,15 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
   string bw_s;
   size_t bw_dist = 0;
   while (bw_dist < k && bwBfStep(front,front,c)) {
+    if (front == end) {
+      selfLoop = true;
+      break; // ok, we've reached around
+    }
     ++bw_dist;
   }
 
+  
+  
   cc = this->find(end);
   if (! cc.isEmpty) {
     size_t km_dist = cc.dist; // is 0 if we have reached the end
@@ -226,7 +259,9 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
       km_dist += fw_dist - (len-1);
     }
     
-    return ContigMap(cc.head, km_dist, len, cc.size, cc.strand, cc.isShort);
+    ContigMap rcc(cc.head, km_dist, len, cc.size, cc.strand, cc.isShort);
+    rcc.selfLoop = selfLoop;
+    return rcc;
   } else { 
     cc = this->find(front);
     if (! cc.isEmpty) {
@@ -237,11 +272,13 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
 	km_dist -= (bw_dist + len-1);
       }
 
-      return ContigMap(cc.head, km_dist, len, cc.size, cc.strand, cc.isShort);
+      ContigMap rcc(cc.head, km_dist, len, cc.size, cc.strand, cc.isShort);
+      rcc.selfLoop = selfLoop;
+      return rcc;
     }
   }
 
-  if (bw_dist == k || fw_dist == k) {
+  if (bw_dist == k || fw_dist == k || selfLoop) {
     Kmer short_end = km;
     size_t fd = 0;
     while (fd < k && fwBfStep(short_end,short_end,c)) {
@@ -429,7 +466,8 @@ void ContigMapper::moveShortContigs() {
   size_t k = Kmer::k;
   for (hmap_short_contig_t::iterator it = sContigs.begin(); it != sContigs.end(); ) {
     string s;
-    findContigSequence(it->first,s);
+    bool b;
+    findContigSequence(it->first,s, b);
     assert(it->first == Kmer(s.c_str()));
     Contig *c = new Contig(s.c_str()+k, true);
     c->coveragesum = 2*(s.size() - k+1);
@@ -729,7 +767,8 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
     // check if we should split it up
     if (! it->second.isFull()) {
       string s;
-      findContigSequence(it->first,s);
+      bool selfLoop = false;
+      findContigSequence(it->first,s, selfLoop);
       split_vector_t sp = it->second.splittingVector();
 
       if (sp.empty()) {
@@ -738,13 +777,18 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
 	split++;
       }
 
+      if (selfLoop) {
+        cout << "Splitting a self-loop, not implemented" << endl;
+      }
+      
       // remember small contigs
       // TODO: insert only middle part, if we are discarding small ones
       for (split_vector_t::iterator sit = sp.begin(); sit != sp.end(); ++sit) {
-	size_t pos = sit->first;
-	size_t len = sit->second - pos;
-	split_contigs.push_back(s.substr(pos,len+k));	
+        size_t pos = sit->first;
+        size_t len = sit->second - pos;
+        split_contigs.push_back(s.substr(pos,len+k));	
       }
+      
       
       // erase the split contig
       sContigs.erase(it++); // note: post-increment
@@ -842,7 +886,7 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
       for (size_t i = k; i < len-k; i+= k) {
 	shortcuts.insert(make_pair(Kmer(s+i),make_pair(head,i)));
       }
-      shortcuts.insert(make_pair(Kmer(s+len), make_pair(head,len)));
+      shortcuts.insert(make_pair(Kmer(s+len-k), make_pair(head,len-k)));
     }
   }
 
