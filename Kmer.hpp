@@ -14,8 +14,6 @@
 #include "hash.hpp"
 
 
-//for debug
-void int2bin(uint32_t a, char *buffer, int buf_size);
 
 
 /* Short description: 
@@ -61,7 +59,7 @@ class Kmer {
 
   Kmer backwardBase(const char b) const;
   
-  void printBinary() const;
+  std::string getBinary() const;
   
   void toString(char * s) const;
   std::string toString() const;
@@ -75,20 +73,20 @@ class Kmer {
 
  private:
   static unsigned int k_bytes;
-  //  static unsigned int k_longs;
-  static unsigned int k_modmask;
+  static unsigned int k_longs;
+  static unsigned int k_modmask; // int?
 
   // data fields
   union {
     uint8_t bytes[MAX_K/4];
-    //uint32_t longs[MAX_K/16];
+    uint64_t longs[MAX_K/32];
   };
 
 
   // private functions
-  void shiftForward(int shift);
+//void shiftForward(int shift);
   
-  void shiftBackward(int shift);
+//void shiftBackward(int shift);
 
 };
 

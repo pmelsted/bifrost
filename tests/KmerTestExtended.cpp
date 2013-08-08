@@ -58,7 +58,14 @@ int main(int argc, char *argv[]) {
     Ktwin.toString(twin);
     for(j=0; j<k; j++) {
       if (twin[k-1-j] != letters[3-baseKey[s[j]]]) {
-        cout << "Incorrect twin: " << twin << " from: " << s << endl;
+        cout << "Incorrect twin: " << endl << twin << " from: " << s << endl;
+
+	for (j=0; j<k; j++) {
+	  t[k-1-j] = letters[3-baseKey[s[j]]];
+	}
+	t[k] = '\0';
+	Kmer tw(t);
+	cout << "expecting: " << endl << tw.toString() << endl;
         return 1;
       }
     }

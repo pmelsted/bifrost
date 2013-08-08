@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
     makeKmerString(real, index);
     K = Kmer(real);
 
-    if (false && k < 8) { // this has been checked for k = 1,..,7
+    if (true && k < 8) { // this has been checked for k = 1,..,7
       if (index > 0) {
         // Verify the operators
         for (unsigned int i2 = 0; i2 < index; i2++) {
@@ -128,6 +128,13 @@ int main(int argc, char *argv[]) {
       return 1;
     }
     Kmer tw2(realtwin);
+    if (TWIN != tw2) {
+      cout << TWIN.toString() << endl;
+      cout << TWIN.getBinary() << endl;
+      cout << tw2.toString() << endl;
+      cout << tw2.getBinary() << endl;
+    }
+
     assert(TWIN == tw2);
     assert(memcmp(&TWIN,&tw2,sizeof(Kmer)) == 0);
     Kmer tw3 = TWIN.twin();
