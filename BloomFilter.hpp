@@ -196,7 +196,7 @@ public:
     size_ = 0;
   }
 
-private:
+protected:
 
   void init_table() {
     fast_div_ = libdivide::divider<uint64_t>(size_);

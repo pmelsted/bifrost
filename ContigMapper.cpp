@@ -134,10 +134,65 @@ bool ContigMapper::addContig(Kmer km, const string& read, size_t pos) {
   }
   
   // map the read
-  cc = findContig(km,read, pos);
+  cc = findContig(km,read, pos,false);
   cc.selfLoop = selfLoop;
   mapRead(cc);
   return found;
+}
+
+// use:  b = cm.checkTip(tip)
+// pre:  tip is the head of a tip
+// post: true if there is a full alternative branch to the tip
+bool ContigMapper::checkTip(Kmer tip) {
+  size_t k = Kmer::k;
+  // check forward
+  for (size_t i = 0; i < 4; i++) {
+    Kmer fw = tip.forwardBase(alpha[i]);
+    ContigMap cc = find(fw);
+    if (!cc.isEmpty ) {
+      hmap_long_contig_t::const_iterator it = lContigs.find(cc.head);
+      if (it != lContigs.end()) {
+	for (size_t j = 0; j < 4; j++) {
+	  Kmer alt = fw.backwardBase(alpha[j]);
+	  if (alt != tip) {
+	    ContigMap cc_alt = find(alt);
+	    if (!cc_alt.isEmpty && cc_alt.size >= k && !cc_alt.isShort) {
+	      hmap_long_contig_t::const_iterator alt_it = lContigs.find(cc_alt.head);
+	      if (alt_it != lContigs.end() && alt_it->second->ccov.isFull()) {
+		return true;
+	      }
+	    }
+	  }
+	}
+      }
+    }
+  }
+  
+  // check backward
+  for (size_t i = 0; i < 4; i++) {
+    Kmer bw = tip.backwardBase(alpha[i]);
+    ContigMap cc = find(bw);
+    if (!cc.isEmpty) {
+      hmap_long_contig_t::const_iterator it = lContigs.find(cc.head);
+      if (it != lContigs.end()) {
+	for (size_t j = 0; j < 4; j++) {
+	  Kmer alt = bw.forwardBase(alpha[j]);
+	  if (alt != tip) {
+	    ContigMap cc_alt = find(alt);
+	    if (!cc_alt.isEmpty && cc_alt.size >= k && !cc_alt.isShort) {
+	      hmap_long_contig_t::const_iterator alt_it = lContigs.find(cc_alt.head);
+	      if (alt_it != lContigs.end() && alt_it->second->ccov.isFull()) {
+		return true;
+	      }
+	    }
+	  }
+	}
+      }
+    }
+  }
+
+
+  return false;
 }
 
 
@@ -155,8 +210,9 @@ void ContigMapper::findContigSequence(Kmer km, string& s, bool& selfLoop) {
   selfLoop = false;
   char c;
   size_t j = 0;
+  size_t dummy;
   //cout << end.toString();
-  while (fwBfStep(end,end,c)) {
+  while (fwBfStep(end,end,c,dummy)) {
     if (end == km) {
       //cout << "Got a self-loop in contig: " << fw_s << endl;
       //cout << km.toString() << " => " << end.toString() << endl;
@@ -170,7 +226,7 @@ void ContigMapper::findContigSequence(Kmer km, string& s, bool& selfLoop) {
   string bw_s;
   Kmer front = km;
   if (!selfLoop) {
-    while (bwBfStep(front,front,c)) {
+    while (bwBfStep(front,front,c,dummy)) {
       if (front == km) {
 	//cout << "Got a self-loop in contig: " << fw_s << endl;
 	//cout << km.toString() << " => " << end.toString() << endl;
@@ -206,11 +262,11 @@ void ContigMapper::findContigSequence(Kmer km, string& s, bool& selfLoop) {
 }
 
 
-// use:  cc = cm.findContig(km,s,pos)
+// use:  cc = cm.findContig(km,s,pos,clip)
 // pre:  s[pos,pos+k-1] is the kmer km
 // post: cc contains either the reference to the contig position
 //       or empty if none found
-ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
+ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos, bool checkTip) const {
   assert(bf != NULL);
   size_t k = Kmer::k;
   
@@ -225,9 +281,12 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
   string fw_s;
   size_t fw_dist = 0;
   bool selfLoop = false;
-  
+  bool isTip = false;
+  Kmer tipHead;
+
   // check <k steps ahead in fw direction
-  while (fw_dist < k && fwBfStep(end, end, c)) {
+  size_t fw_deg;
+  while (fw_dist < k && fwBfStep(end, end, c, fw_deg)) {
     if (end == km) {
       selfLoop = true;
       break;
@@ -240,7 +299,8 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
 
   string bw_s;
   size_t bw_dist = 0;
-  while (bw_dist < k && bwBfStep(front,front,c)) {
+  size_t bw_deg;
+  while (bw_dist < k && bwBfStep(front,front,c,bw_deg)) {
     if (front == end) {
       selfLoop = true;
       break; // ok, we've reached around
@@ -248,7 +308,33 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
     ++bw_dist;
   }
 
-  
+
+  if (checkTip) {
+    if (fw_dist + bw_dist  < k) {
+      /*size_t fw_count = 0;
+      for (size_t i = 0; i < 4; i++) { 
+	if (bf->contains(end.forwardBase(alpha[i]).rep())) {
+	  ++fw_count;
+	}
+      }
+      size_t bw_count = 0;
+      for (size_t i = 0; i < 4; i++) {
+	if (bf->contains(front.backwardBase(alpha[i]).rep())) {
+	  ++bw_count;
+	}
+      }
+      */
+      if (fw_deg == 0 && bw_deg == 1) {
+	isTip = true;
+	tipHead = front;
+	//handle this
+      } else if (fw_deg == 1 && bw_deg == 0) {
+	isTip = true;
+	tipHead = end;
+      }
+    }
+  }
+
   
   cc = this->find(end);
   if (! cc.isEmpty) {
@@ -261,6 +347,12 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
     
     ContigMap rcc(cc.head, km_dist, len, cc.size, cc.strand, cc.isShort);
     rcc.selfLoop = selfLoop;
+    rcc.isIsolated = (fw_deg == 0 && bw_deg == 0 && len < k );
+    rcc.isTip = isTip;
+    if (isTip) {
+      rcc.tipHead = tipHead;
+    }
+    
     return rcc;
   } else { 
     cc = this->find(front);
@@ -274,6 +366,11 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
 
       ContigMap rcc(cc.head, km_dist, len, cc.size, cc.strand, cc.isShort);
       rcc.selfLoop = selfLoop;
+      rcc.isIsolated = (fw_deg == 0 && bw_deg == 0 && len < k);
+      rcc.isTip = isTip;
+      if (isTip) {
+	rcc.tipHead = tipHead;
+      }
       return rcc;
     }
   }
@@ -281,7 +378,8 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
   if (bw_dist == k || fw_dist == k || selfLoop) {
     Kmer short_end = km;
     size_t fd = 0;
-    while (fd < k && fwBfStep(short_end,short_end,c)) {
+    size_t dummy;
+    while (fd < k && fwBfStep(short_end,short_end,c, dummy)) {
       ++fd;
       cc = this->find(short_end);
       if (! cc.isEmpty) {
@@ -306,18 +404,26 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
   }
 
   // nothing found, how much can we skip ahead?
-  return ContigMap(len);
+  ContigMap rcc(len);
+  rcc.isIsolated = (fw_deg == 0 && bw_deg == 0 && len < k);
+  rcc.isTip = isTip;
+  if (isTip) {
+    rcc.tipHead = tipHead;
+  }
+  return rcc;
 }
 
-// use:  b = cm.bwBfStep(km,front,c)
+// use:  b = cm.bwBfStep(km,front,c,deg)
 // pre:  km is in the bloom filter
 // post: b is true if km is inside a contig, in that 
 //       case end is the bw link and c is the nucleotide used for the link.
 //       if b is false, front and c are not updated
 //       if km is an isolated self link (e.g. 'AAA') i.e. end == km then returns false
-bool ContigMapper::bwBfStep(Kmer km, Kmer &front, char &c) const {
+//       deg is the backwards degree of the front
+bool ContigMapper::bwBfStep(Kmer km, Kmer &front, char &c, size_t &deg) const {
   size_t i,j;
   size_t bw_count = 0;
+  deg = 0;
   //size_t k = Kmer::k;
 
   // check bw direction
@@ -334,11 +440,12 @@ bool ContigMapper::bwBfStep(Kmer km, Kmer &front, char &c) const {
   }
 
   if (bw_count != 1) {
+    deg = bw_count;
     return false;
   }
 
   // only one k-mer in the bw link
-
+  deg = 1;
   Kmer bw = front.backwardBase(alpha[j]);
   size_t fw_count = 0;
   for (i = 0; i < 4; ++i) {
@@ -366,13 +473,14 @@ bool ContigMapper::bwBfStep(Kmer km, Kmer &front, char &c) const {
   }
 }
 
-// use:  b = cm.fwBfStep(km,end,c)
+// use:  b = cm.fwBfStep(km,end,c,deg)
 // pre:  km is in the bloom filter
 // post: b is true if km is inside a contig, in that
 //       case end is the fw link and c is the nucleotide used for the link.
 //       if b is false, end and c are not updated
 //       if km is an isolated self link (e.g. 'AAA') i.e. end == km then returns false
-bool ContigMapper::fwBfStep(Kmer km, Kmer &end, char &c) const {
+//       deg is the degree of the end
+bool ContigMapper::fwBfStep(Kmer km, Kmer &end, char &c, size_t &deg) const {
   size_t i,j;
   size_t fw_count = 0;
   //size_t k = Kmer::k;
@@ -391,9 +499,11 @@ bool ContigMapper::fwBfStep(Kmer km, Kmer &end, char &c) const {
   }
   
   if (fw_count != 1) {
+    deg = fw_count;
     return false;
   }
   // only one k-mer in fw link
+  deg = 1;
 
   Kmer fw = end.forwardBase(alpha[j]);
 
@@ -526,8 +636,144 @@ bool ContigMapper::checkShortcuts() {
   return true;
 }
 
+// use:  del = mapper.removeIsolatedContigs()
+// pre:  no short contigs exist in sContigs, all contigs are full
+// post: all isolated contigs, with <k k-mers or fewer have been removed
+size_t ContigMapper::removeIsolatedContigs() {
+  size_t rem = 0;
+  size_t k = Kmer::k;
+
+  assert(sContigs.size() == 0);
+  vector<Kmer> rems;
+  typedef hmap_long_contig_t::const_iterator lit_t;
+  for (lit_t it = lContigs.begin(); it != lContigs.end(); ++it) {
+    CompressedSequence &seq = it->second->seq;
+    size_t kmerlen = it->second->ccov.size();
+    if (kmerlen >= k) {
+      continue;
+    }
+    
+    Kmer head = seq.getKmer(0), tail = seq.getKmer(seq.size()-k);
+    
+    size_t fw_count = 0, bw_count = 0;
+    bool dummy;
+    Kmer fw,bw;
+    for (size_t i = 0; i < 4; i++) {
+      Kmer fw = tail.forwardBase(alpha[i]);
+      if (checkEndKmer(fw, dummy)) {
+	fw_count++;
+      }
+      Kmer bw = head.backwardBase(alpha[i]);
+      if (checkEndKmer(bw, dummy)) {
+	bw_count++;
+      }
+    }
+    
+    if (fw_count == 0 && bw_count == 0) {
+      rems.push_back(it->first);
+    }
+  }
+
+  for (vector<Kmer>::const_iterator it = rems.begin(); it != rems.end(); ++it) {
+    ContigMap cc = find(*it);
+    if (!cc.isEmpty) {
+      Contig* contig = lContigs.find(cc.head)->second;
+      string seq = contig->seq.toString();
+
+      removeShortcuts(seq); // just playing it safe
+      lContigs.erase(cc.head);
+      delete contig;
+      rem++;
+    }
+  }
+  return rem;
+}
+
+// use:  clipped = mapper.clipTips()
+// pre:  no short contigs exist in sContigs, all contigs are full
+// post: all tips with length < k have been removed
+size_t ContigMapper::clipTips() {
+  size_t clipped = 0;
+  size_t k = Kmer::k;
+
+  assert(sContigs.size() == 0);
+
+  vector<Kmer> clips;
+  typedef hmap_long_contig_t::const_iterator lit_t;
+  for (lit_t it = lContigs.begin(); it != lContigs.end(); ++it) {
+    CompressedSequence &seq = it->second->seq;
+    size_t kmerlen = it->second->ccov.size();
+    if (kmerlen >= k) {
+      continue;
+    }
+
+    Kmer head = seq.getKmer(0), tail = seq.getKmer(seq.size()-k);
+    
+    size_t fw_count = 0, bw_count = 0;
+    bool dummy;
+    Kmer fw_cand, bw_cand;
+    for (size_t i = 0; i < 4; i++) {
+      Kmer fw = tail.forwardBase(alpha[i]);
+      if (checkEndKmer(fw, dummy)) {
+	fw_count++;
+	fw_cand = fw;
+      }
+      Kmer bw = head.backwardBase(alpha[i]);
+      if (checkEndKmer(bw, dummy)) {
+	bw_count++;
+	bw_cand = bw;
+      }
+    }
+
+    bool clip = false;
+    if (fw_count == 0 && bw_count == 1) {
+      for (size_t i = 0; i < 4; i++) {
+	Kmer alt = bw_cand.forwardBase(alpha[i]);
+	if (alt != head) {
+	  ContigMap cc = find(alt);
+	  if (cc.size > kmerlen) {
+	    clip = true;
+	  }
+	}
+      }
+    }
+    if (fw_count == 1 && bw_count == 0) {
+      // check alternative
+      for (size_t i = 0; i < 4; i++) {
+	Kmer alt = fw_cand.backwardBase(alpha[i]);
+	if (alt != tail) {
+	  ContigMap cc = find(alt);
+	  if (cc.size >= kmerlen) {
+	    clip = true;
+	  }
+	}
+      }
+    }
+
+    if (clip) {
+      clips.push_back(it->first);
+    }
+  }
+
+
+  for (vector<Kmer>::const_iterator it = clips.begin(); it != clips.end(); ++it) {
+    ContigMap cc = find(*it);
+    if (!cc.isEmpty) {
+      Contig* contig = lContigs.find(cc.head)->second;
+      string seq = contig->seq.toString();
+
+      removeShortcuts(seq); // just playing it safe
+      lContigs.erase(cc.head);
+      delete contig;
+      clipped++;
+    }
+  }
+  
+  return clipped;
+}
+
 // use:  joined = mapper.joinAllContigs()
-// pre:  no short contigs extis in sContigs.
+// pre:  no short contigs exist in sContigs.
 // post: all contigs that could be connected have been connected 
 //       joined is the number of joined contigs
 size_t ContigMapper::joinAllContigs() {
@@ -559,7 +805,7 @@ size_t ContigMapper::joinAllContigs() {
   }
 
   
-  for (vector<Join_t>::iterator it = joins.begin(); it != joins.end(); it++) {
+  for (vector<Join_t>::iterator it = joins.begin(); it != joins.end(); ++it) {
     Kmer head = it->first;
     Kmer tail = it->second;
 

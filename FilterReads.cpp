@@ -17,7 +17,8 @@
 #include "fastq.hpp"
 #include "Kmer.hpp"
 #include "KmerIterator.hpp"
-#include "BloomFilter.hpp"
+//#include "BloomFilter.hpp"
+#include "BlockedBloomFilter.hpp"
 
 
 struct FilterReads_ProgramOptions {

@@ -28,7 +28,7 @@ class ContigMapper {
   void mapBloomFilter(const BloomFilter* bf);
 
 
-  ContigMap findContig(Kmer km, const string& s, size_t pos) const;
+  ContigMap findContig(Kmer km, const string& s, size_t pos, bool checkTip) const;
   void mapRead(const ContigMap& cc);
 
   bool addContig(Kmer km, const string& read, size_t pos);
@@ -40,9 +40,13 @@ class ContigMapper {
   size_t writeContigs(int count1, string contigfilename, string graphfilename);
   size_t joinAllContigs();
   pair<size_t, size_t> splitAllContigs(); 
+  size_t clipTips();
 
   void moveShortContigs();
   void fixShortContigs();
+  size_t removeIsolatedContigs();
+
+  bool checkTip(Kmer tip);
 
   bool checkJoin(Kmer a, Kmer &b, bool& dir);
   bool checkEndKmer(Kmer b, bool& dir);
@@ -56,8 +60,8 @@ class ContigMapper {
   bool checkShortcuts();
 
   ContigMap find(Kmer km) const;
-  bool fwBfStep(Kmer km, Kmer &end, char &c) const;
-  bool bwBfStep(Kmer km, Kmer &front, char &c) const;
+  bool fwBfStep(Kmer km, Kmer &end, char &c, size_t &deg) const;
+  bool bwBfStep(Kmer km, Kmer &front, char &c, size_t &deg) const;
 
 
 

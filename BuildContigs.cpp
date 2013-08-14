@@ -33,9 +33,11 @@ struct BuildContigs_ProgramOptions {
   size_t read_chunksize;
   size_t contig_size; // not configurable
   vector<string> files;
-  bool del_iso;
+  bool clipTips;
+  bool deleteIsolated;
   BuildContigs_ProgramOptions() : verbose(false), threads(1), k(0), stride(0), stride_set(false), \
-                                  read_chunksize(1000), contig_size(1000000), del_iso(true) {}
+                                  read_chunksize(1000), contig_size(1000000), clipTips(true), \
+				  deleteIsolated(true) {}
 };
 
 // use:  BuildContigs_PrintUsage();
@@ -53,6 +55,8 @@ void BuildContigs_PrintUsage() {
       "  -f, --filtered=STRING       File with filtered reads" << endl <<
       "  -o, --output=STRING         Prefix for output files" << endl <<
       "  -s, --stride=INT            Distance between saved kmers when mapping (default is kmer-size)"
+      "      --no-clip-tips          Do not clip short tips, less than k k-mers in length (default: true)" <<endl <<
+      "      --no-del-isolated=BOOL  Do not deleted isolated contigs shorter than k k-mers (default: true)"
   << endl << endl;
 }
 
@@ -62,7 +66,7 @@ void BuildContigs_PrintUsage() {
 //       like BuildContigs_PrintUsage describes and opt is ready to contain the parsed parameters
 // post: All the parameters from argv have been parsed into opt
 void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOptions &opt) {
-  const char* opt_string = "vt:k:f:o:c:s:";
+  const char* opt_string = "vt:k:f:o:c:s:nd";
   static struct option long_options[] = {
       {"verbose",    no_argument,       0, 'v'},
       {"threads",    required_argument, 0, 't'},
@@ -71,6 +75,8 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
       {"output",     required_argument, 0, 'o'},
       {"chunk-size", required_argument, 0, 'c'},
       {"stride",     required_argument, 0, 's'},
+      {"no-clip-tips",  optional_argument, 0, 'n'},
+      {"no-del-isolated", optional_argument, 0, 'd'},
       {0,            0,                 0,  0 }
   };
 
@@ -100,6 +106,12 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
       case 's':
         opt.stride = atoi(optarg);
         opt.stride_set = true;
+        break;
+      case 'n':
+        opt.clipTips = false;
+        break;
+      case 'd':
+        opt.deleteIsolated = false;
         break;
       default: break;
     }
@@ -341,12 +353,21 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
             iter.raise(km, rep);
           } else {
 	    // find mapping contig
-	    ContigMap cm = cmap.findContig(km,readv[index],iter->second);
+	    ContigMap cm = cmap.findContig(km,readv[index],iter->second,false);
 
 	    if (cm.isEmpty) {
 	      // kmer did not map, 
 	      // push into queue for next contig generation round
-	      smallv->push_back(NewContig(km,readv[index],iter->second));
+	      bool add = true;
+	      /*if (opt.clipTips && cm.isTip) {
+		add = !cmap.checkTip(cm.tipHead);
+		}*/
+	      if (opt.deleteIsolated && cm.isIsolated && false) {
+		add = false;
+	      }
+	      if (add) {
+		smallv->push_back(NewContig(km,readv[index],iter->second));
+	      }
 	    } 
 
 	    // map the read, has no effect for newly created contigs
@@ -398,8 +419,26 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   cmap.moveShortContigs();
   bf.clear();
   cmap.fixShortContigs();
+
+  cmap.removeIsolatedContigs();
+
+  size_t joined = cmap.joinAllContigs();
   
-  size_t joined = cmap.joinAllContigs(); 
+  cmap.removeIsolatedContigs();
+
+  if (opt.clipTips) {
+    size_t clipped = cmap.clipTips();
+    joined += cmap.joinAllContigs(); 
+
+    if (opt.verbose) {
+      cerr << "Tips clipped: " << clipped << endl;
+    }
+    
+  }
+  
+  cmap.removeIsolatedContigs();
+  
+
   if (opt.verbose) {
     cerr << "Contigs joined: " << joined << endl;
     cerr << "After join " << cmap.contigCount() << " contigs" << endl;

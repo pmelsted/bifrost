@@ -25,7 +25,14 @@ public:
   }
 
   template<typename T>
-  bool contains(T x)  {
+  bool contains(T x) const {
+    return (search(x) == 0);
+  }
+
+
+  template<typename T>
+  size_t search(T x) const {
+    size_t r = k_;
     uint64_t id;
     uint64_t hash;
     uint64_t block; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+2, &block);
@@ -44,14 +51,16 @@ public:
       id = hash & 0x1ff; // equal to hash % 512;
       // we check if bit number 1+(id % 8) in byte (table_[block + id/8]) is set
       if ((table_[block + (id >> 3)] & mask[id & 0x07]) == 0) {
-        return false;      
+	r--;
       }
     }
-    return true;
+    return r;
   }
 
   template<typename T>
-  void insert(T x) {
+  size_t insert(T x) {
+    size_t r = 0;
+    unsigned char val;
     uint64_t id;
     uint64_t hash;
     uint64_t block; MurmurHash3_x64_64((const void*) &x, sizeof(T), seed_+2, &block);
@@ -69,8 +78,14 @@ public:
       // 0 <= id < 512, id represents one bit 
       id = hash & 0x1ff; // equal to hash % 512;
       // we set bit number 1+(id % 8) in byte (table_[block + id/8]) to 1
-      table_[block + (id >> 3)] |= mask[id & 0x07];
+      if ((table_[block + (id>>3)] & mask[id & 0x07]) == 0) {
+	val = __sync_fetch_and_or(table_ + block + (id>>3), mask[id & 0x07]);
+	if ((val & mask[id & 0x07]) == 0) 
+	  r++;
+      }
+	//table_[block + (id >> 3)] |= mask[id & 0x07];
     }
+    return r;
   }
 
 
