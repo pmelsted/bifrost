@@ -6,8 +6,8 @@ INCLUDES = -I.
 CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -fPIC -DMAX_KMER_SIZE=$(MAX_KMER_SIZE)
 LDFLAGS = -lz
 
-EXECUTABLES = KmerTest KmerTestExtended CompressedSequenceTest BloomFilterTest KmerMapperTest KmerIteratorTest \
-			  CompressedCoverageTest KmerHashTest
+EXECUTABLES = KmerTest KmerTest2 KmerTestExtended CompressedSequenceTest BloomFilterTest KmerMapperTest KmerIteratorTest \
+			  CompressedCoverageTest ContigMapperTest
 
 all: CXXFLAGS += -O3
 all: target
@@ -23,13 +23,17 @@ profile: LDFLAGS += -p -g
 profile: clean
 profile: target
 
-OBJECTS = ../FindContig.o ../KmerMapper.o ../Kmer.o ../hash.o ../CompressedSequence.o ../Contig.o  ../KmerIterator.o ../CompressedCoverage.o ../fastq.o
+OBJECTS = ../FindContig.o ../KmerMapper.o ../Kmer.o ../hash.o ../CompressedSequence.o ../Contig.o  ../KmerIterator.o ../CompressedCoverage.o ../fastq.o ../ContigMapper.o
 
 KmerTest: KmerTest.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(OBJECTS) KmerTest.o $(LDFLAGS) -o KmerTest
 
-KmerHashTest: KmerHashTest.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) KmerHashTest.o $(LDFLAGS) -o KmerHashTest -lstdc++
+KmerTest2: KmerTest2.o $(OBJECTS)
+	$(CC) $(INCLUDES) $(OBJECTS) KmerTest2.o $(LDFLAGS) -o KmerTest2
+
+
+#KmerHashTest: KmerHashTest.o $(OBJECTS)
+#	$(CC) $(INCLUDES) $(OBJECTS) KmerHashTest.o $(LDFLAGS) -o KmerHashTest -lstdc++
 
 
 KmerTestExtended: KmerTestExtended.o $(OBJECTS)
@@ -53,8 +57,12 @@ KmerIteratorTest: KmerIteratorTest.o $(OBJECTS)
 CompressedCoverageTest: CompressedCoverageTest.o $(OBJECTS)
 	$(CC) $(INCLUDES) $(OBJECTS) CompressedCoverageTest.o $(LDFLAGS) -o CompressedCoverageTest
 
+ContigMapperTest: ContigMapperTest.o $(OBJECTS)
+	$(CC) $(INCLUDES) $(OBJECTS) ContigMapperTest.o $(LDFLAGS) -o ContigMapperTest
+
 
 KmerTest.o: ../Kmer.o ../hash.o
+KmerTest2.o: ../Kmer.o ../hash.o
 KmerHashTest.o: ../Kmer.o ../hash.o ../KmerIterator.o
 KmerTestExtended.o: ../Kmer.o ../hash.o
 CompressedSequenceTest.o: ../CompressedSequence.o
@@ -63,6 +71,7 @@ BlockedBloomFilterTest.o: ../BlockedBloomFilter.o
 KmerMapperTest.o: ../KmerMapper.o
 KmerIteratorTest.o: ../KmerIterator.o
 CompressedCoverageTest.o: ../CompressedCoverage.o
+ContigMapperTest.o: ../ContigMapper.o
 
 
 ../Kmer.o: ../Kmer.hpp ../Kmer.cpp
@@ -76,6 +85,7 @@ CompressedCoverageTest.o: ../CompressedCoverage.o
 ../CompressedCoverage.o: ../CompressedCoverage.hpp ../CompressedCoverage.cpp
 ../Contig.o: ../Contig.hpp ../Contig.cpp
 ../FindContig.o: ../FindContig.hpp ../FindContig.cpp
+../ContigMapper.o: ../ContigMapper.hpp ../ContigMapper.cpp
 
 clean:
 	rm -f *.o ../*.o $(EXECUTABLES) 

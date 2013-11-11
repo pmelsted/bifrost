@@ -580,7 +580,7 @@ void ContigMapper::moveShortContigs() {
     findContigSequence(it->first,s, b);
     assert(it->first == Kmer(s.c_str()));
     Contig *c = new Contig(s.c_str()+k, true);
-    c->coveragesum = 2*(s.size() - k+1);
+    c->coveragesum = 2*(s.size() - k+1); // not 100% correct
     lContigs.insert(make_pair(it->first,c));
     sContigs.erase(it++); // note post-increment
   }
@@ -658,6 +658,7 @@ size_t ContigMapper::removeIsolatedContigs() {
     size_t fw_count = 0, bw_count = 0;
     bool dummy;
     Kmer fw,bw;
+    // TODO: refactor this forloop, used in more functions
     for (size_t i = 0; i < 4; i++) {
       Kmer fw = tail.forwardBase(alpha[i]);
       if (checkEndKmer(fw, dummy)) {
@@ -677,6 +678,7 @@ size_t ContigMapper::removeIsolatedContigs() {
   for (vector<Kmer>::const_iterator it = rems.begin(); it != rems.end(); ++it) {
     ContigMap cc = find(*it);
     if (!cc.isEmpty) {
+      assert(*it == cc.head);
       Contig* contig = lContigs.find(cc.head)->second;
       string seq = contig->seq.toString();
 
@@ -969,14 +971,14 @@ bool ContigMapper::checkJoin(Kmer a, Kmer& b, bool& dir) {
 // pre: 
 // post: true iff b is an end contig in mapper and r is 
 //       set to true if beginning or false if b is the end
-
+// TODO: test checkEndKmer, w.r.t. circular mapping
+//       probably some problem there
 bool ContigMapper::checkEndKmer(Kmer b, bool& dir) {
   ContigMap cand = find(b);
   if (cand.isEmpty) {
     return false;
   }
 
-  
   if (cand.dist == 0) {
     dir = true;
     return true;

@@ -406,7 +406,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
   size_t contigsBefore = cmap.contigCount();
   cerr << "Splitting contigs" << endl;
-  pair<size_t, size_t> contigSplit = cmap.splitAllContigs();
+  pair<size_t, size_t> contigSplit = cmap.splitAllContigs();// TODO: test splitAllContigs
   int contigsAfter1 = contigsBefore + contigSplit.first - contigSplit.second;
   
   if (opt.verbose) {
@@ -416,19 +416,27 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     cerr << "Contigs deleted: " << contigSplit.second << endl;
   }
 
-  cmap.moveShortContigs();
+  cmap.moveShortContigs(); // Simple, no need to test
   bf.clear();
-  cmap.fixShortContigs();
+  cmap.fixShortContigs();  // Simple
 
-  cmap.removeIsolatedContigs();
+  cmap.removeIsolatedContigs(); // TODO: test
 
-  size_t joined = cmap.joinAllContigs();
+  size_t joined = cmap.joinAllContigs(); // TODO: test
   
   cmap.removeIsolatedContigs();
 
+  // XXX: Put a while loop around this?
   if (opt.clipTips) {
+    // TODO: test this
     size_t clipped = cmap.clipTips();
-    joined += cmap.joinAllContigs(); 
+    size_t newjoined = cmap.joinAllContigs(); 
+    
+    if (opt.verbose) {
+      cerr << "Joined after clipping: " << newjoined << endl;
+    }
+    
+    joined += newjoined;
 
     if (opt.verbose) {
       cerr << "Tips clipped: " << clipped << endl;
