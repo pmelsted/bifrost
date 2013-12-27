@@ -117,7 +117,7 @@ bool ContigMapper::addContig(Kmer km, const string& read, size_t pos) {
   if (!found) {
 
     // proper new contig
-    if (s.size() < limit) {
+    if (s.size()-k+1 < limit && !selfLoop) {
       // create a short contig
       sContigs.insert(make_pair(head, CompressedCoverage(s.size()-k+1)));
     } else {
@@ -339,10 +339,15 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos, bool ch
   cc = this->find(end);
   if (! cc.isEmpty) {
     size_t km_dist = cc.dist; // is 0 if we have reached the end
-    if (cc.strand) {
-      km_dist -= fw_dist;
+    if (!selfLoop) {
+      if (cc.strand) {
+        km_dist -= fw_dist;
+      } else {
+        km_dist += fw_dist - (len-1);
+      }
     } else {
-      km_dist += fw_dist - (len-1);
+      assert(end == km);
+      km_dist = 0;
     }
     
     ContigMap rcc(cc.head, km_dist, len, cc.size, cc.strand, cc.isShort);
@@ -627,7 +632,7 @@ bool ContigMapper::checkShortcuts() {
       return false;
     }
 
-    if (shortcuts.find(tail) == shortcuts.end()) {
+    if (head != tail && shortcuts.find(tail) == shortcuts.end()) {
       cout << "seq:  " << seq.toString() << endl;
       cout << "tail: " << tail.toString() << endl; 
       return false;
