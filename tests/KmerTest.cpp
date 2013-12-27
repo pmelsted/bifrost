@@ -29,6 +29,8 @@ void twinString(char *from, char *to, unsigned int length) {
   }
 }
 
+
+// maps a number uniquely to a string
 void makeKmerString(char *s, unsigned int i) {
   while (*s) {
     switch(i % 4) {
@@ -52,6 +54,7 @@ void makeKmerString(char *s, unsigned int i) {
 }
 
 
+// tests all different kmers for the given kmer size
 int main(int argc, char *argv[]) {
   if (argc < 2) {
     cout << "usage: KmerTest <k>\n Where k is kmer size" << endl;

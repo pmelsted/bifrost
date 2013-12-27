@@ -11,7 +11,8 @@ int main(int argc, char *argv[]) {
     cout << "usage: BloomFilterTest <bits>\n where bits is the bit count per variable" << endl;
     return 1;
   }
-  unsigned int bits = atoi(argv[1]), limit = 10000000, wrong = 0, counter = 0;
+  unsigned int bits = atoi(argv[1]), wrong = 0, counter = 0;
+  int limit = 10000000;
 
   // take bits as parameter
   BloomFilter BF(limit, (size_t) bits, (uint32_t) time(NULL));
