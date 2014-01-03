@@ -81,7 +81,9 @@ class Kmer {
     uint8_t bytes[MAX_K/4];
     uint64_t longs[MAX_K/32];
   };
-
+  // By default MAX_K == 64 so the union uses 16 bytes
+  // However sizeof(Kmer) == 24
+  // Are the 8 extra bytes alignment?
 
   // private functions
 //void shiftForward(int shift);
