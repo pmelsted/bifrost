@@ -37,7 +37,7 @@ class ContigMapper {
   size_t contigCount() const;
 
   
-  size_t writeContigs(int count1, string contigfilename, string graphfilename);
+  size_t writeContigs(int count1, string contigfilename, string graphfilename, bool debug);
   size_t joinAllContigs();
   pair<size_t, size_t> splitAllContigs(); 
   size_t clipTips();
@@ -51,13 +51,13 @@ class ContigMapper {
   bool checkJoin(Kmer a, Kmer &b, bool& dir);
   bool checkEndKmer(Kmer b, bool& dir);
 
-  
+  bool checkShortcuts();  
  private:
   const BloomFilter *bf;
   size_t limit;
 
   void removeShortcuts(const string& s);
-  bool checkShortcuts();
+
 
   ContigMap find(Kmer km) const;
   bool fwBfStep(Kmer km, Kmer &end, char &c, size_t &deg) const;

@@ -22,7 +22,7 @@ all: CXXFLAGS += -O3
 all: target
 
 
-debug: CXXFLAGS += -g -ggdb -O0
+debug: CXXFLAGS += -g -ggdb  -O0
 debug: LDFLAGS += -g -ggdb
 debug: target
 

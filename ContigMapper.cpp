@@ -117,7 +117,7 @@ bool ContigMapper::addContig(Kmer km, const string& read, size_t pos) {
   if (!found) {
 
     // proper new contig
-    if (s.size() < limit) {
+    if (s.size()-k+1 < limit && !selfLoop) {
       // create a short contig
       sContigs.insert(make_pair(head, CompressedCoverage(s.size()-k+1)));
     } else {
@@ -206,7 +206,7 @@ void ContigMapper::findContigSequence(Kmer km, string& s, bool& selfLoop) {
   //cout << " s = " << s << endl;
   string fw_s;
   Kmer end = km;
-  Kmer twin = km.twin();
+  //Kmer twin = km.twin();
   selfLoop = false;
   char c;
   size_t j = 0;
@@ -339,10 +339,15 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos, bool ch
   cc = this->find(end);
   if (! cc.isEmpty) {
     size_t km_dist = cc.dist; // is 0 if we have reached the end
-    if (cc.strand) {
-      km_dist -= fw_dist;
+    if (!selfLoop) {
+      if (cc.strand) {
+        km_dist -= fw_dist;
+      } else {
+        km_dist += fw_dist - (len-1);
+      }
     } else {
-      km_dist += fw_dist - (len-1);
+      assert(end == km);
+      km_dist = 0;
     }
     
     ContigMap rcc(cc.head, km_dist, len, cc.size, cc.strand, cc.isShort);
@@ -617,20 +622,32 @@ bool ContigMapper::checkShortcuts() {
   size_t k = Kmer::k;
   for (hmap_long_contig_t::iterator it = lContigs.begin(); it != lContigs.end(); ++it) {
     CompressedSequence &seq = it->second->seq;
+    
     Kmer tail = seq.getKmer(seq.size()-k);
     Kmer head = seq.getKmer(0);
 
     if (it->first != head) {
+      cout << "first != head" << endl;
       cout << "seq:  " << seq.toString() << endl;
       cout << "it:   " << it->first.toString() << endl;
       cout << "head: " << head.toString() << endl;
       return false;
     }
 
-    if (shortcuts.find(tail) == shortcuts.end()) {
-      cout << "seq:  " << seq.toString() << endl;
-      cout << "tail: " << tail.toString() << endl; 
-      return false;
+    if (head != tail) {
+      hmap_shortcut_t::iterator sit = shortcuts.find(tail);
+      if (sit == shortcuts.end()) {
+	cout << "shortcut not found" << endl;
+	cout << "seq:  " << seq.toString() << endl;
+	cout << "tail: " << tail.toString() << endl; 
+	return false;
+      }
+      if (sit->second.second != seq.size()-k) {
+	cout << "position wrong" << endl;
+	cout << "seq:  " << seq.toString() << endl;
+	cout << "tail: " << tail.toString() << endl; 
+	return false;
+      }
     }
   }
   return true;
@@ -899,19 +916,19 @@ bool ContigMapper::checkJoin(Kmer a, Kmer& b, bool& dir) {
   bool fw_dir, bw_dir;
   Kmer fw_cand, bw_cand;
   
-  //cout << string(Kmer::k, '-') << endl <<  a.toString() << endl;
+  cout << string(Kmer::k, '-') << endl <<  a.toString() << endl;
   
   for (size_t i = 0; i < 4; i++) {
     Kmer fw = a.forwardBase(alpha[i]);
-    //cout << " " << fw.toString();
+    cout << " " << fw.toString();
 
     if (checkEndKmer(fw,fw_dir)) {
       fw_count++;
       fw_cand = fw;
-      //cout << " * ";
+      cout << " * ";
     }
 
-    //cout << endl;
+    cout << endl;
   }
   
   if (fw_count == 1) {
@@ -939,9 +956,9 @@ bool ContigMapper::checkJoin(Kmer a, Kmer& b, bool& dir) {
 
 	assert(candFirst == cand.head);
 
-	//cout << "match " << a.toString() << " -> " << fw_cand.toString() << endl;
-	//cout << "candFirst: " << candFirst.toString() << endl;
-	//cout << "~candLast:  " << candLast.twin().toString() << endl;
+	cout << "match " << a.toString() << " -> " << fw_cand.toString() << endl;
+	cout << "candFirst: " << candFirst.toString() << endl;
+	cout << "~candLast:  " << candLast.twin().toString() << endl;
 	
 	if (candFirst == fw_cand) {
 	  //cout << "a->b" << endl;
@@ -978,11 +995,11 @@ bool ContigMapper::checkEndKmer(Kmer b, bool& dir) {
   if (cand.isEmpty) {
     return false;
   }
-
+  size_t seqSize = lContigs.find(cand.head)->second->numKmers();
   if (cand.dist == 0) {
     dir = true;
     return true;
-  } else if (cand.dist == cand.size-1) {
+  } else if (cand.dist == seqSize-1) {
     dir = false;
     return true;
   } else {
@@ -1048,19 +1065,29 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
   // insert short contigs
   for (vector<string>::iterator it = split_contigs.begin(); it != split_contigs.end(); ++it) {
     if (it->size() >= k) {
+      //bool rev = false;
       const char *s = it->c_str();
-      Kmer head = Kmer(s).rep();
-      Kmer tail = Kmer((s + it->size()-k)).rep();
-      if (tail < head) {
+      Kmer head = Kmer(s); //Kmer(s).rep();
+      //Kmer tail = KmKmer((s + it->size()-k)).rep();
+      /*if (tail < head) {
 	swap(head,tail);
-      } 
+	rev = true;
+	} */
       // insert contigs into the long contigs, so that the sequence is stored!
-      Contig *cont = new Contig(s+k,true);
+      Contig *cont = NULL;
+      //if (!rev) {
+	cont = new Contig(s+k,true);
+	/* } else {
+	string srs = CompressedSequence(s).rev().toString();
+	const char *rs = srs.c_str();
+	cont = new Contig(rs+k,true);
+	}*/
       cont->coveragesum = 2 * (it->size()-k+1); // fake sum, TODO: keep track of this!
       lContigs.insert(make_pair(head,cont));
       if (it->size() > k) {
 	size_t lastpos = it->size()-k;
-	shortcuts.insert(make_pair(head, make_pair(s+lastpos, lastpos)));
+	shortcuts.insert(make_pair(Kmer(s+lastpos),make_pair(head,lastpos)));
+	//shortcuts.insert(make_pair(head, make_pair(s+lastpos, lastpos)));
       }
     }
   }
@@ -1166,7 +1193,8 @@ void ContigMapper::removeShortcuts(const string& s)
 // post: all the contigs have been written to the file: contigfilename
 //       the De Brujin graph has been written to the file: graphfilename
 //       count2 is the number of real contigs and we assert that count1 == count2 
-size_t ContigMapper::writeContigs(int count1, string contigfilename, string graphfilename) {
+//       if debug is true, output is written to stdout
+size_t ContigMapper::writeContigs(int count1, string contigfilename, string graphfilename, bool debug) {
   /* This is the schema for the outputfiles: 
     --- graphfile:
     contigcount kmersize                    (only in the first line of the file)
@@ -1184,11 +1212,19 @@ size_t ContigMapper::writeContigs(int count1, string contigfilename, string grap
   size_t id = 0;
 
   ofstream contigfile, graphfile;
-  contigfile.open(contigfilename.c_str());
-  graphfile.open(graphfilename.c_str());
-  graphfile.close();
-  assert(!contigfile.fail() && !graphfile.fail());
-  assert(sContigs.size() == 0);
+  ostream contigs(0),graph(0);
+  if (!debug) {
+    contigfile.open(contigfilename.c_str());
+    contigs.rdbuf(contigfile.rdbuf());
+    graphfile.open(graphfilename.c_str());
+    graphfile.close();
+    assert(!contigfile.fail() && !graphfile.fail());
+    assert(sContigs.size() == 0);
+  } else {
+    contigs.rdbuf(cout.rdbuf()); // copy to cout
+    
+  }
+
   
   /*
   string s;
@@ -1202,13 +1238,39 @@ size_t ContigMapper::writeContigs(int count1, string contigfilename, string grap
   s.clear();
   */
 
+  if (debug) { contigs << "--- long contigs ---" << endl; }
   for (hmap_long_contig_t::iterator it = lContigs.begin(); it != lContigs.end(); ++it) {
-    assert(it->second->ccov.isFull());
+    if (!debug) {assert(it->second->ccov.isFull()); }
     id++;
-    contigfile << ">contig" << id << "\n" << it->second->seq.toString() << "\n";
+    contigs << ">contig" << id << "\n" << it->second->seq.toString() << "\n";
+    if (debug) { contigs << it->first.toString() << "\n";}
   }
 
-  contigfile.close();
+  if (debug) {
+    contigs << "--- short contigs ---" << endl;
+    for (hmap_short_contig_t::iterator it = sContigs.begin(); it != sContigs.end(); ++it) {
+      id++;
+      string s;
+      bool selfLoop = false;
+      findContigSequence(it->first,s,selfLoop);
+      contigs << ">contig" << id << "\n" << s << "\n" << it->first.toString() << "\n";
+      
+    }
+  }
+  if (debug) {
+    contigs << "--- end contigs ---" << endl;
+    contigs << "--- shortcuts ---" << endl;
+    for (hmap_shortcut_t::iterator it = shortcuts.begin(); it != shortcuts.end(); ++it) {
+      contigs << it->first.toString() << " -> " << it->second.first.toString() << ", " << it->second.second << endl;
+    }
+    contigs << "--- end shortcuts ---" << endl;
+  }
+
+  
+
+  if (!debug) {
+    contigfile.close();
+  }
 
   return id;
 
@@ -1239,7 +1301,7 @@ size_t ContigMapper::writeContigs(int count1, string contigfilename, string grap
     
     for (size_t i=0; i<4; ++i) {
       Kmer bw = first.backwardBase(alpha[i]);
-      ContigRef prevcr = find(bw);
+      ContigRef prevcr = find();
       if (!prevcr.isEmpty()) {
         Contig *oc = getContig(prevcr).ref.contig;
         size_t oid = prevcr.ref.idpos.id;

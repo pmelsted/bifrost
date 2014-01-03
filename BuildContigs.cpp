@@ -406,6 +406,9 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
   size_t contigsBefore = cmap.contigCount();
   cerr << "Splitting contigs" << endl;
+  // print contigs
+  cmap.checkShortcuts();
+  cout << "before split - " << endl; cmap.writeContigs(0,"","",true);
   pair<size_t, size_t> contigSplit = cmap.splitAllContigs();// TODO: test splitAllContigs
   int contigsAfter1 = contigsBefore + contigSplit.first - contigSplit.second;
   
@@ -415,16 +418,30 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     cerr << "Contigs splitted: " << contigSplit.first << endl;
     cerr << "Contigs deleted: " << contigSplit.second << endl;
   }
-
+  cout << "before moveshort " << endl;
+  cmap.writeContigs(0,"","",true);
   cmap.moveShortContigs(); // Simple, no need to test
+ cout << "before fixshort " << endl;
+  cmap.writeContigs(0,"","",true);
   bf.clear();
   cmap.fixShortContigs();  // Simple
-
-  cmap.removeIsolatedContigs(); // TODO: test
-
-  size_t joined = cmap.joinAllContigs(); // TODO: test
+  cout << "after fixshort " << endl;
+  cmap.writeContigs(0,"","",true);
+  cmap.checkShortcuts();
+  cout << "before remove iso" << endl;
   
-  cmap.removeIsolatedContigs();
+  if (opt.deleteIsolated) {
+    cmap.removeIsolatedContigs(); // TODO: test
+  }
+  cmap.writeContigs(0,"","",true);
+  cmap.checkShortcuts();
+  cout << "before join" << endl;
+  size_t joined = cmap.joinAllContigs(); // TODO: test
+  cmap.writeContigs(0,"","",true);
+  cmap.checkShortcuts();  
+  if (opt.deleteIsolated) {
+    cmap.removeIsolatedContigs();
+  }
 
   // XXX: Put a while loop around this?
   if (opt.clipTips) {
@@ -444,7 +461,9 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     
   }
   
-  cmap.removeIsolatedContigs();
+  if (opt.deleteIsolated) {
+    cmap.removeIsolatedContigs();
+  }
   
 
   if (opt.verbose) {
@@ -460,7 +479,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   
   cerr << "Writing contigs to file: " << opt.contigfilename << endl
        << "Writing the graph to file: " << opt.graphfilename << endl;
-  int contigsAfter2 = cmap.writeContigs(contigsAfter1, opt.contigfilename, opt.graphfilename);
+  int contigsAfter2 = cmap.writeContigs(contigsAfter1, opt.contigfilename, opt.graphfilename,false);
 
   delete [] readv;
   delete [] parray;
