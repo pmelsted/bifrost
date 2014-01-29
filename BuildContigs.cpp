@@ -405,39 +405,40 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
 
 
   size_t contigsBefore = cmap.contigCount();
-  cerr << "Splitting contigs" << endl;
+  if (opt.verbose) {
+    cerr << "Splitting contigs" << endl;
+  }
   // print contigs
   cmap.checkShortcuts();
-  cout << "before split - " << endl; cmap.writeContigs(0,"","",true);
+  //cout << "before split - " << endl; cmap.writeContigs(0,"","",true);
   pair<size_t, size_t> contigSplit = cmap.splitAllContigs();// TODO: test splitAllContigs
   int contigsAfter1 = contigsBefore + contigSplit.first - contigSplit.second;
   
   if (opt.verbose) {
     cerr << "Before split: " << contigsBefore << " contigs" << endl;
     cerr << "After split: " << contigsAfter1 << " contigs" <<  endl;
-    cerr << "Contigs splitted: " << contigSplit.first << endl;
+    cerr << "Contigs split: " << contigSplit.first << endl;
     cerr << "Contigs deleted: " << contigSplit.second << endl;
   }
-  cout << "before moveshort " << endl;
-  cmap.writeContigs(0,"","",true);
+  //cout << "before moveshort " << endl; cmap.writeContigs(0,"","",true);
+  
   cmap.moveShortContigs(); // Simple, no need to test
- cout << "before fixshort " << endl;
-  cmap.writeContigs(0,"","",true);
+  
+  // cout << "before fixshort " << endl; cmap.writeContigs(0,"","",true);
   bf.clear();
   cmap.fixShortContigs();  // Simple
-  cout << "after fixshort " << endl;
-  cmap.writeContigs(0,"","",true);
+  //cout << "after fixshort " << endl; cmap.writeContigs(0,"","",true);
   cmap.checkShortcuts();
-  cout << "before remove iso" << endl;
-  
+  //cout << "before remove iso" << endl;
   if (opt.deleteIsolated) {
     cmap.removeIsolatedContigs(); // TODO: test
   }
-  cmap.writeContigs(0,"","",true);
+  //cmap.writeContigs(0,"","",true);
   cmap.checkShortcuts();
-  cout << "before join" << endl;
+
+  //cout << "before join" << endl; cmap.writeContigs(0,"","",true);
   size_t joined = cmap.joinAllContigs(); // TODO: test
-  cmap.writeContigs(0,"","",true);
+  
   cmap.checkShortcuts();  
   if (opt.deleteIsolated) {
     cmap.removeIsolatedContigs();

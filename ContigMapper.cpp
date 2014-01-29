@@ -916,19 +916,19 @@ bool ContigMapper::checkJoin(Kmer a, Kmer& b, bool& dir) {
   bool fw_dir, bw_dir;
   Kmer fw_cand, bw_cand;
   
-  cout << string(Kmer::k, '-') << endl <<  a.toString() << endl;
+  //cout << string(Kmer::k, '-') << endl <<  a.toString() << endl;
   
   for (size_t i = 0; i < 4; i++) {
     Kmer fw = a.forwardBase(alpha[i]);
-    cout << " " << fw.toString();
+    //cout << " " << fw.toString();
 
     if (checkEndKmer(fw,fw_dir)) {
       fw_count++;
       fw_cand = fw;
-      cout << " * ";
+      //cout << " * ";
     }
 
-    cout << endl;
+    //cout << endl;
   }
   
   if (fw_count == 1) {
@@ -956,9 +956,9 @@ bool ContigMapper::checkJoin(Kmer a, Kmer& b, bool& dir) {
 
 	assert(candFirst == cand.head);
 
-	cout << "match " << a.toString() << " -> " << fw_cand.toString() << endl;
-	cout << "candFirst: " << candFirst.toString() << endl;
-	cout << "~candLast:  " << candLast.twin().toString() << endl;
+	//cout << "match " << a.toString() << " -> " << fw_cand.toString() << endl;
+	//cout << "candFirst: " << candFirst.toString() << endl;
+	//cout << "~candLast:  " << candLast.twin().toString() << endl;
 	
 	if (candFirst == fw_cand) {
 	  //cout << "a->b" << endl;
