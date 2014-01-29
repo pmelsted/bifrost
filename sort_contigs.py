@@ -13,6 +13,8 @@ if __name__ == "__main__":
     f = open(inname, "r")
     cs = []
     for line in f.readlines():
+	if line[0] == '>':
+	    continue
         line = line.replace('\n', '')
         tmp = twin(line)
         if tmp < line:
