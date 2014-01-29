@@ -47,7 +47,7 @@ using namespace std;
   }
 
   void open(const char *fn) {
-    FILE *f = fopen(fn,"r");
+    FILE *f = fopen(fn, "rb");
     $self->ReadBloomFilter(f);
     fclose(f);
   }

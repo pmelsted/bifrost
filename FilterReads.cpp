@@ -215,12 +215,12 @@ void FilterReads_PrintSummary(const FilterReads_ProgramOptions &opt) {
   double fp;
   cerr << "Kmer size: " << opt.k << endl
        << "Chunksize: " << opt.read_chunksize << endl
-       << "Using bloom filter size: " << opt.bf << " bits" << endl
+       << "Using bloom filter size: " << opt.bf << " bits per element" << endl
        << "Estimated false positive rate: ";
   fp = pow(pow(.5,log(2.0)),(double) opt.bf);
   cerr << fp << endl;  
   
-  cerr << "Using bloom filter size for second set: " << opt.bf2 << " bits" << endl;
+  cerr << "Using bloom filter size for second set: " << opt.bf2 << " bits per element" << endl;
   cerr << "Estimated false positive rate for second set: ";
   fp = pow(pow(.5,log(2.0)),(double) opt.bf2);
   cerr << fp << endl;

@@ -112,9 +112,10 @@ public:
       
       if ((table_[id>>3] & mask[id & 0x07]) == 0) {
         val = __sync_fetch_and_or(table_ + (id>>3), mask[id & 0x07]); // val is the value prior to or-ing
+        // another thread could have changed it in the meantime
         if ((val & mask[id & 0x07]) == 0) {
-          r++; // we changed the value
-        }
+          r++; // we changed the value 
+        } 
       }
       
 
@@ -132,9 +133,6 @@ public:
         }
       }
       */
-
-
-
     }
     return r;
   }
@@ -171,7 +169,7 @@ public:
     size_t c = 0;
     for (size_t i = 0; i < (size_ >> 3); i++) {
       unsigned char u = table_[i]; 
-      for (size_t j = 255; j != 0; j = j>>1) {
+      for (size_t j = 128; j != 0; j = j>>1) {
         if ((u & j) != 0) {
           c++;
         }
