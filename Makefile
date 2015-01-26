@@ -4,19 +4,19 @@
 # Actual maximum kmer size is 1 less.
 MAX_KMER_SIZE = 64
 
-CC = g++
-CXX = g++
-INCLUDES = -I. -I /usr/include/python2.7/
+#CC = g++
+#CXX = g++
+INCLUDES = -I. #-I /usr/include/python2.7/
 CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) -fPIC -fopenmp -lstdc++ 
 LDFLAGS =
 LDLIBS  = -lm -lz -lgomp
-SWIG = swig
-PYTHON_VERSION = $(shell echo `python -c 'import sys; print(sys.version[:3])'`)
-UNAME = $(shell uname -s)
-PYTHON_FLAGS = -shared
-ifeq ($(UNAME), Darwin)
-PYTHON_FLAGS = -dynamiclib -lpython
-endif
+#SWIG = swig
+#PYTHON_VERSION = $(shell echo `python -c 'import sys; print(sys.version[:3])'`)
+# UNAME = $(shell uname -s)
+# PYTHON_FLAGS = -shared
+# ifeq ($(UNAME), Darwin)
+# PYTHON_FLAGS = -dynamiclib -lpython
+# endif
 
 all: CXXFLAGS += -O3 
 all: target
@@ -27,9 +27,9 @@ debug: LDFLAGS += -g -ggdb
 debug: target
 
 
-debugswig: CXXFLAGS += -g -O0
-debugswig: LDFLAGS += -g
-debugswig: swig
+#debugswig: CXXFLAGS += -g -O0
+#debugswig: LDFLAGS += -g
+#debugswig: swig
 
 
 profile: CXXFLAGS += -p -g -O2
@@ -43,10 +43,11 @@ target: BFGraph
 OBJECTS = Kmer.o KmerIterator.o  hash.o fastq.o FilterReads.o BuildContigs.o SimplifyGraph.o \
 		  CompressedSequence.o Contig.o CompressedCoverage.o  ContigMapper.o
 
-swig: $(OBJECTS) graph.i
-	$(SWIG) -python -c++ graph.i
-	$(CC) -fPIC -c graph_wrap.cxx $(INCLUDES) -I /usr/include/python$(PYTHON_VERSION)
-	$(CC) $(PYTHON_FLAGS) $(OBJECTS) graph_wrap.o -o _graph.so $(LDFLAGS) $(LDLIBS)
+# swig: $(OBJECTS) graph.i
+# 	$(SWIG) -python -c++ graph.i
+# 	$(CC) -fPIC -c graph_wrap.cxx $(INCLUDES) -I /usr/include/python$(PYTHON_VERSION)
+# 	$(CC) $(PYTHON_FLAGS) $(OBJECTS) graph_wrap.o -o _graph.so $(LDFLAGS) $(LDLIBS
+#)
 
 debugtest: CXXFLAGS += -g -O0
 debugtest: LDFLAGS += -g
@@ -76,8 +77,8 @@ ContigMapper.o: ContigMapper.cpp ContigMapper.hpp
 debugtest.o: debugtest.cpp
 #BloomFilter.o: BloomFilter.hpp
 hash.o: hash.hpp hash.cpp	
-style:
-	@astyle --style=java --indent=spaces=2 --pad-oper --pad-header --align-pointer=name --add-brackets --brackets=attach --convert-tabs *.[ch]pp
+#style:
+#	@astyle --style=java --indent=spaces=2 --pad-oper --pad-header --align-pointer=name --add-brackets --brackets=attach --convert-tabs *.[ch]pp
 
 
 clean:
