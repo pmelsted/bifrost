@@ -9,7 +9,7 @@ MAX_KMER_SIZE = 64
 INCLUDES = -I. #-I /usr/include/python2.7/
 CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) -fPIC -fopenmp -lstdc++ 
 LDFLAGS =
-LDLIBS  = -lm -lz -lgomp
+LDLIBS  = -lm -lz #-lgomp
 #SWIG = swig
 #PYTHON_VERSION = $(shell echo `python -c 'import sys; print(sys.version[:3])'`)
 # UNAME = $(shell uname -s)

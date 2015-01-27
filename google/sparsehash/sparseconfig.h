@@ -10,12 +10,21 @@
 
 #if (__GNUC__ > 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ >= 3))
 #define HASH_FUN_H <backward/hash_fun.h>
+#elif (__clang__)
+#define HASH_FUN_H <functional>
 #else 
 #define HASH_FUN_H <ext/hash_fun.h>
 #endif
 
 /* the namespace of the hash<> function */
+
+
+#if (__clang__)
+#define HASH_NAMESPACE
+#else
 #define HASH_NAMESPACE __gnu_cxx
+#endif
+
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1

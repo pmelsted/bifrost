@@ -258,8 +258,8 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
     seed = (uint32_t) time(NULL);
   }
   
-  BloomFilter BF(opt.nkmers, (size_t) opt.bf, seed);
-  BloomFilter BF2(opt.nkmers2, (size_t) opt.bf2, seed + 1); // use different seeds
+  BlockedBloomFilter BF(opt.nkmers, (size_t) opt.bf, seed);
+  BlockedBloomFilter BF2(opt.nkmers2, (size_t) opt.bf2, seed + 1); // use different seeds
   
   bool done = false;
   char name[8192], s[8192];
