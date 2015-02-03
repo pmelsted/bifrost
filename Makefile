@@ -6,17 +6,11 @@ MAX_KMER_SIZE = 64
 
 #CC = g++
 #CXX = g++
-INCLUDES = -I. #-I /usr/include/python2.7/
-CXXFLAGS = -c -std=c++11 -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) -Wno-unused-function
+WARNINGS = -Wall -Wno-reorder -Wno-unused-function
+INCLUDES = -I. 
+CXXFLAGS = -c -std=c++11  $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) $(WARNINGS)
 LDFLAGS = -lstdc++ 
 LDLIBS  = -lm -lz #-lgomp
-#SWIG = swig
-#PYTHON_VERSION = $(shell echo `python -c 'import sys; print(sys.version[:3])'`)
-# UNAME = $(shell uname -s)
-# PYTHON_FLAGS = -shared
-# ifeq ($(UNAME), Darwin)
-# PYTHON_FLAGS = -dynamiclib -lpython
-# endif
 
 all: CXXFLAGS += -O3 
 all: target
@@ -27,11 +21,6 @@ debug: LDFLAGS += -g -ggdb
 debug: target
 
 
-#debugswig: CXXFLAGS += -g -O0
-#debugswig: LDFLAGS += -g
-#debugswig: swig
-
-
 profile: CXXFLAGS += -p -g -O2
 profile: LDFLAGS += -p -g
 profile: clean
@@ -40,14 +29,8 @@ profile: target
 target: BFGraph
 
 
-OBJECTS = Kmer.o KmerIterator.o  hash.o fastq.o FilterReads.o BuildContigs.o SimplifyGraph.o \
+OBJECTS = Kmer.o KmerIterator.o  hash.o fastq.o FilterReads.o BuildContigs.o  \
 		  CompressedSequence.o Contig.o CompressedCoverage.o  ContigMapper.o
-
-# swig: $(OBJECTS) graph.i
-# 	$(SWIG) -python -c++ graph.i
-# 	$(CC) -fPIC -c graph_wrap.cxx $(INCLUDES) -I /usr/include/python$(PYTHON_VERSION)
-# 	$(CC) $(PYTHON_FLAGS) $(OBJECTS) graph_wrap.o -o _graph.so $(LDFLAGS) $(LDLIBS
-#)
 
 debugtest: CXXFLAGS += -g -O0
 debugtest: LDFLAGS += -g
@@ -60,26 +43,18 @@ BFGraph: BFGraph.o $(OBJECTS)
 
 
 BFGraph.o: BFGraph.cpp
-FilterReads.o: FilterReads.cpp  BloomFilter.hpp
-BuildContigs.o: BuildContigs.cpp  BloomFilter.hpp
-SimplifyGraph.o: SimplifyGraph.cpp
-KmerIntPair.o: KmerIntPair.cpp
+FilterReads.o: FilterReads.cpp  BlockedBloomFilter.hpp
+BuildContigs.o: BuildContigs.cpp  BlockedBloomFilter.hpp
 fastq.o: fastq.hpp fastq.cpp 
 kmer.o: kmer.hpp kmer.cpp
 KmerIterator.o: KmerIterator.hpp KmerIterator.cpp
-#KmerMapper.o: KmerMapper.cpp KmerMapper.hpp
 CompressedSequence.o: CompressedSequence.cpp CompressedSequence.hpp
 CompressedCoverage.o: CompressedCoverage.cpp CompressedCoverage.hpp
 Contig.o: Contig.cpp Contig.hpp 
-ContigMethods.o: ContigMethods.cpp ContigMethods.hpp 
-FindContig.o: FindContig.cpp FindContig.hpp 
 ContigMapper.o: ContigMapper.cpp ContigMapper.hpp
 debugtest.o: debugtest.cpp
-#BloomFilter.o: BloomFilter.hpp
 hash.o: hash.hpp hash.cpp	
-#style:
-#	@astyle --style=java --indent=spaces=2 --pad-oper --pad-header --align-pointer=name --add-brackets --brackets=attach --convert-tabs *.[ch]pp
 
 
 clean:
-	rm -f *.o *.so *.pyc *_wrap.cxx graph.py BFGraph
+	rm -f *.o BFGraph

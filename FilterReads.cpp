@@ -36,10 +36,10 @@ struct FilterReads_ProgramOptions {
 // pre:   
 // post: Information about how to filter reads has been printed to cerr
 void FilterReads_PrintUsage() {
-  cerr << "BFGraph " << BFG_VERSION << endl;
-  cerr << "Filters errors in fastq or fasta files and saves results to a file specified by -o or --output" << endl << endl;
-  cerr << "Usage: BFGraph filter [options] ... FASTQ files";
-  cerr << endl << endl << "Options:" << endl <<
+  cout << "BFGraph " << BFG_VERSION << endl;
+  cout << "Filters errors in fastq or fasta files and saves results to a file specified by -o or --output" << endl << endl;
+  cout << "Usage: BFGraph filter [options] ... FASTQ files";
+  cout << endl << endl << "Options:" << endl <<
       "  -v, --verbose               Print lots of messages during run" << endl <<
       "  -t, --threads=INT           Number of threads to use (default 1)" << endl << 
       "  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default 20000 for multithreaded else 1)" << endl <<
@@ -300,9 +300,9 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
           if (BF.insert(rep) == r) {
             ++num_ins;
           } else {
-            if (opt.verbose) {
+            /*if (opt.verbose) {
               cerr << "clash!" << endl;
-            }
+							}*/
             BF2.insert(rep); // better safe than sorry
           }
         }
@@ -311,14 +311,12 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
   }
 
   FQ.close();
-  cerr << "Closed all fasta/fastq files" << endl;
-
   if (opt.verbose) {
+		cerr << "Closed all fasta/fastq files" << endl;	
+
     cerr << "processed " << num_kmers << " kmers in " << n_read  << " reads"<< endl;
     cerr << "found " << num_ins << " non-filtered kmers" << endl;
-  }
 
-  if (opt.verbose) {
     cerr << "Writing bloom filter to " << opt.output << endl
          << "Bloom filter size is " << num_ins << endl;
   }
@@ -334,10 +332,10 @@ void FilterReads_Normal(const FilterReads_ProgramOptions &opt) {
 
   if (opt.verbose) {
     cerr << " done" << endl;
-  }
-
-  cout << "Bloomfilter 1 count: " << BF.count() << endl;
-  cout << "Bloomfilter 2 count: " << BF2.count() << endl;
+  
+		cerr << "Bloomfilter 1 count: " << BF.count() << endl;
+		cerr << "Bloomfilter 2 count: " << BF2.count() << endl;
+	}
     
 }
 

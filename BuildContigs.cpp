@@ -27,7 +27,7 @@
 struct BuildContigs_ProgramOptions {
   bool verbose;
   size_t threads, k;
-  string freads, output, contigfilename, graphfilename;
+  string freads, output, graphfilename;
   size_t stride;
   bool stride_set;
   size_t read_chunksize;
@@ -44,10 +44,10 @@ struct BuildContigs_ProgramOptions {
 // pre:   
 // post: Information about the correct parameters to build contigs has been printed to cerr
 void BuildContigs_PrintUsage() {
-  cerr << endl << "BFGraph " << BFG_VERSION << endl;
-  cerr << "Creates contigs from filtered fasta/fastq files and saves results" << endl << endl;
-  cerr << "Usage: BFGraph contigs [options] ... FASTQ files";
-  cerr << endl << endl << "Options:" << endl <<
+  cout << endl << "BFGraph " << BFG_VERSION << endl;
+  cout << "Creates contigs from filtered fasta/fastq files and saves results" << endl << endl;
+  cout << "Usage: BFGraph contigs [options] ... FASTQ files";
+  cout << endl << endl << "Options:" << endl <<
       "  -v, --verbose               Print lots of messages during run" << endl <<
       "  -t, --threads=INT           Number of threads to use (default 1)" << endl << 
       "  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default 1000 for multithreaded else 1)" << endl <<
@@ -169,18 +169,8 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions &opt) {
     }
   }
   
-  opt.contigfilename = opt.output + ".contigs";
-  opt.graphfilename = opt.output + ".graph";
-  
+  opt.graphfilename = opt.output + ".gfa";
   FILE *fp;
-  if ((fp = fopen(opt.contigfilename.c_str(), "w")) == NULL) {
-    cerr << "Error: Could not open file for writing: " << opt.contigfilename << endl;
-    ret = false;
-  } else {
-    fclose(fp);
-  }
-
-
   if ((fp = fopen(opt.graphfilename.c_str(), "w")) == NULL) {
     cerr << "Error: Could not open file for writing: " << opt.graphfilename << endl;
     ret = false;
@@ -303,7 +293,9 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   //stringstream *mappingSS = new stringstream[read_chunksize];
   string *readv = new string[read_chunksize];
 
-  cerr << "Starting real work ....." << endl << endl;
+	if (opt.verbose) {
+		cerr << "Starting real work ....." << endl << endl;
+	}
 
   int round = 0;
   bool done = false;
@@ -401,13 +393,14 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     }
   }
   FQ.close();
-  cerr << "Closed all fasta/fastq files" << endl;
+
+  if (opt.verbose) {
+		cerr << "Closed all fasta/fastq files" << endl;
+    cerr << "Splitting contigs" << endl;
+  }
 
 
   size_t contigsBefore = cmap.contigCount();
-  if (opt.verbose) {
-    cerr << "Splitting contigs" << endl;
-  }
   // print contigs
   cmap.checkShortcuts();
   //cout << "before split - " << endl; cmap.writeContigs(0,"","",true);
@@ -476,11 +469,10 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
   if (opt.verbose) {
     cerr << "Number of reads " << n_read  << ", kmers stored " << 0 << endl << endl;
     printMemoryUsage(bf, cmap);
-  }
-  
-  cerr << "Writing contigs to file: " << opt.contigfilename << endl
-       << "Writing the graph to file: " << opt.graphfilename << endl;
-  int contigsAfter2 = cmap.writeContigs(contigsAfter1, opt.contigfilename, opt.graphfilename,false);
+    cerr << "Writing the graph to file: " << opt.graphfilename << endl;
+
+	}
+	cmap.writeGFA(contigsAfter1, opt.graphfilename,false);
 
   delete [] readv;
   delete [] parray;

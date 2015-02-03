@@ -37,7 +37,7 @@ class ContigMapper {
   size_t contigCount() const;
 
   
-  size_t writeContigs(int count1, string contigfilename, string graphfilename, bool debug);
+  size_t writeGFA(int count1, string graphfilename, bool debug);
   size_t joinAllContigs();
   pair<size_t, size_t> splitAllContigs(); 
   size_t clipTips();

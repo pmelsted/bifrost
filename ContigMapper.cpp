@@ -1183,172 +1183,102 @@ void ContigMapper::removeShortcuts(const string& s)
 }
 
 
-// use:  count2 = mapper.writeContigs(count1, contigfilename, graphfilename);
-// pre:  the program has permissions to open contigfilename and graphfilename 
-// post: all the contigs have been written to the file: contigfilename
-//       the De Brujin graph has been written to the file: graphfilename
+// use:  count2 = mapper.writeGFA(count1, graphfilename);
+// pre:  the program has permissions to open graphfilename 
+// post: The graph has been written to the file: graphfilename
 //       count2 is the number of real contigs and we assert that count1 == count2 
 //       if debug is true, output is written to stdout
-size_t ContigMapper::writeContigs(int count1, string contigfilename, string graphfilename, bool debug) {
-  /* This is the schema for the outputfiles: 
-    --- graphfile:
-    contigcount kmersize                    (only in the first line of the file)
-    id_length_ratio
-    bw1 bw2 bw3 bw4                         (at most 4) // Backward maps
-    fw1 fw2 fw3 fw4                         (at most 4) // Forward maps
-    ...
-
-    --- contigfile:
-    >contigID
-    sequence
-    ...
-  */
-  // TODO: change graph file format, write out full graph
+size_t ContigMapper::writeGFA(int count1, string graphfilename, bool debug = false) {
   size_t id = 0;
-
-  ofstream contigfile, graphfile;
-  ostream contigs(0),graph(0);
+	
+  ofstream graphfile;
+  ostream graph(0);
   if (!debug) {
-    contigfile.open(contigfilename.c_str());
-    contigs.rdbuf(contigfile.rdbuf());
     graphfile.open(graphfilename.c_str());
-    graphfile.close();
-    assert(!contigfile.fail() && !graphfile.fail());
+    graph.rdbuf(graphfile.rdbuf());
+    assert(!graphfile.fail());
     assert(sContigs.size() == 0);
   } else {
-    contigs.rdbuf(cout.rdbuf()); // copy to cout
-    
+    graph.rdbuf(cout.rdbuf()); // copy to cout
   }
 
-  
-  /*
-  string s;
-  for (hmap_short_contig_t::iterator it = sContigs.begin(); it != sContigs.end(); ++it) {
-    assert(it->second.isFull());
-    s.clear();
-    findContigSequence(it->first, s);
-    id++;
-    contigfile << ">contig" << id << "\n" << s << "\n";
-  }
-  s.clear();
-  */
+	// gfa header
+  graph << "H\tVN:Z:1.0\n";
+	
+  if (debug) { graph << "--- long contigs ---" << endl; }
+	
 
-  if (debug) { contigs << "--- long contigs ---" << endl; }
-  for (hmap_long_contig_t::iterator it = lContigs.begin(); it != lContigs.end(); ++it) {
-    if (!debug) {assert(it->second->ccov.isFull()); }
+	KmerHashTable<size_t> idmap(lContigs.size());
+  //for (hmap_long_contig_t::iterator it = lContigs.begin(); it != lContigs.end(); ++it) {
+	for (auto &kv : lContigs) {
+    if (!debug) {assert(kv.second->ccov.isFull()); }
     id++;
-    contigs << ">contig" << id << "\n" << it->second->seq.toString() << "\n";
-    if (debug) { contigs << it->first.toString() << "\n";}
+		idmap.insert({kv.first,id});
+    graph << "S\t" << id << "\t" << kv.second->seq.toString()
+					<< "\tLN:i:" << kv.second->seq.size() 
+					<< "\tXC:i:" << kv.second->coveragesum << "\n";
+    if (debug) { graph << kv.first.toString() << "\n";}
   }
 
   if (debug) {
-    contigs << "--- short contigs ---" << endl;
-    for (hmap_short_contig_t::iterator it = sContigs.begin(); it != sContigs.end(); ++it) {
-      id++;
-      string s;
-      bool selfLoop = false;
-      findContigSequence(it->first,s,selfLoop);
-      contigs << ">contig" << id << "\n" << s << "\n" << it->first.toString() << "\n";
-      
+    graph << "--- end contigs ---" << endl;
+    graph << "--- shortcuts ---" << endl;
+		for (auto &kv : shortcuts) {
+      graph << kv.first.toString() << " -> " << kv.second.first.toString() << ", " << kv.second.second << endl;
     }
-  }
-  if (debug) {
-    contigs << "--- end contigs ---" << endl;
-    contigs << "--- shortcuts ---" << endl;
-    for (hmap_shortcut_t::iterator it = shortcuts.begin(); it != shortcuts.end(); ++it) {
-      contigs << it->first.toString() << " -> " << it->second.first.toString() << ", " << it->second.second << endl;
-    }
-    contigs << "--- end shortcuts ---" << endl;
+    graph << "--- end shortcuts ---" << endl;
   }
 
-  
 
-  if (!debug) {
-    contigfile.close();
+	size_t k = Kmer::k;
+
+	for (auto &kv : lContigs) {
+		size_t labelA = idmap.find(kv.first)->second;
+		size_t labelB = 0;
+		CompressedSequence &seq = kv.second->seq;
+
+		Kmer first = seq.getKmer(0);
+		Kmer last  = seq.getKmer(seq.size()-k);
+
+		for (auto a : alpha) {
+			// check for + -> +/- links
+			Kmer b = last.forwardBase(a);
+			ContigMap cand = find(b);
+			if (!cand.isEmpty) {
+				labelB = idmap.find(cand.head)->second;
+				if (cand.strand){
+					// a + -> b +, output normally
+					graph << "L\t" << labelA << "\t+\t" << labelB << "\t+\t" << (k-1) << "M\n";
+				} else {
+					// a + -> b -, only if a < b
+					if (labelA <= labelB) { // if labelA == labelB we have a cycle
+						graph << "L\t" << labelA << "\t+\t" << labelB << "\t-\t" << (k-1) << "M\n";
+					}
+				}
+			}
+		}
+
+		for (auto a : alpha) {
+			Kmer b = first.backwardBase(a);
+			ContigMap cand = find(b);
+			if (!cand.isEmpty) {
+				labelB = idmap.find(cand.head)->second;
+				if (cand.strand) {
+					// a - -> b -, do nothing
+				} else {
+					// a - -> b +
+					if (labelA < labelB) {
+						graph << "L\t" << labelA << "\t-\t" << labelB << "\t+\t" << (k-1) << "M\n";
+					}
+				}
+			}
+		}
+	}
+
+	if (!debug) {
+    graphfile.close();
   }
 
   return id;
-
-  /*
-  size_t k = Kmer::k;
-  int count2 = 0;
-  size_t contigcount = contigs.size();
- 
-  graphfile << count1 << " " << k << "\n"; 
-
-  for(size_t id = 0; id < contigcount; ++id) {
-    ContigRef cr = contigs[id];
-    if (!cr.isContig || cr.isEmpty()) {
-      continue;
-    }
-    ++count2;
-
-    Contig *c = cr.ref.contig;
-   
-    size_t length = c->length(), numkmers = length - k + 1, coveragesum = c->coveragesum;
-    float ratio = coveragesum / (0.0 + numkmers);
-    
-    Kmer first = c->seq.getKmer(0), last = c->seq.getKmer(length - k);
-    
-    contigfile << ">contig" << id << "\n" << c->seq.toString() << "\n";
-    graphfile << id << "_" <<  length << "_" << ratio << "\n";
-
-    
-    for (size_t i=0; i<4; ++i) {
-      Kmer bw = first.backwardBase(alpha[i]);
-      ContigRef prevcr = find();
-      if (!prevcr.isEmpty()) {
-        Contig *oc = getContig(prevcr).ref.contig;
-        size_t oid = prevcr.ref.idpos.id;
-        Kmer oFirst = oc->seq.getKmer(0);
-        Kmer oLast = oc->seq.getKmer(oc->length() - k);
-        if (oid == id) {
-          if (isNeighbor(oLast, first)) {
-            cerr << "Self-looped, id: " << id << ", seq: " << c->seq.toString() << endl; 
-          } else {
-            cerr << "Hairpinned, id: " << id << ", seq: " << c->seq.toString() << endl; 
-          }
-        }
-        if (isNeighbor(oLast, first) || isNeighbor(oFirst.twin(), first)) { 
-          graphfile << oid << " ";
-        } else {
-          assert(isNeighbor(oLast.twin(), first) || isNeighbor(oFirst, first));
-        }
-      }
-    }
-
-    graphfile << "\n";
-
-    for (size_t i=0; i<4; ++i) {
-      Kmer fw = last.forwardBase(alpha[i]);
-      ContigRef fwcr = find(fw);
-      if (!fwcr.isEmpty()) {
-        Contig *oc = getContig(fwcr).ref.contig;
-        size_t oid = fwcr.ref.idpos.id;
-        Kmer oFirst = oc->seq.getKmer(0);
-        Kmer oLast = oc->seq.getKmer(oc->length() - k);
-        if (oid == id) {
-          if (isNeighbor(last, oFirst)) {
-            cerr << "Self-looped, id: " << id << ", seq: " << c->seq.toString() << endl; 
-          } else {
-            cerr << "Hairpinned, id: " << id << ", seq: " << c->seq.toString() << endl; 
-          }
-        }
-        if (isNeighbor(last, oFirst) || isNeighbor(last, oLast.twin())) {
-          graphfile << oid << " ";
-        } else {
-          assert(isNeighbor(last, oFirst.twin()) || isNeighbor(last, oLast));
-        }
-      }
-    }
-
-    graphfile << "\n";
-  }
-
-  // Flush and close
-  contigfile.close(); 
-  graphfile.close();  
-  return count2;
-  */
 
 }
