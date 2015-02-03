@@ -2,12 +2,12 @@
 #define BFG_CONTIGMAPPER_HPP
 
 #include "Kmer.hpp"
-#include "BloomFilter.hpp"
+#include "BlockedBloomFilter.hpp"
 #include <cstring> // for size_t
-#include "HashTables.hpp"
 #include "Contig.hpp"
 #include "CompressedCoverage.hpp"
 #include "ContigMethods.hpp"
+#include "KmerHashTable.h"
 
 
 /*
@@ -25,7 +25,7 @@ class ContigMapper {
  public:
   ContigMapper(size_t init = 10000);
   ~ContigMapper();
-  void mapBloomFilter(const BloomFilter* bf);
+  void mapBloomFilter(const BlockedBloomFilter* bf);
 
 
   ContigMap findContig(Kmer km, const string& s, size_t pos, bool checkTip) const;
@@ -53,7 +53,7 @@ class ContigMapper {
 
   bool checkShortcuts();  
  private:
-  const BloomFilter *bf;
+  const BlockedBloomFilter *bf;
   size_t limit;
 
   void removeShortcuts(const string& s);
@@ -66,9 +66,9 @@ class ContigMapper {
 
 
   
-  typedef google::sparse_hash_map<Kmer, CompressedCoverage, KmerHash> hmap_short_contig_t;
-  typedef google::sparse_hash_map<Kmer, Contig*, KmerHash> hmap_long_contig_t;
-  typedef google::sparse_hash_map<Kmer, pair<Kmer, size_t>, KmerHash> hmap_shortcut_t; //TODO: switch to smaller type
+	typedef KmerHashTable<CompressedCoverage> hmap_short_contig_t;
+	typedef KmerHashTable<Contig*> hmap_long_contig_t;
+	typedef KmerHashTable<pair<Kmer, size_t>> hmap_shortcut_t;
 
   hmap_short_contig_t sContigs;
   hmap_long_contig_t  lContigs;

@@ -1,13 +1,13 @@
-MAX_KMER_SIZE=96
+MAX_KMER_SIZE=64
 
-CC = g++
-CXX = g++
-INCLUDES = -I.
-CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -fPIC -DMAX_KMER_SIZE=$(MAX_KMER_SIZE)
-LDFLAGS = -lz
+#CC = g++
+#CXX = g++
+INCLUDES = -I../
+CXXFLAGS = -c -lstdc++ -Wall -Wno-reorder $(INCLUDES) -fPIC -DMAX_KMER_SIZE=$(MAX_KMER_SIZE)
+LDFLAGS = -lz -lm
 
 EXECUTABLES = KmerTest KmerTest2 KmerTestExtended CompressedSequenceTest BloomFilterTest KmerMapperTest KmerIteratorTest \
-			  CompressedCoverageTest ContigMapperTest
+			  CompressedCoverageTest ContigMapperTest BlockedBloomFilterTest
 
 all: CXXFLAGS += -O3
 all: target
@@ -26,39 +26,39 @@ profile: target
 OBJECTS = ../FindContig.o ../KmerMapper.o ../Kmer.o ../hash.o ../CompressedSequence.o ../Contig.o  ../KmerIterator.o ../CompressedCoverage.o ../fastq.o ../ContigMapper.o
 
 KmerTest: KmerTest.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) KmerTest.o $(LDFLAGS) -o KmerTest
+	$(CXX) $(INCLUDES) $(OBJECTS) KmerTest.o $(LDFLAGS) -o KmerTest
 
 KmerTest2: KmerTest2.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) KmerTest2.o $(LDFLAGS) -o KmerTest2
+	$(CXX) $(INCLUDES) $(OBJECTS) KmerTest2.o $(LDFLAGS) -o KmerTest2
 
 
 #KmerHashTest: KmerHashTest.o $(OBJECTS)
-#	$(CC) $(INCLUDES) $(OBJECTS) KmerHashTest.o $(LDFLAGS) -o KmerHashTest -lstdc++
+#	$(CXX) $(INCLUDES) $(OBJECTS) KmerHashTest.o $(LDFLAGS) -o KmerHashTest -lstdc++
 
 
 KmerTestExtended: KmerTestExtended.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) KmerTestExtended.o $(LDFLAGS) -o KmerTestExtended
+	$(CXX) $(INCLUDES) $(OBJECTS) KmerTestExtended.o $(LDFLAGS) -o KmerTestExtended
 
 CompressedSequenceTest: CompressedSequenceTest.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) CompressedSequenceTest.o $(LDFLAGS) -o CompressedSequenceTest
+	$(CXX) $(INCLUDES) $(OBJECTS) CompressedSequenceTest.o $(LDFLAGS) -o CompressedSequenceTest
 
-BloomFilterTest: BloomFilterTest.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) BloomFilterTest.o $(LDFLAGS) -o BloomFilterTest
+BloomFilterTest: BloomFilterTest.o ../Kmer.o ../hash.o
+	$(CXX) $(INCLUDES) ../Kmer.o ../hash.o BloomFilterTest.o $(LDFLAGS) -o BloomFilterTest
 
-BlockedBloomFilterTest: BlockedBloomFilterTest.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) BlockedBloomFilterTest.o $(LDFLAGS) -o BlockedBloomFilterTest
+BlockedBloomFilterTest: BlockedBloomFilterTest.o ../Kmer.o ../hash.o
+	$(CXX) $(INCLUDES) ../Kmer.o ../hash.o BlockedBloomFilterTest.o $(LDFLAGS) -o BlockedBloomFilterTest
 
 KmerMapperTest: KmerMapperTest.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) KmerMapperTest.o $(LDFLAGS) -o KmerMapperTest
+	$(CXX) $(INCLUDES) $(OBJECTS) KmerMapperTest.o $(LDFLAGS) -o KmerMapperTest
 
 KmerIteratorTest: KmerIteratorTest.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) KmerIteratorTest.o $(LDFLAGS) -o KmerIteratorTest
+	$(CXX) $(INCLUDES) $(OBJECTS) KmerIteratorTest.o $(LDFLAGS) -o KmerIteratorTest
 
 CompressedCoverageTest: CompressedCoverageTest.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) CompressedCoverageTest.o $(LDFLAGS) -o CompressedCoverageTest
+	$(CXX) $(INCLUDES) $(OBJECTS) CompressedCoverageTest.o $(LDFLAGS) -o CompressedCoverageTest
 
 ContigMapperTest: ContigMapperTest.o $(OBJECTS)
-	$(CC) $(INCLUDES) $(OBJECTS) ContigMapperTest.o $(LDFLAGS) -o ContigMapperTest
+	$(CXX) $(INCLUDES) $(OBJECTS) ContigMapperTest.o $(LDFLAGS) -o ContigMapperTest
 
 
 KmerTest.o: ../Kmer.o ../hash.o
@@ -79,7 +79,6 @@ ContigMapperTest.o: ../ContigMapper.o
 ../CompressedSequence.o: ../Common.hpp ../CompressedSequence.hpp ../CompressedSequence.cpp
 ../BloomFilter.o: ../BloomFilter.hpp
 ../BlockedBloomFilter.o: ../BlockedBloomFilter.hpp
-../BlockedBloomFilter.hpp: ../BloomFilter.hpp
 ../KmerMapper.o: ../KmerMapper.hpp ../KmerMapper.cpp
 ../KmerIterator.o: ../KmerIterator.hpp ../KmerIterator.cpp
 ../CompressedCoverage.o: ../CompressedCoverage.hpp ../CompressedCoverage.cpp

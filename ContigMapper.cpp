@@ -30,15 +30,6 @@ ContigMapper::~ContigMapper() {
 // post: new contigmapper object
 ContigMapper::ContigMapper(size_t init) :  bf(NULL) {
   limit = Kmer::k;
-  
-  Kmer km_del;
- 
-  // Set the deleted key so we can unmap contigs in splitAllContigs 
-  km_del.set_deleted();
-  
-  lContigs.set_deleted_key(km_del);
-  sContigs.set_deleted_key(km_del);
-  shortcuts.set_deleted_key(km_del);
 }
 
 
@@ -52,7 +43,7 @@ size_t ContigMapper::contigCount() const {
 // use:  cm.mapBloomFilter(bf)
 // pre:  bf != null
 // post: uses the bloom filter bf to map reads
-void ContigMapper::mapBloomFilter(const BloomFilter* bf) {
+void ContigMapper::mapBloomFilter(const BlockedBloomFilter* bf) {
   this->bf = bf;
 }
 
@@ -150,20 +141,20 @@ bool ContigMapper::checkTip(Kmer tip) {
     Kmer fw = tip.forwardBase(alpha[i]);
     ContigMap cc = find(fw);
     if (!cc.isEmpty ) {
-      hmap_long_contig_t::const_iterator it = lContigs.find(cc.head);
+			auto it = lContigs.find(cc.head);
       if (it != lContigs.end()) {
-	for (size_t j = 0; j < 4; j++) {
-	  Kmer alt = fw.backwardBase(alpha[j]);
-	  if (alt != tip) {
-	    ContigMap cc_alt = find(alt);
-	    if (!cc_alt.isEmpty && cc_alt.size >= k && !cc_alt.isShort) {
-	      hmap_long_contig_t::const_iterator alt_it = lContigs.find(cc_alt.head);
-	      if (alt_it != lContigs.end() && alt_it->second->ccov.isFull()) {
-		return true;
-	      }
-	    }
-	  }
-	}
+				for (size_t j = 0; j < 4; j++) {
+					Kmer alt = fw.backwardBase(alpha[j]);
+					if (alt != tip) {
+						ContigMap cc_alt = find(alt);
+						if (!cc_alt.isEmpty && cc_alt.size >= k && !cc_alt.isShort) {
+							auto alt_it = lContigs.find(cc_alt.head);
+							if (alt_it != lContigs.end() && alt_it->second->ccov.isFull()) {
+								return true;
+							}
+						}
+					}
+				}
       }
     }
   }
@@ -173,20 +164,20 @@ bool ContigMapper::checkTip(Kmer tip) {
     Kmer bw = tip.backwardBase(alpha[i]);
     ContigMap cc = find(bw);
     if (!cc.isEmpty) {
-      hmap_long_contig_t::const_iterator it = lContigs.find(cc.head);
+      auto it = lContigs.find(cc.head);
       if (it != lContigs.end()) {
-	for (size_t j = 0; j < 4; j++) {
-	  Kmer alt = bw.forwardBase(alpha[j]);
-	  if (alt != tip) {
-	    ContigMap cc_alt = find(alt);
-	    if (!cc_alt.isEmpty && cc_alt.size >= k && !cc_alt.isShort) {
-	      hmap_long_contig_t::const_iterator alt_it = lContigs.find(cc_alt.head);
-	      if (alt_it != lContigs.end() && alt_it->second->ccov.isFull()) {
-		return true;
-	      }
-	    }
-	  }
-	}
+				for (size_t j = 0; j < 4; j++) {
+					Kmer alt = bw.forwardBase(alpha[j]);
+					if (alt != tip) {
+						ContigMap cc_alt = find(alt);
+						if (!cc_alt.isEmpty && cc_alt.size >= k && !cc_alt.isShort) {
+						  auto alt_it = lContigs.find(cc_alt.head);
+							if (alt_it != lContigs.end() && alt_it->second->ccov.isFull()) {
+								return true;
+							}
+						}
+					}
+				}
       }
     }
   }
@@ -662,10 +653,11 @@ size_t ContigMapper::removeIsolatedContigs() {
 
   assert(sContigs.size() == 0);
   vector<Kmer> rems;
-  typedef hmap_long_contig_t::const_iterator lit_t;
-  for (lit_t it = lContigs.begin(); it != lContigs.end(); ++it) {
-    CompressedSequence &seq = it->second->seq;
-    size_t kmerlen = it->second->ccov.size();
+  //typedef hmap_long_contig_t::const_iterator lit_t;
+  //  for (lit_t it = lContigs.begin(); it != lContigs.end(); ++it) {
+	for (auto &kv : lContigs) {
+    CompressedSequence &seq = kv.second->seq;
+    size_t kmerlen = kv.second->ccov.size();
     if (kmerlen >= k) {
       continue;
     }
@@ -688,14 +680,15 @@ size_t ContigMapper::removeIsolatedContigs() {
     }
     
     if (fw_count == 0 && bw_count == 0) {
-      rems.push_back(it->first);
+      rems.push_back(kv.first);
     }
   }
 
-  for (vector<Kmer>::const_iterator it = rems.begin(); it != rems.end(); ++it) {
-    ContigMap cc = find(*it);
+
+	for (auto & km : rems) {
+    ContigMap cc = find(km);
     if (!cc.isEmpty) {
-      assert(*it == cc.head);
+      assert(km == cc.head);
       Contig* contig = lContigs.find(cc.head)->second;
       string seq = contig->seq.toString();
 
@@ -718,10 +711,11 @@ size_t ContigMapper::clipTips() {
   assert(sContigs.size() == 0);
 
   vector<Kmer> clips;
-  typedef hmap_long_contig_t::const_iterator lit_t;
-  for (lit_t it = lContigs.begin(); it != lContigs.end(); ++it) {
-    CompressedSequence &seq = it->second->seq;
-    size_t kmerlen = it->second->ccov.size();
+  //typedef hmap_long_contig_t::const_iterator lit_t;
+  //for (lit_t it = lContigs.begin(); it != lContigs.end(); ++it) {
+	for (auto &kv : lContigs) {
+    CompressedSequence &seq = kv.second->seq;
+    size_t kmerlen = kv.second->ccov.size();
     if (kmerlen >= k) {
       continue;
     }
@@ -734,49 +728,50 @@ size_t ContigMapper::clipTips() {
     for (size_t i = 0; i < 4; i++) {
       Kmer fw = tail.forwardBase(alpha[i]);
       if (checkEndKmer(fw, dummy)) {
-	fw_count++;
-	fw_cand = fw;
+				fw_count++;
+				fw_cand = fw;
       }
       Kmer bw = head.backwardBase(alpha[i]);
       if (checkEndKmer(bw, dummy)) {
-	bw_count++;
-	bw_cand = bw;
+				bw_count++;
+				bw_cand = bw;
       }
     }
 
     bool clip = false;
     if (fw_count == 0 && bw_count == 1) {
       for (size_t i = 0; i < 4; i++) {
-	Kmer alt = bw_cand.forwardBase(alpha[i]);
-	if (alt != head) {
-	  ContigMap cc = find(alt);
-	  if (cc.size > kmerlen) {
-	    clip = true;
-	  }
-	}
+				Kmer alt = bw_cand.forwardBase(alpha[i]);
+				if (alt != head) {
+					ContigMap cc = find(alt);
+					if (cc.size > kmerlen) {
+						clip = true;
+					}
+				}
       }
     }
     if (fw_count == 1 && bw_count == 0) {
       // check alternative
       for (size_t i = 0; i < 4; i++) {
-	Kmer alt = fw_cand.backwardBase(alpha[i]);
-	if (alt != tail) {
-	  ContigMap cc = find(alt);
-	  if (cc.size >= kmerlen) {
-	    clip = true;
-	  }
-	}
+				Kmer alt = fw_cand.backwardBase(alpha[i]);
+				if (alt != tail) {
+					ContigMap cc = find(alt);
+					if (cc.size >= kmerlen) {
+						clip = true;
+					}
+				}
       }
     }
-
+		
     if (clip) {
-      clips.push_back(it->first);
+      clips.push_back(kv.first);
     }
   }
 
 
-  for (vector<Kmer>::const_iterator it = clips.begin(); it != clips.end(); ++it) {
-    ContigMap cc = find(*it);
+  //for (vector<Kmer>::const_iterator it = clips.begin(); it != clips.end(); ++it) {
+	for (auto &km : clips) {
+    ContigMap cc = find(km);
     if (!cc.isEmpty) {
       Contig* contig = lContigs.find(cc.head)->second;
       string seq = contig->seq.toString();

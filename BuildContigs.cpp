@@ -16,12 +16,12 @@
 #include "Common.hpp"
 #include "CompressedSequence.hpp"
 #include "Contig.hpp"
-#include "BloomFilter.hpp"
+#include "BlockedBloomFilter.hpp"
 #include "ContigMethods.hpp"
-#include "HashTables.hpp"
 #include "KmerIterator.hpp"
 #include "fastq.hpp"
 #include "ContigMapper.hpp"
+#include "KmerHashTable.h"
 
 
 struct BuildContigs_ProgramOptions {
@@ -234,7 +234,7 @@ void BuildContigs_PrintSummary(const BuildContigs_ProgramOptions &opt) {
 
 // use:  printeMemoryUsage(bf, mapper);
 // post: The memory usage of bf and mapper has been printed to cerr 
-void printMemoryUsage(BloomFilter &bf, ContigMapper &cmap) {
+void printMemoryUsage(BlockedBloomFilter &bf, ContigMapper &cmap) {
   size_t total = 0;
   cerr << "   -----  Memory usage  -----   " << endl;
   total += bf.memory();
@@ -269,7 +269,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions &opt) {
     omp_set_num_threads(num_threads);
   #endif
 
-  BloomFilter bf;
+  BlockedBloomFilter bf;
   FILE *f = fopen(opt.freads.c_str(), "rb");
   if (f == NULL) {
     cerr << "Error, could not open file " << opt.freads << endl;

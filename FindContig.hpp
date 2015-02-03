@@ -2,7 +2,7 @@
 #define BFG_FINDCONTIG_HPP
 
 #include "Kmer.hpp"
-#include "BloomFilter.hpp"
+#include "BlockedBloomFilter.hpp"
 #include "Common.hpp"
 
 struct FindContig {
@@ -15,6 +15,6 @@ struct FindContig {
 };
 
 bool isNeighbor(Kmer a, Kmer b);
-FindContig find_contig_forward(BloomFilter &bf, Kmer km);
+FindContig find_contig_forward(BlockedBloomFilter &bf, Kmer km);
 
 #endif // BFG_FINDCONTIG_HPP

@@ -40,7 +40,7 @@ void getMappingInfo(const bool repequal, const int32_t pos, const size_t dist, s
 //             from km to the mapping location 
 //             (cc.eq == true):  km has the same direction as the contig
 //             else:  km has the opposite direction to the contig
-CheckContig check_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
+CheckContig check_contig(BlockedBloomFilter &bf, KmerMapper &mapper, Kmer km) {
   ContigRef cr = mapper.find(km);
   if (!cr.isEmpty()) {
     return CheckContig(cr, 0, km == km.rep());
@@ -104,7 +104,7 @@ CheckContig check_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
 // post: Finds the forward and backward limits of the contig
 //       which contains km  according to the bloom filter bf and puts it into mc.seq
 //       mc.pos is the position where km maps into this contig
-MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km) {
+MakeContig make_contig(BlockedBloomFilter &bf, KmerMapper &mapper, Kmer km) {
   /** There are several cases here:
    *
    * Case 0: Regular contig, no self-loops

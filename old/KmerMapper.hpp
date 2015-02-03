@@ -10,9 +10,6 @@
 #include "Contig.hpp"
 #include "FindContig.hpp"
 
-#include "google/sparse_hash_map"
-using google::sparse_hash_map;
-
 
 /* Short description: 
  *  - A ContigRef can be:
@@ -48,7 +45,7 @@ public:
  *  */
 class KmerMapper {
 public:
-  typedef google::sparse_hash_map<Kmer, ContigRef, KmerHash> hmap_contig_t;
+	typedef KmerHashTable<ContigRef> hmap_contig_t;
   typedef hmap_contig_t::iterator iterator;
   typedef hmap_contig_t::const_iterator const_iterator;
 

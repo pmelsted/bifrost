@@ -1,8 +1,13 @@
 #ifndef BFG_BLOCKEDBLOOMFILTER_HPP
 #define BFG_BLOCKEDBLOOMFILTER_HPP
 
+#include <cmath>
+#include <iostream>
+
 #include "hash.hpp"
 #include "libdivide.h"
+
+
 
 static const uint64_t mask[8] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
 
@@ -21,6 +26,7 @@ private:
 	libdivide::divider<uint64_t> fast_div_; // fast division
 	
 public:
+  BlockedBloomFilter() : seed_(0), size_(0), table_(NULL), k_(0), blocks_(0), fast_div_() {}
   BlockedBloomFilter(size_t num, size_t bits, uint32_t seed) : seed_(seed), size_(0), table_(NULL), fast_div_() {
     //cout << "num="<<num << ", bits="<<bits;
     size_ = rndup512(bits*num);
@@ -139,7 +145,7 @@ public:
         }
       }
     }
-    cout << c << " bits set out of " << size_ << " with k = " << k_ << endl;
+    std::cout << c << " bits set out of " << size_ << " with k = " << k_ << std::endl;
     if (c != 0) {
       double n = size_*(-log(1.0-((double)c)/size_))/k_;
       //cout << "estimate =" << (size_t)n  << endl;
@@ -175,7 +181,7 @@ private:
     } else {
       k_ = k+1;
     }
-    cerr << "k="<<k_<<", fpp="<<fpp(bits,k_) << endl;
+    std::cerr << "k="<<k_<<", fpp="<<fpp(bits,k_) <<  std::endl;
   }
 
 	double fpp(size_t bits, size_t k) const {

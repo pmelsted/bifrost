@@ -13,7 +13,6 @@
 
 #include "Common.hpp"
 #include "FilterReads.hpp"
-#include "HashTables.hpp"
 #include "fastq.hpp"
 #include "Kmer.hpp"
 #include "KmerIterator.hpp"

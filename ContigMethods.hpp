@@ -4,8 +4,7 @@
 #include <string>
 #include "Common.hpp"
 #include "Kmer.hpp"
-#include "KmerMapper.hpp"
-#include "BloomFilter.hpp"
+#include "BlockedBloomFilter.hpp"
 #include "FindContig.hpp"
 
 /* Structs for Contig and Kmer information */
@@ -75,7 +74,7 @@ struct MakeContig {
 /* Methods for Contig and Kmer information and mapping */
 
 // void getMappingInfo(const bool repequal, const int32_t pos, const size_t dist, size_t &kmernum, int32_t &cmppos);
-// CheckContig check_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
-// MakeContig make_contig(BloomFilter &bf, KmerMapper &mapper, Kmer km);
+// CheckContig check_contig(BlockedBloomFilter &bf, KmerMapper &mapper, Kmer km);
+// MakeContig make_contig(BlockedBloomFilter &bf, KmerMapper &mapper, Kmer km);
 
 #endif // BFG_CONTIGMETHODS_HPP

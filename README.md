@@ -52,8 +52,6 @@ Notes
 License
 =======
 
-* The Bloom filter library (bloom_filter.hpp) is copyrighted by Arash Partow and distributed under
-  the Common Public License. http://www.partow.net/programming/hashfunctions/index.html
 
 * The hash functions used are from the MurmurHash Library, version 3, released under the
   MIT License. http://code.google.com/p/smhasher/
@@ -61,8 +59,6 @@ License
 * The kseq functions for reading fast(a|q)(.gz) files are copyrighted by Heng Li and released
   under the MIT License. http://lh3lh3.users.sourceforge.net/kseq.shtml
 
-* The Google sparsehash library is copyrighted by Google and released under a BSD License.
-  http://code.google.com/p/google-sparsehash/
 
 *   This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

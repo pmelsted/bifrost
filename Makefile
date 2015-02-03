@@ -7,8 +7,8 @@ MAX_KMER_SIZE = 64
 #CC = g++
 #CXX = g++
 INCLUDES = -I. #-I /usr/include/python2.7/
-CXXFLAGS = -c -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) -fPIC -fopenmp -lstdc++ 
-LDFLAGS =
+CXXFLAGS = -c -std=c++11 -Wall -Wno-reorder $(INCLUDES) -DMAX_KMER_SIZE=$(MAX_KMER_SIZE) -Wno-unused-function
+LDFLAGS = -lstdc++ 
 LDLIBS  = -lm -lz #-lgomp
 #SWIG = swig
 #PYTHON_VERSION = $(shell echo `python -c 'import sys; print(sys.version[:3])'`)
@@ -67,7 +67,7 @@ KmerIntPair.o: KmerIntPair.cpp
 fastq.o: fastq.hpp fastq.cpp 
 kmer.o: kmer.hpp kmer.cpp
 KmerIterator.o: KmerIterator.hpp KmerIterator.cpp
-KmerMapper.o: KmerMapper.cpp KmerMapper.hpp
+#KmerMapper.o: KmerMapper.cpp KmerMapper.hpp
 CompressedSequence.o: CompressedSequence.cpp CompressedSequence.hpp
 CompressedCoverage.o: CompressedCoverage.cpp CompressedCoverage.hpp
 Contig.o: Contig.cpp Contig.hpp 

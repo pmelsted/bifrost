@@ -10,7 +10,12 @@
 #include <string>
 
 #include "Common.hpp"
+
+#ifndef KSEQ_INIT_READY
+#define KSEQ_INIT_READY
 #include "kseq.h"
+KSEQ_INIT(gzFile, gzread);
+#endif
 
 // initialize kseq structures
 //KSEQ_INIT(gzFile, gzread);

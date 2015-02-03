@@ -2,8 +2,11 @@
 #include <string.h>
 #include <zlib.h>
 
-#include "kseq.h"
 #include "fastq.hpp"
+
+
+
+
 
 
 FastqFile::FastqFile(const vector<string> files) : kseq(NULL), fnames(files) {

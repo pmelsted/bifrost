@@ -23,7 +23,7 @@ bool isNeighbor(Kmer a, Kmer b) {
 //       (if we see the original kmer again we stop to prevent infinite loop)
 //       and c contains fc.dist kmers until the end (including km)
 //       the sequence of the contig is stored in fc.s
-FindContig find_contig_forward(BloomFilter &bf, Kmer km) {
+FindContig find_contig_forward(BlockedBloomFilter &bf, Kmer km) {
   assert(bf.contains(km.rep()));
 
   int j;
