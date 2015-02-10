@@ -11,10 +11,10 @@
 struct ContigMap {
   /**
      xxxxxxxxxxxxxxxxxxxxxxxxxxxxx contig
-    |dist ->         xxxxxxxxxyyyyyyy  read on forward strand                
+    |dist ->         xxxxxxxxxyyyyyyy  read on forward strand
                      | len ->|
           yyyyXXXXXXXX                 read on reverse strand
-    | dist -> | len  | 
+    | dist -> | len  |
 
    */
   Kmer head; // reference to start of contig
@@ -37,7 +37,7 @@ struct NewContig {
   Kmer km;
   string read;
   size_t pos;
-  NewContig(Kmer o, string &s, size_t p) : km(o), read(s), pos(p) {}
+  NewContig(Kmer o, string& s, size_t p) : km(o), read(s), pos(p) {}
 };
 
 

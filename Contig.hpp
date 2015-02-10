@@ -7,17 +7,17 @@
 #include "CompressedCoverage.hpp"
 
 
-/* Short description: 
- *  - Use the CompressedSequence class for storing the DNA string 
- *  - Use the CompressedCoverage class for storing the kmer coverage 
+/* Short description:
+ *  - Use the CompressedSequence class for storing the DNA string
+ *  - Use the CompressedCoverage class for storing the kmer coverage
  *  */
 class Contig {
-public:
+ public:
   Contig() : coveragesum(0) {}
   Contig(const char *s, bool full=false) : seq(s) { initializeCoverage(full); }
   void initializeCoverage(bool full);
   void cover(size_t start, size_t end);
-  
+
   uint64_t coveragesum;
   CompressedCoverage ccov;
   CompressedSequence seq;

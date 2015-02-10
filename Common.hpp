@@ -4,8 +4,8 @@
 #include <cassert>
 #include <stdint.h>
 
-#ifndef __clang__ 
-  #include <omp.h>
+#ifndef __clang__
+#include <omp.h>
 #endif
 
 using namespace std;

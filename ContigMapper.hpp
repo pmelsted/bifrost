@@ -25,7 +25,7 @@ class ContigMapper {
  public:
   ContigMapper(size_t init = 10000);
   ~ContigMapper();
-  void mapBloomFilter(const BlockedBloomFilter* bf);
+  void mapBloomFilter(const BlockedBloomFilter *bf);
 
 
   ContigMap findContig(Kmer km, const string& s, size_t pos, bool checkTip) const;
@@ -36,10 +36,10 @@ class ContigMapper {
 
   size_t contigCount() const;
 
-  
+
   size_t writeGFA(int count1, string graphfilename, bool debug);
   size_t joinAllContigs();
-  pair<size_t, size_t> splitAllContigs(); 
+  pair<size_t, size_t> splitAllContigs();
   size_t clipTips();
 
   void moveShortContigs();
@@ -48,10 +48,10 @@ class ContigMapper {
 
   bool checkTip(Kmer tip);
 
-  bool checkJoin(Kmer a, Kmer &b, bool& dir);
+  bool checkJoin(Kmer a, Kmer& b, bool& dir);
   bool checkEndKmer(Kmer b, bool& dir);
 
-  bool checkShortcuts();  
+  bool checkShortcuts();
  private:
   const BlockedBloomFilter *bf;
   size_t limit;
@@ -60,20 +60,20 @@ class ContigMapper {
 
 
   ContigMap find(Kmer km) const;
-  bool fwBfStep(Kmer km, Kmer &end, char &c, size_t &deg) const;
-  bool bwBfStep(Kmer km, Kmer &front, char &c, size_t &deg) const;
+  bool fwBfStep(Kmer km, Kmer& end, char& c, size_t& deg) const;
+  bool bwBfStep(Kmer km, Kmer& front, char& c, size_t& deg) const;
 
 
 
-  
-	typedef KmerHashTable<CompressedCoverage> hmap_short_contig_t;
-	typedef KmerHashTable<Contig*> hmap_long_contig_t;
-	typedef KmerHashTable<pair<Kmer, size_t>> hmap_shortcut_t;
+
+  typedef KmerHashTable<CompressedCoverage> hmap_short_contig_t;
+  typedef KmerHashTable<Contig *> hmap_long_contig_t;
+  typedef KmerHashTable<pair<Kmer, size_t>> hmap_shortcut_t;
 
   hmap_short_contig_t sContigs;
   hmap_long_contig_t  lContigs;
   hmap_shortcut_t     shortcuts;
-  
+
 };
 
 #endif //BFG_CONTIGMAPPER_HPP

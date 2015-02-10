@@ -31,7 +31,7 @@ void FastqFile::reopen() {
 
 
 // returns >=0 (length of seq), -1 end of last file, -2 truncated quality string
-int FastqFile::read_next(char *read, size_t *read_len, char *seq, size_t *seq_len, unsigned int *file_id, char* qual) {
+int FastqFile::read_next(char *read, size_t *read_len, char *seq, size_t *seq_len, unsigned int *file_id, char *qual) {
   int r;
   if ((r = kseq_read(kseq)) >= 0) {
     memcpy(read, kseq->name.s, kseq->name.l + 1); // 0-terminated string

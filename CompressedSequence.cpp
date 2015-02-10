@@ -4,44 +4,44 @@
 
 
 static const char bases[256] = {
-  'A','C','G','T','N','N','N','N',  'N','N','N','N','N','N','N','N', 
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N', 
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N', 
+  'A','C','G','T','N','N','N','N',  'N','N','N','N','N','N','N','N',
   'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N', 
   'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N', 
   'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N', 
   'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N', 
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N', 
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N', 
   'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N', 
+  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
   'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N'
 };
 
-// bits['A'] == bits['a'] , 0 
+// bits['A'] == bits['a'] , 0
 // bits['C'] == bits['c'] , 1
-// bits['G'] == bits['g'] , 2 
+// bits['G'] == bits['g'] , 2
 // bits['T'] == bits['t'] , 3
 static const uint8_t bits[256] = {
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-  0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-  0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
@@ -64,31 +64,31 @@ CompressedSequence::~CompressedSequence() {
 
 
 // use:  _cs = CompressedSequence(cs);
-// pre:   
+// pre:
 // post: the DNA string in _cs and is the same as in cs
-CompressedSequence::CompressedSequence(const CompressedSequence& o){
+CompressedSequence::CompressedSequence(const CompressedSequence& o) {
   if (o.isShort()) {
     asBits._size = o.asBits._size;
     memcpy(asBits._arr, o.asBits._arr, 15);
-  } else {  
+  } else {
     setSequence(o,0,o.size()); // copy sequence and pointers etc.
   }
 }
 
 
 // use:  _cs = cs;
-// pre:   
+// pre:
 // post: the DNA string in _cs is the same as in cs
 CompressedSequence& CompressedSequence::operator=(const CompressedSequence& o) {
   if (o.isShort()) {
     asBits._size = o.asBits._size;
     memcpy(asBits._arr, o.asBits._arr,15); // plain vanilla copy
-  } else {  
+  } else {
     setSequence(o,0,o.size()); // copy sequence and pointers etc.
   }
   return *this;
 }
-  
+
 
 // use:  s
 // pre:  s has only the characters 'A','C','G' and 'T' and can have any length
@@ -101,7 +101,7 @@ CompressedSequence::CompressedSequence(const char *s) {
 }
 
 
-// same as with char *s but with string 
+// same as with char *s but with string
 CompressedSequence::CompressedSequence(const string& s) {
   initShort();
   setSequence(s.c_str(), s.size());
@@ -109,9 +109,9 @@ CompressedSequence::CompressedSequence(const string& s) {
 
 
 // use:  cs = CompressedSequence(km);
-// pre:   
+// pre:
 // post: the DNA string in cs is now the same as the DNA string in km
-CompressedSequence::CompressedSequence(const Kmer &km) {
+CompressedSequence::CompressedSequence(const Kmer& km) {
   initShort();
   setSequence(km, Kmer::k);
 }
@@ -137,7 +137,7 @@ bool CompressedSequence::isShort() const {
   return ((asBits._size & shortMask) == 1);
 }
 
-const char* CompressedSequence::getPointer() const {
+const char *CompressedSequence::getPointer() const {
   if (isShort()) {
     return &(asBits._arr[0]);
   } else {
@@ -172,24 +172,24 @@ size_t CompressedSequence::size() const {
 // use:  a.setSequence(b, start, length, offset, reversed);
 // pre:  start+length <= b._length, offset <= a._length
 // post: copies compressed sequence from b to a (reverse complement if reversed == true)
-//       the string copied from b is from [start,...,start+length-1] 
-//          (reverse complement of [o._length-1-start-length,...,o._length-1-start] if reversed == true) 
+//       the string copied from b is from [start,...,start+length-1]
+//          (reverse complement of [o._length-1-start-length,...,o._length-1-start] if reversed == true)
 //       the positions in a that are updated are [offset,...,offset+length-1]
 //       capacity of a might be updated to fit the new string.
-void CompressedSequence::setSequence(const CompressedSequence &o, size_t start, size_t length, size_t offset, bool reversed) {
+void CompressedSequence::setSequence(const CompressedSequence& o, size_t start, size_t length, size_t offset, bool reversed) {
   assert(length + start <= o.size());
 
   if (round_to_bytes(length+offset) > capacity()) {
     _resize_and_copy(round_to_bytes(length+offset),size());
   }
-  
+
   char *data = const_cast<char *>(getPointer());
   const char *odata = o.getPointer();
-  
+
   size_t w_index = offset;
   size_t r_index = reversed ? o.size()-start-1 : start;
   size_t wi,wj,ri,rj;
-  
+
   for (size_t i = 0; i < length; i++) {
     wi = w_index / 4;
     wj = w_index % 4;
@@ -218,8 +218,8 @@ void CompressedSequence::setSequence(const CompressedSequence &o, size_t start, 
 
 
 // use:  cs.reserveLength(new_length);
-// pre:  
-// post: The DNA string in cs has space for at least new_length bases 
+// pre:
+// post: The DNA string in cs has space for at least new_length bases
 void CompressedSequence::reserveLength(size_t new_length) {
   if (round_to_bytes(new_length) > capacity() ) {
     _resize_and_copy(round_to_bytes(new_length), size());
@@ -228,7 +228,7 @@ void CompressedSequence::reserveLength(size_t new_length) {
 
 
 // use:  cs._resize_and_copy(new_cap, copy_limit);
-// pre:  
+// pre:
 // post: The DNA string in cs has space for at least new_length bases
 //       the first copy_limit characters of cs are the same as before this method
 void CompressedSequence::_resize_and_copy(size_t new_cap, size_t copy_limit) {
@@ -263,9 +263,9 @@ void CompressedSequence::setSequence(const char *s, size_t length, size_t offset
   if(round_to_bytes(length+offset) > capacity()) {
     _resize_and_copy(round_to_bytes(length+offset), size());
   }
-  char *data = const_cast<char*>(getPointer());
+  char *data = const_cast<char *>(getPointer());
 
-  
+
   for (size_t index = offset; index < offset+length; index++) {
     size_t i = index / 4;
     size_t j = index % 4;
@@ -273,7 +273,7 @@ void CompressedSequence::setSequence(const char *s, size_t length, size_t offset
     uint8_t c = reversed ? bases[0x03-bits[(uint8_t)*(s+length+offset-index-1)]] : *(s+index-offset);
     data[i] |= (bits[c] << (2*j));
   }
-  
+
   if (offset + length > size()) {
     setSize(offset + length);
   }
@@ -284,7 +284,7 @@ void CompressedSequence::setSequence(const char *s, size_t length, size_t offset
 // pre:  0 <= start + length < o.size()
 // post: If reversed is false then: cs[offset,...,offset+length-1] = s[0,...,start+length-1]
 //       else: cs[offset,...,offset+length-1] is the reverse complement of s[0,...,start+length-1]
-void CompressedSequence::setSequence(const string &s, size_t length, size_t offset, bool reversed) {
+void CompressedSequence::setSequence(const string& s, size_t length, size_t offset, bool reversed) {
   setSequence(s.c_str(),length,offset,reversed);
 }
 
@@ -292,11 +292,11 @@ void CompressedSequence::setSequence(const string &s, size_t length, size_t offs
 // use:  cs.setSequence(km, length, offset, reversed);
 // pre:  0 <= length < cs._length,
 //       length <= Kmer::k
-// post: If reversed is false then: cs[offset,...,offset+length-1] 
+// post: If reversed is false then: cs[offset,...,offset+length-1]
 //         is the first length characters from the DNA string in km
 //       else: cs[offset,...,offset+length-1] is the first length characters from the
 //         reverse complement of the DNA string in km
-void CompressedSequence::setSequence(const Kmer &km, size_t length, size_t offset, bool reversed) {
+void CompressedSequence::setSequence(const Kmer& km, size_t length, size_t offset, bool reversed) {
   char s[Kmer::MAX_K+1];
   km.toString(&s[0]);
   setSequence(s, length, offset, reversed);
@@ -304,8 +304,8 @@ void CompressedSequence::setSequence(const Kmer &km, size_t length, size_t offse
 
 
 // use:  s = cs.toString();
-// pre:   
-// post: s is the DNA string from cs 
+// pre:
+// post: s is the DNA string from cs
 string CompressedSequence::toString() const {
   return toString(0,size());
 }
@@ -330,7 +330,7 @@ string CompressedSequence::toString(size_t offset, size_t length) const {
 
 
 // use:  cs.toString(s);
-// pre:  s has space for cs.size() characters 
+// pre:  s has space for cs.size() characters
 // post: s is the same as the DNA string from cs
 void CompressedSequence::toString(char *s) const {
   toString(s,0,size());
@@ -339,7 +339,7 @@ void CompressedSequence::toString(char *s) const {
 
 // use:  s = cs.toString(offset, length);
 // pre:  offset + length <= cs.size()
-//       s has space for length characters 
+//       s has space for length characters
 // post: s is the same as cs[offset,...,offset+length-1]
 void CompressedSequence::toString(char *s, size_t offset, size_t length) const {
   const char *data = getPointer();
@@ -366,7 +366,7 @@ Kmer CompressedSequence::getKmer(size_t offset) const {
 
 
 // use:  _cs = cs.rev();
-// pre:   
+// pre:
 // post: _cs is the reverse complement CompressedSequence with respect to cs,
 //       i.e. if the DNA string in cs is 'GTCA'
 //          then the DNA string in _cs is 'TGAC'
@@ -379,9 +379,9 @@ CompressedSequence CompressedSequence::rev() const {
 
 // use:  j = cs.jump(s,i,pos,reversed)
 // pre:  0 <= i < s.length, -1 <= pos < cs._length if reversed true, 0 <= pos <= cs._length if reversed false
-// post: if reversed == false  
+// post: if reversed == false
 //         s[i...i+j-1] == cs._data[pos...pos+j-1], 0 <= j <= min(s.length-i, cs._length-pos)
-//       else 
+//       else
 //         reverse_complement(s[i...i+j-1]) == cs._data[pos-j+1...pos], 0 <= j <= min(s.length-i, pos+1)
 size_t CompressedSequence::jump(const char *s, size_t i, int pos, bool reversed) const {
   const char *data = getPointer();
