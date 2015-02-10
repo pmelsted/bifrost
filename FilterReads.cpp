@@ -11,12 +11,14 @@
 #include <sys/stat.h>
 #include <vector>
 
+#include <thread>
+#include <atomic>
+
 #include "Common.hpp"
 #include "FilterReads.hpp"
 #include "fastq.hpp"
 #include "Kmer.hpp"
 #include "KmerIterator.hpp"
-//#include "BloomFilter.hpp"
 #include "BlockedBloomFilter.hpp"
 
 
@@ -29,7 +31,7 @@ struct FilterReads_ProgramOptions {
   uint32_t seed;
   vector<string> files;
   FilterReads_ProgramOptions() : verbose(false), threads(1), k(0), nkmers(0), nkmers2(0), \
-    outputfile(NULL), bf(4), bf2(8), seed(0), read_chunksize(20000) {}
+    outputfile(NULL), bf(4), bf2(8), seed(0), read_chunksize(10000) {}
 };
 
 // use:  FilterReads_PrintUsage();
@@ -42,7 +44,7 @@ void FilterReads_PrintUsage() {
   cout << endl << endl << "Options:" << endl <<
        "  -v, --verbose               Print lots of messages during run" << endl <<
        "  -t, --threads=INT           Number of threads to use (default 1)" << endl <<
-       "  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default 20000 for multithreaded else 1)" << endl <<
+       "  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default 10000 for multithreaded else 1)" << endl <<
        "  -k, --kmer-size=INT         Size of k-mers, the same value as used for filtering reads" << endl <<
        "  -n, --num-kmers=LONG        Estimated number of k-mers (upper bound)" << endl <<
        "  -N, --num-kmer2=LONG        Estimated number of k-mers in genome (upper bound)" << endl <<
@@ -129,10 +131,8 @@ void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions&
 bool FilterReads_CheckOptions(FilterReads_ProgramOptions& opt) {
   bool ret = true;
 
-  size_t max_threads = 1;
-#ifdef _OPENMP
-  max_threads = omp_get_max_threads();
-#endif
+  size_t max_threads = std::thread::hardware_concurrency();
+  
   if (opt.threads == 0 || opt.threads > max_threads) {
     cerr << "Error: Invalid number of threads " << opt.threads;
     if (max_threads == 1) {
@@ -148,8 +148,8 @@ bool FilterReads_CheckOptions(FilterReads_ProgramOptions& opt) {
          << ", need a number greater than 0" << endl;
     ret = false;
   } else if (opt.threads == 1) {
-    cerr << "Setting chunksize to 1 because of only 1 thread" << endl;
-    opt.read_chunksize = 1;
+    /*cerr << "Setting chunksize to 1 because of only 1 thread" << endl;
+      opt.read_chunksize = 1;*/
   }
 
   if (opt.k <= 0 || opt.k >= MAX_KMER_SIZE) {
@@ -248,9 +248,6 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
    *  now BF2 contains at least all the kmers that appear once
    */
 
-#ifdef _OPENMP
-  omp_set_num_threads(opt.threads);
-#endif
 
   uint32_t seed = opt.seed;
   if (seed == 0) {
@@ -263,17 +260,56 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
   bool done = false;
   char name[8192], s[8192];
   size_t name_len, len, read_chunksize = opt.read_chunksize;
-  uint64_t n_read = 0, num_kmers = 0, num_ins = 0;
+  uint64_t n_read = 0;
+  atomic<uint64_t> num_kmers(0), num_ins(0);
 
   FastqFile FQ(opt.files);
   vector<string> readv;
 
+  // Main worker thread
+  auto worker_function = [&](vector<string>::const_iterator a,
+                             vector<string>::const_iterator b) {
+    uint64_t l_num_kmers = 0, l_num_ins = 0;
+    // for each input
+    for (auto x = a; x != b; ++x) {
+      KmerIterator iter, iterend;
+      iter = KmerIterator(x->c_str());
+      // for each k-mer
+      for (; iter != iterend; ++iter) {
+        ++l_num_kmers;
+        Kmer km = iter->first;
+        Kmer rep = km.rep();
+        // check first bloom filter for rep
+        size_t r = BF.search(rep);
+        if (r == 0) {
+          // if contains rep, insert into second bloom filter
+          if (!BF2.contains(rep)) {
+            BF2.insert(rep);
+            ++l_num_ins;
+          }
+        } else {
+          if (BF.insert(rep) == r) {
+            ++l_num_ins;
+          } else {
+            /*if (opt.verbose) {
+              cerr << "clash!" << endl;
+              }*/
+            BF2.insert(rep); // better safe than sorry
+          }
+        }
+      }
+    }
+    // atomic adds
+    num_kmers += l_num_kmers;
+    num_ins += l_num_ins;
+  };
+  
   while (!done) {
     readv.clear();
     size_t reads_now = 0;
     while (reads_now < read_chunksize) {
       if (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
-        readv.push_back(string(s));
+        readv.emplace_back(s);
         ++n_read;
         ++reads_now;
       } else {
@@ -282,31 +318,23 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
       }
     }
 
-    KmerIterator iter, iterend;
-    #pragma omp parallel for private(iter) shared(iterend, readv, BF, reads_now) reduction(+:num_ins,num_kmers)
-    for (size_t index = 0; index < reads_now; ++index) {
-      iter = KmerIterator(readv[index].c_str());
-      for (; iter != iterend; ++iter) {
-        ++num_kmers;
-        Kmer km = iter->first;
-        Kmer rep = km.rep();
-        size_t r = BF.search(rep);
-        if (r == 0) {
-          if (!BF2.contains(rep)) {
-            BF2.insert(rep);
-            ++num_ins;
-          }
-        } else {
-          if (BF.insert(rep) == r) {
-            ++num_ins;
-          } else {
-            /*if (opt.verbose) {
-              cerr << "clash!" << endl;
-            	}*/
-            BF2.insert(rep); // better safe than sorry
-          }
-        }
-      }
+    vector<thread> workers;
+    // create worker threads
+    auto rit = readv.begin();
+    size_t batch_size = readv.size()/opt.threads;
+    size_t leftover   = readv.size()%opt.threads;
+    for (size_t i = 0; i < opt.threads; i++) {
+      size_t jump = batch_size + ((i < leftover ) ? 1 : 0);
+      auto rit_end(rit);
+      advance(rit_end, jump);
+      workers.push_back(thread(worker_function, rit, rit_end));
+      rit = rit_end;
+    }
+
+    assert(rit==readv.end());
+    
+    for (auto &t : workers) {
+      t.join();
     }
   }
 
