@@ -325,7 +325,13 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
               add = false;
             }
             if (add) {
-              smallv->emplace_back(km,*x,iter->second);
+              bool selfLoop = false;
+              string newseq;
+              cmap.findContigSequence(km,newseq,selfLoop);
+              if (selfLoop) {
+                newseq.clear(); //let addContig handle it
+              }
+              smallv->emplace_back(km,*x,iter->second, newseq);
             }
           }
 
@@ -390,7 +396,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
       // for each new contig
       for (auto &x : v) {
         // add the contig
-        cmap.addContig(x.km, x.read, x.pos);
+        cmap.addContig(x.km, x.read, x.pos, x.seq);
       }
       // clear the map
       v.clear();

@@ -77,11 +77,15 @@ void ContigMapper::mapRead(const ContigMap& cc) {
 // post: either contig string containsin has been added and b == true
 //       or it was present and the coverage information was updated, b == false
 //       NOT Threadsafe!
-bool ContigMapper::addContig(Kmer km, const string& read, size_t pos) {
+bool ContigMapper::addContig(Kmer km, const string& read, size_t pos, const string& seq) {
   // find the contig string to add
   string s;
   bool selfLoop = false;
-  findContigSequence(km,s,selfLoop);
+  if (!seq.empty()) {
+    s = seq;
+  } else {
+    findContigSequence(km,s,selfLoop);
+  }
   size_t k = Kmer::k;
   bool found = false;
   if (selfLoop) {
