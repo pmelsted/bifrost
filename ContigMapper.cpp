@@ -101,7 +101,7 @@ bool ContigMapper::addContig(Kmer km, const string& read, size_t pos, const stri
       }
     }
   }
-
+  cout << "adding " << s << endl;
 
   // head is the front
   const char *c = s.c_str();
@@ -129,6 +129,8 @@ bool ContigMapper::addContig(Kmer km, const string& read, size_t pos, const stri
       shortcuts.insert(make_pair(Kmer(c+len-k),make_pair(head,len-k)));
 
     }
+  } else {
+    cout << "no wait, found it already" << endl;
   }
 
   // map the read
@@ -1045,6 +1047,8 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
 
   // insert short contigs
   for (vector<string>::iterator it = split_contigs.begin(); it != split_contigs.end(); ++it) {
+    assert(checkShortcuts());
+
     if (it->size() >= k) {
       //bool rev = false;
       const char *s = it->c_str();
@@ -1072,7 +1076,7 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
       }
     }
   }
-
+  assert(checkShortcuts());
   split_contigs.clear();
 
 
@@ -1080,6 +1084,7 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
   // long contigs
   vector<pair<string, uint64_t>> long_split_contigs;
   for (hmap_long_contig_t::iterator it = lContigs.begin(); it != lContigs.end(); ) {
+    assert(checkShortcuts());
     if (! it->second->ccov.isFull()) {
       const string& s = it->second->seq.toString();
       CompressedCoverage& ccov = it->second->ccov;
@@ -1114,7 +1119,7 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
       ++it;
     }
   }
-
+  assert(checkShortcuts());
   // insert the pieces back
   for (vector<pair<string, uint64_t>>::iterator it = long_split_contigs.begin(); it != long_split_contigs.end(); ++it) {
     if (it->first.size() >= k) {
@@ -1143,11 +1148,13 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
         shortcuts.insert(make_pair(Kmer(s+i),make_pair(head,i)));
       }
       shortcuts.insert(make_pair(Kmer(s+len-k), make_pair(head,len-k)));
+      assert(checkShortcuts());
+
     }
   }
 
   long_split_contigs.clear();
-
+  assert(checkShortcuts());
   return make_pair(split,deleted);
 }
 
