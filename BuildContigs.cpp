@@ -13,6 +13,9 @@
 #include <utility>
 #include <vector>
 
+#include <thread>
+#include <atomic>
+
 #include "Common.hpp"
 #include "CompressedSequence.hpp"
 #include "Contig.hpp"
@@ -129,11 +132,8 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
 // post: (b == true)  <==>  the parameters are valid
 bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions& opt) {
   bool ret = true;
+  size_t max_threads = std::thread::hardware_concurrency();
 
-  size_t max_threads = 1;
-#ifdef _OPENMP
-  max_threads = omp_get_max_threads();
-#endif
   if (opt.threads == 0 || opt.threads > max_threads) {
     cerr << "Error: Invalid number of threads " << opt.threads;
     if (max_threads == 1) {
@@ -254,11 +254,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
    *            try to jump over as many kmers as possible
    */
 
-  size_t num_threads = opt.threads;
-#ifdef _OPENMP
-  omp_set_num_threads(num_threads);
-#endif
-
   BlockedBloomFilter bf;
   FILE *f = fopen(opt.freads.c_str(), "rb");
   if (f == NULL) {
@@ -285,28 +280,78 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
   char name[8192], s[8192];
   size_t name_len, len;
   uint64_t n_read = 0;
-
-  vector<NewContig> *smallv;
-  vector<NewContig> *parray = new vector<NewContig>[num_threads];
+  
 
   size_t read_chunksize = opt.read_chunksize;
-  //stringstream *mappingSS = new stringstream[read_chunksize];
-  string *readv = new string[read_chunksize];
+  vector<string> readv;
 
   if (opt.verbose) {
     cerr << "Starting real work ....." << endl << endl;
   }
 
+  // Main worker thread
+  auto worker_function = [&](vector<string>::const_iterator a,
+                             vector<string>::const_iterator b,
+                             vector<NewContig>* smallv) {
+    // for each input
+    for (auto x = a; x != b; ++x) {
+      KmerIterator iter, iterend;
+      iter = KmerIterator(x->c_str());
+      Kmer km, rep;
+      
+      if (iter != iterend) {
+        km = iter->first;
+        rep = km.rep();
+      }
+
+      while (iter != iterend) {
+        if (!bf.contains(rep)) { // km is not in the graph
+          // jump over it
+          iter.raise(km, rep);
+        } else {
+          // find mapping contig
+          ContigMap cm = cmap.findContig(km, *x, iter->second, false);
+
+          if (cm.isEmpty) {
+            // kmer did not map,
+            // push into queue for next contig generation round
+            bool add = true;
+            /*if (opt.clipTips && cm.isTip) {
+              add = !cmap.checkTip(cm.tipHead);
+              }*/
+            if (opt.deleteIsolated && cm.isIsolated && false) {
+              add = false;
+            }
+            if (add) {
+              smallv->emplace_back(km,*x,iter->second);
+            }
+          }
+
+          // map the read, has no effect for newly created contigs
+          cmap.mapRead(cm);
+          
+          // how many k-mers in the read we can skip
+          size_t jump_i = 0; // already moved one forward
+          while (jump_i < cm.len) {
+            jump_i++;
+            iter.raise(km,rep); // any N's will not map to contigs, so normal skipping is fine
+          }
+        } // done iterating through read
+      } // done iterating through read batch
+    }
+  };
+
+  vector<vector<NewContig>> parray(opt.threads);
   int round = 0;
   bool done = false;
   while (!done) {
+    readv.clear();
     size_t reads_now = 0;
-
     while (reads_now < read_chunksize) {
       if (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
-        readv[reads_now].assign(s);
-        ++reads_now;
+        readv.emplace_back(s);
         ++n_read;
+        ++reads_now;
       } else {
         done = true;
         break;
@@ -318,73 +363,35 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
       cerr << "starting round " << round << endl;
     }
 
-    #pragma omp parallel default(shared) private(smallv) shared(cmap,parray,readv,bf,reads_now)
-    {
-      KmerIterator iter, iterend;
-      size_t threadnum = 0;
-#ifdef _OPENMP
-      threadnum = omp_get_thread_num();
-#endif
-      smallv = &parray[threadnum];
+    // run parallel code
+    vector<thread> workers;
+    auto rit = readv.begin();
+    size_t batch_size = readv.size() / opt.threads;
+    size_t leftover   = readv.size() % opt.threads;
+    for (size_t i = 0; i < opt.threads; i++) {
+      size_t jump = batch_size + ((i < leftover ) ? 1 : 0);
+      auto rit_end(rit);
+      advance(rit_end, jump);
+      workers.push_back(thread(worker_function, rit, rit_end, &parray[i]));
+      rit = rit_end;
+    }
 
-
-      #pragma omp for nowait
-      for(size_t index=0; index < reads_now; ++index) {
-        const char *cstr = readv[index].c_str();
-        iter = KmerIterator(cstr);
-        Kmer km, rep;
-
-        if (iter != iterend) {
-          km = iter->first;
-          rep = km.rep();
-        }
-
-        while (iter != iterend) {
-          if (!bf.contains(rep)) { // km is not in the graph
-            // jump over it
-            iter.raise(km, rep);
-          } else {
-            // find mapping contig
-            ContigMap cm = cmap.findContig(km,readv[index],iter->second,false);
-
-            if (cm.isEmpty) {
-              // kmer did not map,
-              // push into queue for next contig generation round
-              bool add = true;
-              /*if (opt.clipTips && cm.isTip) {
-              add = !cmap.checkTip(cm.tipHead);
-              }*/
-              if (opt.deleteIsolated && cm.isIsolated && false) {
-                add = false;
-              }
-              if (add) {
-                smallv->push_back(NewContig(km,readv[index],iter->second));
-              }
-            }
-
-            // map the read, has no effect for newly created contigs
-            cmap.mapRead(cm);
-
-            // how many k-mers in the read we can skip
-            size_t jump_i = 0; // already moved one forward
-            while (jump_i < cm.len) {
-              jump_i++;
-              iter.raise(km,rep); // any N's will not map to contigs, so normal skipping is fine
-
-            }
-          }
-        } // done iterating through read
-      } // done iterating through read batch
-    } //
-
-
-    // This part is serial
-
-    for (size_t i=0; i < num_threads; i++) {
-      for (vector<NewContig>::iterator it=parray[i].begin(); it != parray[i].end(); ++it) {
-        cmap.addContig(it->km, it->read, it->pos);
+    assert(rit == readv.end());
+    
+    for (auto& t : workers) {
+      t.join();
+    }
+    
+    // -- this part is serial
+    // for each thread
+    for (auto &v : parray) {
+      // for each new contig
+      for (auto &x : v) {
+        // add the contig
+        cmap.addContig(x.km, x.read, x.pos);
       }
-      parray[i].clear();
+      // clear the map
+      v.clear();
     }
 
     if (read_chunksize > 1 && opt.verbose ) {
@@ -393,6 +400,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
     }
   }
   FQ.close();
+  parray.clear();
 
   if (opt.verbose) {
     cerr << "Closed all fasta/fastq files" << endl;
@@ -473,10 +481,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
 
   }
   cmap.writeGFA(contigsAfter1, opt.graphfilename,false);
-
-  delete [] readv;
-  delete [] parray;
-
   //assert(contigsAfter1 == contigsAfter2);  // TODO: fix join and reinsert this assert.
 }
 

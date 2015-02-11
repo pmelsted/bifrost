@@ -37,7 +37,7 @@ struct NewContig {
   Kmer km;
   string read;
   size_t pos;
-  NewContig(Kmer o, string& s, size_t p) : km(o), read(s), pos(p) {}
+  NewContig(const Kmer o, const string& s, size_t p) : km(o), read(s), pos(p) {}
 };
 
 
