@@ -435,19 +435,19 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
   
   cmap.moveShortContigs(); // Simple, no need to test
 
-  // cout << "before fixshort " << endl; cmap.writeContigs(0,"","",true);
+  cout << "before fixshort " << endl;// cmap.writeContigs(0,"","",true);
   bf.clear();
   cmap.fixShortContigs();  // Simple
-  //cout << "after fixshort " << endl; cmap.writeContigs(0,"","",true);
+  cout << "after fixshort " << endl;// cmap.writeContigs(0,"","",true);
   cmap.checkShortcuts();
-  //cout << "before remove iso" << endl;
+  cout << "before remove iso" << endl;
   if (opt.deleteIsolated) {
     cmap.removeIsolatedContigs(); // TODO: test
   }
   //cmap.writeContigs(0,"","",true);
   cmap.checkShortcuts();
 
-  //cout << "before join" << endl; cmap.writeContigs(0,"","",true);
+  cout << "before join" << endl; //cmap.writeContigs(0,"","",true);
   size_t joined = cmap.joinAllContigs(); // TODO: test
 
   cmap.checkShortcuts();
