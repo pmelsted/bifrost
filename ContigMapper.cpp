@@ -30,7 +30,10 @@ ContigMapper::~ContigMapper() {
 // post: new contigmapper object
 ContigMapper::ContigMapper(size_t init) :  bf(NULL) {
   limit = Kmer::k;
+  stride = Kmer::k;
 }
+
+
 
 
 // user: i = cm.contigCount()
@@ -114,8 +117,8 @@ bool ContigMapper::addContig(Kmer km, const string& read, size_t pos) {
     } else {
       lContigs.insert(make_pair(head, new Contig(c)));
 
-      // insert shortcuts every k k-mers
-      for (size_t i = k; i < len-k; i += k) {
+      // insert shortcuts every stride k-mers
+      for (size_t i = stride; i < len-k; i += stride) {
         shortcuts.insert(make_pair(Kmer(c+i),make_pair(head,i)));
       }
       // also insert shortcut for last k-mer
@@ -125,7 +128,7 @@ bool ContigMapper::addContig(Kmer km, const string& read, size_t pos) {
   }
 
   // map the read
-  cc = findContig(km,read, pos,false);
+  cc = findContig(km,read, pos);
   cc.selfLoop = selfLoop;
   mapRead(cc);
   return found;
@@ -253,11 +256,11 @@ void ContigMapper::findContigSequence(Kmer km, string& s, bool& selfLoop) {
 }
 
 
-// use:  cc = cm.findContig(km,s,pos,clip)
+// use:  cc = cm.findContig(km,s,pos)
 // pre:  s[pos,pos+k-1] is the kmer km
 // post: cc contains either the reference to the contig position
 //       or empty if none found
-ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos, bool checkTip) const {
+ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
   assert(bf != NULL);
   size_t k = Kmer::k;
 
@@ -266,18 +269,31 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos, bool ch
 
   // need to check if we find it right away, need to treat this common case
   ContigMap cc;
-  //  cc = this->find(end);
+  cc = this->find(end);
+  if (!cc.isEmpty && !cc.isShort) {
+    // ok, fetch the sequence
+    const CompressedSequence& seq = lContigs.find(cc.head)->second->seq;
+    size_t km_dist = cc.dist;
+    size_t jlen = 0;
+    
+    if (cc.strand) {
+      jlen = seq.jump(s.c_str(), pos, cc.dist, false) -k + 1;
+    } else {
+      jlen = seq.jump(s.c_str(), pos, cc.dist+k-1, true) -k + 1;
+      km_dist -= (jlen-1);
+    }
+    
+    return ContigMap(cc.head, km_dist, jlen, cc.size, cc.strand, cc.isShort);
+  }
 
   char c;
   string fw_s;
   size_t fw_dist = 0;
   bool selfLoop = false;
-  bool isTip = false;
-  Kmer tipHead;
 
   // check <k steps ahead in fw direction
   size_t fw_deg;
-  while (fw_dist < k && fwBfStep(end, end, c, fw_deg)) {
+  while (fw_dist < stride && fwBfStep(end, end, c, fw_deg)) {
     if (end == km) {
       selfLoop = true;
       break;
@@ -286,12 +302,12 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos, bool ch
     ++fw_dist;
   }
 
-  size_t len = 1 + stringMatch(fw_s, s, pos+k);
+  int len = 1 + stringMatch(fw_s, s, pos+k);
 
   string bw_s;
   size_t bw_dist = 0;
   size_t bw_deg;
-  while (bw_dist < k && bwBfStep(front,front,c,bw_deg)) {
+  while (bw_dist < stride && bwBfStep(front,front,c,bw_deg)) {
     if (front == end) {
       selfLoop = true;
       break; // ok, we've reached around
@@ -300,32 +316,7 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos, bool ch
   }
 
 
-  if (checkTip) {
-    if (fw_dist + bw_dist  < k) {
-      /*size_t fw_count = 0;
-      for (size_t i = 0; i < 4; i++) {
-      if (bf->contains(end.forwardBase(alpha[i]).rep())) {
-      ++fw_count;
-      }
-      }
-      size_t bw_count = 0;
-      for (size_t i = 0; i < 4; i++) {
-      if (bf->contains(front.backwardBase(alpha[i]).rep())) {
-      ++bw_count;
-      }
-      }
-      */
-      if (fw_deg == 0 && bw_deg == 1) {
-        isTip = true;
-        tipHead = front;
-        //handle this
-      } else if (fw_deg == 1 && bw_deg == 0) {
-        isTip = true;
-        tipHead = end;
-      }
-    }
-  }
-
+  
 
   cc = this->find(end);
   if (! cc.isEmpty) {
@@ -344,10 +335,6 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos, bool ch
     ContigMap rcc(cc.head, km_dist, len, cc.size, cc.strand, cc.isShort);
     rcc.selfLoop = selfLoop;
     rcc.isIsolated = (fw_deg == 0 && bw_deg == 0 && len < k );
-    rcc.isTip = isTip;
-    if (isTip) {
-      rcc.tipHead = tipHead;
-    }
 
     return rcc;
   } else {
@@ -363,10 +350,6 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos, bool ch
       ContigMap rcc(cc.head, km_dist, len, cc.size, cc.strand, cc.isShort);
       rcc.selfLoop = selfLoop;
       rcc.isIsolated = (fw_deg == 0 && bw_deg == 0 && len < k);
-      rcc.isTip = isTip;
-      if (isTip) {
-        rcc.tipHead = tipHead;
-      }
       return rcc;
     }
   }
@@ -402,10 +385,6 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos, bool ch
   // nothing found, how much can we skip ahead?
   ContigMap rcc(len);
   rcc.isIsolated = (fw_deg == 0 && bw_deg == 0 && len < k);
-  rcc.isTip = isTip;
-  if (isTip) {
-    rcc.tipHead = tipHead;
-  }
   return rcc;
 }
 
@@ -570,6 +549,7 @@ ContigMap ContigMapper::find(Kmer km) const {
 //       in lContigs kmer head maps to sequence[k:] i.e. what comes after the
 void ContigMapper::moveShortContigs() {
   size_t k = Kmer::k;
+  lContigs.reserve(lContigs.size() + sContigs.size());
   for (hmap_short_contig_t::iterator it = sContigs.begin(); it != sContigs.end(); ) {
     string s;
     bool b;
@@ -599,8 +579,10 @@ void ContigMapper::fixShortContigs() {
       seq.setSequence(s,s.size(),k);
 
       if (seq.size() > k) {
-        size_t i = seq.size()-k;
-        shortcuts.insert(make_pair(seq.getKmer(i), make_pair(it->first,i)));
+        for (size_t i = stride; i < seq.size() - k; i+= stride) {
+          shortcuts.insert(make_pair(seq.getKmer(i), make_pair(it->first, i)));
+        }
+        shortcuts.insert(make_pair(seq.getKmer(seq.size()-k), make_pair(it->first, seq.size()-k)));
       }
     }
   }
@@ -1174,7 +1156,7 @@ void ContigMapper::removeShortcuts(const string& s) {
   size_t k = Kmer::k;
   const char *c = s.c_str();
 
-  for (size_t i = k; i < s.size()-k+1; i += k) {
+  for (size_t i = stride; i < s.size()-k+1; i += stride) {
     shortcuts.erase(Kmer(c+i));
   }
   shortcuts.erase(Kmer(c+s.size()-k)); // erase last k-mer

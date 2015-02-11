@@ -52,7 +52,7 @@ CompressedSequence::CompressedSequence() {
 
 void CompressedSequence::initShort() {
   asBits._size = 1; // short and size 0
-  memset(&asBits._arr[0],0,15); // clear other bits
+  memset(&asBits._arr[0],0,31); // clear other bits
 }
 
 // use:  delete c;
@@ -69,7 +69,7 @@ CompressedSequence::~CompressedSequence() {
 CompressedSequence::CompressedSequence(const CompressedSequence& o) {
   if (o.isShort()) {
     asBits._size = o.asBits._size;
-    memcpy(asBits._arr, o.asBits._arr, 15);
+    memcpy(asBits._arr, o.asBits._arr, 31);
   } else {
     setSequence(o,0,o.size()); // copy sequence and pointers etc.
   }
@@ -82,7 +82,7 @@ CompressedSequence::CompressedSequence(const CompressedSequence& o) {
 CompressedSequence& CompressedSequence::operator=(const CompressedSequence& o) {
   if (o.isShort()) {
     asBits._size = o.asBits._size;
-    memcpy(asBits._arr, o.asBits._arr,15); // plain vanilla copy
+    memcpy(asBits._arr, o.asBits._arr,31); // plain vanilla copy
   } else {
     setSequence(o,0,o.size()); // copy sequence and pointers etc.
   }
@@ -147,7 +147,7 @@ const char *CompressedSequence::getPointer() const {
 
 size_t CompressedSequence::capacity() const {
   if (isShort()) {
-    return 15; // 15 bytes
+    return 31; // 31 bytes
   } else {
     return asPointer._capacity;
   }

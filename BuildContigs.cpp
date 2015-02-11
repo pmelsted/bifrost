@@ -272,6 +272,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
   }
 
   ContigMapper cmap;
+  // stride hasn't been fully tested, don't set it
+  // cmap.setStride(opt.stride);
   cmap.mapBloomFilter(&bf);
 
   KmerIterator iter, iterend;
@@ -310,7 +312,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
           iter.raise(km, rep);
         } else {
           // find mapping contig
-          ContigMap cm = cmap.findContig(km, *x, iter->second, false);
+          ContigMap cm = cmap.findContig(km, *x, iter->second);
 
           if (cm.isEmpty) {
             // kmer did not map,
@@ -408,6 +410,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
   }
 
 
+
   size_t contigsBefore = cmap.contigCount();
   // print contigs
   cmap.checkShortcuts();
@@ -423,6 +426,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
   }
   //cout << "before moveshort " << endl; cmap.writeContigs(0,"","",true);
 
+  
   cmap.moveShortContigs(); // Simple, no need to test
 
   // cout << "before fixshort " << endl; cmap.writeContigs(0,"","",true);

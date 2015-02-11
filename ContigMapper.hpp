@@ -28,7 +28,7 @@ class ContigMapper {
   void mapBloomFilter(const BlockedBloomFilter *bf);
 
 
-  ContigMap findContig(Kmer km, const string& s, size_t pos, bool checkTip) const;
+  ContigMap findContig(Kmer km, const string& s, size_t pos) const;
   void mapRead(const ContigMap& cc);
 
   bool addContig(Kmer km, const string& read, size_t pos);
@@ -52,12 +52,14 @@ class ContigMapper {
   bool checkEndKmer(Kmer b, bool& dir);
 
   bool checkShortcuts();
+  void setStride(size_t stride_) { stride = stride_; }
+
  private:
   const BlockedBloomFilter *bf;
   size_t limit;
+  size_t stride;
 
   void removeShortcuts(const string& s);
-
 
   ContigMap find(Kmer km) const;
   bool fwBfStep(Kmer km, Kmer& end, char& c, size_t& deg) const;

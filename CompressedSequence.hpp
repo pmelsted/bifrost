@@ -65,10 +65,11 @@ class CompressedSequence {
       uint32_t _length; // size of sequence
       uint32_t _capacity; // capacity of array allocated in bytes
       char *_data; // 0-based 2bit compressed dna string
+      char padding[16];
     } asPointer;
     struct {
-      uint8_t _size; // 7 bits can index up to 60
-      char _arr[15]; // rest of
+      uint8_t _size; // 7 bits can index up to 128
+      char _arr[31]; // can store 124 nucleotides
     } asBits;
   };
 };
