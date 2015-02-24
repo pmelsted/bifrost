@@ -56,26 +56,26 @@ void ContigMapper::mapBloomFilter(const BlockedBloomFilter *bf) {
 // pre:  cc is a reference to a current contig in cm, km maps to cc
 // post: the coverage information in cc has been updated
 void ContigMapper::mapRead(const ContigMap& cc) {
-  auto console = spdlog::stdout_logger_mt("console");
+  //auto console = spdlog::stdout_logger_mt("console");
   if (cc.isEmpty) { // nothing maps, move on
-    console->info("Empty read, not mapping");
+    //console->info("Empty read, not mapping");
     return;
   } else if (cc.isShort) {
     // find short contig
     hmap_short_contig_t::iterator it = sContigs.find(cc.head);
     CompressedCoverage& cov = it->second; // reference to the info
     // increase coverage
-    console->info("Short contig, maps to {0} from {1} to {2}", cc.head.toString(), cc.dist, cc.dist+cc.len-1);
-    console->info("Coverage before {0}", cov.toString());
+    //console->info("Short contig, maps to {0} from {1} to {2}", cc.head.toString(), cc.dist, cc.dist+cc.len-1);
+    //console->info("Coverage before {0}", cov.toString());
     cov.cover(cc.dist, cc.dist + cc.len-1);
-    console->info("Coverage after {0}", cov.toString());
+    //console->info("Coverage after {0}", cov.toString());
   } else {
     // find long contig
     hmap_long_contig_t::iterator it = lContigs.find(cc.head);
     Contig *cont = it->second;
-    console->info("Long contig, maps to {0} from {1} to {2}", cc.head.toString(), cc.dist, cc.dist+cc.len-1);   console->info("Coverage before {0}", cont->ccov.toString());
+    //console->info("Long contig, maps to {0} from {1} to {2}", cc.head.toString(), cc.dist, cc.dist+cc.len-1);   //console->info("Coverage before {0}", cont->ccov.toString());
     cont->cover(cc.dist, cc.dist+cc.len-1);
-    console->info("Coverage after {0}", cont->ccov.toString());
+    //console->info("Coverage after {0}", cont->ccov.toString());
     //cout << cc.head.toString() << " : " << cc.dist << " - " << cc.dist + cc.len-1 << endl;
     //cout << cont->ccov.toString() << endl;
   }
@@ -110,9 +110,9 @@ bool ContigMapper::addContig(Kmer km, const string& read, size_t pos, const stri
       }
     }
   }
-  cout << "adding " << s << endl;
-  cout << "read   " << read << endl;
-  cout << "km = " << km.toString() << ", pos = " << pos << endl;
+  //cout << "adding " << s << endl;
+  //cout << "read   " << read << endl;
+  //cout << "km = " << km.toString() << ", pos = " << pos << endl;
 
   // head is the front
   const char *c = s.c_str();
@@ -141,7 +141,7 @@ bool ContigMapper::addContig(Kmer km, const string& read, size_t pos, const stri
 
     }
   } else {
-    cout << "no wait, found it already" << endl;
+    //cout << "no wait, found it already" << endl;
   }
 
   // map the read
@@ -295,11 +295,12 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
   size_t k = Kmer::k;
 
   Kmer end = km;
-  Kmer front = km;
-
+  Kmer last = end;
+  Kmer twin = km.twin();
+  
   // need to check if we find it right away, need to treat this common case
   ContigMap cc;
-  /*
+  
   cc = this->find(end);
   if (!cc.isEmpty && !cc.isShort) {
     // ok, fetch the sequence
@@ -316,34 +317,49 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
     
     return ContigMap(cc.head, km_dist, jlen, cc.size, cc.strand, cc.isShort);
   }
-  */
+  
   char c;
   string fw_s;
   size_t fw_dist = 0;
   bool selfLoop = false;
-
+  bool hairpin = false;
   // check <k steps ahead in fw direction
   size_t fw_deg;
   while (fw_dist < stride && fwBfStep(end, end, c, fw_deg)) {
     if (end == km) {
       selfLoop = true;
       break;
+    } else if (end == twin) {
+      hairpin = true;
+      break;
+    } else if (end == last.twin()) {
+      hairpin = true;
+      break;
     }
     fw_s.push_back(c);
     ++fw_dist;
+    last = end;
   }
+
 
   int len = 1 + stringMatch(fw_s, s, pos+k);
 
   string bw_s;
   size_t bw_dist = 0;
   size_t bw_deg;
+  Kmer front = km;
+  Kmer first = front;
   while (bw_dist < stride && bwBfStep(front,front,c,bw_deg)) {
-    if (front == end) {
+    if (front == km) {
       selfLoop = true;
       break; // ok, we've reached around
+    } else if (front == twin) {
+      break;
+    } else if (front == first.twin()) {
+      break;
     }
     ++bw_dist;
+    first = front;
   }
 
 
@@ -354,7 +370,13 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
     size_t km_dist = cc.dist; // is 0 if we have reached the end
     if (!selfLoop) {
       if (cc.strand) {
-        km_dist -= fw_dist;
+        if (hairpin && cc.dist == 0) {
+          // we walked backwards to the hairpin
+          km_dist = 0;
+          cc.strand = false;
+        } else {
+          km_dist -= fw_dist;
+        } 
       } else {
         km_dist += fw_dist - (len-1);
       }
@@ -1166,15 +1188,15 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
       // insert new contig
       Contig *cont = new Contig(s,true);
       cont->coveragesum = it->second;
-      cout << "inserting " << s << endl;
+      //cout << "inserting " << s << endl;
       lContigs.insert(make_pair(head, cont));
 
       // create new shortcuts
       for (size_t i = k; i < len-k; i+= k) {
-        cout << "short cut at " << i << endl;
+        //cout << "short cut at " << i << endl;
         shortcuts.insert(make_pair(Kmer(s+i),make_pair(head,i)));
       }
-      cout << "final shortcut at " << (len-k) << endl;
+      //cout << "final shortcut at " << (len-k) << endl;
       shortcuts.insert(make_pair(Kmer(s+len-k), make_pair(head,len-k)));
       assert(checkShortcuts());
 
