@@ -53,6 +53,7 @@ class ContigMapper {
 
   bool checkShortcuts();
   void setStride(size_t stride_) { stride = stride_; }
+  void printState() const;
 
  private:
   const BlockedBloomFilter *bf;

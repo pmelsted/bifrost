@@ -123,8 +123,15 @@ string CompressedCoverage::toString() const {
       const uint32_t filled = *(getConst32Pointer() + 1);
       info << filled << endl;
 
-      size_t nbytes = round_to_bytes(sz);
-      uint8_t *ptr = get8Pointer() + 8;
+      info << "[";
+      for (int i = 0; i < sz; i++) {
+        if (i>0) { info << ", "; }
+        info << (int)covAt(i);
+      }
+      info << "] " << endl;
+      //size_t nbytes = round_to_bytes(sz);
+      
+      /*uint8_t *ptr = get8Pointer() + 8;
       string ptrbits(nbytes*8, '0');
       for (size_t i = 0; i < nbytes; i++) {
         for (size_t j = 0; j < 8; j++) {
@@ -133,7 +140,7 @@ string CompressedCoverage::toString() const {
           }
         }
       }
-      bits += ptrbits;
+      bits += ptrbits;*/
     }
     return bits + "\n" + info.str();
   } else {
@@ -143,6 +150,14 @@ string CompressedCoverage::toString() const {
       info << ", Full,";
     }
     info <<" size = " << sz;
+
+    info << endl <<  "[";
+      for (int i = 0; i < sz; i++) {
+        if (i>0) { info << ", "; }
+        info << (int)covAt(i);
+      }
+      info << "] " << endl;
+    
     return bits + "\n" + info.str();
   }
 }

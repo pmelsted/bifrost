@@ -26,6 +26,8 @@
 #include "ContigMapper.hpp"
 #include "KmerHashTable.h"
 
+#include "spdlog/spdlog.h"
+
 
 struct BuildContigs_ProgramOptions {
   bool verbose;
@@ -149,8 +151,8 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions& opt) {
          << ", need a number greater than 0" << endl;
     ret = false;
   } else if (opt.threads == 1) {
-    cerr << "Setting chunksize to 1 because of only 1 thread" << endl;
-    opt.read_chunksize = 1;
+    /*cerr << "Setting chunksize to 1 because of only 1 thread" << endl;
+      opt.read_chunksize = 1;*/
   }
 
   if (opt.k == 0 || opt.k >= MAX_KMER_SIZE) {
@@ -253,7 +255,9 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
    *            when the contig is ready,
    *            try to jump over as many kmers as possible
    */
-
+  spdlog::set_pattern("*** [%H:%M:%S %z] [thread %t] %v ***");
+  auto console = spdlog::stdout_logger_mt("console");
+  
   BlockedBloomFilter bf;
   FILE *f = fopen(opt.freads.c_str(), "rb");
   if (f == NULL) {
@@ -298,6 +302,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
     // for each input
     for (auto x = a; x != b; ++x) {
       KmerIterator iter, iterend;
+      console->info("Processing read {0}",*x);
       iter = KmerIterator(x->c_str());
       Kmer km, rep;
       
@@ -311,10 +316,12 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
           // jump over it
           iter.raise(km, rep);
         } else {
+          console->info("Found k-mer {0}", km.toString());
           // find mapping contig
           ContigMap cm = cmap.findContig(km, *x, iter->second);
-
+          console->info("searched for k-mer");
           if (cm.isEmpty) {
+            console->info("did not find k-mer");
             // kmer did not map,
             // push into queue for next contig generation round
             bool add = true;
@@ -329,7 +336,10 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
               string newseq;
               cmap.findContigSequence(km,newseq,selfLoop);
               if (selfLoop) {
+                console->info("selfloop");
                 newseq.clear(); //let addContig handle it
+              } else {
+                console->info("Adding sequence {0}",newseq);
               }
               smallv->emplace_back(km,*x,iter->second, newseq);
             }
@@ -344,6 +354,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
             jump_i++;
             iter.raise(km,rep); // any N's will not map to contigs, so normal skipping is fine
           }
+          console->info(" skipped {0} k-mers", jump_i);
         } // done iterating through read
       } // done iterating through read batch
     }
@@ -385,10 +396,14 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
     }
 
     assert(rit == readv.end());
+    assert(cmap.checkShortcuts());
     
     for (auto& t : workers) {
       t.join();
     }
+    cmap.printState();
+
+    assert(cmap.checkShortcuts());
     
     // -- this part is serial
     // for each thread
@@ -397,11 +412,15 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
       for (auto &x : v) {
         // add the contig
         cmap.addContig(x.km, x.read, x.pos, x.seq);
+        cmap.printState();
       }
       // clear the map
       v.clear();
     }
+    cmap.printState();
 
+    assert(cmap.checkShortcuts());
+    
     if (read_chunksize > 1 && opt.verbose ) {
       cerr << " end of round" << endl;
       cerr << " processed " << cmap.contigCount() << " contigs" << endl;
@@ -421,6 +440,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
   // print contigs
   cout << "before split contigs" << endl;
   assert(cmap.checkShortcuts());
+  cmap.printState();
   //cout << "before split - " << endl; cmap.writeContigs(0,"","",true);
   pair<size_t, size_t> contigSplit = cmap.splitAllContigs();// TODO: test splitAllContigs
   assert(cmap.checkShortcuts());
