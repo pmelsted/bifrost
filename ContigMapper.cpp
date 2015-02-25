@@ -871,6 +871,11 @@ size_t ContigMapper::joinAllContigs() {
 
     //cout << head.toString() << " -> " << tail.toString() << endl;
 
+    if (cHead.head == cTail.head) {
+      // can't join a sequence with itself, either hairPin, loop or mobius loop
+      continue;
+    }
+    
     if (!cHead.isEmpty && !cTail.isEmpty) {
 
       // both kmers are still end-kmers
