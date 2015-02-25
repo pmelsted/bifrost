@@ -356,6 +356,10 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
       selfLoop = true;
       break; // ok, we've reached around
     } else if (front == twin) {
+      if (bw_dist == 0) {
+        // back up a bit
+        front = first;
+      }
       break;
     } else if (front == first.twin()) {
       reverseHairpin = true;
