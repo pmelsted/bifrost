@@ -334,6 +334,7 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
       break;
     } else if (end == last.twin()) {
       hairpin = true;
+      end = last; // back up
       break;
     }
     fw_s.push_back(c);
@@ -347,6 +348,7 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
   string bw_s;
   size_t bw_dist = 0;
   size_t bw_deg;
+  bool reverseHairpin = false;
   Kmer front = km;
   Kmer first = front;
   while (bw_dist < stride && bwBfStep(front,front,c,bw_deg)) {
@@ -356,6 +358,8 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
     } else if (front == twin) {
       break;
     } else if (front == first.twin()) {
+      reverseHairpin = true;
+      front = first; // back up
       break;
     }
     ++bw_dist;
@@ -1094,8 +1098,6 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
 
   // insert short contigs
   for (vector<string>::iterator it = split_contigs.begin(); it != split_contigs.end(); ++it) {
-    assert(checkShortcuts());
-
     if (it->size() >= k) {
       //bool rev = false;
       const char *s = it->c_str();
@@ -1108,7 +1110,7 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
       // insert contigs into the long contigs, so that the sequence is stored!
       Contig *cont = NULL;
       //if (!rev) {
-      cont = new Contig(s+k,true);
+      cont = new Contig(s,true);
       /* } else {
       string srs = CompressedSequence(s).rev().toString();
       const char *rs = srs.c_str();
@@ -1123,7 +1125,6 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
       }
     }
   }
-  assert(checkShortcuts());
   split_contigs.clear();
 
 
@@ -1131,7 +1132,6 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
   // long contigs
   vector<pair<string, uint64_t>> long_split_contigs;
   for (hmap_long_contig_t::iterator it = lContigs.begin(); it != lContigs.end(); ) {
-    assert(checkShortcuts());
     if (! it->second->ccov.isFull()) {
       const string& s = it->second->seq.toString();
       CompressedCoverage& ccov = it->second->ccov;
@@ -1166,7 +1166,6 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
       ++it;
     }
   }
-  assert(checkShortcuts());
   // insert the pieces back
   for (vector<pair<string, uint64_t>>::iterator it = long_split_contigs.begin(); it != long_split_contigs.end(); ++it) {
     if (it->first.size() >= k) {
@@ -1198,8 +1197,6 @@ pair<size_t, size_t> ContigMapper::splitAllContigs() {
       }
       //cout << "final shortcut at " << (len-k) << endl;
       shortcuts.insert(make_pair(Kmer(s+len-k), make_pair(head,len-k)));
-      assert(checkShortcuts());
-
     }
   }
 
