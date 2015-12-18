@@ -257,7 +257,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
    */
   //spdlog::set_pattern("*** [%H:%M:%S %z] [thread %t] %v ***");
   //auto console = spdlog::stdout_logger_mt("console");
-  
+
   BlockedBloomFilter bf;
   FILE *f = fopen(opt.freads.c_str(), "rb");
   if (f == NULL) {
@@ -283,10 +283,11 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
   KmerIterator iter, iterend;
   FastqFile FQ(opt.files);
 
-  char name[8192], s[8192];
+  char name[8192];
+  string s;
   size_t name_len, len;
   uint64_t n_read = 0;
-  
+
 
   size_t read_chunksize = opt.read_chunksize;
   vector<string> readv;
@@ -305,7 +306,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
       //console->info("Processing read {0}",*x);
       iter = KmerIterator(x->c_str());
       Kmer km, rep;
-      
+
       if (iter != iterend) {
         km = iter->first;
         rep = km.rep();
@@ -347,7 +348,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
 
           // map the read, has no effect for newly created contigs
           cmap.mapRead(cm);
-          
+
           // how many k-mers in the read we can skip
           size_t jump_i = 0; // already moved one forward
           while (jump_i < cm.len) {
@@ -397,14 +398,14 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
 
     assert(rit == readv.end());
     //assert(cmap.checkShortcuts());
-    
+
     for (auto& t : workers) {
       t.join();
     }
     //cmap.printState();
 
     //assert(cmap.checkShortcuts());
-    
+
     // -- this part is serial
     // for each thread
     for (auto &v : parray) {
@@ -420,7 +421,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
     //cmap.printState();
 
     //assert(cmap.checkShortcuts());
-    
+
     if (read_chunksize > 1 && opt.verbose ) {
       cerr << " end of round" << endl;
       cerr << " processed " << cmap.contigCount() << " contigs" << endl;
@@ -459,7 +460,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
   cmap.moveShortContigs(); // Simple, no need to test
   //cout << "after moveshort" << endl;
   //assert(cmap.checkShortcuts());
-  
+
   //cout << "before fixshort " << endl;// cmap.writeContigs(0,"","",true);
 
   bf.clear();

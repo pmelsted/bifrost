@@ -132,7 +132,7 @@ bool FilterReads_CheckOptions(FilterReads_ProgramOptions& opt) {
   bool ret = true;
 
   size_t max_threads = std::thread::hardware_concurrency();
-  
+
   if (opt.threads == 0 || opt.threads > max_threads) {
     cerr << "Error: Invalid number of threads " << opt.threads;
     if (max_threads == 1) {
@@ -258,7 +258,8 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
   BlockedBloomFilter BF2(opt.nkmers2, (size_t) opt.bf2, seed + 1); // use different seeds
 
   bool done = false;
-  char name[8192], s[8192];
+  char name[8192];
+  string s;
   size_t name_len, len, read_chunksize = opt.read_chunksize;
   uint64_t n_read = 0;
   atomic<uint64_t> num_kmers(0), num_ins(0);
@@ -303,7 +304,7 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
     num_kmers += l_num_kmers;
     num_ins += l_num_ins;
   };
-  
+
   while (!done) {
     readv.clear();
     size_t reads_now = 0;
@@ -332,7 +333,7 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
     }
 
     assert(rit==readv.end());
-    
+
     for (auto &t : workers) {
       t.join();
     }

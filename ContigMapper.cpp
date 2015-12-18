@@ -105,8 +105,39 @@ bool ContigMapper::addContig(Kmer km, const string& read, size_t pos, const stri
       if (!loopCC.isEmpty) {
         //cout << it->first.toString() << "matches, pos " << it->second << " to contig with " << loopCC.head.toString() << endl;
         //cout << "strand: " << loopCC.strand << ", dist = " << loopCC.dist << endl;
-        found = true;
-        break;
+        // split the read up from pos up to the position of
+
+        Contig *contig = lContigs.find(loopCC.head)->second;
+        int loopSize = contig->seq.size() - k + 1;
+        int fwMatch = stringMatch(s, read, pos); // how many k-mer to match from the start
+        // position of the matching k-mer within the string
+        int matchPos = (int) it->second;
+        if (loopCC.strand) {
+          int readStart = loopCC.dist - matchPos;
+          if (readStart < 0) {
+            readStart += loopSize;
+            int matchSize = std::min(loopSize - readStart, fwMatch);
+            contig->cover(readStart, readStart+matchSize -1);
+            fwMatch -= matchSize;
+            readStart = 0;
+          }
+          if (fwMatch > 0) {
+            contig->cover(readStart, readStart + fwMatch - 1);
+          }
+        } else {
+          int readStart = loopCC.dist - matchPos;
+          if (readStart < 0) {
+            readStart += loopSize;
+            int matchSize = std::min(readStart,fwMatch);
+            contig->cover(readStart - matchSize, loopSize-1);
+            fwMatch -= matchSize;
+            readStart = loopSize -1;
+          }
+          if (fwMatch > 0) {
+            contig->cover(readStart - fwMatch + 1, readStart);
+          }
+        }
+        return true;
       }
     }
   }
@@ -297,27 +328,27 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
   Kmer end = km;
   Kmer last = end;
   Kmer twin = km.twin();
-  
+
   // need to check if we find it right away, need to treat this common case
   ContigMap cc;
-  
+
   cc = this->find(end);
   if (!cc.isEmpty && !cc.isShort) {
     // ok, fetch the sequence
     const CompressedSequence& seq = lContigs.find(cc.head)->second->seq;
     size_t km_dist = cc.dist;
     size_t jlen = 0;
-    
+
     if (cc.strand) {
       jlen = seq.jump(s.c_str(), pos, cc.dist, false) -k + 1;
     } else {
       jlen = seq.jump(s.c_str(), pos, cc.dist+k-1, true) -k + 1;
       km_dist -= (jlen-1);
     }
-    
+
     return ContigMap(cc.head, km_dist, jlen, cc.size, cc.strand, cc.isShort);
   }
-  
+
   char c;
   string fw_s;
   size_t fw_dist = 0;
@@ -371,7 +402,7 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
   }
 
 
-  
+
 
   cc = this->find(end);
   if (! cc.isEmpty) {
@@ -384,7 +415,7 @@ ContigMap ContigMapper::findContig(Kmer km, const string& s, size_t pos) const {
           cc.strand = false;
         } else {
           km_dist -= fw_dist;
-        } 
+        }
       } else {
         km_dist += fw_dist - (len-1);
       }
@@ -875,7 +906,7 @@ size_t ContigMapper::joinAllContigs() {
       // can't join a sequence with itself, either hairPin, loop or mobius loop
       continue;
     }
-    
+
     if (!cHead.isEmpty && !cTail.isEmpty) {
 
       // both kmers are still end-kmers
@@ -1341,11 +1372,11 @@ void ContigMapper::printState() const {
   for (auto& kv : lContigs) {
     cout << "  [" << kv.first.toString() << "] -> seq = " << kv.second->seq.toString() << ", cov = " << kv.second->ccov.toString() << endl;
   }
-    
+
   cout << "Shortcuts" << endl;
   for (auto& kv : shortcuts) {
     cout << "  [" << kv.first.toString() << "] -> (km,pos) = (" << kv.second.first.toString() << ", " << kv.second.second << ")" << endl;
   }
-      
-  
+
+
 }
