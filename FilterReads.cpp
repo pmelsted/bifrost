@@ -29,9 +29,10 @@ struct FilterReads_ProgramOptions {
   string output;
   size_t bf, bf2;
   uint32_t seed;
+  bool ref;
   vector<string> files;
   FilterReads_ProgramOptions() : verbose(false), threads(1), k(0), nkmers(0), nkmers2(0), \
-    outputfile(NULL), bf(4), bf2(8), seed(0), read_chunksize(10000) {}
+    outputfile(NULL), bf(4), bf2(8), seed(0), read_chunksize(10000), ref(false) {}
 };
 
 // use:  FilterReads_PrintUsage();
@@ -46,6 +47,7 @@ void FilterReads_PrintUsage() {
        "  -t, --threads=INT           Number of threads to use (default 1)" << endl <<
        "  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default 10000 for multithreaded else 1)" << endl <<
        "  -k, --kmer-size=INT         Size of k-mers, the same value as used for filtering reads" << endl <<
+       "      --ref                   Reference mode, no filtering use only num_kmers and bloom-bits" << endl <<
        "  -n, --num-kmers=LONG        Estimated number of k-mers (upper bound)" << endl <<
        "  -N, --num-kmer2=LONG        Estimated number of k-mers in genome (upper bound)" << endl <<
        "  -o, --output=STRING         Filename for output" << endl <<
@@ -73,6 +75,7 @@ void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions&
     {"bloom-bits",  required_argument, 0, 'b'},
     {"bloom-bits2", required_argument, 0, 'B'},
     {"seed",        required_argument, 0, 's'},
+    {"ref",         no_argument,       0,  0 },
     {0,             0,                 0,  0 }
   };
 
@@ -81,6 +84,9 @@ void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions&
   while ((c = getopt_long(argc, argv, opt_string, long_options, &option_index)) != -1) {
     switch (c) {
     case 0:
+      if (strcmp(long_options[option_index].name, "ref") == 0) {
+        opt.ref = true;
+      }
       break;
     case 'v':
       opt.verbose = true;
@@ -203,6 +209,11 @@ bool FilterReads_CheckOptions(FilterReads_ProgramOptions& opt) {
     ret = false;
   }
 
+  if (opt.ref) {
+    opt.bf2 = 0;
+    opt.nkmers2 = 0;
+  }
+
   return ret;
 }
 
@@ -219,10 +230,12 @@ void FilterReads_PrintSummary(const FilterReads_ProgramOptions& opt) {
   fp = pow(pow(.5,log(2.0)),(double) opt.bf);
   cerr << fp << endl;
 
-  cerr << "Using bloom filter size for second set: " << opt.bf2 << " bits per element" << endl;
-  cerr << "Estimated false positive rate for second set: ";
-  fp = pow(pow(.5,log(2.0)),(double) opt.bf2);
-  cerr << fp << endl;
+  if (opt.ref) {
+    cerr << "Using bloom filter size for second set: " << opt.bf2 << " bits per element" << endl;
+    cerr << "Estimated false positive rate for second set: ";
+    fp = pow(pow(.5,log(2.0)),(double) opt.bf2);
+    cerr << fp << endl;
+  }
 }
 
 
@@ -280,22 +293,29 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
         ++l_num_kmers;
         Kmer km = iter->first;
         Kmer rep = km.rep();
-        // check first bloom filter for rep
-        size_t r = BF.search(rep);
-        if (r == 0) {
-          // if contains rep, insert into second bloom filter
-          if (!BF2.contains(rep)) {
-            BF2.insert(rep);
-            ++l_num_ins;
+        if (!opt.ref) {
+          // check first bloom filter for rep
+          size_t r = BF.search(rep);
+          if (r == 0) {
+            // if contains rep, insert into second bloom filter
+            if (!BF2.contains(rep)) {
+              BF2.insert(rep);
+              ++l_num_ins;
+            }
+          } else {
+            if (BF.insert(rep) == r) {
+              ++l_num_ins;
+            } else {
+              /*if (opt.verbose) {
+                cerr << "clash!" << endl;
+                }*/
+              BF2.insert(rep); // better safe than sorry
+            }
           }
         } else {
-          if (BF.insert(rep) == r) {
+          if (!BF.contains(rep)) {
+            BF.insert(rep);
             ++l_num_ins;
-          } else {
-            /*if (opt.verbose) {
-              cerr << "clash!" << endl;
-              }*/
-            BF2.insert(rep); // better safe than sorry
           }
         }
       }
@@ -353,17 +373,24 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
 
   // First write metadata for bloom filter to opt.outputfile,
   // then the actual filter
-  if (!BF2.WriteBloomFilter(opt.outputfile)) {
-    cerr << "Error writing data to file: " << opt.output << endl;
+  if (!opt.ref) {
+    if (!BF2.WriteBloomFilter(opt.outputfile)) {
+      cerr << "Error writing data to file: " << opt.output << endl;
+    }
+  } else {
+    if (!BF.WriteBloomFilter(opt.outputfile)) {
+      cerr << "Error writing data to file: " << opt.output << endl;
+    }
   }
-
   fclose(opt.outputfile);
 
   if (opt.verbose) {
     cerr << " done" << endl;
 
     cerr << "Bloomfilter 1 count: " << BF.count() << endl;
-    cerr << "Bloomfilter 2 count: " << BF2.count() << endl;
+    if (!opt.ref) {
+      cerr << "Bloomfilter 2 count: " << BF2.count() << endl;
+    }
   }
 
 }
