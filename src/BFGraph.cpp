@@ -41,7 +41,7 @@ void PrintCite() {
 
 int main(int argc, char **argv) {
   if (argc < 2) {
-    cerr << "Error: too few arguments" << endl;
+    //cerr << "Error: too few arguments" << endl;
     PrintUsage();
   } else {
     if (strcmp(argv[1], "cite") == 0) {

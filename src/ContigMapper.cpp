@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <fstream>
 
-#include "spdlog/spdlog.h"
 
 // for debugging
 #include <iostream>
@@ -56,26 +55,19 @@ void ContigMapper::mapBloomFilter(const BlockedBloomFilter *bf) {
 // pre:  cc is a reference to a current contig in cm, km maps to cc
 // post: the coverage information in cc has been updated
 void ContigMapper::mapRead(const ContigMap& cc) {
-  //auto console = spdlog::stdout_logger_mt("console");
   if (cc.isEmpty) { // nothing maps, move on
-    //console->info("Empty read, not mapping");
     return;
   } else if (cc.isShort) {
     // find short contig
     hmap_short_contig_t::iterator it = sContigs.find(cc.head);
     CompressedCoverage& cov = it->second; // reference to the info
     // increase coverage
-    //console->info("Short contig, maps to {0} from {1} to {2}", cc.head.toString(), cc.dist, cc.dist+cc.len-1);
-    //console->info("Coverage before {0}", cov.toString());
     cov.cover(cc.dist, cc.dist + cc.len-1);
-    //console->info("Coverage after {0}", cov.toString());
   } else {
     // find long contig
     hmap_long_contig_t::iterator it = lContigs.find(cc.head);
     Contig *cont = it->second;
-    //console->info("Long contig, maps to {0} from {1} to {2}", cc.head.toString(), cc.dist, cc.dist+cc.len-1);   //console->info("Coverage before {0}", cont->ccov.toString());
     cont->cover(cc.dist, cc.dist+cc.len-1);
-    //console->info("Coverage after {0}", cont->ccov.toString());
     //cout << cc.head.toString() << " : " << cc.dist << " - " << cc.dist + cc.len-1 << endl;
     //cout << cont->ccov.toString() << endl;
   }

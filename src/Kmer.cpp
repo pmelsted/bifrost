@@ -148,7 +148,7 @@ void Kmer::set_deleted() {
 //       which indicates that the km is invalid
 void Kmer::set_empty() {
   memset(bytes,0xff,MAX_K/4);
-  longs[0] ^= (1ULL<<63); //
+  bytes[0] ^= 1; //
 }
 
 
@@ -184,18 +184,6 @@ bool Kmer::operator<(const Kmer& o) const {
 }
 
 
-// use:  b = (km1 == km2);
-// pre:
-// post: b is true <==> the DNA strings in km1 and km2 are equal
-bool Kmer::operator==(const Kmer& o) const {
-  for (size_t i = 0; i < MAX_K/32; i++) {
-    if (longs[i] != o.longs[i]) {
-      return false;
-    }
-  }
-  return true;
-  //  return memcmp(bytes,o.bytes,MAX_K/4)==0;
-}
 
 
 // use:  km.set_kmer(s);
@@ -230,7 +218,7 @@ void Kmer::set_kmer(const char *s)  {
 // post: i is the hash value of km
 uint64_t Kmer::hash() const {
   uint64_t ret;
-  MurmurHash3_x64_64((const void *)bytes,k_bytes,0,&ret);
+  MurmurHash3_x64_64((const void *)bytes,MAX_K/4,0,&ret);
   return ret;
 }
 

@@ -17,8 +17,8 @@ struct KmerHashTable {
 
   Hash hasher;
   value_type *table;
-  size_t size_, pop;
-  value_type empty;
+  size_t size_, pop, num_empty;
+  value_type empty_val;
   value_type deleted;
 
 
@@ -49,7 +49,7 @@ struct KmerHashTable {
       h = 0;
       if (ht->table != nullptr && ht->size_>0) {
         Kmer& km = ht->table[h].first;
-        if (km == ht->empty.first || km == ht->deleted.first) {
+        if (km == ht->empty_val.first || km == ht->deleted.first) {
           operator++();
         }
       }
@@ -68,7 +68,7 @@ struct KmerHashTable {
       ++h;
       for (; h < ht->size_; ++h) {
         Kmer& km = ht->table[h].first;
-        if (km != ht->empty.first && km != ht->deleted.first) {
+        if (km != ht->empty_val.first && km != ht->deleted.first) {
           break;
         }
       }
@@ -86,14 +86,14 @@ struct KmerHashTable {
   // --- hash table
 
 
-  KmerHashTable(const Hash& h = Hash() ) : hasher(h), table(nullptr), size_(0), pop(0) {
-    empty.first.set_empty();
+  KmerHashTable(const Hash& h = Hash() ) : hasher(h), table(nullptr), size_(0), pop(0), num_empty(0) {
+    empty_val.first.set_empty();
     deleted.first.set_deleted();
     init_table(1024);
   }
 
-  KmerHashTable(size_t sz, const Hash& h = Hash() ) : hasher(h), table(nullptr), size_(0), pop(0) {
-    empty.first.set_empty();
+  KmerHashTable(size_t sz, const Hash& h = Hash() ) : hasher(h), table(nullptr), size_(0), pop(0), num_empty(0) {
+    empty_val.first.set_empty();
     deleted.first.set_deleted();
     init_table((size_t) (1.2*sz));
   }
@@ -109,50 +109,65 @@ struct KmerHashTable {
     }
     size_ = 0;
     pop  = 0;
+    num_empty = 0;
   }
 
   size_t size() const {
     return pop;
   }
 
+  bool empty() const {
+    return pop == 0;
+  }
+
   void clear() {
-    std::fill(table, table+size_, empty);
+    std::fill(table, table+size_, empty_val);
     pop = 0;
+    num_empty = size_;
   }
 
   void init_table(size_t sz) {
     clear_table();
     size_ = rndup(sz);
+    num_empty = 0;
     //cerr << "init table of size " << size_ << endl;
     table = new value_type[size_];
-    std::fill(table, table+size_, empty);
+    std::fill(table, table+size_, empty_val);
   }
 
   iterator find(const Kmer& key) {
     size_t h = hasher(key) & (size_-1);
+    size_t end_h = (h == 0) ? (size_-1) : h-1;
 
     for (;; h =  (h+1!=size_ ? h+1 : 0)) {
-      if (table[h].first == empty.first) {
+      if (table[h].first == empty_val.first) {
         // empty slot, not in table
         return iterator(this);
       } else if (table[h].first == key) {
         // same key, found
         return iterator(this, h);
       } // if it is deleted, we still have to continue
+      if (h==end_h) {
+        // we've gone throught the table, quit
+        return iterator(this);
+      }
     }
   }
 
   const_iterator find(const Kmer& key) const {
-
     size_t h = hasher(key) & (size_-1);
+    size_t end_h = (h == 0) ? (size_-1) : h-1;
 
     for (;; h =  (h+1!=size_ ? h+1 : 0)) {
-      if (table[h].first == empty.first) {
+      if (table[h].first == empty_val.first) {
         // empty slot, not in table
         return const_iterator(this);
       } else if (table[h].first == key) {
         // same key, found
         return const_iterator(this, h);
+      }
+      if (h==end_h) {
+        return const_iterator(this);
       }
     }
   }
@@ -179,7 +194,7 @@ struct KmerHashTable {
 
   std::pair<iterator,bool> insert(const value_type& val) {
     //cerr << "inserting " << val.first.toString() << " = " << val.second << endl;
-    if ((pop + (pop>>4))> size_) { // if more than 80% full
+    if ((5*num_empty) < size_) { // if more than 80% full
       //cerr << "-- triggered resize--" << endl;
       reserve(2*size_);
     }
@@ -188,11 +203,15 @@ struct KmerHashTable {
     //cerr << " hash value = " << h << endl;
     for (;; h = (h+1!=size_ ? h+1 : 0)) {
       //cerr << "  lookup at " << h << endl;
-      if (table[h].first == empty.first || table[h].first == deleted.first) {
+      bool is_empty = table[h].first == empty_val.first;
+      if ( is_empty || table[h].first == deleted.first) {
         //cerr << "   found empty slot" << endl;
         // empty slot, insert here
         table[h] = val;
         ++pop; // new table
+        if (is_empty) {
+          num_empty--;
+        }
         return {iterator(this, h), true};
       } else if (table[h].first == val.first) {
         // same key, update value
@@ -215,11 +234,12 @@ struct KmerHashTable {
 
     size_ = rndup(sz);
     pop = 0;
+    num_empty = size_;
 
     table = new value_type[size_];
-    std::fill(table, table+size_, empty);
+    std::fill(table, table+size_, empty_val);
     for (size_t i = 0; i < old_size_; i++) {
-      if (old_table[i].first != empty.first && old_table[i].first != deleted.first) {
+      if (old_table[i].first != empty_val.first && old_table[i].first != deleted.first) {
         insert(old_table[i]);
       }
     }

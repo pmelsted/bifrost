@@ -26,8 +26,6 @@
 #include "ContigMapper.hpp"
 #include "KmerHashTable.h"
 
-#include "spdlog/spdlog.h"
-
 
 struct BuildContigs_ProgramOptions {
   bool verbose;
@@ -59,8 +57,8 @@ void BuildContigs_PrintUsage() {
        "  -k, --kmer-size=INT         Size of k-mers, at most " << (int) (Kmer::MAX_K-1)<< endl <<
        "  -f, --filtered=STRING       File with filtered reads" << endl <<
        "  -o, --output=STRING         Prefix for output files" << endl <<
-       "  -s, --stride=INT            Distance between saved kmers when mapping (default is kmer-size)"
-       "      --no-clip-tips          Do not clip short tips, less than k k-mers in length (default: true)" <<endl <<
+       "  -s, --stride=INT            Distance between saved kmers when mapping (default is kmer-size)" << endl <<
+       "      --no-clip-tips          Do not clip short tips, less than k k-mers in length (default: true)" << endl <<
        "      --no-del-isolated=BOOL  Do not deleted isolated contigs shorter than k k-mers (default: true)"
        << endl << endl;
 }
@@ -255,9 +253,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
    *            when the contig is ready,
    *            try to jump over as many kmers as possible
    */
-  //spdlog::set_pattern("*** [%H:%M:%S %z] [thread %t] %v ***");
-  //auto console = spdlog::stdout_logger_mt("console");
-
+  
   BlockedBloomFilter bf;
   FILE *f = fopen(opt.freads.c_str(), "rb");
   if (f == NULL) {
@@ -303,7 +299,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
     // for each input
     for (auto x = a; x != b; ++x) {
       KmerIterator iter, iterend;
-      //console->info("Processing read {0}",*x);
       iter = KmerIterator(x->c_str());
       Kmer km, rep;
 
@@ -317,12 +312,9 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
           // jump over it
           iter.raise(km, rep);
         } else {
-          //console->info("Found k-mer {0}", km.toString());
           // find mapping contig
           ContigMap cm = cmap.findContig(km, *x, iter->second);
-          //console->info("searched for k-mer");
           if (cm.isEmpty) {
-            //console->info("did not find k-mer");
             // kmer did not map,
             // push into queue for next contig generation round
             bool add = true;
@@ -337,10 +329,9 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
               string newseq;
               cmap.findContigSequence(km,newseq,selfLoop);
               if (selfLoop) {
-                //console->info("selfloop");
                 newseq.clear(); //let addContig handle it
               } else {
-                //console->info("Adding sequence {0}",newseq);
+                // pass
               }
               smallv->emplace_back(km,*x,iter->second, newseq);
             }
@@ -355,7 +346,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
             jump_i++;
             iter.raise(km,rep); // any N's will not map to contigs, so normal skipping is fine
           }
-          //console->info(" skipped {0} k-mers", jump_i);
         } // done iterating through read
       } // done iterating through read batch
     }
