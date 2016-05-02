@@ -282,7 +282,7 @@ void ContigMapper::findContigSequence(Kmer km, string& s, bool& selfLoop) {
         selfLoop = true;
         break;
       } else if (front == twin) {
-        selfLoop = true;
+        //selfLoop = true; // hairpins are not selfloops
         break;
       } else if (front == first.twin()) {
         break;

@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <cstdlib>
 
 #include "hash.hpp"
 #include "libdivide.h"
@@ -28,7 +29,7 @@ class BlockedBloomFilter {
  public:
   BlockedBloomFilter() : seed_(0), size_(0), table_(NULL), k_(0), blocks_(0), fast_div_() {}
   BlockedBloomFilter(size_t num, size_t bits, uint32_t seed) : seed_(seed), size_(0), table_(NULL), fast_div_() {
-    //cout << "num="<<num << ", bits="<<bits;
+    //std::cerr << "num="<<num << ", bits="<<bits << std::endl;
     size_ = rndup512(bits*num);
     blocks_ = size_/512;
     //cout <<", size=" << size_ << endl;
@@ -58,44 +59,62 @@ class BlockedBloomFilter {
 
   template<typename T>
   size_t search(T x) const {
-    size_t r = k_;
-    uint64_t block; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_+2, &block);
+    //size_t r = k_;
+
+    uint64_t hash; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_, &hash);
+    uint64_t hash0 = hash / fast_div_; // hash0 = hash / blocks;
+    uint64_t block = hash - hash0 * blocks_; // blocks = hash % blocks;
+    //uint64_t block; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_+2, &block);
     // block is the index of the 512 bit memory block where x would be stored
     // 0 <= block < blocks
-    block = block - (block / fast_div_) * (blocks_); // block % blocks
+    //block = block - (block / fast_div_) * (blocks_); // block % blocks
 
-    uint64_t hash0; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_ , &hash0);
-    hash0 |= 1; // make hash0 an odd number
-    uint64_t hash1; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_+1, &hash1);
+    //uint64_t hash0; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_ , &hash0);
+    //hash0 = hash0 & 0xFFFFFFFF;
+    //hash0 |= 1; // make hash0 an odd number
+    //uint64_t hash1; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_+1, &hash1);
+    __builtin_prefetch(table_+8*block,0,1);
     for (uint64_t i = 0; i < k_; i++) {
       // 0 <= bit < 512, which bit to set
-      uint64_t bit = (hash0 * i + hash1) & 0x1ffULL; // equal to hash % 512;
+      uint64_t bit = (hash0) & 0x1ffULL; // equal to hash % 512;
+      hash0 = (hash0 * 48271) % (2147483647ULL);
+      /*MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_ +2+i, &hash0);
+      uint64_t bit = hash0 & 0x1ffULL;*/
       // we set bit number (id % 8) in byte (table_[block + id/8]) to 1
       uint64_t maskcheck = 1ULL << (bit & 0x3fULL);
       uint64_t loc = 8*block + (bit>>6);
 
       if ((table_[loc] &  maskcheck) != 0) {
-        r--;
+        //r--;
+      } else {
+        return k_;
       }
     }
-    return r;
+    //return r;
+    return 0;
   }
 
   template<typename T>
   size_t insert(T x) {
     size_t r = 0;
-    uint64_t block; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_+2, &block);
+    uint64_t hash; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_, &hash);
+    uint64_t hash0 = hash / fast_div_; // hash0 = hash / blocks;
+    uint64_t block = hash - hash0 * blocks_; // blocks = hash % blocks;
     // block is the index of the 512 bit memory block where x would be stored
     // 0 <= block < blocks
-    block = block - (block / fast_div_) * (blocks_); // block % blocks
+    //block = block - (block / fast_div_) * (blocks_); // block % blocks
     // Multiply block by 64 to get the first byte of the block
 
-    uint64_t hash0; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_  , &hash0);
-    hash0 |= 1; // make hash0 an odd number
-    uint64_t hash1; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_+1, &hash1);
+    //uint64_t hash0; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_  , &hash0);
+    //hash0 = hash0 & 0xFFFFFFFF;
+    //hash0 |= 1; // make hash0 an odd number
+    //uint64_t hash1; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_+1, &hash1);
     for(uint64_t i = 0; i < k_; i++) {
       // 0 <= bit < 512, which bit to set
-      uint64_t bit = (hash0 * i + hash1) & 0x1ffULL; // equal to hash % 512;
+      uint64_t bit = (hash0) & 0x1ffULL; // equal to hash % 512;
+      hash0 = (hash0 * 48271) % (2147483647ULL);
+      /*MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_ +2+i, &hash0);
+      uint64_t bit = hash0 & 0x1ffULL;*/
       // we set bit number (id % 8) in byte (table_[block + id/8]) to 1
       uint64_t maskcheck = 1ULL << (bit & 0x3fULL);
       uint64_t loc = 8*block + (bit>>6);
@@ -145,7 +164,7 @@ class BlockedBloomFilter {
         }
       }
     }
-    std::cout << c << " bits set out of " << size_ << " with k = " << k_ << std::endl;
+    //std::cout << c << " bits set out of " << size_ << " with k = " << k_ << std::endl;
     if (c != 0) {
       double n = size_*(-log(1.0-((double)c)/size_))/k_;
       //cout << "estimate =" << (size_t)n  << endl;
@@ -157,7 +176,8 @@ class BlockedBloomFilter {
 
   void clear() {
     if (table_ != NULL) {
-      delete[] table_;
+      //delete[] table_;
+      free(table_);
     }
     table_ = NULL;
     size_ = 0;
@@ -170,8 +190,9 @@ class BlockedBloomFilter {
 
   void init_table() {
     fast_div_ = libdivide::divider<uint64_t>(blocks_);
-    table_ = new uint64_t[8*blocks_];
-    memset(table_, 0, 8*blocks_);
+    //table_ = new uint64_t[8*blocks_];
+    posix_memalign((void**)&table_, 64, 8*blocks_*sizeof(table_[0]));
+    memset(table_, 0, 8*blocks_*sizeof(table_[0]));
   }
 
   void init_k(size_t bits) {
@@ -181,7 +202,7 @@ class BlockedBloomFilter {
     } else {
       k_ = k+1;
     }
-    std::cerr << "k="<<k_<<", fpp="<<fpp(bits,k_) <<  std::endl;
+    //std::cerr << "k="<<k_<<", fpp="<<fpp(bits,k_) <<  std::endl;
   }
 
   double fpp(size_t bits, size_t k) const {
