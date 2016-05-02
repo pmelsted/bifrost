@@ -2,14 +2,17 @@ BFGraph is a memory efficient program for counting k-mers from sequencing files.
 
 Installation
 ============
-Just run make to compile.
+Compilation requires cmake 2.8.12. To build type
 
+% mkdir build
+% cd build
+% cmake ..
 % make
 
 The default maximum k-mer size supported is 31 (8 bytes of memory per k-mer), to modify this either
-replace MAX_KMER_SIZE in Makefile with an appropriate number or directly to make with
+replace MAX_KMER_SIZE in CMakeLists.txt with an appropriate number
 
-% make MAX_KMER_SIZE=64
+% % set( MAX_KMER_SIZE "64")
 
 In this case the maximum k-mer size allowed is 63, and each k-mer will use 16 bytes of memory.
 
@@ -36,9 +39,6 @@ Example of usage
 The directory example contains two small read files. 
 See the file 'example.sh' to see how to run the program on these files.
 
-Doxygen automatic documentation
-===============================
-Run `doxygen Doxyfile` to get html, latex and man documentation.
 
 Notes
 =====
@@ -47,7 +47,7 @@ Notes
   platforms should be easy, but we haven't done so yet.
 
 * If you run into bugs or problems or have suggestions for future versions 
-  please contact me at pmelsted@gmail.com
+  please contact me at pmelsted@gmail.com or file an issue
 
 License
 =======

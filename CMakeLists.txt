@@ -6,7 +6,7 @@ project(BFGraph)
 # we use 1 byte for every 4 bp in kmers. Ideally
 # this parameter should be a multiple of 4.
 # Actual maximum kmer size is 1 less.
-set( MAX_KMER_SIZE "64")
+set( MAX_KMER_SIZE "32")
 
 add_compile_options(-std=c++11)
 IF(CMAKE_BUILD_TYPE MATCHES Debug)
