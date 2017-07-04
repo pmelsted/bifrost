@@ -9,7 +9,7 @@
 #include "ContigMethods.hpp"
 #include "KmerHashTable.h"
 
-
+#include "RepHash.hpp"
 /*
   Short description:
 
@@ -56,6 +56,7 @@ class ContigMapper {
   void printState() const;
 
  private:
+
   const BlockedBloomFilter *bf;
   size_t limit;
   size_t stride;
@@ -65,9 +66,6 @@ class ContigMapper {
   ContigMap find(Kmer km) const;
   bool fwBfStep(Kmer km, Kmer& end, char& c, size_t& deg) const;
   bool bwBfStep(Kmer km, Kmer& front, char& c, size_t& deg) const;
-
-
-
 
   typedef KmerHashTable<CompressedCoverage> hmap_short_contig_t;
   typedef KmerHashTable<Contig *> hmap_long_contig_t;

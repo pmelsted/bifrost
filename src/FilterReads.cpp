@@ -21,6 +21,9 @@
 #include "KmerIterator.hpp"
 #include "BlockedBloomFilter.hpp"
 
+#include "minHashIterator.hpp"
+#include "RepHash.hpp"
+
 
 struct FilterReads_ProgramOptions {
   bool verbose;
@@ -230,14 +233,13 @@ void FilterReads_PrintSummary(const FilterReads_ProgramOptions& opt) {
   fp = pow(pow(.5,log(2.0)),(double) opt.bf);
   cerr << fp << endl;
 
-  if (opt.ref) {
+  if (!opt.ref) {
     cerr << "Using bloom filter size for second set: " << opt.bf2 << " bits per element" << endl;
     cerr << "Estimated false positive rate for second set: ";
     fp = pow(pow(.5,log(2.0)),(double) opt.bf2);
     cerr << fp << endl;
   }
 }
-
 
 // use:  FilterReads_Normal(opt);
 // pre:  opt has information about Kmer size, Bloom Filter sizes,
@@ -261,137 +263,149 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
    *  now BF2 contains at least all the kmers that appear once
    */
 
+    uint32_t seed = opt.seed;
+    if (seed == 0) seed = (uint32_t) time(NULL);
 
-  uint32_t seed = opt.seed;
-  if (seed == 0) {
-    seed = (uint32_t) time(NULL);
-  }
+    BlockedBloomFilter BF(opt.nkmers, (size_t) opt.bf, seed);
+    BlockedBloomFilter BF2(opt.nkmers2, (size_t) opt.bf2, seed + 1); // use different seeds
 
-  BlockedBloomFilter BF(opt.nkmers, (size_t) opt.bf, seed);
-  BlockedBloomFilter BF2(opt.nkmers2, (size_t) opt.bf2, seed + 1); // use different seeds
+    bool done = false;
+    char name[8192];
+    string s;
+    size_t name_len, len, read_chunksize = opt.read_chunksize;
+    uint64_t n_read = 0;
+    atomic<uint64_t> num_kmers(0), num_ins(0);
 
-  bool done = false;
-  char name[8192];
-  string s;
-  size_t name_len, len, read_chunksize = opt.read_chunksize;
-  uint64_t n_read = 0;
-  atomic<uint64_t> num_kmers(0), num_ins(0);
+    FastqFile FQ(opt.files);
+    vector<string> readv;
 
-  FastqFile FQ(opt.files);
-  vector<string> readv;
+    const int min_length = 21;
+    const bool neighbor_hash = true;
 
-  // Main worker thread
-  auto worker_function = [&](vector<string>::const_iterator a,
-                             vector<string>::const_iterator b) {
-    uint64_t l_num_kmers = 0, l_num_ins = 0;
-    // for each input
-    for (auto x = a; x != b; ++x) {
-      KmerIterator iter, iterend;
-      iter = KmerIterator(x->c_str());
-      // for each k-mer
-      for (; iter != iterend; ++iter) {
-        ++l_num_kmers;
-        Kmer km = iter->first;
-        Kmer rep = km.rep();
-        if (!opt.ref) {
-          // check first bloom filter for rep
-          size_t r = BF.search(rep);
-          if (r == 0) {
-            // if contains rep, insert into second bloom filter
-            if (!BF2.contains(rep)) {
-              BF2.insert(rep);
-              ++l_num_ins;
+    // Main worker thread
+    auto worker_function = [&](vector<string>::const_iterator a, vector<string>::const_iterator b) {
+
+        uint64_t l_num_kmers = 0, l_num_ins = 0;
+
+        // for each input
+        for (auto x = a; x != b; ++x) {
+
+            KmerHashIterator<RepHash> it_kmer_h(x->c_str(), x->length(), opt.k), it_kmer_h_end;
+            minHashIterator<RepHash> it_min(x->c_str(), x->length(), opt.k, min_length, RepHash(), neighbor_hash);
+
+            for (int last_pos = -1; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min, ++l_num_kmers) {
+
+                std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
+
+                // If one or more k-mer were jumped because contained non-ACGT char.
+                if (p_.second != last_pos + 1)
+                    it_min = minHashIterator<RepHash>(&x->c_str()[p_.second], x->length() - p_.second, opt.k, min_length, RepHash(), neighbor_hash);
+
+                last_pos = p_.second;
+                //minHashResult min_hr = *(*it_min);
+                uint64_t min_hr = it_min.getHash();
+
+                if (!opt.ref) {
+
+                    if (BF.search_and_insert(p_.first, min_hr) != 0) ++l_num_ins;
+                    else if (BF2.search_and_insert(p_.first, min_hr) != 0) ++l_num_ins;
+                }
+                else {
+
+                    BF.insert(p_.first, min_hr);
+                    ++l_num_ins;
+                }
             }
-          } else {
-            if (BF.insert(rep) == r) {
-              ++l_num_ins;
-            } else {
-              /*if (opt.verbose) {
-                cerr << "clash!" << endl;
-                }*/
-              BF2.insert(rep); // better safe than sorry
-            }
-          }
-        } else {
-          if (!BF.contains(rep)) {
-            BF.insert(rep);
-            ++l_num_ins;
-          }
         }
-      }
+
+        // atomic adds
+        num_kmers += l_num_kmers;
+        num_ins += l_num_ins;
+    };
+
+    while (!done) {
+
+        readv.clear();
+        size_t reads_now = 0;
+
+        while (reads_now < read_chunksize) {
+
+            if (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
+
+                readv.emplace_back(s);
+                ++n_read;
+                ++reads_now;
+            }
+            else {
+
+                done = true;
+                break;
+            }
+        }
+
+        vector<thread> workers;
+        // create worker threads
+        auto rit = readv.begin();
+        size_t batch_size = readv.size()/opt.threads;
+        size_t leftover   = readv.size()%opt.threads;
+
+        for (size_t i = 0; i < opt.threads; i++) {
+
+            size_t jump = batch_size + ((i < leftover ) ? 1 : 0);
+
+            auto rit_end(rit);
+            advance(rit_end, jump);
+            workers.push_back(thread(worker_function, rit, rit_end));
+
+            rit = rit_end;
+        }
+
+        assert(rit==readv.end());
+
+        for (auto &t : workers) t.join();
     }
-    // atomic adds
-    num_kmers += l_num_kmers;
-    num_ins += l_num_ins;
-  };
 
-  while (!done) {
-    readv.clear();
-    size_t reads_now = 0;
-    while (reads_now < read_chunksize) {
-      if (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
-        readv.emplace_back(s);
-        ++n_read;
-        ++reads_now;
-      } else {
-        done = true;
-        break;
-      }
+    FQ.close();
+
+    if (opt.verbose) {
+
+        cerr << "Closed all fasta/fastq files" << endl;
+        cerr << "processed " << num_kmers << " kmers in " << n_read  << " reads"<< endl;
+        cerr << "found " << num_ins << " non-filtered kmers" << endl;
+        cerr << "Writing bloom filter to " << opt.output << endl << "Bloom filter size is " << num_ins << endl;
     }
 
-    vector<thread> workers;
-    // create worker threads
-    auto rit = readv.begin();
-    size_t batch_size = readv.size()/opt.threads;
-    size_t leftover   = readv.size()%opt.threads;
-    for (size_t i = 0; i < opt.threads; i++) {
-      size_t jump = batch_size + ((i < leftover ) ? 1 : 0);
-      auto rit_end(rit);
-      advance(rit_end, jump);
-      workers.push_back(thread(worker_function, rit, rit_end));
-      rit = rit_end;
-    }
-
-    assert(rit==readv.end());
-
-    for (auto &t : workers) {
-      t.join();
-    }
-  }
-
-  FQ.close();
-  if (opt.verbose) {
-    cerr << "Closed all fasta/fastq files" << endl;
-
-    cerr << "processed " << num_kmers << " kmers in " << n_read  << " reads"<< endl;
-    cerr << "found " << num_ins << " non-filtered kmers" << endl;
-
-    cerr << "Writing bloom filter to " << opt.output << endl
-         << "Bloom filter size is " << num_ins << endl;
-  }
-
-
-  // First write metadata for bloom filter to opt.outputfile,
-  // then the actual filter
-  if (!opt.ref) {
-    if (!BF2.WriteBloomFilter(opt.outputfile)) {
-      cerr << "Error writing data to file: " << opt.output << endl;
-    }
-  } else {
-    if (!BF.WriteBloomFilter(opt.outputfile)) {
-      cerr << "Error writing data to file: " << opt.output << endl;
-    }
-  }
-  fclose(opt.outputfile);
-
-  if (opt.verbose) {
-    cerr << " done" << endl;
-
-    cerr << "Bloomfilter 1 count: " << BF.count() << endl;
+    // First write metadata for bloom filter to opt.outputfile then the actual filter
     if (!opt.ref) {
-      cerr << "Bloomfilter 2 count: " << BF2.count() << endl;
+
+        if (!BF2.WriteBloomFilter(opt.outputfile)) cerr << "Error writing data to file: " << opt.output << endl;
+        else if (!BF.WriteBloomFilter(opt.outputfile)) cerr << "Error writing data to file: " << opt.output << endl;
     }
-  }
+
+    fclose(opt.outputfile);
+
+    if (opt.verbose) {
+
+        cerr << " done" << endl;
+        cerr << "Bloomfilter 1 count: " << BF.count() << endl;
+        if (!opt.ref) cerr << "Bloomfilter 2 count: " << BF2.count() << endl;
+    }
+
+    /*
+    std::string km_test = "ACAGGGCTTGTGAGGATGATCCTATGGCTTT";
+
+    RepHash km_h(opt.k);
+    km_h.init(km_test.c_str());
+
+    minHashKmer<RepHash> min_h(km_test.c_str(), opt.k, 21, RepHash(), neighbor_hash);
+
+    if (BF2.contains(km_h.hash(), min_h.getHash())){
+        cerr << "ACAGGGCTTGTGAGGATGATCCTATGGCTTT found" << endl;
+        cerr << "km_h.hash() = " << km_h.hash() << endl;
+        cerr << "min_h.getHash() = " << min_h.getHash() << endl;
+    }
+    else cerr << "ACAGGGCTTGTGAGGATGATCCTATGGCTTT not found" << endl;
+        */
 
 }
 

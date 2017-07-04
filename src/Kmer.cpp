@@ -5,17 +5,18 @@
 
 using namespace std;
 
-/*// use:  int2bin(a, buffer, buf_size);
+/*
+// use:  int2bin(a, buffer, buf_size);
 // pre:  buf_size >= 8 and buffer has space for buf_size elements
 // post: buffer[0,...,7] is the binary representation of a
 void int2bin(uint32_t a, char *buffer, int buf_size) {
-  //buffer += (buf_size - 1);
+    //buffer += (buf_size - 1);
 
-  for (int i = 7; i >= 0; i--) {
+    for (int i = 7; i >= 0; i--) {
       *buffer++ = (a & 1) + '0';
       a >>= 1;
-  }
-}
+    }
+    }
 */
 
 static const uint64_t twin_table[256] = {
@@ -133,7 +134,6 @@ Kmer& Kmer::operator=(const Kmer& o) {
   return *this;
 }
 
-
 // use:  km = Kmer();
 // pre:
 // post: The last 2 bits in the bit array which stores the DNA string have been set to 11
@@ -217,11 +217,8 @@ void Kmer::set_kmer(const char *s)  {
 // pre:
 // post: i is the hash value of km
 uint64_t Kmer::hash() const {
-  uint64_t ret;
-  MurmurHash3_x64_64((const void *)bytes,MAX_K/4,0,&ret);
-  return ret;
+  return (uint64_t)XXH64((const void *)bytes, MAX_K/4, 0);
 }
-
 
 // use:  rep = km.rep();
 // pre:
@@ -385,7 +382,6 @@ Kmer Kmer::forwardBase(const char b) const {
     return km;
   */
 }
-
 
 // use:  bw = km.backwardBase(c)
 // pre:

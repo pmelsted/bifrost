@@ -1,4 +1,4 @@
-file(GLOB sources *.cpp)
+file(GLOB sources *.cpp *c)
 file(GLOB headers *.h *.hpp)
 
 list(REMOVE_ITEM sources BFGraph.cpp)

@@ -13,8 +13,9 @@
 
 #include "hash.hpp"
 
-
-
+extern "C" {
+    #include "xxhash.h"
+}
 
 /* Short description:
  *  - Store kmer strings by using 2 bits per base instead of 8
@@ -24,92 +25,91 @@
  *  - Get last and next kmer, e.g. ACGT -> CGTT or ACGT -> AACGT
  *  */
 class Kmer {
- public:
 
-  Kmer();
-  Kmer(const Kmer& o);
-  explicit Kmer(const char *s);
+    public:
 
+        Kmer();
+        Kmer(const Kmer& o);
+        explicit Kmer(const char *s);
 
+        Kmer& operator=(const Kmer& o);
 
-  Kmer& operator=(const Kmer& o);
+        void set_empty();
+        void set_deleted();
 
-  void set_empty();
-  void set_deleted();
+        bool operator<(const Kmer& o) const;
 
+        // use:  b = (km1 == km2);
+        // pre:
+        // post: b is true <==> the DNA strings in km1 and km2 are equal
+        inline bool operator==(const Kmer& o) const {
 
-  bool operator<(const Kmer& o) const;
+            for (size_t i = 0; i < MAX_K/32; i++) {
+                if (longs[i] != o.longs[i]) return false;
+            }
 
-  // use:  b = (km1 == km2);
-  // pre:
-  // post: b is true <==> the DNA strings in km1 and km2 are equal
-  inline bool operator==(const Kmer& o) const {
-    for (size_t i = 0; i < MAX_K/32; i++) {
-      if (longs[i] != o.longs[i]) {
-        return false;
-      }
-    }
-    return true;
-    //  return memcmp(bytes,o.bytes,MAX_K/4)==0;
-  }
+            return true;
+            //  return memcmp(bytes,o.bytes,MAX_K/4)==0;
+        }
 
-  bool operator!=(const Kmer& o) const {
-    return !(*this == o);
-  }
+        bool operator!=(const Kmer& o) const {
+            return !(*this == o);
+        }
 
-  void set_kmer(const char *s);
+        void set_kmer(const char *s);
 
-  uint64_t hash() const;
+        uint64_t hash() const;
 
+        Kmer twin() const;
+        Kmer rep() const;
 
+        Kmer getLink(const size_t index) const;
 
-  Kmer twin() const;
-  Kmer rep() const;
+        Kmer forwardBase(const char b) const;
 
-  Kmer getLink(const size_t index) const;
+        Kmer backwardBase(const char b) const;
 
-  Kmer forwardBase(const char b) const;
+        std::string getBinary() const;
 
-  Kmer backwardBase(const char b) const;
+        void toString(char *s) const;
+        std::string toString() const;
 
-  std::string getBinary() const;
+        // static functions
+        static void set_k(unsigned int _k);
 
-  void toString(char *s) const;
-  std::string toString() const;
+        static const unsigned int MAX_K = MAX_KMER_SIZE;
+        static unsigned int k;
 
-  // static functions
-  static void set_k(unsigned int _k);
+    private:
 
+        static unsigned int k_bytes;
+        static unsigned int k_longs;
+        static unsigned int k_modmask; // int?
 
-  static const unsigned int MAX_K = MAX_KMER_SIZE;
-  static unsigned int k;
+        // data fields
+        union {
 
- private:
-  static unsigned int k_bytes;
-  static unsigned int k_longs;
-  static unsigned int k_modmask; // int?
+            uint8_t bytes[MAX_K/4];
+            uint64_t longs[MAX_K/32];
+        };
 
-  // data fields
-  union {
-    uint8_t bytes[MAX_K/4];
-    uint64_t longs[MAX_K/32];
-  };
-  // By default MAX_K == 64 so the union uses 16 bytes
-  // However sizeof(Kmer) == 24
-  // Are the 8 extra bytes alignment?
+        // By default MAX_K == 64 so the union uses 16 bytes
+        // However sizeof(Kmer) == 24
+        // Are the 8 extra bytes alignment?
 
-  // private functions
-//void shiftForward(int shift);
+        // private functions
+        //void shiftForward(int shift);
 
-//void shiftBackward(int shift);
-
+        //void shiftBackward(int shift);
 };
 
 
 struct KmerHash {
-  size_t operator()(const Kmer& km) const {
-    return km.hash();
-  }
+
+    size_t operator()(const Kmer& km) const {
+
+        return km.hash();
+    }
 };
 
 

@@ -61,8 +61,6 @@ void CompressedSequence::initShort() {
 CompressedSequence::~CompressedSequence() {
   clear();
 }
-
-
 // use:  _cs = CompressedSequence(cs);
 // pre:
 // post: the DNA string in _cs and is the same as in cs
@@ -384,6 +382,52 @@ CompressedSequence CompressedSequence::rev() const {
 //       else
 //         reverse_complement(s[i...i+j-1]) == cs._data[pos-j+1...pos], 0 <= j <= min(s.length-i, pos+1)
 size_t CompressedSequence::jump(const char *s, size_t i, int pos, bool reversed) const {
+
+    assert(i >= 0);
+    assert(i < strlen(s));
+    assert(pos >= -1);
+    assert(0 <= size() - pos); // this prevents -1 <= _length from giving false
+
+    const char* data = getPointer();
+
+    size_t i_cpy = i;
+
+    if (reversed){
+
+        if (pos == -1) return 0;
+
+        int idx_div = pos / 4;
+        int idx_mod = 2 * (pos % 4);
+
+        for (; (s[i_cpy] != '\0') && (pos != -1); pos--, i_cpy++, idx_mod -= 2) {
+
+            if (idx_mod == -2){
+                idx_div--;
+                idx_mod = 6;
+            }
+
+            if (s[i_cpy] != bases[3-((data[idx_div] >> idx_mod) & 0x03)]) break;
+        }
+    }
+    else {
+
+        size_t cs_size = size();
+
+        if (pos == cs_size) return 0;
+
+        char tmp = data[pos/4] >> (2 * (pos % 4));
+
+        for (; (s[i_cpy] != '\0') && (pos != cs_size); pos++, i_cpy++, tmp >>= 2) {
+
+            if (pos%4 == 0) tmp = data[pos/4];
+            if (s[i_cpy] != bases[tmp & 0x3]) break;
+        }
+    }
+
+    return i_cpy - i;
+}
+
+/*size_t CompressedSequence::jump(const char *s, size_t i, int pos, bool reversed) const {
   const char *data = getPointer();
   assert(i>=0);
   assert(pos >= -1);
@@ -403,7 +447,8 @@ size_t CompressedSequence::jump(const char *s, size_t i, int pos, bool reversed)
     }
   }
   return j;
-}
+}*/
+
 
 void CompressedSequence::clear() {
   if (!isShort()) { // release memory if needed

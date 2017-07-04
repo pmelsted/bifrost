@@ -26,6 +26,9 @@
 #include "ContigMapper.hpp"
 #include "KmerHashTable.h"
 
+#include "minHashIterator.hpp"
+#include "RepHash.hpp"
+
 
 struct BuildContigs_ProgramOptions {
   bool verbose;
@@ -39,8 +42,8 @@ struct BuildContigs_ProgramOptions {
   bool clipTips;
   bool deleteIsolated;
   BuildContigs_ProgramOptions() : verbose(false), threads(1), k(0), stride(0), stride_set(false), \
-    read_chunksize(1000), contig_size(1000000), clipTips(true), \
-    deleteIsolated(true) {}
+    read_chunksize(1000), contig_size(1000000), clipTips(false), \
+    deleteIsolated(false) {}
 };
 
 // use:  BuildContigs_PrintUsage();
@@ -49,18 +52,18 @@ struct BuildContigs_ProgramOptions {
 void BuildContigs_PrintUsage() {
   cout << endl << "BFGraph " << BFG_VERSION << endl;
   cout << "Creates contigs from filtered fasta/fastq files and saves results" << endl << endl;
-  cout << "Usage: BFGraph contigs [options] ... FASTQ files";
-  cout << endl << endl << "Options:" << endl <<
+  cout << "Usage: BFGraph contigs [arguments] ... FASTQ files";
+  cout << endl << endl << "Required arguments:" << endl <<
        "  -v, --verbose               Print lots of messages during run" << endl <<
        "  -t, --threads=INT           Number of threads to use (default 1)" << endl <<
        "  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default 1000 for multithreaded else 1)" << endl <<
        "  -k, --kmer-size=INT         Size of k-mers, at most " << (int) (Kmer::MAX_K-1)<< endl <<
        "  -f, --filtered=STRING       File with filtered reads" << endl <<
        "  -o, --output=STRING         Prefix for output files" << endl <<
-       "  -s, --stride=INT            Distance between saved kmers when mapping (default is kmer-size)" << endl <<
-       "      --no-clip-tips          Do not clip short tips, less than k k-mers in length (default: true)" << endl <<
-       "      --no-del-isolated=BOOL  Do not deleted isolated contigs shorter than k k-mers (default: true)"
-       << endl << endl;
+       "  -s, --stride=INT            Distance between saved kmers when mapping (default is kmer-size)"
+       << endl << endl << "Optional arguments:" << endl <<
+       "  -n, --clip-tips             Clip tips shorter than k k-mers in length" << endl <<
+       "  -d, --rm-isolated           Delete isolated contigs shorter than k k-mers in length";
 }
 
 
@@ -69,7 +72,7 @@ void BuildContigs_PrintUsage() {
 //       like BuildContigs_PrintUsage describes and opt is ready to contain the parsed parameters
 // post: All the parameters from argv have been parsed into opt
 void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOptions& opt) {
-  const char *opt_string = "vt:k:f:o:c:s:nd";
+  const char *opt_string = "v:t:k:f:o:c:s:n:d";
   static struct option long_options[] = {
     {"verbose",    no_argument,       0, 'v'},
     {"threads",    required_argument, 0, 't'},
@@ -78,8 +81,8 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
     {"output",     required_argument, 0, 'o'},
     {"chunk-size", required_argument, 0, 'c'},
     {"stride",     required_argument, 0, 's'},
-    {"no-clip-tips",  optional_argument, 0, 'n'},
-    {"no-del-isolated", optional_argument, 0, 'd'},
+    {"clip-tips",  optional_argument, 0, 'n'},
+    {"rm-isolated", optional_argument, 0, 'd'},
     {0,            0,                 0,  0 }
   };
 
@@ -111,10 +114,10 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
       opt.stride_set = true;
       break;
     case 'n':
-      opt.clipTips = false;
+      opt.clipTips = true;
       break;
     case 'd':
-      opt.deleteIsolated = false;
+      opt.deleteIsolated = true;
       break;
     default: break;
     }
@@ -237,278 +240,286 @@ void printMemoryUsage(BlockedBloomFilter& bf, ContigMapper& cmap) {
 // pre:  opt has information about Kmer size, input file and output file
 // post: The contigs have been written to the output file
 void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
-  /**
-   *  outline of algorithm:
-   *  open bloom filter file
-   *    create contig datastructures
-   *    for each read
-   *      for all kmers in read
-   *        if kmer is in bf
-   *          if it maps to contig
-   *            try to jump over as many kmers as possible
-   *          else
-   *            create new contig from kmers in both directions \
-   *            from this kmer while there is only one possible next kmer \
-   *            with respect to the bloom filter
-   *            when the contig is ready,
-   *            try to jump over as many kmers as possible
-   */
-  
-  BlockedBloomFilter bf;
-  FILE *f = fopen(opt.freads.c_str(), "rb");
-  if (f == NULL) {
-    cerr << "Error, could not open file " << opt.freads << endl;
-    exit(1);
-  }
+    /**
+    *  outline of algorithm:
+    *  open bloom filter file
+    *    create contig datastructures
+    *    for each read
+    *      for all kmers in read
+    *        if kmer is in bf
+    *          if it maps to contig
+    *            try to jump over as many kmers as possible
+    *          else
+    *            create new contig from kmers in both directions \
+    *            from this kmer while there is only one possible next kmer \
+    *            with respect to the bloom filter
+    *            when the contig is ready,
+    *            try to jump over as many kmers as possible
+    */
 
-  if (!bf.ReadBloomFilter(f)) {
-    cerr << "Error reading bloom filter from file " << opt.freads << endl;
-    fclose(f);
-    f = NULL;
-    exit(1);
-  } else {
-    fclose(f);
-    f = NULL;
-  }
+    BlockedBloomFilter bf;
 
-  ContigMapper cmap;
-  // stride hasn't been fully tested, don't set it
-  // cmap.setStride(opt.stride);
-  cmap.mapBloomFilter(&bf);
+    FILE *f = fopen(opt.freads.c_str(), "rb");
 
-  KmerIterator iter, iterend;
-  FastqFile FQ(opt.files);
+    if (f == NULL) {
 
-  char name[8192];
-  string s;
-  size_t name_len, len;
-  uint64_t n_read = 0;
+        cerr << "Error, could not open file " << opt.freads << endl;
+        exit(1);
+    }
 
+    if (!bf.ReadBloomFilter(f)) {
 
-  size_t read_chunksize = opt.read_chunksize;
-  vector<string> readv;
+        cerr << "Error reading bloom filter from file " << opt.freads << endl;
+        fclose(f);
+        f = NULL;
+        exit(1);
 
-  if (opt.verbose) {
-    cerr << "Starting real work ....." << endl << endl;
-  }
+    }
+    else {
 
-  // Main worker thread
-  auto worker_function = [&](vector<string>::const_iterator a,
-                             vector<string>::const_iterator b,
-                             vector<NewContig>* smallv) {
-    // for each input
-    for (auto x = a; x != b; ++x) {
-      KmerIterator iter, iterend;
-      iter = KmerIterator(x->c_str());
-      Kmer km, rep;
+        fclose(f);
+        f = NULL;
+    }
 
-      if (iter != iterend) {
-        km = iter->first;
-        rep = km.rep();
-      }
+    ContigMapper cmap;
+    // stride hasn't been fully tested, don't set it
+    // cmap.setStride(opt.stride);
+    cmap.mapBloomFilter(&bf);
 
-      while (iter != iterend) {
-        if (!bf.contains(rep)) { // km is not in the graph
-          // jump over it
-          iter.raise(km, rep);
-        } else {
-          // find mapping contig
-          ContigMap cm = cmap.findContig(km, *x, iter->second);
-          if (cm.isEmpty) {
-            // kmer did not map,
-            // push into queue for next contig generation round
-            bool add = true;
-            /*if (opt.clipTips && cm.isTip) {
-              add = !cmap.checkTip(cm.tipHead);
-              }*/
-            if (opt.deleteIsolated && cm.isIsolated && false) {
-              add = false;
+    KmerIterator iter, iterend;
+    FastqFile FQ(opt.files);
+
+    char name[8192];
+    string s;
+    size_t name_len, len;
+    uint64_t n_read = 0;
+
+    size_t read_chunksize = opt.read_chunksize;
+    vector<string> readv;
+
+    const int min_length = 21;
+    const bool neighbor_hash = true;
+
+    if (opt.verbose) cerr << "Starting real work ....." << endl << endl;
+
+    // Main worker thread
+    auto worker_function = [&](vector<string>::const_iterator a, vector<string>::const_iterator b, vector<NewContig>* smallv) {
+
+        RepHash l_roll_hash;
+
+        // for each input
+        for (auto x = a; x != b; ++x) {
+
+            const char* s_x = x->c_str();
+
+            KmerHashIterator<RepHash> it_kmer_h(s_x, x->length(), opt.k), it_kmer_h_end;
+            minHashIterator<RepHash> it_min(s_x, x->length(), opt.k, min_length, l_roll_hash, neighbor_hash);
+            uint64_t it_min_h, last_it_min_h;
+            uint64_t* block_bf;
+
+            Kmer km;
+            km.set_k(opt.k);
+
+            for (int last_pos = -2; it_kmer_h != it_kmer_h_end; it_kmer_h++, it_min++) {
+
+                std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
+
+                if (p_.second != last_pos + 1){ // If one or more k-mer were jumped because contained non-ACGT char.
+
+                    it_min = minHashIterator<RepHash>(&s_x[p_.second], x->length() - p_.second, opt.k, min_length, l_roll_hash, neighbor_hash);
+                    it_min_h = it_min.getHash();
+                    block_bf = bf.getBlock(it_min_h);
+                    km = Kmer(&s_x[p_.second]);
+                }
+                else {
+                    km = km.forwardBase(s_x[p_.second + opt.k - 1]);
+                    it_min_h = it_min.getHash();
+                    if (it_min_h != last_it_min_h) block_bf = bf.getBlock(it_min_h);
+                }
+
+                last_pos = p_.second;
+                last_it_min_h = it_min_h;
+
+                // km is not in the graph
+                if (bf.contains(p_.first, block_bf)){
+
+                    ContigMap cm = cmap.findContig(km, *x, p_.second); // find mapping contig
+
+                    if (cm.isEmpty) { // kmer did not map, push into queue for next contig generation round
+
+                        bool add = true;
+                        //if (opt.clipTips && cm.isTip)
+                        //add = !cmap.checkTip(cm.tipHead);
+                        if (opt.deleteIsolated && cm.isIsolated && false) add = false;
+
+                        if (add) {
+
+                            bool selfLoop = false;
+                            string newseq;
+
+                            cmap.findContigSequence(km, newseq, selfLoop); //Build contig from Bloom filter
+
+                            if (selfLoop) newseq.clear(); //let addContig handle it
+
+                            smallv->emplace_back(km, *x, p_.second, newseq);
+                        }
+                    }
+
+                    cmap.mapRead(cm); // map the read (has no effect for newly created contigs)
+
+                    if (cm.len != 0) it_kmer_h += cm.len - 1; //any N's will not map to contigs, so normal skipping is fine
+
+                } // done iterating through read
+            } // done iterating through read batch
+        }
+    };
+
+    vector<vector<NewContig>> parray(opt.threads);
+    int round = 0;
+    bool done = false;
+
+    while (!done) {
+
+        readv.clear();
+
+        size_t reads_now = 0;
+
+        while (reads_now < read_chunksize) {
+
+            if (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
+
+                readv.emplace_back(s);
+                ++n_read;
+                ++reads_now;
+            } else {
+
+                done = true;
+                break;
             }
-            if (add) {
-              bool selfLoop = false;
-              string newseq;
-              cmap.findContigSequence(km,newseq,selfLoop);
-              if (selfLoop) {
-                newseq.clear(); //let addContig handle it
-              } else {
-                // pass
-              }
-              smallv->emplace_back(km,*x,iter->second, newseq);
-            }
-          }
+        }
 
-          // map the read, has no effect for newly created contigs
-          cmap.mapRead(cm);
+        ++round;
 
-          // how many k-mers in the read we can skip
-          size_t jump_i = 0; // already moved one forward
-          while (jump_i < cm.len) {
-            jump_i++;
-            iter.raise(km,rep); // any N's will not map to contigs, so normal skipping is fine
-          }
-        } // done iterating through read
-      } // done iterating through read batch
-    }
-  };
+        if (read_chunksize > 1 && opt.verbose) cerr << "starting round " << round << endl;
 
-  vector<vector<NewContig>> parray(opt.threads);
-  int round = 0;
-  bool done = false;
-  while (!done) {
-    readv.clear();
-    size_t reads_now = 0;
-    while (reads_now < read_chunksize) {
-      if (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
-        readv.emplace_back(s);
-        ++n_read;
-        ++reads_now;
-      } else {
-        done = true;
-        break;
-      }
-    }
-    ++round;
+        // run parallel code
+        vector<thread> workers;
+        auto rit = readv.begin();
+        size_t batch_size = readv.size() / opt.threads;
+        size_t leftover   = readv.size() % opt.threads;
 
-    if (read_chunksize > 1 && opt.verbose) {
-      cerr << "starting round " << round << endl;
-    }
+        for (size_t i = 0; i < opt.threads; i++) {
 
-    // run parallel code
-    vector<thread> workers;
-    auto rit = readv.begin();
-    size_t batch_size = readv.size() / opt.threads;
-    size_t leftover   = readv.size() % opt.threads;
-    for (size_t i = 0; i < opt.threads; i++) {
-      size_t jump = batch_size + ((i < leftover ) ? 1 : 0);
-      auto rit_end(rit);
-      advance(rit_end, jump);
-      workers.push_back(thread(worker_function, rit, rit_end, &parray[i]));
-      rit = rit_end;
-    }
+            size_t jump = batch_size + ((i < leftover ) ? 1 : 0);
+            auto rit_end(rit);
 
-    assert(rit == readv.end());
-    //assert(cmap.checkShortcuts());
+            advance(rit_end, jump);
+            workers.push_back(thread(worker_function, rit, rit_end, &parray[i]));
+            rit = rit_end;
+        }
 
-    for (auto& t : workers) {
-      t.join();
-    }
-    //cmap.printState();
+        assert(rit == readv.end());
+        //assert(cmap.checkShortcuts());
 
-    //assert(cmap.checkShortcuts());
-
-    // -- this part is serial
-    // for each thread
-    for (auto &v : parray) {
-      // for each new contig
-      for (auto &x : v) {
-        // add the contig
-        cmap.addContig(x.km, x.read, x.pos, x.seq);
+        for (auto& t : workers) t.join();
         //cmap.printState();
-      }
-      // clear the map
-      v.clear();
+
+        //assert(cmap.checkShortcuts());
+
+        // -- this part is serial
+        // for each thread
+        for (auto &v : parray) {
+            // for each new contig
+            for (auto &x : v) {
+                // add the contig
+                cmap.addContig(x.km, x.read, x.pos, x.seq);
+                //cmap.printState();
+            }
+            // clear the map
+            v.clear();
+        }
+        //cmap.printState();
+
+        //assert(cmap.checkShortcuts());
+
+        if (read_chunksize > 1 && opt.verbose ) {
+
+            cerr << " end of round" << endl;
+            cerr << " processed " << cmap.contigCount() << " contigs" << endl;
+        }
     }
-    //cmap.printState();
 
-    //assert(cmap.checkShortcuts());
-
-    if (read_chunksize > 1 && opt.verbose ) {
-      cerr << " end of round" << endl;
-      cerr << " processed " << cmap.contigCount() << " contigs" << endl;
-    }
-  }
-  FQ.close();
-  parray.clear();
-
-  if (opt.verbose) {
-    cerr << "Closed all fasta/fastq files" << endl;
-    cerr << "Splitting contigs" << endl;
-  }
-
-
-
-  size_t contigsBefore = cmap.contigCount();
-  // print contigs
-  //cout << "before split contigs" << endl;
-  //assert(cmap.checkShortcuts());
-  //cmap.printState();
-  //cout << "before split - " << endl; cmap.writeContigs(0,"","",true);
-  pair<size_t, size_t> contigSplit = cmap.splitAllContigs();// TODO: test splitAllContigs
-  //assert(cmap.checkShortcuts());
-  //cout << "after split contigs" << endl;
-  int contigsAfter1 = contigsBefore + contigSplit.first - contigSplit.second;
-
-  if (opt.verbose) {
-    cerr << "Before split: " << contigsBefore << " contigs" << endl;
-    cerr << "After split: " << contigsAfter1 << " contigs" <<  endl;
-    cerr << "Contigs split: " << contigSplit.first << endl;
-    cerr << "Contigs deleted: " << contigSplit.second << endl;
-  }
-
-  //cout << "before moveshort " << endl; //cmap.writeContigs(0,"","",true);
-
-  cmap.moveShortContigs(); // Simple, no need to test
-  //cout << "after moveshort" << endl;
-  //assert(cmap.checkShortcuts());
-
-  //cout << "before fixshort " << endl;// cmap.writeContigs(0,"","",true);
-
-  bf.clear();
-  cmap.fixShortContigs();  // Simple
-  //cout << "after fixshort " << endl;// cmap.writeContigs(0,"","",true);
-  cmap.checkShortcuts();
-  //cout << "before remove iso" << endl;
-  if (opt.deleteIsolated) {
-    cmap.removeIsolatedContigs(); // TODO: test
-  }
-  //cmap.writeContigs(0,"","",true);
-  cmap.checkShortcuts();
-
-  //cout << "before join" << endl; //cmap.writeContigs(0,"","",true);
-  size_t joined = cmap.joinAllContigs(); // TODO: test
-
-  cmap.checkShortcuts();
-  if (opt.deleteIsolated) {
-    cmap.removeIsolatedContigs();
-  }
-
-  // XXX: Put a while loop around this?
-  if (opt.clipTips) {
-    // TODO: test this
-    size_t clipped = cmap.clipTips();
-    size_t newjoined = cmap.joinAllContigs();
+    FQ.close();
+    parray.clear();
 
     if (opt.verbose) {
-      cerr << "Joined after clipping: " << newjoined << endl;
+
+        cerr << "Closed all fasta/fastq files" << endl;
+        cerr << "Splitting contigs" << endl;
     }
 
-    joined += newjoined;
+    size_t contigsBefore = cmap.contigCount();
+    pair<size_t, size_t> contigSplit = cmap.splitAllContigs(); // TODO: test splitAllContigs
+    int contigsAfter1 = contigsBefore + contigSplit.first - contigSplit.second;
 
     if (opt.verbose) {
-      cerr << "Tips clipped: " << clipped << endl;
+
+        cerr << "Before split: " << contigsBefore << " contigs" << endl;
+        cerr << "After split: " << contigsAfter1 << " contigs" <<  endl;
+        cerr << "Contigs split: " << contigSplit.first << endl;
+        cerr << "Contigs deleted: " << contigSplit.second << endl;
     }
 
-  }
+    cmap.moveShortContigs(); // Simple, no need to test
 
-  if (opt.deleteIsolated) {
-    cmap.removeIsolatedContigs();
-  }
+    bf.clear();
+    cmap.fixShortContigs();  // Simple
+    cmap.checkShortcuts();
+
+    if (opt.deleteIsolated){
+
+        cmap.removeIsolatedContigs(); // TODO: test
+        cmap.checkShortcuts();
+    }
+
+    size_t joined = cmap.joinAllContigs(); // TODO: test
+
+    cmap.checkShortcuts();
+
+    if (opt.deleteIsolated) cmap.removeIsolatedContigs();
+
+    // XXX: Put a while loop around this?
+    if (opt.clipTips) {
+
+        size_t clipped = cmap.clipTips();
+        size_t newjoined = cmap.joinAllContigs();
+
+        if (opt.verbose) cerr << "Joined after clipping: " << newjoined << endl;
+
+        joined += newjoined;
+
+        if (opt.verbose) cerr << "Tips clipped: " << clipped << endl;
+
+    }
+
+    if (opt.deleteIsolated) cmap.removeIsolatedContigs();
 
 
-  if (opt.verbose) {
-    cerr << "Contigs joined: " << joined << endl;
-    cerr << "After join " << cmap.contigCount() << " contigs" << endl;
-  }
+    if (opt.verbose) {
+        cerr << "Contigs joined: " << joined << endl;
+        cerr << "After join " << cmap.contigCount() << " contigs" << endl;
+    }
 
 
-  if (opt.verbose) {
-    cerr << "Number of reads " << n_read  << ", kmers stored " << 0 << endl << endl;
-    printMemoryUsage(bf, cmap);
-    cerr << "Writing the graph to file: " << opt.graphfilename << endl;
+    if (opt.verbose) {
+        cerr << "Number of reads " << n_read  << ", kmers stored " << 0 << endl << endl;
+        printMemoryUsage(bf, cmap);
+        cerr << "Writing the graph to file: " << opt.graphfilename << endl;
 
-  }
-  cmap.writeGFA(contigsAfter1, opt.graphfilename,false);
-  //assert(contigsAfter1 == contigsAfter2);  // TODO: fix join and reinsert this assert.
+    }
+
+    cmap.writeGFA(contigsAfter1, opt.graphfilename,false);
+    //assert(contigsAfter1 == contigsAfter2);  // TODO: fix join and reinsert this assert.
 }
 
 
