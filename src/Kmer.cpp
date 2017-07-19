@@ -120,7 +120,6 @@ Kmer::Kmer(const char *s) {
   set_kmer(s);
 }
 
-
 // use:  _km = km;
 // pre:
 // post: the DNA string in _km and is the same as in km
@@ -356,31 +355,37 @@ Kmer Kmer::getLink(const size_t index) const {
 //       i.e. if the DNA string in km is 'ACGT' and c equals 'T' then
 //       the DNA string in fw is 'CGTT'
 Kmer Kmer::forwardBase(const char b) const {
-  Kmer km(*this);
 
-  km.longs[0] = km.longs[0] << 2;
-  size_t nlongs = (k+31)/32;
-  for (size_t i = 1; i < nlongs; i++) {
-    km.longs[i-1] |= (km.longs[i] & (3ULL<<62)) >> 62;
-    km.longs[i]  = km.longs[i] << 2;
-  }
-  uint64_t x = (b & 4) >>1;
-  km.longs[nlongs-1] |= (x + ((x ^ (b & 2)) >>1 )) << (2*(31-((k-1)%32)));
+    Kmer km(*this);
 
-  return km;
-  /********
-    km.shiftBackward(2);
-    km.bytes[k_bytes-1] &= Kmer::k_modmask;
+    km.longs[0] = km.longs[0] << 2;
+    size_t nlongs = (k+31)/32;
 
-    switch(b) {
-      case 'A': km.bytes[k_bytes-1] |= 0x00 << s; break;
-      case 'C': km.bytes[k_bytes-1] |= 0x01 << s; break;
-      case 'G': km.bytes[k_bytes-1] |= 0x02 << s; break;
-      case 'T': km.bytes[k_bytes-1] |= 0x03 << s; break;
+    for (size_t i = 1; i < nlongs; i++) {
+
+        km.longs[i-1] |= (km.longs[i] & (3ULL<<62)) >> 62;
+        km.longs[i]  = km.longs[i] << 2;
     }
 
+    uint64_t x = (b & 4) >>1;
+    km.longs[nlongs-1] |= (x + ((x ^ (b & 2)) >>1 )) << (2*(31-((k-1)%32)));
+
     return km;
-  */
+}
+
+void Kmer::selfForwardBase(const char b) {
+
+    longs[0] = longs[0] << 2;
+    size_t nlongs = (k+31)/32;
+
+    for (size_t i = 1; i < nlongs; i++) {
+
+        longs[i-1] |= (longs[i] & (3ULL<<62)) >> 62;
+        longs[i] = longs[i] << 2;
+    }
+
+    uint64_t x = (b & 4) >>1;
+    longs[nlongs-1] |= (x + ((x ^ (b & 2)) >>1 )) << (2*(31-((k-1)%32)));
 }
 
 // use:  bw = km.backwardBase(c)
@@ -531,6 +536,7 @@ void Kmer::set_k(unsigned int _k) {
   if(_k == k) {
     return; // ok to call more than once
   }
+
   assert(_k < MAX_K);
   assert(_k > 0);
   assert(k_bytes == 0); // we can only call this once
@@ -545,3 +551,223 @@ unsigned int Kmer::k = 0;
 unsigned int Kmer::k_bytes = 0;
 //unsigned int Kmer::k_longs = 0;
 unsigned int Kmer::k_modmask = 0;
+
+
+
+
+
+
+
+
+
+Minimizer::Minimizer() {
+
+    for (size_t i = 0; i < MAX_G/32; i++) longs[i] = 0;
+}
+
+Minimizer::Minimizer(const Minimizer& o) {
+
+    for (size_t i = 0; i < MAX_G/32; i++) longs[i] = o.longs[i];
+}
+
+Minimizer::Minimizer(const char *s) { set_minimizer(s); }
+
+Minimizer& Minimizer::operator=(const Minimizer& o) {
+
+    if (this != &o) {
+
+        for (size_t i = 0; i < MAX_G/32; i++) longs[i] = o.longs[i];
+    }
+
+    return *this;
+}
+
+void Minimizer::set_deleted() { memset(bytes, 0xff, MAX_G/4); }
+
+void Minimizer::set_empty() {
+
+    memset(bytes, 0xff, MAX_G/4);
+    bytes[0] ^= 1; //
+}
+
+bool Minimizer::operator<(const Minimizer& o) const {
+
+    for (size_t i = 0; i < MAX_G/32; ++i) {
+
+        if (longs[i] < o.longs[i]) return true;
+        if (longs[i] > o.longs[i]) return false;
+    }
+
+    return false;
+}
+
+void Minimizer::set_minimizer(const char *s)  {
+
+    size_t i, j, l;
+    memset(bytes, 0, MAX_G/4);
+
+    for (i = 0; i < g; ++i) {
+
+        j = i % 32;
+        l = i/32;
+        assert(*s != '\0');
+
+        size_t x = ((*s) & 4) >> 1;
+        longs[l] |= ((x + ((x ^ (*s & 2)) >>1)) << (2*(31-j)));
+        s++;
+    }
+}
+
+
+uint64_t Minimizer::hash() const {
+
+    return (uint64_t)XXH64((const void *)bytes, MAX_G/4, 0);
+}
+
+Minimizer Minimizer::rep() const {
+
+  Minimizer tw = twin();
+  return (tw < *this) ? tw : *this;
+}
+
+Minimizer Minimizer::twin() const {
+
+    Minimizer minz(*this);
+
+    size_t nlongs = (g+31)/32;
+
+    for (size_t i = 0; i < nlongs; i++) {
+
+        uint64_t v = longs[i];
+
+        minz.longs[nlongs-1-i] = (twin_table[v & 0xFF] << 56) | (twin_table[(v>>8) & 0xFF] << 48) |
+                                    (twin_table[(v>>16) & 0xFF] << 40) | (twin_table[(v>>24) & 0xFF] << 32) |
+                                    (twin_table[(v>>32) & 0xFF] << 24) | (twin_table[(v>>40) & 0xFF] << 16) |
+                                    (twin_table[(v>>48) & 0xFF] << 8)  | (twin_table[(v>>56)]);
+    }
+
+    size_t shift = (g%32) ? 2*(32-(g%32)) : 0;
+    uint64_t shiftmask = (g%32) ? (((1ULL<< shift)-1) << (64-shift)) : 0ULL;
+
+    minz.longs[0] = minz.longs[0] << shift;
+
+    for (size_t i = 1; i < nlongs; i++) {
+
+        minz.longs[i-1] |= (minz.longs[i] & shiftmask) >> (64-shift);
+        minz.longs[i] = minz.longs[i] << shift;
+    }
+
+    return minz;
+}
+
+Minimizer Minimizer::getLink(const size_t index) const {
+
+    assert(index >= 0 && index < 8);
+    char c;
+
+    switch (index % 4) {
+        case 0: c = 'A'; break;
+        case 1: c = 'C'; break;
+        case 2: c = 'G'; break;
+        case 3: c = 'T'; break;
+    }
+
+    return (index < 4) ? forwardBase(c) : backwardBase(c);
+}
+
+Minimizer Minimizer::forwardBase(const char b) const {
+
+    Minimizer minz(*this);
+    minz.longs[0] = minz.longs[0] << 2;
+
+    size_t nlongs = (g+31)/32;
+
+    for (size_t i = 1; i < nlongs; i++) {
+
+        minz.longs[i-1] |= (minz.longs[i] & (3ULL<<62)) >> 62;
+        minz.longs[i] = minz.longs[i] << 2;
+    }
+
+    uint64_t x = (b & 4) >>1;
+    minz.longs[nlongs-1] |= (x + ((x ^ (b & 2)) >>1 )) << (2*(31-((g-1)%32)));
+
+    return minz;
+}
+
+Minimizer Minimizer::backwardBase(const char b) const {
+
+    Minimizer minz(*this);
+
+    size_t nlongs = (g+31)/32;
+
+    minz.longs[nlongs-1] = minz.longs[nlongs-1] >>2;
+    minz.longs[nlongs-1] &= (g%32) ? (((1ULL << (2*(g%32)))-1) << 2*(32-(g%32))) : ~0ULL;
+
+    for (size_t i = 1; i < nlongs; i++) {
+
+        minz.longs[nlongs-i] |= (minz.longs[nlongs-i-1] & 3ULL) << 62;
+        minz.longs[nlongs-i-1] = minz.longs[nlongs-i-1] >>2;
+    }
+
+    uint64_t x = (b & 4) >> 1;
+    minz.longs[0] |= (x + ((x ^ (b & 2)) >> 1)) << 62;
+
+    return minz;
+}
+
+std::string Minimizer::getBinary() const {
+
+    size_t nlongs = MAX_G/32;
+    std::string r;
+    r.reserve(64*nlongs);
+
+    for (size_t i = 0; i < nlongs; i++)
+        r.append(std::bitset<64>(longs[i]).to_string<char,std::char_traits<char>,std::allocator<char>>());
+
+    return r;
+}
+
+void Minimizer::toString(char *s) const {
+
+    size_t i, j, l;
+
+    for (i = 0; i < g; i++) {
+
+        j = i % 32;
+        l = i / 32;
+
+        switch(((longs[l]) >> (2*(31-j)) )& 0x03 ) {
+            case 0x00: *s = 'A'; ++s; break;
+            case 0x01: *s = 'C'; ++s; break;
+            case 0x02: *s = 'G'; ++s; break;
+            case 0x03: *s = 'T'; ++s; break;
+        }
+    }
+
+    *s = '\0';
+}
+
+std::string Minimizer::toString() const {
+
+    char buf[MAX_G];
+    toString(buf);
+    return std::string(buf);
+}
+
+void Minimizer::set_g(unsigned int _g) {
+
+  if(_g == g) return; // ok to call more than once
+
+  assert(_g < MAX_G);
+  assert(_g > 0);
+  assert(g_bytes == 0); // we can only call this once
+
+  g = _g;
+  g_bytes = (_g+3)/4;
+  g_modmask = (1 << (2*((g%4)?g%4:4)) )-1;
+}
+
+
+unsigned int Minimizer::g = 0;
+unsigned int Minimizer::g_bytes = 0;
+unsigned int Minimizer::g_modmask = 0;

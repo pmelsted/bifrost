@@ -362,6 +362,34 @@ Kmer CompressedSequence::getKmer(size_t offset) const {
   return Kmer(s);
 }
 
+int64_t CompressedSequence::findKmer(const Kmer& km) const {
+
+    int k = Kmer::k;
+    size_t sz = size();
+
+    if (sz >= k){
+
+        Kmer km_cs = getKmer(0);
+        if (km_cs == km) return 0;
+
+        if (sz > k){
+
+            size_t i = k;
+            const char* data = getPointer();
+            char tmp = data[i/4] >> (2 * (i % 4));
+
+            for (; i < sz; i++, tmp >>= 2){
+
+                if (i%4 == 0) tmp = data[i/4];
+                km_cs.selfForwardBase(bases[tmp & 0x3]);
+
+                if (km_cs == km) return i-k+1;
+            }
+        }
+    }
+
+    return -1;
+}
 
 // use:  _cs = cs.rev();
 // pre:
@@ -427,28 +455,51 @@ size_t CompressedSequence::jump(const char *s, size_t i, int pos, bool reversed)
     return i_cpy - i;
 }
 
-/*size_t CompressedSequence::jump(const char *s, size_t i, int pos, bool reversed) const {
-  const char *data = getPointer();
-  assert(i>=0);
-  assert(pos >= -1);
-  assert(0 <= size() - pos); // this prevents -1 <= _length from giving false
-  size_t j = 0;
-  int dir = (reversed) ? -1 : 1;
-  int limit = (reversed) ? -1 : size(); // index limit, lower or upper bound
-  size_t a,b,idx;
-  for (int index = pos; s[i+j] != 0 && index != limit; index+= dir, j++) {
-    assert(index >= 0);
-    assert(size() - index > 0);
-    a = index / 4;
-    b = index % 4;
-    idx = ((data[a]) >> (2*b)) & 0x03;
-    if ((!reversed && s[i+j] != bases[idx]) || (reversed && s[i+j] != bases[3-idx])) {
-      break;
-    }
-  }
-  return j;
-}*/
+size_t CompressedSequence::bw_jump(const char *s, size_t i, int pos, bool reversed) const {
 
+    assert(i >= 0);
+    assert(i < strlen(s));
+    assert(pos >= -1);
+    assert(0 <= size() - pos); // this prevents -1 <= _length from giving false
+
+    const char* data = getPointer();
+
+    size_t i_cpy = i;
+
+    if (reversed){
+
+        size_t cs_size = size();
+
+        if (pos == cs_size) return 0;
+
+        char tmp = data[pos/4] >> (2 * (pos % 4));
+
+        for (; (i_cpy != -1) && (pos != cs_size); pos++, i_cpy--, tmp >>= 2) {
+
+            if (pos%4 == 0) tmp = data[pos/4];
+            if (s[i_cpy] != bases[3 - (tmp & 0x3)]) break;
+        }
+    }
+    else {
+
+        if (pos == -1) return 0;
+
+        int idx_div = pos / 4;
+        int idx_mod = 2 * (pos % 4);
+
+        for (; (i_cpy != -1) && (pos != -1); pos--, i_cpy--, idx_mod -= 2) {
+
+            if (idx_mod == -2){
+                idx_div--;
+                idx_mod = 6;
+            }
+
+            if (s[i_cpy] != bases[(data[idx_div] >> idx_mod) & 0x03]) break;
+        }
+    }
+
+    return i - i_cpy;
+}
 
 void CompressedSequence::clear() {
   if (!isShort()) { // release memory if needed

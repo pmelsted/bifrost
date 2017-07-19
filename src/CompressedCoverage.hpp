@@ -46,6 +46,7 @@ class CompressedCoverage {
   pair<size_t, size_t> lowCoverageInfo() const;
 
   static const size_t size_limit = 28; // 56 bit array, 28 2-bit integers
+  static const size_t cov_full = 2;
 
  private:
 

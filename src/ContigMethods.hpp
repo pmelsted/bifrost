@@ -17,19 +17,19 @@ struct ContigMap {
     | dist -> | len  |
 
    */
-  Kmer head; // reference to start of contig
+  size_t pos_contig; // position of the contig in vector v_contigs or in hash table hmap_kmer_contigs
   size_t dist; // 0-based distance from start of contig
-  size_t len;  // length of match, >= 1
+  size_t len;  // length of match in k-mers, >= 1
   size_t size; // length of the contig in k-mers
-  bool isEmpty; // true if proper match found
-  bool isShort; // true if the contig is short
   bool strand; // true for forward strand
+  bool isEmpty; // true if proper match found
+  bool isShort; // true if the contig has length k
   bool selfLoop; // true if this is a self-loop or hairpin
-  bool isIsolated;
+  bool isIsolated; // true if contig is isolated
   bool isTip;    // true if this is a short tip
   Kmer tipHead;  // only used if isTip is true, points to branching k-mer
-  ContigMap(Kmer ref, size_t i, size_t l,  size_t sz, bool eq, bool sh) : dist(i), strand(eq), size(sz), len(l), isShort(sh), head(ref), isEmpty(false), selfLoop(false), isTip(false), isIsolated(false) {}
-  ContigMap(size_t l = 1) : isEmpty(true), len(l), isTip(false), isIsolated(false) {}
+  ContigMap(size_t p, size_t i, size_t l, size_t sz, bool short_, bool strd) : pos_contig(p), dist(i), len(l), size(sz), strand(strd), selfLoop(false), isEmpty(false), isShort(short_), isTip(false), isIsolated(false) {}
+  ContigMap(size_t l = 1) : len(l), isTip(false), isIsolated(false), isShort(true), isEmpty(true) {}
 };
 
 

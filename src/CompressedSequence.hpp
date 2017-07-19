@@ -48,7 +48,11 @@ class CompressedSequence {
         void reserveLength(size_t new_length);
 
         CompressedSequence rev() const;
+
         size_t jump(const char *s, size_t i, int pos, bool reversed) const;
+
+        size_t bw_jump(const char *s, size_t i, int pos, bool reversed) const;
+        int64_t findKmer(const Kmer& km) const;
 
         bool isShort() const;
 

@@ -27,14 +27,14 @@
 
 struct FilterReads_ProgramOptions {
   bool verbose;
-  size_t threads, read_chunksize, k, nkmers, nkmers2;
+  size_t threads, read_chunksize, k, g, nkmers, nkmers2;
   FILE *outputfile;
   string output;
   size_t bf, bf2;
   uint32_t seed;
   bool ref;
   vector<string> files;
-  FilterReads_ProgramOptions() : verbose(false), threads(1), k(0), nkmers(0), nkmers2(0), \
+  FilterReads_ProgramOptions() : verbose(false), threads(1), k(0), g(21), nkmers(0), nkmers2(0), \
     outputfile(NULL), bf(4), bf2(8), seed(0), read_chunksize(10000), ref(false) {}
 };
 
@@ -49,8 +49,9 @@ void FilterReads_PrintUsage() {
        "  -v, --verbose               Print lots of messages during run" << endl <<
        "  -t, --threads=INT           Number of threads to use (default 1)" << endl <<
        "  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default 10000 for multithreaded else 1)" << endl <<
-       "  -k, --kmer-size=INT         Size of k-mers, the same value as used for filtering reads" << endl <<
+       "  -k, --kmer-size=INT         Size of k-mers" << endl <<
        "      --ref                   Reference mode, no filtering use only num_kmers and bloom-bits" << endl <<
+       "  -g, --min-size=INT          Size of minimizers (default=21)" << endl <<
        "  -n, --num-kmers=LONG        Estimated number of k-mers (upper bound)" << endl <<
        "  -N, --num-kmer2=LONG        Estimated number of k-mers in genome (upper bound)" << endl <<
        "  -o, --output=STRING         Filename for output" << endl <<
@@ -66,12 +67,13 @@ void FilterReads_PrintUsage() {
 //       "filtering reads" and opt is ready to contain the parsed parameters
 // post: All the parameters from argv have been parsed into opt
 void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions& opt) {
-  const char *opt_string = "vt:k:n:N:o:b:B:s:c:";
+  const char *opt_string = "vt:k:g:n:N:o:b:B:s:c:";
   static struct option long_options[] = {
     {"verbose",     no_argument,       0, 'v'},
     {"threads",     required_argument, 0, 't'},
     {"chunk-size",  required_argument, 0, 'c'},
     {"kmer-size",   required_argument, 0, 'k'},
+    {"min-size",     no_argument,      0, 'g'},
     {"num-kmers",   required_argument, 0, 'n'},
     {"num-kmers2",  required_argument, 0, 'N'},
     {"output",      required_argument, 0, 'o'},
@@ -99,6 +101,9 @@ void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions&
       break;
     case 'k':
       opt.k = atoi(optarg);
+      break;
+    case 'g':
+      opt.g = atoi(optarg);
       break;
     case 'n':
       ss << optarg;
@@ -163,6 +168,12 @@ bool FilterReads_CheckOptions(FilterReads_ProgramOptions& opt) {
 
   if (opt.k <= 0 || opt.k >= MAX_KMER_SIZE) {
     cerr << "Error, invalid value for kmer-size: " << opt.k << endl;
+    cerr << "Values must be between 1 and " << (MAX_KMER_SIZE-1) << endl;
+    ret = false;
+  }
+
+  if (opt.g <= 0 || opt.g >= MAX_KMER_SIZE) {
+    cerr << "Error, invalid value for min-size: " << opt.g << endl;
     cerr << "Values must be between 1 and " << (MAX_KMER_SIZE-1) << endl;
     ret = false;
   }
@@ -279,7 +290,6 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
     FastqFile FQ(opt.files);
     vector<string> readv;
 
-    const int min_length = 21;
     const bool neighbor_hash = true;
 
     // Main worker thread
@@ -291,7 +301,7 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
         for (auto x = a; x != b; ++x) {
 
             KmerHashIterator<RepHash> it_kmer_h(x->c_str(), x->length(), opt.k), it_kmer_h_end;
-            minHashIterator<RepHash> it_min(x->c_str(), x->length(), opt.k, min_length, RepHash(), neighbor_hash);
+            minHashIterator<RepHash> it_min(x->c_str(), x->length(), opt.k, Minimizer::g, RepHash(), neighbor_hash);
 
             for (int last_pos = -1; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min, ++l_num_kmers) {
 
@@ -299,7 +309,7 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
 
                 // If one or more k-mer were jumped because contained non-ACGT char.
                 if (p_.second != last_pos + 1)
-                    it_min = minHashIterator<RepHash>(&x->c_str()[p_.second], x->length() - p_.second, opt.k, min_length, RepHash(), neighbor_hash);
+                    it_min = minHashIterator<RepHash>(&x->c_str()[p_.second], x->length() - p_.second, opt.k, Minimizer::g, RepHash(), neighbor_hash);
 
                 last_pos = p_.second;
                 //minHashResult min_hr = *(*it_min);
@@ -391,22 +401,6 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
         if (!opt.ref) cerr << "Bloomfilter 2 count: " << BF2.count() << endl;
     }
 
-    /*
-    std::string km_test = "ACAGGGCTTGTGAGGATGATCCTATGGCTTT";
-
-    RepHash km_h(opt.k);
-    km_h.init(km_test.c_str());
-
-    minHashKmer<RepHash> min_h(km_test.c_str(), opt.k, 21, RepHash(), neighbor_hash);
-
-    if (BF2.contains(km_h.hash(), min_h.getHash())){
-        cerr << "ACAGGGCTTGTGAGGATGATCCTATGGCTTT found" << endl;
-        cerr << "km_h.hash() = " << km_h.hash() << endl;
-        cerr << "min_h.getHash() = " << min_h.getHash() << endl;
-    }
-    else cerr << "ACAGGGCTTGTGAGGATGATCCTATGGCTTT not found" << endl;
-        */
-
 }
 
 // use:  FilterReads(argc, argv);
@@ -416,26 +410,26 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
 //       the reads have been filtered and written to a file
 void FilterReads(int argc, char **argv) {
 
-  FilterReads_ProgramOptions opt;
-  FilterReads_ParseOptions(argc,argv,opt);
+    FilterReads_ProgramOptions opt;
+    FilterReads_ParseOptions(argc,argv,opt);
 
-  if (argc < 2) {
-    FilterReads_PrintUsage();
-    exit(1);
-  }
+    if (argc < 2) {
 
-  if (!FilterReads_CheckOptions(opt)) {
-    FilterReads_PrintUsage();
-    exit(1);
-  }
+        FilterReads_PrintUsage();
+        exit(1);
+    }
 
-  // set static global k-value
-  Kmer::set_k(opt.k);
+    if (!FilterReads_CheckOptions(opt)) {
 
-  if (opt.verbose) {
-    FilterReads_PrintSummary(opt);
-  }
+        FilterReads_PrintUsage();
+        exit(1);
+    }
 
-  FilterReads_Normal(opt);
+    // set static global k-value
+    Kmer::set_k(opt.k);
+    Minimizer::set_g(opt.g);
 
+    if (opt.verbose) FilterReads_PrintSummary(opt);
+
+    FilterReads_Normal(opt);
 }

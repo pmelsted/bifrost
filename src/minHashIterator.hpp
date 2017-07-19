@@ -143,10 +143,9 @@ class minHashIterator {
         minHashResultIterator<HF> operator*() const {return minHashResultIterator<HF>(this);}
         //minHashResultIterator<HF>* operator->() { return &(operator*());}
 
-        uint64_t getHash() const{
+        uint64_t getHash() const { return invalid ? 0 : v[0].hash; }
 
-            return invalid ? 0 : v[0].hash;
-        }
+        int getPosition() const { return invalid ? 0 : v[0].pos; }
 
         const char *s; //Minimizers are from k-mers, k-mers are from a sequence s
         int n; // Length of sequence s
@@ -223,7 +222,7 @@ struct minHashKmer {
 
     public:
 
-        minHashKmer(const char* _s, int _k, int _g, HF _h, bool neighbor_hash) : s(_s), k(_k), g(_g), hf(_h), h(0), invalid(true), nh(neighbor_hash) {
+        minHashKmer(const char* _s, int _k, int _g, HF _h, bool neighbor_hash) : s(_s), k(_k), g(_g), hf(_h), h(0), p(-1), invalid(true), nh(neighbor_hash) {
 
             if ((s != NULL) && ((n = strlen(s)) >= k) && (k >= g)){
 
@@ -234,17 +233,19 @@ struct minHashKmer {
             }
         }
 
-        minHashKmer() : s(NULL), n(0), k(0), g(0), hf(HF(0)), h(0), invalid(true), nh(false) {}
+        minHashKmer() : s(NULL), n(0), k(0), g(0), hf(HF(0)), h(0), p(-1), invalid(true), nh(false) {}
 
         bool operator==(const minHashKmer& o) {
 
             if(invalid || o.invalid) return invalid && o.invalid;
-            return s==o.s && n==o.n && g==o.g && k==o.k && nh==o.nh && h==o.h;
+            return s==o.s && n==o.n && g==o.g && k==o.k && nh==o.nh && h==o.h && p==o.p;
         }
 
         bool operator!=(const minHashKmer& o) { return !this->operator==(o); }
 
-        uint64_t getHash() const{ return h; }
+        uint64_t getHash() const { return h; }
+
+        int getPosition() const { return p; }
 
     private:
 
@@ -257,12 +258,17 @@ struct minHashKmer {
             hf.init(&s[shift]);
 
             h = hf.hash();
+            p = shift;
 
             for (int j = shift; j < k-g-shift; j++) {
 
                 hf.update(s[j], s[j+g]);
 
-                if (hf.hash() < h) h = hf.hash();
+                if (hf.hash() < h){
+
+                    h = hf.hash();
+                    p = j + 1;
+                }
             }
         }
 
@@ -272,6 +278,7 @@ struct minHashKmer {
         int n;
         int k;
         int g;
+        int p;
         bool invalid;
         bool nh;
 };

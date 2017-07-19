@@ -32,7 +32,7 @@
 
 struct BuildContigs_ProgramOptions {
   bool verbose;
-  size_t threads, k;
+  size_t threads, k, g;
   string freads, output, graphfilename;
   size_t stride;
   bool stride_set;
@@ -41,7 +41,7 @@ struct BuildContigs_ProgramOptions {
   vector<string> files;
   bool clipTips;
   bool deleteIsolated;
-  BuildContigs_ProgramOptions() : verbose(false), threads(1), k(0), stride(0), stride_set(false), \
+  BuildContigs_ProgramOptions() : verbose(false), threads(1), k(0), g(21), stride(0), stride_set(false), \
     read_chunksize(1000), contig_size(1000000), clipTips(false), \
     deleteIsolated(false) {}
 };
@@ -57,11 +57,12 @@ void BuildContigs_PrintUsage() {
        "  -v, --verbose               Print lots of messages during run" << endl <<
        "  -t, --threads=INT           Number of threads to use (default 1)" << endl <<
        "  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default 1000 for multithreaded else 1)" << endl <<
-       "  -k, --kmer-size=INT         Size of k-mers, at most " << (int) (Kmer::MAX_K-1)<< endl <<
+       "  -k, --kmer-size=INT         Size of k-mers, same as for filtering reads" << endl <<
        "  -f, --filtered=STRING       File with filtered reads" << endl <<
        "  -o, --output=STRING         Prefix for output files" << endl <<
        "  -s, --stride=INT            Distance between saved kmers when mapping (default is kmer-size)"
        << endl << endl << "Optional arguments:" << endl <<
+       "  -g, --min-size=INT          Size of minimizers, same as for filtering reads (default=21)" << endl <<
        "  -n, --clip-tips             Clip tips shorter than k k-mers in length" << endl <<
        "  -d, --rm-isolated           Delete isolated contigs shorter than k k-mers in length";
 }
@@ -72,11 +73,12 @@ void BuildContigs_PrintUsage() {
 //       like BuildContigs_PrintUsage describes and opt is ready to contain the parsed parameters
 // post: All the parameters from argv have been parsed into opt
 void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOptions& opt) {
-  const char *opt_string = "v:t:k:f:o:c:s:n:d";
+  const char *opt_string = "v:t:k:g:f:o:c:s:n:d";
   static struct option long_options[] = {
     {"verbose",    no_argument,       0, 'v'},
     {"threads",    required_argument, 0, 't'},
     {"kmer-size",  required_argument, 0, 'k'},
+    {"min-size",   no_argument,       0, 'g'},
     {"filtered",   required_argument, 0, 'f'},
     {"output",     required_argument, 0, 'o'},
     {"chunk-size", required_argument, 0, 'c'},
@@ -99,6 +101,9 @@ void BuildContigs_ParseOptions(int argc, char **argv, BuildContigs_ProgramOption
       break;
     case 'k':
       opt.k = atoi(optarg);
+      break;
+    case 'g':
+      opt.g = atoi(optarg);
       break;
     case 'f':
       opt.freads = optarg;
@@ -159,6 +164,12 @@ bool BuildContigs_CheckOptions(BuildContigs_ProgramOptions& opt) {
   if (opt.k == 0 || opt.k >= MAX_KMER_SIZE) {
     cerr << "Error: Invalid kmer-size: " << opt.k
          << ", need a number between 1 and " << (MAX_KMER_SIZE-1) << endl;
+    ret = false;
+  }
+
+  if (opt.g <= 0 || opt.g >= MAX_KMER_SIZE) {
+    cerr << "Error, invalid value for min-size: " << opt.g << endl;
+    cerr << "Values must be between 1 and " << (MAX_KMER_SIZE-1) << endl;
     ret = false;
   }
 
@@ -236,6 +247,16 @@ void printMemoryUsage(BlockedBloomFilter& bf, ContigMapper& cmap) {
   cerr << "Total:\t\t\t" << total << "MB" << endl << endl;
 }
 
+size_t cstrMatch(const char* a, const char* b) {
+
+    char* _a = const_cast<char*>(a);
+    char* _b = const_cast<char*>(b);
+
+    while ((*_a != '\0') && (*_b != '\0') && (*_a == *_b)){ _a++; _b++; }
+
+    return _a - a;
+}
+
 // use:  BuildContigs_Normal(opt);
 // pre:  opt has information about Kmer size, input file and output file
 // post: The contigs have been written to the output file
@@ -297,7 +318,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
     size_t read_chunksize = opt.read_chunksize;
     vector<string> readv;
 
-    const int min_length = 21;
     const bool neighbor_hash = true;
 
     if (opt.verbose) cerr << "Starting real work ....." << endl << endl;
@@ -312,13 +332,13 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
 
             const char* s_x = x->c_str();
 
-            KmerHashIterator<RepHash> it_kmer_h(s_x, x->length(), opt.k), it_kmer_h_end;
-            minHashIterator<RepHash> it_min(s_x, x->length(), opt.k, min_length, l_roll_hash, neighbor_hash);
+            KmerHashIterator<RepHash> it_kmer_h(s_x, x->length(), Kmer::k), it_kmer_h_end;
+            minHashIterator<RepHash> it_min(s_x, x->length(), Kmer::k, Minimizer::g, l_roll_hash, neighbor_hash);
+
             uint64_t it_min_h, last_it_min_h;
             uint64_t* block_bf;
 
             Kmer km;
-            km.set_k(opt.k);
 
             for (int last_pos = -2; it_kmer_h != it_kmer_h_end; it_kmer_h++, it_min++) {
 
@@ -326,13 +346,13 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
 
                 if (p_.second != last_pos + 1){ // If one or more k-mer were jumped because contained non-ACGT char.
 
-                    it_min = minHashIterator<RepHash>(&s_x[p_.second], x->length() - p_.second, opt.k, min_length, l_roll_hash, neighbor_hash);
+                    it_min = minHashIterator<RepHash>(&s_x[p_.second], x->length() - p_.second, Kmer::k, Minimizer::g, l_roll_hash, neighbor_hash);
                     it_min_h = it_min.getHash();
                     block_bf = bf.getBlock(it_min_h);
                     km = Kmer(&s_x[p_.second]);
                 }
                 else {
-                    km = km.forwardBase(s_x[p_.second + opt.k - 1]);
+                    km = km.forwardBase(s_x[p_.second + Kmer::k - 1]);
                     it_min_h = it_min.getHash();
                     if (it_min_h != last_it_min_h) block_bf = bf.getBlock(it_min_h);
                 }
@@ -347,27 +367,23 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
 
                     if (cm.isEmpty) { // kmer did not map, push into queue for next contig generation round
 
-                        bool add = true;
-                        //if (opt.clipTips && cm.isTip)
-                        //add = !cmap.checkTip(cm.tipHead);
-                        if (opt.deleteIsolated && cm.isIsolated && false) add = false;
-
-                        if (add) {
-
                             bool selfLoop = false;
                             string newseq;
 
-                            cmap.findContigSequence(km, newseq, selfLoop); //Build contig from Bloom filter
+                            size_t pos_match = cmap.findContigSequence(km, newseq, selfLoop); //Build contig from Bloom filter
 
                             if (selfLoop) newseq.clear(); //let addContig handle it
 
                             smallv->emplace_back(km, *x, p_.second, newseq);
-                        }
+
+                            if (!newseq.empty())
+                                it_kmer_h += cstrMatch(&s_x[p_.second + Kmer::k], &newseq.c_str()[pos_match + Kmer::k]);
                     }
+                    else {
 
-                    cmap.mapRead(cm); // map the read (has no effect for newly created contigs)
-
-                    if (cm.len != 0) it_kmer_h += cm.len - 1; //any N's will not map to contigs, so normal skipping is fine
+                        cmap.mapRead(cm);
+                        it_kmer_h += cm.len - 1;
+                    }
 
                 } // done iterating through read
             } // done iterating through read batch
@@ -419,28 +435,16 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
         }
 
         assert(rit == readv.end());
-        //assert(cmap.checkShortcuts());
 
         for (auto& t : workers) t.join();
-        //cmap.printState();
-
-        //assert(cmap.checkShortcuts());
 
         // -- this part is serial
-        // for each thread
-        for (auto &v : parray) {
+        for (auto &v : parray) { // for each thread
             // for each new contig
-            for (auto &x : v) {
-                // add the contig
-                cmap.addContig(x.km, x.read, x.pos, x.seq);
-                //cmap.printState();
-            }
-            // clear the map
-            v.clear();
-        }
-        //cmap.printState();
+            for (auto &x : v) cmap.addContigSequence(x.km, x.read, x.pos, x.seq); // add the contig
 
-        //assert(cmap.checkShortcuts());
+            v.clear(); //clear the map
+        }
 
         if (read_chunksize > 1 && opt.verbose ) {
 
@@ -458,37 +462,36 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
         cerr << "Splitting contigs" << endl;
     }
 
+    bf.clear();
+
     size_t contigsBefore = cmap.contigCount();
-    pair<size_t, size_t> contigSplit = cmap.splitAllContigs(); // TODO: test splitAllContigs
-    int contigsAfter1 = contigsBefore + contigSplit.first - contigSplit.second;
 
-    if (opt.verbose) {
+    /*if (opt.verbose)*/ cerr << "Before split: " << contigsBefore << " contigs" << endl;
 
-        cerr << "Before split: " << contigsBefore << " contigs" << endl;
+    cerr << "splitAllContigs()" << endl;
+    pair<size_t, size_t> contigSplit = cmap.splitAllContigs();
+
+    int contigsAfter1 = cmap.contigCount();
+
+    //if (opt.verbose) {
+
         cerr << "After split: " << contigsAfter1 << " contigs" <<  endl;
         cerr << "Contigs split: " << contigSplit.first << endl;
         cerr << "Contigs deleted: " << contigSplit.second << endl;
-    }
+    //}
 
-    cmap.moveShortContigs(); // Simple, no need to test
+    cerr << "joinAllContigs()" << endl;
+    size_t joined = cmap.joinAllContigs();
 
-    bf.clear();
-    cmap.fixShortContigs();  // Simple
-    cmap.checkShortcuts();
+    int contigsAfter2 = cmap.contigCount();
 
-    if (opt.deleteIsolated){
+    //if (opt.verbose) {
+        cerr << "Joined " << joined << " contigs" << endl;
+        cerr << "After join: " << contigsAfter2 << " contigs" << endl;
+    //}
 
-        cmap.removeIsolatedContigs(); // TODO: test
-        cmap.checkShortcuts();
-    }
+    /*if (opt.deleteIsolated) cmap.removeIsolatedContigs();
 
-    size_t joined = cmap.joinAllContigs(); // TODO: test
-
-    cmap.checkShortcuts();
-
-    if (opt.deleteIsolated) cmap.removeIsolatedContigs();
-
-    // XXX: Put a while loop around this?
     if (opt.clipTips) {
 
         size_t clipped = cmap.clipTips();
@@ -504,22 +507,16 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
 
     if (opt.deleteIsolated) cmap.removeIsolatedContigs();
 
-
     if (opt.verbose) {
+
         cerr << "Contigs joined: " << joined << endl;
         cerr << "After join " << cmap.contigCount() << " contigs" << endl;
-    }
-
-
-    if (opt.verbose) {
         cerr << "Number of reads " << n_read  << ", kmers stored " << 0 << endl << endl;
         printMemoryUsage(bf, cmap);
         cerr << "Writing the graph to file: " << opt.graphfilename << endl;
+    }*/
 
-    }
-
-    cmap.writeGFA(contigsAfter1, opt.graphfilename,false);
-    //assert(contigsAfter1 == contigsAfter2);  // TODO: fix join and reinsert this assert.
+    cmap.writeGFA(contigsAfter1, opt.graphfilename);
 }
 
 
@@ -531,27 +528,28 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
 //       the "contigs have been built" and written to a file
 void BuildContigs(int argc, char **argv) {
 
-  BuildContigs_ProgramOptions opt;
+    BuildContigs_ProgramOptions opt;
 
-  BuildContigs_ParseOptions(argc,argv,opt);
+    BuildContigs_ParseOptions(argc,argv,opt);
 
-  if (argc < 2) {
-    BuildContigs_PrintUsage();
-    exit(1);
-  }
+    if (argc < 2) {
 
-  if (!BuildContigs_CheckOptions(opt)) {
-    BuildContigs_PrintUsage();
-    exit(1);
-  }
+        BuildContigs_PrintUsage();
+        exit(1);
+    }
 
-  // set static global k-value
-  Kmer::set_k(opt.k);
+    if (!BuildContigs_CheckOptions(opt)) {
 
-  if (opt.verbose) {
-    BuildContigs_PrintSummary(opt);
-  }
+        BuildContigs_PrintUsage();
+        exit(1);
+    }
 
-  BuildContigs_Normal(opt);
+    // set static global k-value
+    Kmer::set_k(opt.k);
+    Minimizer::set_g(opt.g);
+
+    if (opt.verbose) BuildContigs_PrintSummary(opt);
+
+    BuildContigs_Normal(opt);
 
 }

@@ -1,15 +1,21 @@
 #ifndef BFG_CONTIGMAPPER_HPP
 #define BFG_CONTIGMAPPER_HPP
 
+#include <cstring> // for size_t
+
 #include "Kmer.hpp"
 #include "BlockedBloomFilter.hpp"
-#include <cstring> // for size_t
 #include "Contig.hpp"
 #include "CompressedCoverage.hpp"
 #include "ContigMethods.hpp"
 #include "KmerHashTable.h"
 
 #include "RepHash.hpp"
+#include "TinyVector.hpp"
+
+#define LOWER_32_MASK  (0xffffffff)
+#define UPPER_32_MASK  (0xffffffff00000000)
+
 /*
   Short description:
 
@@ -22,59 +28,54 @@
  */
 
 class ContigMapper {
- public:
-  ContigMapper(size_t init = 10000);
-  ~ContigMapper();
-  void mapBloomFilter(const BlockedBloomFilter *bf);
 
+    public:
 
-  ContigMap findContig(Kmer km, const string& s, size_t pos) const;
-  void mapRead(const ContigMap& cc);
+        ContigMapper();
+        ~ContigMapper();
 
-  bool addContig(Kmer km, const string& read, size_t pos, const string& seq);
-  void findContigSequence(Kmer km, string& s, bool& selfLoop);
+        void mapBloomFilter(const BlockedBloomFilter *bf);
 
-  size_t contigCount() const;
+        ContigMap findContig(Kmer km, const string& s, size_t pos) const;
+        void mapRead(const ContigMap& cc);
 
+        bool addContigSequence(Kmer km, const string& read, size_t pos, const string& seq);
+        size_t findContigSequence(Kmer km, string& s, bool& selfLoop);
 
-  size_t writeGFA(int count1, string graphfilename, bool debug);
-  size_t joinAllContigs();
-  pair<size_t, size_t> splitAllContigs();
-  size_t clipTips();
+        pair<size_t, size_t> splitAllContigs();
 
-  void moveShortContigs();
-  void fixShortContigs();
-  size_t removeIsolatedContigs();
+        size_t joinAllContigs();
+        bool checkJoin(Kmer a, Kmer& b, bool& dir);
+        bool checkEndKmer(Kmer b, bool& dir);
 
-  bool checkTip(Kmer tip);
+        void checkIntegrity();
+        void printState() const;
+        size_t contigCount() const;
+        size_t writeGFA(int count1, string graphfilename);
 
-  bool checkJoin(Kmer a, Kmer& b, bool& dir);
-  bool checkEndKmer(Kmer b, bool& dir);
+    private:
 
-  bool checkShortcuts();
-  void setStride(size_t stride_) { stride = stride_; }
-  void printState() const;
+        ContigMap find(Kmer km) const;
 
- private:
+        bool fwBfStep(Kmer km, Kmer& end, char& c, size_t& deg) const;
+        bool bwBfStep(Kmer km, Kmer& front, char& c, size_t& deg) const;
 
-  const BlockedBloomFilter *bf;
-  size_t limit;
-  size_t stride;
+        void addContig(const string& str_contig, const size_t id_contig);
+        KmerHashTable<CompressedCoverage>::iterator addShortContig(const string& str_contig);
+        void deleteContig(const size_t id_contig);
+        KmerHashTable<CompressedCoverage>::iterator deleteShortContig(const size_t id_contig);
+        void swapContigs(const size_t id_contig_a, const size_t id_contig_b);
 
-  void removeShortcuts(const string& s);
+        static const int tiny_vector_sz = 2;
 
-  ContigMap find(Kmer km) const;
-  bool fwBfStep(Kmer km, Kmer& end, char& c, size_t& deg) const;
-  bool bwBfStep(Kmer km, Kmer& front, char& c, size_t& deg) const;
+        typedef KmerHashTable<CompressedCoverage> hmap_kmer_contigs_t;
+        typedef MinimizerHashTable<tiny_vector<size_t,tiny_vector_sz>> hmap_min_contigs_t;
 
-  typedef KmerHashTable<CompressedCoverage> hmap_short_contig_t;
-  typedef KmerHashTable<Contig *> hmap_long_contig_t;
-  typedef KmerHashTable<pair<Kmer, size_t>> hmap_shortcut_t;
+        const BlockedBloomFilter *bf;
+        vector<Contig*> v_contigs;
 
-  hmap_short_contig_t sContigs;
-  hmap_long_contig_t  lContigs;
-  hmap_shortcut_t     shortcuts;
-
+        hmap_kmer_contigs_t hmap_kmer_contigs;
+        hmap_min_contigs_t hmap_min_contigs;
 };
 
 #endif //BFG_CONTIGMAPPER_HPP

@@ -66,8 +66,9 @@ class Kmer {
         Kmer getLink(const size_t index) const;
 
         Kmer forwardBase(const char b) const;
-
         Kmer backwardBase(const char b) const;
+
+        void selfForwardBase(const char b);
 
         std::string getBinary() const;
 
@@ -113,4 +114,95 @@ struct KmerHash {
 };
 
 
+
+
+
+
+class Minimizer {
+
+    public:
+
+        Minimizer();
+        Minimizer(const Minimizer& o);
+        explicit Minimizer(const char *s);
+
+        Minimizer& operator=(const Minimizer& o);
+
+        void set_empty();
+        void set_deleted();
+
+        bool operator<(const Minimizer& o) const;
+
+        // use:  b = (km1 == km2);
+        // pre:
+        // post: b is true <==> the DNA strings in km1 and km2 are equal
+        inline bool operator==(const Minimizer& o) const {
+
+            for (size_t i = 0; i < MAX_G/32; i++) {
+                if (longs[i] != o.longs[i]) return false;
+            }
+
+            return true;
+            //  return memcmp(bytes,o.bytes,MAX_K/4)==0;
+        }
+
+        bool operator!=(const Minimizer& o) const {
+            return !(*this == o);
+        }
+
+        void set_minimizer(const char *s);
+
+        uint64_t hash() const;
+
+        Minimizer twin() const;
+        Minimizer rep() const;
+
+        Minimizer getLink(const size_t index) const;
+
+        Minimizer forwardBase(const char b) const;
+
+        Minimizer backwardBase(const char b) const;
+
+        std::string getBinary() const;
+
+        void toString(char *s) const;
+        std::string toString() const;
+
+        // static functions
+        static void set_g(unsigned int _g);
+
+        static const unsigned int MAX_G = MAX_KMER_SIZE;
+        static unsigned int g;
+
+    private:
+
+        static unsigned int g_bytes;
+        static unsigned int g_longs;
+        static unsigned int g_modmask; // int?
+
+        // data fields
+        union {
+
+            uint8_t bytes[MAX_G/4];
+            uint64_t longs[MAX_G/32];
+        };
+
+        // By default MAX_K == 64 so the union uses 16 bytes
+        // However sizeof(Kmer) == 24
+        // Are the 8 extra bytes alignment?
+
+        // private functions
+        //void shiftForward(int shift);
+
+        //void shiftBackward(int shift);
+};
+
+
+struct MinimizerHash {
+
+    size_t operator()(const Minimizer& minz) const {
+
+        return minz.hash();
+    }
+};
 #endif // BFG_KMER_HPP
