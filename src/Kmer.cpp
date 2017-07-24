@@ -189,26 +189,22 @@ bool Kmer::operator<(const Kmer& o) const {
 // pre:  s[0],...,s[k-1] are all 'A','C','G' or 'T'
 // post: The DNA string in km is now equal to s
 void Kmer::set_kmer(const char *s)  {
-  size_t i,j,l;
-  memset(bytes,0,MAX_K/4);
 
-  for (i = 0; i < k; ++i) {
-    j = i % 32;
-    l = i/32;
-    assert(*s != '\0');
+    size_t i,j,l;
 
-    size_t x = ((*s) & 4) >> 1;
-    longs[l] |= ((x + ((x ^ (*s & 2)) >>1)) << (2*(31-j)));
-    /*
-    switch(*s) {
-      case 'A': break;
-      case 'C': longs[l] |= (0x01 << (2*j)); break;
-      case 'G': longs[l] |= (0x02 << (2*j)); break;
-      case 'T': longs[l] |= (0x03 << (2*j)); break;
-      }*/
+    memset(bytes, 0, MAX_K/4);
 
-    s++;
-  }
+    for (i = 0; i < k; ++i) {
+
+        j = i % 32;
+        l = i/32;
+        assert(*s != '\0');
+
+        size_t x = ((*s) & 4) >> 1;
+        longs[l] |= ((x + ((x ^ (*s & 2)) >>1)) << (2*(31-j)));
+
+        s++;
+    }
 }
 
 
@@ -394,38 +390,25 @@ void Kmer::selfForwardBase(const char b) {
 //       i.e. if the DNA string in km is 'ACGT' and c equals 'T' then
 //       the DNA string in bw is 'TACG'
 Kmer Kmer::backwardBase(const char b) const {
-  Kmer km(*this);
 
-  size_t nlongs = (k+31)/32;
-  km.longs[nlongs-1] = km.longs[nlongs-1] >>2;
-  km.longs[nlongs-1] &= (k%32) ? (((1ULL << (2*(k%32)))-1) << 2*(32-(k%32))) : ~0ULL;
+    Kmer km(*this);
 
-  for (size_t i = 1; i < nlongs; i++) {
-    km.longs[nlongs-i] |= (km.longs[nlongs-i-1] & 3ULL) << 62;
-    km.longs[nlongs-i-1] = km.longs[nlongs-i-1] >>2;
-  }
-  uint64_t x = (b & 4) >> 1;
-  km.longs[0] |= (x + ((x ^ (b & 2)) >> 1)) << 62;
+    size_t nlongs = (k+31)/32;
 
-  return km;
+    km.longs[nlongs-1] = km.longs[nlongs-1] >>2;
+    km.longs[nlongs-1] &= (k%32) ? (((1ULL << (2*(k%32)))-1) << 2*(32-(k%32))) : ~0ULL;
 
-  /*
-  km.shiftForward(2);
-  km.bytes[k_bytes-1] &= Kmer::k_modmask;
+    for (size_t i = 1; i < nlongs; i++) {
 
-  if (k%4 == 0 and k_bytes < MAX_K/4) {
-    km.bytes[k_bytes] = 0x00;
-  }
+        km.longs[nlongs-i] |= (km.longs[nlongs-i-1] & 3ULL) << 62;
+        km.longs[nlongs-i-1] = km.longs[nlongs-i-1] >>2;
+    }
 
-  switch(b) {
-    case 'A': km.bytes[0] |= 0x00; break;
-    case 'C': km.bytes[0] |= 0x01; break;
-    case 'G': km.bytes[0] |= 0x02; break;
-    case 'T': km.bytes[0] |= 0x03; break;
-  }
+    uint64_t x = (b & 4) >> 1;
 
-  return km;
-  */
+    km.longs[0] |= (x + ((x ^ (b & 2)) >> 1)) << 62;
+
+    return km;
 }
 
 
@@ -457,21 +440,39 @@ std::string Kmer::getBinary() const {
 // pre:  s has space for k+1 elements
 // post: s[0,...,k-1] is the DNA string for the Kmer km and s[k] = '\0'
 void Kmer::toString(char *s) const {
-  size_t i,j,l;
 
-  for (i = 0; i < k; i++) {
-    j = i % 32;
-    l = i / 32;
+    /*size_t i,j,l;
 
-    switch(((longs[l]) >> (2*(31-j)) )& 0x03 ) {
-    case 0x00: *s = 'A'; ++s; break;
-    case 0x01: *s = 'C'; ++s; break;
-    case 0x02: *s = 'G'; ++s; break;
-    case 0x03: *s = 'T'; ++s; break;
+    for (i = 0; i < k; i++) {
+
+        j = i % 32;
+        l = i / 32;
+
+        switch((longs[l] >> (2*(31-j))) & 0x03 ) {
+
+            case 0x00: *s = 'A'; ++s; break;
+            case 0x01: *s = 'C'; ++s; break;
+            case 0x02: *s = 'G'; ++s; break;
+            case 0x03: *s = 'T'; ++s; break;
+        }
     }
-  }
 
-  *s = '\0';
+    *s = '\0';*/
+
+    char v;
+    uint64_t tmp;
+
+    for (size_t i = 0; i < k; i++, tmp <<= 2) {
+
+        if (i % 32 == 0) tmp = longs[i / 32];
+
+        v = tmp >> 62;
+        *s = 0x40 | (v + 1) | (0x1 << (v-1)*2);
+
+        ++s;
+    }
+
+    *s = '\0';
 }
 
 std::string Kmer::toString() const {
@@ -729,7 +730,7 @@ std::string Minimizer::getBinary() const {
 
 void Minimizer::toString(char *s) const {
 
-    size_t i, j, l;
+    /*size_t i, j, l;
 
     for (i = 0; i < g; i++) {
 
@@ -742,6 +743,21 @@ void Minimizer::toString(char *s) const {
             case 0x02: *s = 'G'; ++s; break;
             case 0x03: *s = 'T'; ++s; break;
         }
+    }
+
+    *s = '\0';*/
+
+    char v;
+    uint64_t tmp;
+
+    for (size_t i = 0; i < g; i++, tmp <<= 2) {
+
+        if (i % 32 == 0) tmp = longs[i / 32];
+
+        v = tmp >> 62;
+        *s = 0x40 | (v + 1) | (0x1 << (v-1)*2);
+
+        ++s;
     }
 
     *s = '\0';

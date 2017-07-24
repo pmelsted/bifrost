@@ -36,7 +36,9 @@ class ContigMapper {
 
         void mapBloomFilter(const BlockedBloomFilter *bf);
 
-        ContigMap findContig(Kmer km, const string& s, size_t pos) const;
+        ContigMap findContig(const Kmer& km, const string& s, size_t pos) const;
+        ContigMap findContig(const Kmer& km, const string& s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h) const;
+
         void mapRead(const ContigMap& cc);
 
         bool addContigSequence(Kmer km, const string& read, size_t pos, const string& seq);
@@ -45,17 +47,24 @@ class ContigMapper {
         pair<size_t, size_t> splitAllContigs();
 
         size_t joinAllContigs();
-        bool checkJoin(Kmer a, Kmer& b, bool& dir);
-        bool checkEndKmer(Kmer b, bool& dir);
+        //bool checkJoin(Kmer a, Kmer& b, bool& dir);
+        bool checkJoin(const Kmer& a, const ContigMap& cm, Kmer& b, bool& dir);
+        //bool checkEndKmer(Kmer b, bool& dir);
 
         void checkIntegrity();
         void printState() const;
         size_t contigCount() const;
-        size_t writeGFA(int count1, string graphfilename);
+        void writeGFA(int count1, string graphfilename);
+
+        const BlockedBloomFilter *bf;
+
+        //size_t find(const size_t pos_kmer, const preAllocMinHashIterator<RepHash>& it_min_h) const;
 
     private:
 
-        ContigMap find(Kmer km) const;
+        ContigMap find(const Kmer& km) const;
+        ContigMap find(const Kmer& km, bool extremities_only) const;
+        ContigMap find(const Kmer& km, const size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h) const;
 
         bool fwBfStep(Kmer km, Kmer& end, char& c, size_t& deg) const;
         bool bwBfStep(Kmer km, Kmer& front, char& c, size_t& deg) const;
@@ -71,7 +80,6 @@ class ContigMapper {
         typedef KmerHashTable<CompressedCoverage> hmap_kmer_contigs_t;
         typedef MinimizerHashTable<tiny_vector<size_t,tiny_vector_sz>> hmap_min_contigs_t;
 
-        const BlockedBloomFilter *bf;
         vector<Contig*> v_contigs;
 
         hmap_kmer_contigs_t hmap_kmer_contigs;

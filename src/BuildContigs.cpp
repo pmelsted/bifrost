@@ -42,7 +42,7 @@ struct BuildContigs_ProgramOptions {
   bool clipTips;
   bool deleteIsolated;
   BuildContigs_ProgramOptions() : verbose(false), threads(1), k(0), g(21), stride(0), stride_set(false), \
-    read_chunksize(1000), contig_size(1000000), clipTips(false), \
+    read_chunksize(10000), contig_size(1000000), clipTips(false), \
     deleteIsolated(false) {}
 };
 
@@ -56,7 +56,7 @@ void BuildContigs_PrintUsage() {
   cout << endl << endl << "Required arguments:" << endl <<
        "  -v, --verbose               Print lots of messages during run" << endl <<
        "  -t, --threads=INT           Number of threads to use (default 1)" << endl <<
-       "  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default 1000 for multithreaded else 1)" << endl <<
+       "  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default=10000)" << endl <<
        "  -k, --kmer-size=INT         Size of k-mers, same as for filtering reads" << endl <<
        "  -f, --filtered=STRING       File with filtered reads" << endl <<
        "  -o, --output=STRING         Prefix for output files" << endl <<
@@ -318,27 +318,26 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
     size_t read_chunksize = opt.read_chunksize;
     vector<string> readv;
 
-    const bool neighbor_hash = true;
-
     if (opt.verbose) cerr << "Starting real work ....." << endl << endl;
 
     // Main worker thread
-    auto worker_function = [&](vector<string>::const_iterator a, vector<string>::const_iterator b, vector<NewContig>* smallv) {
+    auto worker_function = [&opt, &cmap](vector<string>::const_iterator a, vector<string>::const_iterator b, vector<NewContig>* smallv) {
 
-        RepHash l_roll_hash;
+        uint64_t it_min_h, last_it_min_h;
+        uint64_t* block_bf;
+
+        Kmer km;
+        RepHash rep;
+
+        size_t minz_skip = 0;
 
         // for each input
         for (auto x = a; x != b; ++x) {
 
             const char* s_x = x->c_str();
 
-            KmerHashIterator<RepHash> it_kmer_h(s_x, x->length(), Kmer::k), it_kmer_h_end;
-            minHashIterator<RepHash> it_min(s_x, x->length(), Kmer::k, Minimizer::g, l_roll_hash, neighbor_hash);
-
-            uint64_t it_min_h, last_it_min_h;
-            uint64_t* block_bf;
-
-            Kmer km;
+            KmerHashIterator<RepHash> it_kmer_h(s_x, x->length(), opt.k), it_kmer_h_end;
+            preAllocMinHashIterator<RepHash> it_min(s_x, x->length(), opt.k, opt.g, rep, true);
 
             for (int last_pos = -2; it_kmer_h != it_kmer_h_end; it_kmer_h++, it_min++) {
 
@@ -346,24 +345,24 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
 
                 if (p_.second != last_pos + 1){ // If one or more k-mer were jumped because contained non-ACGT char.
 
-                    it_min = minHashIterator<RepHash>(&s_x[p_.second], x->length() - p_.second, Kmer::k, Minimizer::g, l_roll_hash, neighbor_hash);
+                    it_min += (last_pos == -2 ? p_.second : (p_.second - last_pos) - 1);
                     it_min_h = it_min.getHash();
-                    block_bf = bf.getBlock(it_min_h);
+                    block_bf = cmap.bf->getBlock(it_min_h);
                     km = Kmer(&s_x[p_.second]);
                 }
                 else {
-                    km = km.forwardBase(s_x[p_.second + Kmer::k - 1]);
+                    km = km.forwardBase(s_x[p_.second + opt.k - 1]);
                     it_min_h = it_min.getHash();
-                    if (it_min_h != last_it_min_h) block_bf = bf.getBlock(it_min_h);
+                    if (it_min_h != last_it_min_h) block_bf = cmap.bf->getBlock(it_min_h);
                 }
 
                 last_pos = p_.second;
                 last_it_min_h = it_min_h;
 
                 // km is not in the graph
-                if (bf.contains(p_.first, block_bf)){
+                if (cmap.bf->contains(p_.first, block_bf)){
 
-                    ContigMap cm = cmap.findContig(km, *x, p_.second); // find mapping contig
+                    ContigMap cm = cmap.findContig(km, *x, p_.second, it_min);
 
                     if (cm.isEmpty) { // kmer did not map, push into queue for next contig generation round
 
@@ -377,7 +376,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
                             smallv->emplace_back(km, *x, p_.second, newseq);
 
                             if (!newseq.empty())
-                                it_kmer_h += cstrMatch(&s_x[p_.second + Kmer::k], &newseq.c_str()[pos_match + Kmer::k]);
+                                it_kmer_h += cstrMatch(&s_x[p_.second + opt.k], &newseq.c_str()[pos_match + opt.k]);
                     }
                     else {
 
@@ -385,7 +384,12 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
                         it_kmer_h += cm.len - 1;
                     }
 
-                } // done iterating through read
+                }
+                /*else {
+
+                    minz_skip = cmap.find(p_.second, it_min);
+                    if (minz_skip != 0) it_kmer_h += minz_skip - 1;
+                }*/
             } // done iterating through read batch
         }
     };
@@ -462,8 +466,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
         cerr << "Splitting contigs" << endl;
     }
 
-    bf.clear();
-
     size_t contigsBefore = cmap.contigCount();
 
     /*if (opt.verbose)*/ cerr << "Before split: " << contigsBefore << " contigs" << endl;
@@ -482,6 +484,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
 
     cerr << "joinAllContigs()" << endl;
     size_t joined = cmap.joinAllContigs();
+
+    bf.clear();
 
     int contigsAfter2 = cmap.contigCount();
 

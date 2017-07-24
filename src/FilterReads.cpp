@@ -312,7 +312,6 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
                     it_min = minHashIterator<RepHash>(&x->c_str()[p_.second], x->length() - p_.second, opt.k, Minimizer::g, RepHash(), neighbor_hash);
 
                 last_pos = p_.second;
-                //minHashResult min_hr = *(*it_min);
                 uint64_t min_hr = it_min.getHash();
 
                 if (!opt.ref) {
