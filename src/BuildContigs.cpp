@@ -329,8 +329,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
         Kmer km;
         RepHash rep;
 
-        size_t minz_skip = 0;
-
         // for each input
         for (auto x = a; x != b; ++x) {
 
@@ -385,11 +383,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
                     }
 
                 }
-                /*else {
-
-                    minz_skip = cmap.find(p_.second, it_min);
-                    if (minz_skip != 0) it_kmer_h += minz_skip - 1;
-                }*/
+                //else it_kmer_h += cmap.find(p_.second, it_min);
             } // done iterating through read batch
         }
     };

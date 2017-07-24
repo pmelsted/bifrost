@@ -72,13 +72,14 @@ bool ContigMapper::addContigSequence(Kmer km, const string& read, size_t pos, co
         // ok, check if any other k-mer is mapped
         for (KmerIterator it(s.c_str()), it_end; it != it_end; ++it) {
 
-            ContigMap cm = find(it->first);
+            //ContigMap cm = find(it->first);
+            mapRead(find(it->first));
 
-            if (!cm.isEmpty) {
+            /*if (!cm.isEmpty) {
 
                 CompressedCoverage& ccov = cm.isShort ? hmap_kmer_contigs.find(cm.pos_contig)->second : v_contigs[cm.pos_contig]->ccov;
-                int loopSize = cm.isShort ? k : v_contigs[cm.pos_contig]->length(); // loop size in k-mers
-                int fwMatch = stringMatch(s, read, pos); // length of match in k-mers
+                int loopSize = cm.isShort ? k : v_contigs[cm.pos_contig]->length(); // loop size in bps
+                int fwMatch = stringMatch(s, read, pos) - k + 1; // length of match in k-mers
                 int matchPos = (int) it->second; // position of matching k-mer within the string
                 int readStart = cm.dist - matchPos;
 
@@ -110,8 +111,10 @@ bool ContigMapper::addContigSequence(Kmer km, const string& read, size_t pos, co
                 }
 
                 return true;
-            }
+            }*/
         }
+
+        return true;
     }
 
     ContigMap cm = this->find(km);
