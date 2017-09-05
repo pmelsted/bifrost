@@ -87,65 +87,42 @@ public:
   const_iterator end() const { return (getPointer() + size()); }
 
 
-  bool isShort() const {
-    return short_;
+  inline bool isShort() const { return short_; }
+
+  inline T* getPointer() {
+    if (isShort()) return &arr.data[0];
+    return vec.data;
   }
 
-
-
-  T* getPointer() {
-    if (!isShort()) {
-      return vec.data;
-    } else {
-      return &arr.data[0];
-    }
-  }
-
-  const T* getPointer() const {
-    if (!isShort()) {
-      return vec.data;
-    } else {
-      return &arr.data[0];
-    }
+  inline const T* getPointer() const {
+    if (isShort()) return &arr.data[0];
+    return vec.data;
   }
 
   size_t size() const {
-    if (isShort()) {
-      return arr.size;
-    } else {
-      return vec.size;
-    }
-  };
-
-  bool empty() const {
-    return (size()==0);
+    if (isShort()) return arr.size;
+    return vec.size;
   }
+
+  inline bool empty() const { return (size()==0); }
 
   bool operator==(const tiny_vector& o) const {
     if (size() == o.size()) {
       for (auto it=begin(), oit = o.begin(); it != end(); ++it,++oit) {
-        if (*it == *oit) {
-          // pass
-        } else {
-          return false;
-        }
+        if (*it != *oit) return false;
       }
       return true;
-    } else {
-      return false;
     }
+    return false;
   }
 
   bool operator!=(const tiny_vector& o) const {
     return !operator==(o);
   }
 
-  size_t capacity() const {
-    if (isShort()) {
-      return N;
-    } else {
-      return vec.cap;
-    }
+  inline size_t capacity() const {
+    if (isShort()) return N;
+    return vec.cap;
   }
 
   T& operator[](size_t i) {
@@ -157,42 +134,59 @@ public:
   }
 
   void push_back(const T& value) {
-    if (size() < capacity()) {
-      // we have room for one more value
-    } else {
-      _reserve_and_copy(3*size()/2);
-    }
+
+    if (size() >= capacity()) _reserve_and_copy(3*size()/2);
+
     *(end()) = value;
-    //new(end()) T(std::forward(value)); // fancy way of assigning to pointer
-    if (isShort()) {
-      ++arr.size;
-    } else {
-      ++vec.size;
-    }
-  };
 
-  //void push_back(T&& value) {}
+    if (isShort()) ++arr.size;
+    else ++vec.size;
+  }
 
+  void insert(const T& value, const size_t position) {
+
+    if (size() >= capacity()) _reserve_and_copy(3*size()/2);
+
+    T* data = getPointer();
+
+    memmove(&data[position + 1], &data[position], (size() - position) * sizeof(T));
+
+    data[position] = value;
+
+    if (isShort()) ++arr.size;
+    else ++vec.size;
+  }
+
+  void remove(const size_t position) {
+
+    T* data = getPointer();
+
+    if (position != size() - 1) memmove(&data[position], &data[position + 1], (size() - position - 1) * sizeof(T));
+
+    if (isShort()) --arr.size;
+    else --vec.size;
+  }
 
   void clear() {
+
     if (!isShort()) {
+
       delete[] vec.data;
       vec.data = nullptr;
       vec.size = 0;
       vec.cap = 0;
-    } else {
-      for (auto it = begin(); it != end(); ++it) {
-        it->~T(); // manually call destructor
-      }
+    }
+    else {
+
+      for (auto it = begin(); it != end(); ++it) it->~T(); // manually call destructor
       arr.size = 0;
     }
+
     short_ = true;
   }
 
-  void reserve(size_t sz) {
-    if (sz > capacity()) {
-      _reserve_and_copy(sz);
-    }
+  inline void reserve(size_t sz) {
+    if (sz > capacity()) _reserve_and_copy(sz);
   }
 
   void _reserve_and_copy(size_t sz) {
@@ -216,8 +210,6 @@ public:
     vec.cap = sz;
     vec.data = newdata;
   }
-
-
 };
 
 #endif

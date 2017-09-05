@@ -22,8 +22,8 @@ class Contig {
   CompressedCoverage ccov;
   CompressedSequence seq;
 
-  size_t numKmers() const { return seq.size()-Kmer::k+1; }
-  size_t length() const { return seq.size(); }
+  inline size_t numKmers() const { return seq.size()-Kmer::k+1; }
+  inline size_t length() const { return seq.size(); }
   size_t memory() const;
 };
 

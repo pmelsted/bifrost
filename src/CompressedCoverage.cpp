@@ -130,7 +130,7 @@ string CompressedCoverage::toString() const {
       }
       info << "] " << endl;
       //size_t nbytes = round_to_bytes(sz);
-      
+
       /*uint8_t *ptr = get8Pointer() + 8;
       string ptrbits(nbytes*8, '0');
       for (size_t i = 0; i < nbytes; i++) {
@@ -157,7 +157,7 @@ string CompressedCoverage::toString() const {
         info << (int)covAt(i);
       }
       info << "] " << endl;
-    
+
     return bits + "\n" + info.str();
   }
 }
@@ -339,7 +339,11 @@ bool CompressedCoverage::isFull() const {
 // pre:
 // post: cc is full and any memory is released
 void CompressedCoverage::setFull() {
-  if (!isFull()) {
-    releasePointer();
-  }
+
+    if (!isFull()){
+
+        releasePointer();
+
+        if ((asBits & tagMask) == 1) asBits |= fullMask;
+    }
 }

@@ -11,13 +11,12 @@ target_include_directories(BFGraph_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(BFGraph BFGraph.cpp)
 
 find_package( Threads REQUIRED )
-target_link_libraries(BFGraph BFGraph_core pthread)
+target_link_libraries(BFGraph BFGraph_core pthread jemalloc)
 
 if(LINK MATCHES static)
     set(BUILD_SHARED_LIBS OFF)
 
     if (UNIX AND NOT APPLE)
-        #set(CMAKE_EXE_LINKER_FLAGS  "-static -static-libgcc -static-libstdc++")
         set(CMAKE_EXE_LINKER_FLAGS  "-static -static-libstdc++")
         SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
         set(CMAKE_EXE_LINKER_FLAGS  "-static -static-libgcc -static-libstdc++")

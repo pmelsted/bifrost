@@ -143,7 +143,6 @@ class minHashIterator {
         }
 
         minHashResultIterator<HF> operator*() const {return minHashResultIterator<HF>(this);}
-        //minHashResultIterator<HF>* operator->() { return &(operator*());}
 
         uint64_t getHash() const { return invalid ? 0 : v[0].hash; }
 
@@ -188,7 +187,6 @@ struct minHashResultIterator {
             || (pos>=p->v.size()-1) // or if we advance past the end
             || (p->v[pos+1].hash != p->v[pos].hash))    { // or if the next position doesn't share the hash value
             // invalidate the iterator
-            p_s = NULL;
             invalid = true;
             return *this;
         }
@@ -217,77 +215,6 @@ struct minHashResultIterator {
     int pos;
     const int p_pos;
     const char *p_s;
-};
-
-
-
-
-
-
-template <class HF>
-struct minHashKmer {
-
-    public:
-
-        minHashKmer(const char* _s, int _k, int _g, HF _h, bool neighbor_hash) : s(_s), k(_k), g(_g), hf(_h), h(0), p(-1), invalid(true), nh(neighbor_hash) {
-
-            if ((s != NULL) && ((n = strlen(s)) >= k) && (k >= g)){
-
-                invalid = false;
-
-                hf.setK(g);
-                compute_min();
-            }
-        }
-
-        minHashKmer() : s(NULL), n(0), k(0), g(0), hf(HF(0)), h(0), p(-1), invalid(true), nh(false) {}
-
-        bool operator==(const minHashKmer& o) {
-
-            if(invalid || o.invalid) return invalid && o.invalid;
-            return s==o.s && n==o.n && g==o.g && k==o.k && nh==o.nh && h==o.h && p==o.p;
-        }
-
-        bool operator!=(const minHashKmer& o) { return !this->operator==(o); }
-
-        uint64_t getHash() const { return h; }
-
-        int getPosition() const { return p; }
-
-    private:
-
-        void compute_min(){
-
-            if (invalid) return;
-
-            const int shift = nh ? 1 : 0;
-
-            hf.init(&s[shift]);
-
-            h = hf.hash();
-            p = shift;
-
-            for (int j = shift; j < k-g-shift; j++) {
-
-                hf.update(s[j], s[j+g]);
-
-                if (hf.hash() < h){
-
-                    h = hf.hash();
-                    p = j + 1;
-                }
-            }
-        }
-
-        const char* s;
-        HF hf;
-        uint64_t h;
-        int n;
-        int k;
-        int g;
-        int p;
-        bool invalid;
-        bool nh;
 };
 
 
@@ -398,11 +325,13 @@ class preAllocMinHashIterator {
             return *this;
         }
 
-        preAllocMinHashResultIterator<HF> operator*() const {return preAllocMinHashResultIterator<HF>(this);}
+        preAllocMinHashResultIterator<HF> operator*() const {return preAllocMinHashResultIterator<HF>(*this);}
 
-        uint64_t getHash() const { return invalid ? 0 : v[p_cur_start].hash; }
+        inline uint64_t getHash() const { return invalid ? 0 : v[p_cur_start].hash; }
 
-        int getPosition() const { return invalid ? 0 : v[p_cur_start].pos; }
+        inline int getPosition() const { return invalid ? 0 : v[p_cur_start].pos; }
+
+        inline int getNbMin() const { return p_cur_end - p_cur_start; }
 
         const char *s; //Minimizers are from k-mers, k-mers are from a sequence s
         int n; // Length of sequence s
@@ -417,23 +346,36 @@ class preAllocMinHashIterator {
         bool nh;
 
         // private copy constructor
-        preAllocMinHashIterator(const preAllocMinHashIterator& o) : s(o.s), n(o.n), k(o.k), g(o.g), hf(o.hf), v(o.v), p(o.p), invalid(o.invalid), nh(o.nh) {}
+        preAllocMinHashIterator(const preAllocMinHashIterator& o) : s(o.s), n(o.n), k(o.k), g(o.g), hf(o.hf), v(o.v), p(o.p),
+                                                                    p_cur_start(o.p_cur_start), p_cur_end(o.p_cur_end), invalid(o.invalid), nh(o.nh) {}
+
+        preAllocMinHashIterator(const preAllocMinHashIterator& o, int len) : s(o.s + o.p), n(len), k(o.k), g(o.g), hf(o.hf), p(0),
+                                                                    p_cur_start(0), p_cur_end(o.p_cur_end - o.p_cur_start), invalid(o.invalid), nh(o.nh) {
+
+            if (!invalid && (o.p + n <= o.n)){
+
+                v = std::vector<minHashResult>(o.v.begin() + o.p_cur_start, o.v.begin() + o.p_cur_end);
+
+                for (auto& min_h : v) min_h.pos -= o.p;
+            }
+            else invalid = true;
+        }
 };
 
 template <class HF>
 struct preAllocMinHashResultIterator {
 
-    preAllocMinHashResultIterator(const preAllocMinHashIterator<HF> *p) : p(p), p_pos(p->p), p_s(p->s), p_it(p->p_cur_start), invalid(false) {}
-    preAllocMinHashResultIterator() : invalid(true), p_pos(-1), p_s(NULL), p_it(0) {}
+    preAllocMinHashResultIterator(const preAllocMinHashIterator<HF>& _p) : p(&_p), p_pos(_p.p), p_it(_p.p_cur_start), p_it_end(_p.p_cur_end), p_s(_p.s), invalid(false) {}
+    preAllocMinHashResultIterator() : invalid(true), p(NULL), p_pos(-1), p_s(NULL), p_it(0), p_it_end(0) {}
 
-    bool operator==(const preAllocMinHashResultIterator& o) {
+    bool operator==(const preAllocMinHashResultIterator& o) const {
 
         if (o.invalid || invalid) return o.invalid && invalid;
-        return p_pos == o.p_pos && p_s == o.p_s && p_it==o.p_it;
+        return p_pos == o.p_pos && p_s == o.p_s && p_it==o.p_it && p_it_end==o.p_it_end;
 
     }
 
-    bool operator!=(const preAllocMinHashResultIterator& o) {
+    bool operator!=(const preAllocMinHashResultIterator& o) const {
         return !this->operator==(o);
     }
 
@@ -441,11 +383,10 @@ struct preAllocMinHashResultIterator {
 
         if (invalid) return *this;
 
-        if ((p_s != p->s || p_pos != p->p) // check if parent iterator has moved
-            || (p_it >= p->p_cur_end) // or if we advance past the end
+        if ((p_s != p->s || p_pos != p->p || p_it_end != p->p_cur_end) // check if parent iterator has moved
+            || (p_it >= p_it_end - 1) // or if we advance past the end
             || (p->v[p_it + 1].hash != p->v[p_it].hash)) { // or if the next position doesn't share the hash value
             // invalidate the iterator
-            p_s = NULL;
             invalid = true;
             return *this;
         }
@@ -469,11 +410,106 @@ struct preAllocMinHashResultIterator {
     // pos points to a minHashIterator, all the values from p.v[0] to p.v[pos] have the
     // same (minimum) hash value or the this.invalid is true
     // at the time this was created p.s==p_s and p.p=p_pos
-    const preAllocMinHashIterator<HF> *p;
+
+    const preAllocMinHashIterator<HF>* p;
     bool invalid;
     size_t p_it;
+    const size_t p_it_end;
     const int p_pos;
     const char *p_s;
+};
+
+
+
+
+
+
+
+
+
+
+template <class HF>
+struct minHashKmer {
+
+    public:
+
+        minHashKmer(const char* _s, int _k, int _g, HF _h, bool neighbor_hash) : s(_s), k(_k), g(_g), hf(_h), h(0), p(-1), invalid(true), nh(neighbor_hash) {
+
+            if ((s != NULL) && ((n = strlen(s)) >= k) && (k >= g)){
+
+                invalid = false;
+
+                hf.setK(g);
+                compute_min();
+            }
+        }
+
+        minHashKmer() : s(NULL), n(0), k(0), g(0), hf(HF(0)), h(0), p(-1), nb(0), invalid(true), nh(false) {}
+
+        minHashKmer(const preAllocMinHashIterator<HF>& o) : s(o.s), k(o.k), g(o.g), hf(o.hf), nh(o.nh), h(0), p(-1), nb(o.nb), invalid(o.invalid){
+
+            if (!invalid){
+
+                h = o.v[o.p_cur_start].hash;
+                p = o.v[o.p_cur_start].pos - o.p;
+            }
+        }
+
+        bool operator==(const minHashKmer& o) {
+
+            if(invalid || o.invalid) return invalid && o.invalid;
+            return s==o.s && n==o.n && g==o.g && k==o.k && nh==o.nh && h==o.h && p==o.p && nb==o.nb;
+        }
+
+        bool operator!=(const minHashKmer& o) { return !this->operator==(o); }
+
+        uint64_t getHash() const { return h; }
+
+        int getPosition() const { return p; }
+
+        int getNbMin() const { return nb; }
+
+    private:
+
+        void compute_min(){
+
+            if (invalid) return;
+
+            const int shift = nh ? 1 : 0;
+
+            hf.init(&s[shift]);
+
+            h = hf.hash();
+            p = shift;
+            nb = 1;
+
+            for (int j = shift; j < k-g-shift; j++) {
+
+                hf.update(s[j], s[j+g]);
+
+                if (hf.hash() <= h){
+
+                    if (hf.hash() == h) nb++;
+                    else {
+
+                        h = hf.hash();
+                        p = j + 1;
+                        nb = 1;
+                    }
+                }
+            }
+        }
+
+        const char* s;
+        HF hf;
+        uint64_t h;
+        int n;
+        int k;
+        int g;
+        int p;
+        int nb;
+        bool invalid;
+        bool nh;
 };
 
 #endif // MINHASHITERATOR_H

@@ -13,6 +13,10 @@
 
 #include "hash.hpp"
 
+#ifndef XXH_NAMESPACE
+#define XXH_NAMESPACE BFGRAPH_HASH_
+#endif
+
 extern "C" {
     #include "xxhash.h"
 }
@@ -174,18 +178,18 @@ class Minimizer {
         static const unsigned int MAX_G = MAX_KMER_SIZE;
         static unsigned int g;
 
-    private:
-
-        static unsigned int g_bytes;
-        static unsigned int g_longs;
-        static unsigned int g_modmask; // int?
-
         // data fields
         union {
 
             uint8_t bytes[MAX_G/4];
             uint64_t longs[MAX_G/32];
         };
+
+    private:
+
+        static unsigned int g_bytes;
+        static unsigned int g_longs;
+        static unsigned int g_modmask; // int?
 
         // By default MAX_K == 64 so the union uses 16 bytes
         // However sizeof(Kmer) == 24

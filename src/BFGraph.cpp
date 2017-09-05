@@ -1,6 +1,8 @@
 #include <iostream>
 #include <cstring>
 
+#include <jemalloc/jemalloc.h>
+
 #include "BuildContigs.hpp"
 #include "FilterReads.hpp"
 #include "Common.hpp"
@@ -40,21 +42,15 @@ void PrintCite() {
 
 
 int main(int argc, char **argv) {
-  if (argc < 2) {
-    //cerr << "Error: too few arguments" << endl;
-    PrintUsage();
-  } else {
-    if (strcmp(argv[1], "cite") == 0) {
-      PrintCite();
-    } else if (strcmp(argv[1], "version") == 0) {
-      PrintVersion();
-    } else if (strcmp(argv[1], "filter") == 0) {
-      FilterReads(argc-1,argv+1);
-    } else if (strcmp(argv[1], "contigs") == 0) {
-      BuildContigs(argc-1,argv+1);
-    } else {
-      cout << "Did not understand command " << argv[1] << endl;
-      PrintUsage();
+
+    if (argc < 2) PrintUsage();
+    else if (strcmp(argv[1], "cite") == 0) PrintCite();
+    else if (strcmp(argv[1], "version") == 0) PrintVersion();
+    else if (strcmp(argv[1], "filter") == 0) FilterReads(argc-1,argv+1);
+    else if (strcmp(argv[1], "contigs") == 0) BuildContigs(argc-1,argv+1);
+    else {
+
+        cout << "Did not understand command " << argv[1] << endl;
+        PrintUsage();
     }
-  }
 }

@@ -53,7 +53,7 @@ public:
     x = (x >> 1) | (x << 63);
   }
 
-  uint64_t hash() const {
+  inline uint64_t hash() const {
     return (h ^ ht);
   }
 

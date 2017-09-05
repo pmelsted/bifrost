@@ -10,11 +10,15 @@
 #include "ContigMethods.hpp"
 #include "KmerHashTable.h"
 
+#include "minHashIterator.hpp"
 #include "RepHash.hpp"
 #include "TinyVector.hpp"
 
-#define LOWER_32_MASK  (0xffffffff)
-#define UPPER_32_MASK  (0xffffffff00000000)
+#define MASK_CONTIG_ID (0xffffffff00000000)
+#define MASK_CONTIG_TYPE (0x80000000)
+#define MASK_CONTIG_POS (0x7fffffff)
+
+#define RESERVED_ID (0xffffffff)
 
 /*
   Short description:
@@ -38,52 +42,69 @@ class ContigMapper {
 
         ContigMap findContig(const Kmer& km, const string& s, size_t pos) const;
         ContigMap findContig(const Kmer& km, const string& s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h) const;
+        ContigMap findContig(const Kmer& km, const string& s, size_t pos_km_in_s, size_t pos_min_in_s, size_t it_h);
+
+        ContigMap find(const Kmer& km, bool extremities_only = false) const;
 
         void mapRead(const ContigMap& cc);
 
-        bool addContigSequence(Kmer km, const string& read, size_t pos, const string& seq);
-        size_t findContigSequence(Kmer km, string& s, bool& selfLoop);
+        bool addContigSequence(Kmer km, const string& read, size_t pos, const string& seq, vector<Kmer>& l_ignored_km_tip);
+
+        //size_t findContigSequence(Kmer km, string& s, bool& selfLoop, bool& isIsolated);
+        size_t findContigSequence(Kmer km, string& s, bool& selfLoop, bool& isIsolated, vector<Kmer>& l_ignored_km_tip);
 
         pair<size_t, size_t> splitAllContigs();
 
-        size_t joinAllContigs();
-        //bool checkJoin(Kmer a, Kmer& b, bool& dir);
-        bool checkJoin(const Kmer& a, const ContigMap& cm, Kmer& b, bool& dir);
-        //bool checkEndKmer(Kmer b, bool& dir);
+        size_t joinAllContigs(vector<Kmer>* v_joins = NULL);
+        bool checkJoin(const Kmer& a, const ContigMap& cm_a, Kmer& b/*, bool& dir*/);
+
+        void writeGFA(string graphfilename);
 
         void checkIntegrity();
         void printState() const;
         size_t contigCount() const;
-        void writeGFA(int count1, string graphfilename);
+        void printContigCount() const;
 
         const BlockedBloomFilter *bf;
 
-        //size_t find(const size_t pos_kmer, const preAllocMinHashIterator<RepHash>& it_min_h) const;
+        inline size_t find(const preAllocMinHashIterator<RepHash>& it_min_h) const {
+
+            int pos = it_min_h.getPosition();
+
+            return (hmap_min_contigs.find(Minimizer(&it_min_h.s[pos]).rep()) != hmap_min_contigs.end() ? 0 : pos - it_min_h.p);
+        }
+
+        void check_fp_tips(KmerHashTable<bool>& ignored_km_tips);
+
+        size_t removeUnitigs(bool rmIsolated, bool clipTips, vector<Kmer>& v);
 
     private:
 
-        ContigMap find(const Kmer& km) const;
-        ContigMap find(const Kmer& km, bool extremities_only) const;
-        ContigMap find(const Kmer& km, const size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h) const;
+        ContigMap find(const Kmer& km, const preAllocMinHashIterator<RepHash>& it_min_h) const;
+        ContigMap find(const Kmer& km, const size_t pos_min, const size_t it_h, bool extremities_only = false);
 
-        bool fwBfStep(Kmer km, Kmer& end, char& c, size_t& deg) const;
-        bool bwBfStep(Kmer km, Kmer& front, char& c, size_t& deg) const;
+        //bool fwBfStep(Kmer km, Kmer& end, char& c, bool& has_no_neighbor) const;
+        //bool bwBfStep(Kmer km, Kmer& front, char& c, bool& has_no_neighbor) const;
 
-        void addContig(const string& str_contig, const size_t id_contig);
-        KmerHashTable<CompressedCoverage>::iterator addShortContig(const string& str_contig);
-        void deleteContig(const size_t id_contig);
-        KmerHashTable<CompressedCoverage>::iterator deleteShortContig(const size_t id_contig);
-        void swapContigs(const size_t id_contig_a, const size_t id_contig_b);
+        bool fwBfStep(Kmer km, Kmer& end, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;
+        bool bwBfStep(Kmer km, Kmer& front, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;
+
+        bool addContig(const string& str_contig, const size_t id_contig);
+        void deleteContig(const bool isShort, const bool isAbundant, const size_t id_contig);
+        void swapContigs(const bool isShort, const size_t id_a, const size_t id_b);
+        bool splitContig(size_t& pos_v_contigs, size_t& nxt_pos_insert_v_contigs, size_t& v_contigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp);
 
         static const int tiny_vector_sz = 2;
+        static const int min_abundance_lim = 15;
 
-        typedef KmerHashTable<CompressedCoverage> hmap_kmer_contigs_t;
+        typedef KmerHashTable<CompressedCoverage> h_kmers_ccov_t;
         typedef MinimizerHashTable<tiny_vector<size_t,tiny_vector_sz>> hmap_min_contigs_t;
 
         vector<Contig*> v_contigs;
+        vector<pair<Kmer, CompressedCoverage>> v_kmers;
 
-        hmap_kmer_contigs_t hmap_kmer_contigs;
         hmap_min_contigs_t hmap_min_contigs;
+        h_kmers_ccov_t h_kmers_ccov;
 };
 
 #endif //BFG_CONTIGMAPPER_HPP
