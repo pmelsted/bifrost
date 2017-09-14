@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <fstream>
 
-
+#include <tuple>
 // for debugging
 #include <iostream>
 
@@ -29,6 +29,36 @@ ContigMapper::~ContigMapper() {
 // pre:  sz >= 0
 // post: new contigmapper object
 ContigMapper::ContigMapper() : bf(NULL) {}
+
+ContigMapper::ContigMapper(const char* fp_min_name) : bf(NULL) {
+
+    FILE* fp = fopen(fp_min_name, "rb");
+    assert(fp != NULL);
+
+    size_t hmap_min_sz;
+
+    if (fread(&hmap_min_sz, sizeof(size_t), 1, fp) != 1){
+
+        cerr << "ContigMapper(): cannot read minimizers from disk" << endl;
+        exit(1);
+    }
+
+    hmap_min_contigs.init_table(hmap_min_sz);
+
+    Minimizer minz;
+
+    for (size_t i = 0; i < hmap_min_sz; i++){
+
+        if (minz.read(fp)) hmap_min_contigs.insert(make_pair(minz, tiny_vector<size_t,tiny_vector_sz>()));
+        else{
+
+            cerr << "ContigMapper(): cannot read minimizers from disk" << endl;
+            exit(1);
+        }
+    }
+
+    fclose(fp);
+}
 
 // user: i = cm.contigCount()
 // pre:
@@ -275,10 +305,12 @@ size_t ContigMapper::findContigSequence(Kmer km, string& s, bool& selfLoop, bool
 //       or empty if none found
 ContigMap ContigMapper::findContig(const Kmer& km, const string& s, size_t pos) const {
 
+    //cerr << "findContig()" << endl;
+
     assert(bf != NULL);
 
     // need to check if we find it right away, need to treat this common case
-    ContigMap cc = this->find(km);
+    ContigMap cc = find(km);
 
     if (!cc.isEmpty && !cc.isShort && !cc.isAbundant){
 
@@ -294,18 +326,24 @@ ContigMap ContigMapper::findContig(const Kmer& km, const string& s, size_t pos) 
             km_dist -= jlen - 1;
         }
 
+        //cerr << " exit findContig()" << endl;
+
         return ContigMap(cc.pos_contig, cc.pos_min, km_dist, jlen, cc.size, false, false, cc.strand);
     }
+
+    //cerr << " exit findContig()" << endl;
 
     return cc;
 }
 
 ContigMap ContigMapper::findContig(const Kmer& km, const string& s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h) const {
 
+    //cerr << "findContig() 2" << endl;
+
     assert(bf != NULL);
 
     // need to check if we find it right away, need to treat this common case
-    ContigMap cc = this->find(km, it_min_h);
+    ContigMap cc = find(km, it_min_h);
 
     if (!cc.isEmpty && !cc.isShort && !cc.isAbundant){
 
@@ -327,7 +365,7 @@ ContigMap ContigMapper::findContig(const Kmer& km, const string& s, size_t pos, 
     return cc;
 }
 
-ContigMap ContigMapper::findContig(const Kmer& km, const string& s, size_t pos_km_in_s, size_t pos_min_in_s, size_t it_h) {
+/*ContigMap ContigMapper::findContig(const Kmer& km, const string& s, size_t pos_km_in_s, size_t pos_min_in_s, size_t it_h) {
 
     assert(bf != NULL);
 
@@ -352,9 +390,11 @@ ContigMap ContigMapper::findContig(const Kmer& km, const string& s, size_t pos_k
     }
 
     return cc;
-}
+}*/
 
 ContigMap ContigMapper::find(const Kmer& km, bool extremities_only) const {
+
+    //cerr << "find()" << endl;
 
     const Kmer km_twin = km.twin();
     const Kmer& km_rep = km < km_twin ? km : km_twin;
@@ -373,22 +413,49 @@ ContigMap ContigMapper::find(const Kmer& km, bool extremities_only) const {
     preAllocMinHashIterator<RepHash> it_min(km_tmp, k, k, g, RepHash(), true);
     preAllocMinHashResultIterator<RepHash> it_it_min = *it_min, it_it_min_end;
 
+    minHashResult mhr, mhr_tmp;
+
     while (it_it_min != it_it_min_end){
 
         const minHashResult& min_h_res = *it_it_min;
         Minimizer minz = Minimizer(&km_tmp[min_h_res.pos]).rep();
-
         hmap_min_contigs_t::const_iterator it = hmap_min_contigs.find(minz); // Look for the minimizer in the hash table
 
-        if (it != hmap_min_contigs.end()){ // If the minimizer is found
+        mhr = min_h_res;
+
+        while (it != hmap_min_contigs.end()){ // If the minimizer is found
 
             it_h = it.getHash();
 
-            for (auto contig_id_pos : it->second){ // For each contig associated with the minimizer
+            const tiny_vector<size_t,tiny_vector_sz>& v = it->second;
+
+            it = hmap_min_contigs.end();
+
+            for (auto contig_id_pos : v){ // For each contig associated with the minimizer
 
                 contig_id = contig_id_pos >> 32;
 
-                if (contig_id == RESERVED_ID) isAbundant = true;
+                if (contig_id == RESERVED_ID){
+
+                    if ((contig_id_pos & RESERVED_ID) != 0){ //This minimizer has abundant k-mers
+
+                        h_kmers_ccov_t::const_iterator it_km = h_kmers_ccov.find(km_rep);
+
+                        if (it_km != h_kmers_ccov.end()) return ContigMap(it_km.getHash(), it_h, 0, 1, Kmer::k, false, true, km == km_rep);
+                    }
+
+                    if ((contig_id_pos & MASK_CONTIG_TYPE) == MASK_CONTIG_TYPE){ //This minimizer is unitig overcrowded
+
+                        mhr_tmp = it_min.getNewMin(mhr);
+
+                        if (mhr_tmp.hash != mhr.hash){
+
+                            mhr = mhr_tmp;
+                            minz = Minimizer(&km_tmp[mhr.pos]).rep();
+                            it = hmap_min_contigs.find(minz);
+                        }
+                    }
+                }
                 else {
 
                     isShort = (contig_id_pos & MASK_CONTIG_TYPE) != 0;
@@ -402,8 +469,10 @@ ContigMap ContigMapper::find(const Kmer& km, bool extremities_only) const {
 
                             if (v_kmers[contig_id].first == km_rep) return ContigMap(contig_id, it_h, 0, 1, k, true, false, true);
                         }
-                        else if ((min_h_res.pos == k - contig_id_pos - g) && (v_kmers[contig_id].first == km_rep))
+                        else if ((min_h_res.pos == k - contig_id_pos - g) && (v_kmers[contig_id].first == km_rep)){
+
                             return ContigMap(contig_id, it_h, 0, 1, k, true, false, false);
+                        }
                     }
                     else {
 
@@ -442,13 +511,6 @@ ContigMap ContigMapper::find(const Kmer& km, bool extremities_only) const {
         it_it_min++;
     }
 
-    if (isAbundant){
-
-        h_kmers_ccov_t::const_iterator it_km = h_kmers_ccov.find(km_rep);
-
-        if (it_km != h_kmers_ccov.end()) return ContigMap(it_km.getHash(), it_h, 0, 1, Kmer::k, false, true, km == km_rep);
-    }
-
     return ContigMap(it_h);
 }
 
@@ -468,23 +530,51 @@ ContigMap ContigMapper::find(const Kmer& km, const preAllocMinHashIterator<RepHa
     preAllocMinHashIterator<RepHash> it_min = preAllocMinHashIterator<RepHash>(it_min_h, k);
     preAllocMinHashResultIterator<RepHash> it_it_min = *it_min, it_it_min_end;
 
+    minHashResult mhr, mhr_tmp;
+
     while (it_it_min != it_it_min_end){
 
         const minHashResult& min_h_res = *it_it_min;
-
         Minimizer minz = Minimizer(&it_min.s[min_h_res.pos]).rep();
-
         hmap_min_contigs_t::const_iterator it = hmap_min_contigs.find(minz); // Look for the minimizer in the hash table
 
-        if (it != hmap_min_contigs.end()){ // If the minimizer is found
+        mhr = min_h_res;
+
+        while (it != hmap_min_contigs.end()){ // If the minimizer is found
+
+            const tiny_vector<size_t,tiny_vector_sz>& v = it->second;
 
             it_h = it.getHash();
+            it = hmap_min_contigs.end();
 
-            for (auto contig_id_pos : it->second){ // For each contig associated with the minimizer
+            for (auto contig_id_pos : v){ // For each contig associated with the minimizer
 
                 contig_id = contig_id_pos >> 32;
 
-                if (contig_id == RESERVED_ID) isAbundant = true;
+                if (contig_id == RESERVED_ID){
+
+                    if ((contig_id_pos & RESERVED_ID) != 0){ //This minimizer has abundant k-mers
+
+                        h_kmers_ccov_t::const_iterator it_km = h_kmers_ccov.find(km_rep);
+
+                        if (it_km != h_kmers_ccov.end()){
+
+                            return ContigMap(it_km.getHash(), it_h, 0, 1, Kmer::k, false, true, km == km_rep);
+                        }
+                    }
+
+                    if ((contig_id_pos & MASK_CONTIG_TYPE) == MASK_CONTIG_TYPE){ //This minimizer is unitig overcrowded
+
+                        mhr_tmp = it_min.getNewMin(mhr);
+
+                        if (mhr_tmp.hash != mhr.hash){
+
+                            mhr = mhr_tmp;
+                            minz = Minimizer(&it_min.s[mhr.pos]).rep();
+                            it = hmap_min_contigs.find(minz);
+                        }
+                    }
+                }
                 else {
 
                     isShort = (contig_id_pos & MASK_CONTIG_TYPE) != 0;
@@ -494,7 +584,10 @@ ContigMap ContigMapper::find(const Kmer& km, const preAllocMinHashIterator<RepHa
 
                         if (min_h_res.pos == contig_id_pos){
 
-                            if (v_kmers[contig_id].first == km_rep) return ContigMap(contig_id, it_h, 0, 1, k, true, false, true);
+                            if (v_kmers[contig_id].first == km_rep){
+
+                                return ContigMap(contig_id, it_h, 0, 1, k, true, false, true);
+                            }
                         }
                         else if ((min_h_res.pos == k - contig_id_pos - g) && (v_kmers[contig_id].first == km_rep)){
 
@@ -525,17 +618,10 @@ ContigMap ContigMapper::find(const Kmer& km, const preAllocMinHashIterator<RepHa
         it_it_min++;
     }
 
-    if (isAbundant){
-
-        h_kmers_ccov_t::const_iterator it_km = h_kmers_ccov.find(km_rep);
-
-        if (it_km != h_kmers_ccov.end()) return ContigMap(it_km.getHash(), it_h, 0, 1, Kmer::k, false, true, km == km_rep);
-    }
-
     return ContigMap(it_h);
 }
 
-ContigMap ContigMapper::find(const Kmer& km, const size_t pos_min, const size_t it_h, bool extremities_only) {
+/*ContigMap ContigMapper::find(const Kmer& km, const size_t pos_min, const size_t it_h, bool extremities_only) {
 
     const Kmer km_twin = km.twin();
     const Kmer& km_rep = km < km_twin ? km : km_twin;
@@ -617,7 +703,7 @@ ContigMap ContigMapper::find(const Kmer& km, const size_t pos_min, const size_t 
     }
 
     return ContigMap(it_h);
-}
+}*/
 
 // use:  b = cm.bwBfStep(km,front,c,deg)
 // pre:  km is in the bloom filter
@@ -1266,17 +1352,21 @@ void ContigMapper::check_fp_tips(KmerHashTable<bool>& ignored_km_tips){
     cerr << "Number of real short tips = " << nb_real_short_tips << endl;
 }
 
-// NOT THREAD SAFE
+bool ContigMapper::isMinPresent(const Minimizer& minz) const{
+
+    return (hmap_min_contigs.find(minz) != hmap_min_contigs.end());
+}
+
 bool ContigMapper::addContig(const string& str_contig, const size_t id_contig){
 
     int k = Kmer::k, g = Minimizer::g;
 
-    size_t last_id;
     size_t len = str_contig.size();
     size_t pos_id_contig = id_contig << 32;
+
     const size_t mask = MASK_CONTIG_ID | MASK_CONTIG_TYPE;
 
-    bool isShort = false, isAbundant = false;
+    bool isShort = false, isAbundant = false, isForbidden = false;
 
     char* c_str = const_cast<char*>(str_contig.c_str());
 
@@ -1295,27 +1385,57 @@ bool ContigMapper::addContig(const string& str_contig, const size_t id_contig){
         c_str = km_tmp;
     }
 
-    minHashIterator<RepHash> it_min(c_str, len, k, Minimizer::g, RepHash(), true), it_min_end; //Iterate over minimizers of contig
+    minHashIterator<RepHash> it_min(c_str, len, k, Minimizer::g, RepHash(), true), it_min_end;
+
+    minHashResult mhr, mhr_tmp;
 
     for (int64_t last_pos_min = -1; it_min != it_min_end; it_min++){
 
-        if (last_pos_min < it_min.getPosition()){ //If current minimizer was not seen before
+        //If current minimizer was not seen before
+        if ((last_pos_min < it_min.getPosition()) || isForbidden){
 
             minHashResultIterator<RepHash> it_it_min = *it_min, it_it_min_end;
+            isForbidden = false;
 
             while (it_it_min != it_it_min_end){
 
                 const minHashResult& min_h_res = *it_it_min;
                 Minimizer minz_rep = Minimizer(&c_str[min_h_res.pos]).rep(); //Get the minimizer to insert
-
-                pos_id_contig = (pos_id_contig & mask) | ((size_t) min_h_res.pos); //Get minimizer position in contig and contig ID
-
                 std::pair<hmap_min_contigs_t::iterator, bool> p = hmap_min_contigs.insert(make_pair(minz_rep, tiny_vector<size_t,tiny_vector_sz>()));
+                size_t v_sz = p.first->second.size();
+
+                pos_id_contig = (pos_id_contig & mask) | ((size_t) min_h_res.pos);
+
+                if (!isShort){
+
+                    mhr = min_h_res;
+
+                    while ((v_sz >= max_abundance_lim) || ((v_sz > 0) && ((p.first->second[v_sz-1] & mask) == mask))){
+
+                        mhr_tmp = it_min.getNewMin(mhr);
+                        isForbidden = true;
+
+                        if (mhr_tmp.hash != mhr.hash){
+
+                            if ((p.first->second[v_sz-1] & mask) != mask){ // Minimizer was never signaled before as overcrowded
+
+                                // If minimizer bin already contains abundant k-mer, just set flag for unitig overcrowding
+                                if ((p.first->second[v_sz-1] & MASK_CONTIG_ID) == MASK_CONTIG_ID) p.first->second[v_sz-1] |= MASK_CONTIG_TYPE;
+                                else p.first->second.push_back(mask);
+                            }
+
+                            mhr = mhr_tmp;
+                            minz_rep = Minimizer(&c_str[mhr.pos]).rep();
+                            p = hmap_min_contigs.insert(make_pair(minz_rep, tiny_vector<size_t,tiny_vector_sz>()));
+                            v_sz = p.first->second.size();
+                        }
+                        else break;
+                    }
+                }
 
                 tiny_vector<size_t,tiny_vector_sz>& v = p.first->second;
-                size_t v_sz = v.size();
 
-                if (v_sz == 0) v.push_back(pos_id_contig);
+                if (v_sz == 0) v.push_back(pos_id_contig); //Newly created vector, just push contig ID
                 else if (isShort && (v_sz >= min_abundance_lim)){ //The minimizer (is/might be) too abundant
 
                     isShort = false;
@@ -1327,11 +1447,14 @@ bool ContigMapper::addContig(const string& str_contig, const size_t id_contig){
                 }
                 else if ((v[v_sz-1] & MASK_CONTIG_ID) == MASK_CONTIG_ID){
 
-                    size_t tmp = v[v_sz-1];
-                    v[v_sz-1] = pos_id_contig;
-                    v.push_back(tmp);
+                    if ((v_sz == 1) || (v[v_sz-2] != pos_id_contig)){
+
+                        size_t tmp = v[v_sz-1];
+                        v[v_sz-1] = pos_id_contig;
+                        v.push_back(tmp);
+                    }
                 }
-                else v.push_back(pos_id_contig);
+                else if (v[v_sz-1] != pos_id_contig) v.push_back(pos_id_contig);
 
                 last_pos_min = min_h_res.pos;
                 it_it_min++;
@@ -1375,8 +1498,6 @@ bool ContigMapper::addContig(const string& str_contig, const size_t id_contig){
         }
 
         h_kmers_ccov.insert(make_pair(km_rep, CompressedCoverage(1))).first;
-
-        return true;
     }
     else if (isShort){
 
@@ -1386,7 +1507,7 @@ bool ContigMapper::addContig(const string& str_contig, const size_t id_contig){
     else if (id_contig == v_contigs.size()) v_contigs.push_back(new Contig(c_str)); //Push contig to list of contigs
     else v_contigs[id_contig] = new Contig(c_str);
 
-    return false;
+    return isAbundant;
 }
 
 void ContigMapper::deleteContig(const bool isShort, const bool isAbundant, const size_t id_contig){
@@ -1423,19 +1544,12 @@ void ContigMapper::deleteContig(const bool isShort, const bool isAbundant, const
 
                         v[last_pos_v]--;
 
-                        if ((v[last_pos_v] & RESERVED_ID) == 0){
+                        if (((v[last_pos_v] & RESERVED_ID) == 0) && ((v[last_pos_v] & MASK_CONTIG_TYPE) != MASK_CONTIG_TYPE)){
 
                             if (last_pos_v == 0) hmap_min_contigs.erase(minz_rep);
-                            else {
+                            else v.remove(v.size() - 1);
 
-                                /*tiny_vector<size_t, tiny_vector_sz> v_tmp;
-
-                                for (size_t i = 0; i < v.size() - 1; i++) v_tmp.push_back(v[i]);
-
-                                v = v_tmp;*/
-
-                                v.remove(v.size() - 1);
-                            }
+                            //if (last_pos_v != 0) v.remove(v.size() - 1);
                         }
                     }
 
@@ -1447,8 +1561,12 @@ void ContigMapper::deleteContig(const bool isShort, const bool isAbundant, const
 
         h_kmers_ccov.erase(km);
 
+        //cerr << "exit deleteContig isAbundant" << endl;
+
         return;
     }
+
+    bool isForbidden = false;
 
     size_t pos_id_contig = id_contig << 32;
     const size_t mask = MASK_CONTIG_ID | MASK_CONTIG_TYPE;
@@ -1458,7 +1576,6 @@ void ContigMapper::deleteContig(const bool isShort, const bool isAbundant, const
     if (isShort){
 
         str = v_kmers[id_contig].first.toString();
-
         pos_id_contig |= MASK_CONTIG_TYPE;
     }
     else str = v_contigs[id_contig]->seq.toString();
@@ -1469,41 +1586,54 @@ void ContigMapper::deleteContig(const bool isShort, const bool isAbundant, const
 
     minHashIterator<RepHash> it_min(s, len, k, Minimizer::g, RepHash(), true), it_min_end;
 
+    minHashResult mhr, mhr_tmp;
+
     for (int64_t last_pos_min = -1; it_min != it_min_end; it_min++){ // Iterate over minimizers of contig to delete
 
-        if (last_pos_min < it_min.getPosition()){ // If a new minimizer hash is found in contig to delete
+        if ((last_pos_min < it_min.getPosition()) || isForbidden){ // If a new minimizer hash is found in contig to delete
 
             minHashResultIterator<RepHash> it_it_min = *it_min, it_it_min_end;
+            isForbidden = false;
 
             while (it_it_min != it_it_min_end){ // Iterate over minimizers of current k-mer in contig to delete
 
                 const minHashResult& min_h_res = *it_it_min;
                 Minimizer minz_rep = Minimizer(&s[min_h_res.pos]).rep(); // Get canonical minimizer
-
                 hmap_min_contigs_t::iterator it_h = hmap_min_contigs.find(minz_rep); // Look for the minimizer in the hash table
 
-                if (it_h != hmap_min_contigs.end()){ // If the minimizer is found
+                mhr = min_h_res;
+
+                while (it_h != hmap_min_contigs.end()){ // If the minimizer is found
 
                     tiny_vector<size_t, tiny_vector_sz>& v = it_h->second;
-                    /*tiny_vector<size_t, tiny_vector_sz> v_tmp;
+                    const int v_sz = v.size();
+                    bool found = false;
 
-                    for (auto id : v){
-
-                        if ((id & mask) != pos_id_contig) v_tmp.push_back(id);
-                    }
-
-                    if (v_tmp.size() == 0) hmap_min_contigs.erase(minz_rep);
-                    else if (v_tmp.size() != v.size()) v = v_tmp;*/
-
-                    for (size_t i = 0; i < v.size(); i++){
+                    for (size_t i = 0; (i < v_sz) && !found; i++){
 
                         if ((v[i] & mask) == pos_id_contig){
+
                             v.remove(i);
-                            break;
+                            found = true;
                         }
                     }
 
-                    if (v.size() == 0) hmap_min_contigs.erase(minz_rep);
+                    it_h = hmap_min_contigs.end();
+
+                    if (v.size() == 0) { hmap_min_contigs.erase(minz_rep); }
+                    else if (!isShort && ((v[v_sz-1] & mask) == mask)){ //Minimizer bin is overcrowded
+
+                        mhr_tmp = it_min.getNewMin(mhr); //Recompute a new (different) minimizer for current k-mer
+                        isForbidden = true;
+
+                        if (mhr_tmp.hash != mhr.hash){
+
+                            mhr = mhr_tmp;
+                            minz_rep = Minimizer(&s[mhr.pos]).rep();
+                            it_h = hmap_min_contigs.find(minz_rep);
+                        }
+                        else break;
+                    }
                 }
 
                 last_pos_min = min_h_res.pos;
@@ -1520,6 +1650,8 @@ void ContigMapper::deleteContig(const bool isShort, const bool isAbundant, const
         delete v_contigs[id_contig];
         v_contigs[id_contig] = NULL;
     }
+
+     //cerr << "exit deleteContig" << endl;
 }
 
 void ContigMapper::swapContigs(const bool isShort, const size_t id_a, const size_t id_b){
@@ -1548,6 +1680,8 @@ void ContigMapper::swapContigs(const bool isShort, const size_t id_a, const size
         str = v_contigs[id_a]->seq.toString();
     }
 
+    bool isForbidden = false;
+
     // Swap the contig IDs in the minimizer hash table
     const char* s = str.c_str();
 
@@ -1557,17 +1691,54 @@ void ContigMapper::swapContigs(const bool isShort, const size_t id_a, const size
 
     minHashIterator<RepHash> it_min(s, len, Kmer::k, Minimizer::g, RepHash(), true), it_min_end;
 
+    minHashResult mhr, mhr_tmp;
+
     for (int64_t last_pos_min = -1; it_min != it_min_end; it_min++){ // Iterate over minimizers of contig
 
-        if (last_pos_min < it_min.getPosition()){ // If a new minimizer is found in contig
+        if ((last_pos_min < it_min.getPosition()) || isForbidden){ // If a new minimizer is found in contig
 
             minHashResultIterator<RepHash> it_it_min = *it_min, it_it_min_end;
+            isForbidden = false;
 
             while (it_it_min != it_it_min_end){ // Iterate over minimizers of current k-mer in contig
 
                 const minHashResult& min_h_res = *it_it_min;
+                Minimizer minz_rep = Minimizer(&s[min_h_res.pos]).rep();
 
-                v_min_a.push_back(Minimizer(&s[min_h_res.pos]).rep()); //Add minimizer to list of minimizers
+                if (!isShort){
+
+                    hmap_min_contigs_t::iterator it_h = hmap_min_contigs.find(minz_rep);
+
+                    if (it_h != hmap_min_contigs.end()){
+
+                        v_min_a.push_back(minz_rep); //Add minimizer to list of minimizers
+
+                        size_t v_sz = it_h->second.size();
+
+                        mhr = min_h_res;
+
+                        while ((it_h->second[v_sz-1] & mask) == mask){
+
+                            mhr_tmp = it_min.getNewMin(mhr); //Recompute a new (different) minimizer for current k-mer
+                            isForbidden = true;
+
+                            if (mhr_tmp.hash != mhr.hash){
+
+                                minz_rep = Minimizer(&s[mhr_tmp.pos]).rep();
+                                it_h = hmap_min_contigs.find(minz_rep);
+
+                                if (it_h == hmap_min_contigs.end()) break;
+
+                                mhr = mhr_tmp;
+                                v_sz = it_h->second.size();
+
+                                v_min_a.push_back(minz_rep);
+                            }
+                            else break;
+                        }
+                    }
+                }
+                else v_min_a.push_back(minz_rep); //Add minimizer to list of minimizers
 
                 last_pos_min = min_h_res.pos;
                 it_it_min++;
@@ -1605,19 +1776,56 @@ void ContigMapper::swapContigs(const bool isShort, const size_t id_a, const size
     s = str.c_str();
     len = str.size();
 
+    isForbidden = false;
+
     it_min = minHashIterator<RepHash>(s, len, Kmer::k, Minimizer::g, RepHash(), true);
 
     for (int64_t last_pos_min = -1; it_min != it_min_end; it_min++){ // Iterate over minimizers of contig
 
-        if (last_pos_min < it_min.getPosition()){ // If a new minimizer is found in contig
+        if ((last_pos_min < it_min.getPosition()) || isForbidden){ // If a new minimizer is found in contig
 
             minHashResultIterator<RepHash> it_it_min = *it_min, it_it_min_end;
+            isForbidden = false;
 
             while (it_it_min != it_it_min_end){ // Iterate over minimizers of current k-mer in contig
 
                 const minHashResult& min_h_res = *it_it_min;
+                Minimizer minz_rep = Minimizer(&s[min_h_res.pos]).rep();
 
-                v_min_b.push_back(Minimizer(&s[min_h_res.pos]).rep()); //Add minimizer to list of minimizers
+                if (!isShort){
+
+                    hmap_min_contigs_t::iterator it_h = hmap_min_contigs.find(minz_rep);
+
+                    if (it_h != hmap_min_contigs.end()){
+
+                        v_min_b.push_back(minz_rep); //Add minimizer to list of minimizers
+
+                        size_t v_sz = it_h->second.size();
+
+                        mhr = min_h_res;
+
+                        while ((it_h->second[v_sz-1] & mask) == mask){
+
+                            mhr_tmp = it_min.getNewMin(mhr); //Recompute a new (different) minimizer for current k-mer
+                            isForbidden = true;
+
+                            if (mhr_tmp.hash != mhr.hash){
+
+                                minz_rep = Minimizer(&s[mhr_tmp.pos]).rep();
+                                it_h = hmap_min_contigs.find(minz_rep);
+
+                                if (it_h == hmap_min_contigs.end()) break;
+
+                                mhr = mhr_tmp;
+                                v_sz = it_h->second.size();
+
+                                v_min_b.push_back(minz_rep);
+                            }
+                            else break;
+                        }
+                    }
+                }
+                else v_min_b.push_back(minz_rep); //Add minimizer to list of minimizers
 
                 last_pos_min = min_h_res.pos;
                 it_it_min++;
@@ -2163,7 +2371,7 @@ void ContigMapper::writeGFA(string graphfilename) {
 
     char km_tmp[k + 1];
 
-    bool found;
+    //bool found;
 
     int nb_min, pos_min;
 
@@ -2233,7 +2441,7 @@ void ContigMapper::writeGFA(string graphfilename) {
 
         block = bf->getBlock(it_min_h);
 
-        found = false;
+        //found = false;
 
         rep_h.init(km_tmp + 1);
 
@@ -2248,13 +2456,13 @@ void ContigMapper::writeGFA(string graphfilename) {
 
                 Kmer b = head.backwardBase(alpha[i]);
 
-                if (found && (nb_min == 1)) cand = find(b, pos_min, h_min, true);
-                else {
+                /*if (found && (nb_min == 1)) cand = find(b, pos_min, h_min, true);
+                else {*/
 
                     cand = find(b, true);
-                    h_min = cand.pos_min;
+                    /*h_min = cand.pos_min;
                     found = true;
-                }
+                }*/
 
                 if (!cand.isEmpty) {
 
@@ -2278,7 +2486,7 @@ void ContigMapper::writeGFA(string graphfilename) {
 
         block = bf->getBlock(it_min_h);
 
-        found = false;
+        //found = false;
 
         rep_h.init(km_tmp);
 
@@ -2293,13 +2501,13 @@ void ContigMapper::writeGFA(string graphfilename) {
 
                 Kmer b = tail.forwardBase(alpha[i]);
 
-                if (found && (nb_min == 1)) cand = find(b, pos_min, h_min, true);
-                else {
+                /*if (found && (nb_min == 1)) cand = find(b, pos_min, h_min, true);
+                else {*/
 
                     cand = find(b, true);
-                    h_min = cand.pos_min;
+                    /*h_min = cand.pos_min;
                     found = true;
-                }
+                }*/
 
                 if (!cand.isEmpty) {
 
@@ -2326,7 +2534,7 @@ void ContigMapper::writeGFA(string graphfilename) {
 
         block = bf->getBlock(it_min_h);
 
-        found = false;
+        //found = false;
 
         rep_h.init(km_tmp + 1);
 
@@ -2341,13 +2549,13 @@ void ContigMapper::writeGFA(string graphfilename) {
 
                 Kmer b = p.first.backwardBase(alpha[i]);
 
-                if (found && (nb_min == 1)) cand = find(b, pos_min, h_min, true);
-                else {
+                /*if (found && (nb_min == 1)) cand = find(b, pos_min, h_min, true);
+                else {*/
 
                     cand = find(b, true);
-                    h_min = cand.pos_min;
+                    /*h_min = cand.pos_min;
                     found = true;
-                }
+                }*/
 
                 if (!cand.isEmpty) {
 
@@ -2369,7 +2577,7 @@ void ContigMapper::writeGFA(string graphfilename) {
 
         block = bf->getBlock(it_min_h);
 
-        found = false;
+        //found = false;
 
         rep_h.init(km_tmp);
 
@@ -2384,13 +2592,13 @@ void ContigMapper::writeGFA(string graphfilename) {
 
                 Kmer b = p.first.forwardBase(alpha[i]);
 
-                if (found && (nb_min == 1)) cand = find(b, pos_min, h_min, true);
-                else {
+                /*if (found && (nb_min == 1)) cand = find(b, pos_min, h_min, true);
+                else {*/
 
                     cand = find(b, true);
-                    h_min = cand.pos_min;
+                    /*h_min = cand.pos_min;
                     found = true;
-                }
+                }*/
 
                 if (!cand.isEmpty) {
 
@@ -2417,7 +2625,7 @@ void ContigMapper::writeGFA(string graphfilename) {
 
         block = bf->getBlock(it_min_h);
 
-        found = false;
+        //found = false;
 
         rep_h.init(km_tmp + 1);
 
@@ -2432,13 +2640,13 @@ void ContigMapper::writeGFA(string graphfilename) {
 
                 Kmer b = it->first.backwardBase(alpha[i]);
 
-                if (found && (nb_min == 1)) cand = find(b, pos_min, h_min, true);
-                else {
+                /*if (found && (nb_min == 1)) cand = find(b, pos_min, h_min, true);
+                else {*/
 
                     cand = find(b, true);
-                    h_min = cand.pos_min;
+                    /*h_min = cand.pos_min;
                     found = true;
-                }
+                }*/
 
                 if (!cand.isEmpty) {
 
@@ -2460,7 +2668,7 @@ void ContigMapper::writeGFA(string graphfilename) {
 
         block = bf->getBlock(it_min_h);
 
-        found = false;
+        //found = false;
 
         rep_h.init(km_tmp);
 
@@ -2475,13 +2683,13 @@ void ContigMapper::writeGFA(string graphfilename) {
 
                 Kmer b = it->first.forwardBase(alpha[i]);
 
-                if (found && (nb_min == 1)) cand = find(b, pos_min, h_min, true);
-                else {
+                /*if (found && (nb_min == 1)) cand = find(b, pos_min, h_min, true);
+                else {*/
 
                     cand = find(b, true);
-                    h_min = cand.pos_min;
+                    /*h_min = cand.pos_min;
                     found = true;
-                }
+                }*/
 
                 if (!cand.isEmpty) {
 

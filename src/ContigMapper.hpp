@@ -36,13 +36,14 @@ class ContigMapper {
     public:
 
         ContigMapper();
+        ContigMapper(const char* fp_min_name);
         ~ContigMapper();
 
         void mapBloomFilter(const BlockedBloomFilter *bf);
 
         ContigMap findContig(const Kmer& km, const string& s, size_t pos) const;
         ContigMap findContig(const Kmer& km, const string& s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h) const;
-        ContigMap findContig(const Kmer& km, const string& s, size_t pos_km_in_s, size_t pos_min_in_s, size_t it_h);
+        //ContigMap findContig(const Kmer& km, const string& s, size_t pos_km_in_s, size_t pos_min_in_s, size_t it_h);
 
         ContigMap find(const Kmer& km, bool extremities_only = false) const;
 
@@ -78,10 +79,12 @@ class ContigMapper {
 
         size_t removeUnitigs(bool rmIsolated, bool clipTips, vector<Kmer>& v);
 
+        bool isMinPresent(const Minimizer& minz)const ;
+
     private:
 
         ContigMap find(const Kmer& km, const preAllocMinHashIterator<RepHash>& it_min_h) const;
-        ContigMap find(const Kmer& km, const size_t pos_min, const size_t it_h, bool extremities_only = false);
+        //ContigMap find(const Kmer& km, const size_t pos_min, const size_t it_h, bool extremities_only = false);
 
         //bool fwBfStep(Kmer km, Kmer& end, char& c, bool& has_no_neighbor) const;
         //bool bwBfStep(Kmer km, Kmer& front, char& c, bool& has_no_neighbor) const;
@@ -92,10 +95,12 @@ class ContigMapper {
         bool addContig(const string& str_contig, const size_t id_contig);
         void deleteContig(const bool isShort, const bool isAbundant, const size_t id_contig);
         void swapContigs(const bool isShort, const size_t id_a, const size_t id_b);
+
         bool splitContig(size_t& pos_v_contigs, size_t& nxt_pos_insert_v_contigs, size_t& v_contigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp);
 
         static const int tiny_vector_sz = 2;
         static const int min_abundance_lim = 15;
+        static const int max_abundance_lim = 15;
 
         typedef KmerHashTable<CompressedCoverage> h_kmers_ccov_t;
         typedef MinimizerHashTable<tiny_vector<size_t,tiny_vector_sz>> hmap_min_contigs_t;

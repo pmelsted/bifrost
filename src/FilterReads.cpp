@@ -34,7 +34,7 @@ struct FilterReads_ProgramOptions {
   uint32_t seed;
   bool ref;
   vector<string> files;
-  FilterReads_ProgramOptions() : verbose(false), threads(1), k(0), g(21), nkmers(0), nkmers2(0), \
+  FilterReads_ProgramOptions() : verbose(false), threads(1), k(0), g(23), nkmers(0), nkmers2(0), \
     outputfile(NULL), bf(4), bf2(8), seed(0), read_chunksize(10000), ref(false) {}
 };
 
@@ -157,14 +157,15 @@ bool FilterReads_CheckOptions(FilterReads_ProgramOptions& opt) {
     ret = false;
   }
 
-  if (opt.read_chunksize == 0) {
+  if (opt.read_chunksize <= 0) {
     cerr << "Error: Invalid chunk-size: " << opt.read_chunksize
          << ", need a number greater than 0" << endl;
     ret = false;
-  } else if (opt.threads == 1) {
-    /*cerr << "Setting chunksize to 1 because of only 1 thread" << endl;
-      opt.read_chunksize = 1;*/
   }
+  /*else if (opt.threads == 1) {
+    cerr << "Setting chunksize to 1 because of only 1 thread" << endl;
+      opt.read_chunksize = 1;
+  }*/
 
   if (opt.k <= 0 || opt.k >= MAX_KMER_SIZE) {
     cerr << "Error, invalid value for kmer-size: " << opt.k << endl;
@@ -252,148 +253,6 @@ void FilterReads_PrintSummary(const FilterReads_ProgramOptions& opt) {
   }
 }
 
-// use:  FilterReads_Normal(opt);
-// pre:  opt has information about Kmer size, Bloom Filter sizes,
-//       lower bound of Kmer count, upper bound of Kmer count
-//       input file name strings and outputfile
-// post: Input files have been opened and and all the reads
-//       have been broken into kmers of given Kmer size.
-//       The kmers have been filtered through two Bloom Filters
-//       and those that survived through the second Bloom Filter have
-//       been written into the outputfile
-/*void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
-
-    BlockedBloomFilter BF(opt.nkmers, (size_t) opt.bf);
-    BlockedBloomFilter BF2(opt.nkmers2, (size_t) opt.bf2); // use different seeds
-
-    bool done = false;
-    char name[8192];
-    string s;
-    size_t name_len, len, read_chunksize = opt.read_chunksize;
-    uint64_t n_read = 0;
-    atomic<uint64_t> num_kmers(0), num_ins(0);
-
-    FastqFile FQ(opt.files);
-    vector<string> readv;
-
-    const bool neighbor_hash = true;
-
-    // Main worker thread
-    auto worker_function = [&](vector<string>::const_iterator a, vector<string>::const_iterator b) {
-
-        uint64_t l_num_kmers = 0, l_num_ins = 0;
-        char* str;
-
-        // for each input
-        for (auto x = a; x != b; ++x) {
-
-            str = const_cast<char*>(x->c_str());
-
-            KmerHashIterator<RepHash> it_kmer_h(str, x->length(), opt.k), it_kmer_h_end;
-            minHashIterator<RepHash> it_min(str, x->length(), opt.k, Minimizer::g, RepHash(), neighbor_hash);
-
-            for (int last_pos = -1; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min, ++l_num_kmers) {
-
-                std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
-
-                // If one or more k-mer were jumped because contained non-ACGT char.
-                if (p_.second != last_pos + 1){
-                    str = &str[p_.second];
-                    it_min = minHashIterator<RepHash>(str, x->length() - p_.second, opt.k, Minimizer::g, RepHash(), neighbor_hash);
-                }
-
-                last_pos = p_.second;
-                uint64_t min_hr = it_min.getHash();
-
-                if (!opt.ref) {
-
-                    if (BF.search_and_insert(p_.first, min_hr)){
-                        ++l_num_ins;
-                        //BF.inc_count_block(min_hr, Minimizer(&str[it_min.getPosition()]), Kmer(&x->c_str()[p_.second]));
-                    }
-                    else if (BF2.search_and_insert(p_.first, min_hr)){
-                        ++l_num_ins;
-                        //BF2.inc_count_block(min_hr, Minimizer(&str[it_min.getPosition()]), Kmer(&x->c_str()[p_.second]));
-                    }
-                }
-                else {
-
-                    //BF.insert(p_.first, min_hr);
-                    ++l_num_ins;
-                }
-            }
-        }
-
-        // atomic adds
-        num_kmers += l_num_kmers;
-        num_ins += l_num_ins;
-    };
-
-    while (!done) {
-
-        readv.clear();
-        size_t reads_now = 0;
-
-        while (reads_now < read_chunksize) {
-
-            if (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
-
-                readv.emplace_back(s);
-                ++n_read;
-                ++reads_now;
-            }
-            else {
-
-                done = true;
-                break;
-            }
-        }
-
-        vector<thread> workers;
-        // create worker threads
-        auto rit = readv.begin();
-        size_t batch_size = readv.size()/opt.threads;
-        size_t leftover   = readv.size()%opt.threads;
-
-        for (size_t i = 0; i < opt.threads; i++) {
-
-            size_t jump = batch_size + ((i < leftover ) ? 1 : 0);
-
-            auto rit_end(rit);
-            advance(rit_end, jump);
-            workers.push_back(thread(worker_function, rit, rit_end));
-
-            rit = rit_end;
-        }
-
-        assert(rit==readv.end());
-
-        for (auto &t : workers) t.join();
-    }
-
-    //BF.print_count_blocks(opt.output, "BF1");
-    //BF2.print_count_blocks(opt.output, "BF2");
-
-    FQ.close();
-
-    //if (opt.verbose) {
-
-        cerr << "Closed all fasta/fastq files" << endl;
-        cerr << "processed " << num_kmers << " kmers in " << n_read  << " reads"<< endl;
-        cerr << "found " << num_ins << " non-filtered kmers" << endl;
-        cerr << "Writing bloom filter to " << opt.output << endl << "Bloom filter size is " << num_ins << endl;
-    //}
-
-    // First write metadata for bloom filter to opt.outputfile then the actual filter
-    if (!opt.ref) {
-
-        if (!BF2.WriteBloomFilter(opt.outputfile)) cerr << "Error writing data to file: " << opt.output << endl;
-        else if (!BF.WriteBloomFilter(opt.outputfile)) cerr << "Error writing data to file: " << opt.output << endl;
-    }
-
-    fclose(opt.outputfile);
-}*/
-
 void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
   /**
    *  outline of algorithm
@@ -420,6 +279,8 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
 
     FastqFile FQ(opt.files);
     vector<string> readv;
+
+    //MinimizerHashTable<uint8_t> hmap_min;
 
     // Main worker thread
     auto worker_function = [&](vector<string>::iterator a, vector<string>::iterator b) {
@@ -453,10 +314,61 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
                 }
                 else {
 
-                    //BF.insert(p_.first, min_hr);
+                    BF.insert(p_.first, min_hr);
                     ++l_num_ins;
                 }
             }
+
+            /*char* str = const_cast<char*>(x->c_str());
+            int len = x->length();
+
+            KmerHashIterator<RepHash> it_kmer_h(str, len, opt.k), it_kmer_h_end;
+            minHashIterator<RepHash> it_min(str, len, opt.k, Minimizer::g, RepHash(), true);
+
+            for (int last_pos_km = -1, last_pos_min = -1; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min, ++l_num_kmers) {
+
+                std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
+
+                // If one or more k-mer were jumped because contained non-ACGT char.
+                if (p_.second != last_pos_km + 1){
+
+                    str = &str[p_.second];
+                    it_min = minHashIterator<RepHash>(str, len - p_.second, opt.k, Minimizer::g, RepHash(), true);
+                    last_pos_min = -1;
+                }
+
+                last_pos_km = p_.second;
+                uint64_t min_hr = it_min.getHash();
+
+                if (!opt.ref) {
+
+                    if (BF.search_and_insert(p_.first, min_hr, multi_threaded)) ++l_num_ins;
+                    else {
+
+                        if (BF2.search_and_insert(p_.first, min_hr, multi_threaded)) ++l_num_ins;
+
+                        if (last_pos_min < it_min.getPosition()){
+
+                            minHashResultIterator<RepHash> it_it_min = *it_min, it_it_min_end;
+
+                            while (it_it_min != it_it_min_end){
+
+                                const minHashResult& min_h_res = *it_it_min;
+
+                                hmap_min.insert(make_pair(Minimizer(&str[min_h_res.pos]).rep(), 0));
+
+                                last_pos_min = min_h_res.pos;
+                                it_it_min++;
+                            }
+                        }
+                    }
+                }
+                else {
+
+                    BF.insert(p_.first, min_hr);
+                    ++l_num_ins;
+                }
+            }*/
         }
 
         // atomic adds
@@ -525,6 +437,31 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
     }
 
     fclose(opt.outputfile);
+
+    // --------------- TEST ---------------------
+    /*FILE* fp = fopen("minimizers", "wb");
+    assert(fp != NULL);
+
+    size_t hmap_min_sz = hmap_min.size();
+    cerr << "Number of different minimizers is " << hmap_min_sz << endl;
+
+    if (fwrite(&hmap_min_sz, sizeof(size_t), 1, fp) != 1){
+
+        cerr << "FilterReads_Normal(): cannot write minimizers to disk" << endl;
+        exit(1);
+    }
+
+    for (MinimizerHashTable<uint8_t>::iterator it = hmap_min.begin(); it != hmap_min.end(); it++){
+
+        if (!it->first.write(fp)){
+
+            cerr << "FilterReads_Normal(): cannot write minimizers to disk" << endl;
+            exit(1);
+        }
+    }
+
+    fclose(fp);*/
+    // --------------- TEST ---------------------
 }
 
 // use:  FilterReads(argc, argv);

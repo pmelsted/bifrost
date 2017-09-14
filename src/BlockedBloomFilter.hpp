@@ -22,11 +22,9 @@
 
 #include "libpopcnt.h"
 
-// ------ TEST ------
 #define NB_BITS_BLOCK (0x800ULL)
 #define MASK_BITS_BLOCK (0x7ffULL)
 #define NB_ELEM_BLOCK (32)
-// ------ TEST ------
 
 static const uint64_t mask[8] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
 
@@ -861,6 +859,12 @@ class BlockedBloomFilter {
             }
 
             return !r;
+        }
+
+        inline void insert(uint64_t kmer_hash, const uint64_t min_hash){
+
+            search_and_insert(kmer_hash, min_hash, false);
+            return;
         }
 
         bool WriteBloomFilter(FILE *fp) {

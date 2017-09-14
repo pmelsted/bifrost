@@ -172,6 +172,9 @@ class Minimizer {
         void toString(char *s) const;
         std::string toString() const;
 
+        bool write(FILE *fp);
+        bool read(FILE *fp);
+
         // static functions
         static void set_g(unsigned int _g);
 

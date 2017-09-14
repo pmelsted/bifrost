@@ -770,6 +770,16 @@ std::string Minimizer::toString() const {
     return std::string(buf);
 }
 
+bool Minimizer::write(FILE *fp) {
+
+     return fwrite(longs, sizeof(uint64_t), MAX_G/32, fp) == MAX_G/32;
+}
+
+bool Minimizer::read(FILE *fp) {
+
+     return fread(longs, sizeof(uint64_t), MAX_G/32, fp) == MAX_G/32;
+}
+
 void Minimizer::set_g(unsigned int _g) {
 
   if(_g == g) return; // ok to call more than once
