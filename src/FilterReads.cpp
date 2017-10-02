@@ -35,30 +35,29 @@ struct FilterReads_ProgramOptions {
   bool ref;
   vector<string> files;
   FilterReads_ProgramOptions() : verbose(false), threads(1), k(0), g(23), nkmers(0), nkmers2(0), \
-    outputfile(NULL), bf(4), bf2(8), seed(0), read_chunksize(10000), ref(false) {}
+    outputfile(NULL), bf(14), bf2(14), seed(0), read_chunksize(10000), ref(false) {}
 };
 
 // use:  FilterReads_PrintUsage();
 // pre:
 // post: Information about how to filter reads has been printed to cerr
 void FilterReads_PrintUsage() {
-  cout << "BFGraph " << BFG_VERSION << endl;
-  cout << "Filters errors in fastq or fasta files and saves results to a file specified by -o or --output" << endl << endl;
-  cout << "Usage: BFGraph filter [options] ... FASTQ files";
-  cout << endl << endl << "Options:" << endl <<
-       "  -v, --verbose               Print lots of messages during run" << endl <<
-       "  -t, --threads=INT           Number of threads to use (default 1)" << endl <<
-       "  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default 10000 for multithreaded else 1)" << endl <<
-       "  -k, --kmer-size=INT         Size of k-mers" << endl <<
-       "      --ref                   Reference mode, no filtering use only num_kmers and bloom-bits" << endl <<
-       "  -g, --min-size=INT          Size of minimizers (default=21)" << endl <<
-       "  -n, --num-kmers=LONG        Estimated number of k-mers (upper bound)" << endl <<
-       "  -N, --num-kmer2=LONG        Estimated number of k-mers in genome (upper bound)" << endl <<
-       "  -o, --output=STRING         Filename for output" << endl <<
-       "  -b, --bloom-bits=INT        Number of bits to use in Bloom filter (default=4)" << endl <<
-       "  -B, --bloom-bits2=INT       Number of bits to use in second Bloom filter (default=8)" << endl <<
-       "  -s, --seed=INT              Seed used for randomization (default time based)"
-       << endl << endl;
+    cout << "BFGraph " << BFG_VERSION << endl;
+    cout << "Filter errors from FASTA/FASTQ files" << endl << endl;
+    cout << "Usage: BFGraph filter [arguments] ... FASTQ_files" << endl;
+    cout << endl << "Required arguments:" << endl <<
+    "  -t, --threads=INT           Number of threads (default is 1)" << endl <<
+    "  -k, --kmer-size=INT         Size of k-mers (default is 31)" << endl <<
+    "  -g, --min-size=INT          Size of minimizers (default is 23)" << endl <<
+    "      --ref                   Reference mode, no filtering" << endl <<
+    "  -n, --num-kmers=LONG        Estimated number (upper bound) of different k-mers in the reads" << endl <<
+    "  -b, --bloom-bits=INT        Number of Bloom filter bits per k-mer occurring at least once in the reads (default is 14)" << endl <<
+    "  -N, --num-kmer2=LONG        Estimated number (upper bound) of different k-mers occurring at least twice in the reads" << endl <<
+    "  -B, --bloom-bits2=INT       Number of Bloom filter bits per k-mer occurring at least twice in the reads (default is 14)" << endl <<
+    "  -o, --output=STRING         Filename for output" << endl <<
+    "  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default is 10000)" << endl <<
+    "  -v, --verbose               Print lots of messages during run" << endl <<
+    endl << endl;
 }
 
 
@@ -67,7 +66,7 @@ void FilterReads_PrintUsage() {
 //       "filtering reads" and opt is ready to contain the parsed parameters
 // post: All the parameters from argv have been parsed into opt
 void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions& opt) {
-  const char *opt_string = "vt:k:g:n:N:o:b:B:s:c:";
+  const char *opt_string = "vt:k:g:n:N:o:b:B:c:";
   static struct option long_options[] = {
     {"verbose",     no_argument,       0, 'v'},
     {"threads",     required_argument, 0, 't'},
@@ -79,7 +78,6 @@ void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions&
     {"output",      required_argument, 0, 'o'},
     {"bloom-bits",  required_argument, 0, 'b'},
     {"bloom-bits2", required_argument, 0, 'B'},
-    {"seed",        required_argument, 0, 's'},
     {"ref",         no_argument,       0,  0 },
     {0,             0,                 0,  0 }
   };
@@ -124,9 +122,6 @@ void FilterReads_ParseOptions(int argc, char **argv, FilterReads_ProgramOptions&
       break;
     case 'B':
       opt.bf2 = atoi(optarg);
-      break;
-    case 's':
-      opt.seed = atoi(optarg);
       break;
     default: break;
     }
@@ -310,7 +305,8 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
                 if (!opt.ref) {
 
                     if (BF.search_and_insert(p_.first, min_hr, multi_threaded)) ++l_num_ins;
-                    else if (BF2.search_and_insert(p_.first, min_hr, multi_threaded)) ++l_num_ins;
+                    //else if (BF2.search_and_insert(p_.first, min_hr, multi_threaded)) ++l_num_ins;
+                    else BF2.insert(p_.first, min_hr);
                 }
                 else {
 

@@ -36,14 +36,12 @@ class ContigMapper {
     public:
 
         ContigMapper();
-        ContigMapper(const char* fp_min_name);
         ~ContigMapper();
 
         void mapBloomFilter(const BlockedBloomFilter *bf);
 
         ContigMap findContig(const Kmer& km, const string& s, size_t pos) const;
         ContigMap findContig(const Kmer& km, const string& s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h) const;
-        //ContigMap findContig(const Kmer& km, const string& s, size_t pos_km_in_s, size_t pos_min_in_s, size_t it_h);
 
         ContigMap find(const Kmer& km, bool extremities_only = false) const;
 
@@ -51,13 +49,12 @@ class ContigMapper {
 
         bool addContigSequence(Kmer km, const string& read, size_t pos, const string& seq, vector<Kmer>& l_ignored_km_tip);
 
-        //size_t findContigSequence(Kmer km, string& s, bool& selfLoop, bool& isIsolated);
         size_t findContigSequence(Kmer km, string& s, bool& selfLoop, bool& isIsolated, vector<Kmer>& l_ignored_km_tip);
 
         pair<size_t, size_t> splitAllContigs();
 
         size_t joinAllContigs(vector<Kmer>* v_joins = NULL);
-        bool checkJoin(const Kmer& a, const ContigMap& cm_a, Kmer& b/*, bool& dir*/);
+        bool checkJoin(const Kmer& a, const ContigMap& cm_a, Kmer& b);
 
         void writeGFA(string graphfilename);
 
@@ -79,15 +76,9 @@ class ContigMapper {
 
         size_t removeUnitigs(bool rmIsolated, bool clipTips, vector<Kmer>& v);
 
-        bool isMinPresent(const Minimizer& minz)const ;
-
     private:
 
         ContigMap find(const Kmer& km, const preAllocMinHashIterator<RepHash>& it_min_h) const;
-        //ContigMap find(const Kmer& km, const size_t pos_min, const size_t it_h, bool extremities_only = false);
-
-        //bool fwBfStep(Kmer km, Kmer& end, char& c, bool& has_no_neighbor) const;
-        //bool bwBfStep(Kmer km, Kmer& front, char& c, bool& has_no_neighbor) const;
 
         bool fwBfStep(Kmer km, Kmer& end, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;
         bool bwBfStep(Kmer km, Kmer& front, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;
@@ -96,7 +87,8 @@ class ContigMapper {
         void deleteContig(const bool isShort, const bool isAbundant, const size_t id_contig);
         void swapContigs(const bool isShort, const size_t id_a, const size_t id_b);
 
-        bool splitContig(size_t& pos_v_contigs, size_t& nxt_pos_insert_v_contigs, size_t& v_contigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp);
+        bool splitContig(size_t& pos_v_contigs, size_t& nxt_pos_insert_v_contigs, size_t& v_contigs_sz, size_t& v_kmers_sz,
+                         const vector<pair<int,int>>& sp);
 
         static const int tiny_vector_sz = 2;
         static const int min_abundance_lim = 15;

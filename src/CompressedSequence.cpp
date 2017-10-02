@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "Common.hpp"
 #include "Kmer.hpp"
 #include "CompressedSequence.hpp"
@@ -22,10 +24,6 @@ static const char bases[256] = {
   'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N'
 };
 
-// bits['A'] == bits['a'] , 0
-// bits['C'] == bits['c'] , 1
-// bits['G'] == bits['g'] , 2
-// bits['T'] == bits['t'] , 3
 static const uint8_t bits[256] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -301,37 +299,40 @@ void CompressedSequence::setSequence(const Kmer& km, size_t length, size_t offse
 }
 
 
-// use:  s = cs.toString();
-// pre:
-// post: s is the DNA string from cs
-string CompressedSequence::toString() const {
-  return toString(0,size());
-}
-
-
 // use:  s = cs.toString(offset, length);
 // pre:  offset + length <= cs.size(),
 // post: s is the DNA string from c[offset,...,offset+length-1]
-string CompressedSequence::toString(size_t offset, size_t length) const {
-  const char *data = getPointer();
-  assert(offset+length <= size());
-  string s(length,0);
-  size_t i,j,idx;
-  for (size_t index = offset; index < offset+length; index++) {
-    i = index / 4;
-    j = index % 4;
-    idx = ((data[i]) >> (2*j)) & 0x03;
-    s[index-offset] = bases[idx];
-  }
-  return s;
-}
+string CompressedSequence::toString(const size_t offset, const size_t length) const {
 
+    const char *data = getPointer();
 
-// use:  cs.toString(s);
-// pre:  s has space for cs.size() characters
-// post: s is the same as the DNA string from cs
-void CompressedSequence::toString(char *s) const {
-  toString(s,0,size());
+    assert(offset+length <= size());
+
+    string s(length, 0);
+
+    size_t i,j,idx;
+
+    for (size_t index = offset; index < offset+length; index++) {
+
+        i = index / 4;
+        j = index % 4;
+        idx = ((data[i]) >> (2*j)) & 0x03;
+        s[index-offset] = bases[idx];
+    }
+
+    return s;
+
+    /*char v, tmp = data[offset / 4] >> (2 * (offset % 4));
+
+    for (size_t i = offset; i < offset + length; i++, tmp >>= 2) {
+
+        if (i % 4 == 0) tmp = data[i / 4];
+
+        v = tmp & 0x3;
+        s[i-offset] = 0x40 | (v + 1) | (0x1 << (v-1)*2);
+    }
+
+    return s;*/
 }
 
 
@@ -339,27 +340,128 @@ void CompressedSequence::toString(char *s) const {
 // pre:  offset + length <= cs.size()
 //       s has space for length characters
 // post: s is the same as cs[offset,...,offset+length-1]
-void CompressedSequence::toString(char *s, size_t offset, size_t length) const {
-  const char *data = getPointer();
-  assert(offset+length <= size());
-  size_t i,j,idx;
-  for (size_t index = offset; index < offset+length; index++) {
-    i = index / 4;
-    j = index % 4;
-    idx = ((data[i]) >> (2*j)) & 0x03;
-    s[index-offset] = bases[idx];
-  }
-  s[length] = 0; // 0-terminated string
+void CompressedSequence::toString(char *s, const size_t offset, const size_t length) const {
+
+    const char *data = getPointer();
+
+    assert(offset+length <= size());
+
+    size_t i,j,idx;
+
+    for (size_t index = offset; index < offset+length; index++) {
+
+        i = index / 4;
+        j = index % 4;
+        idx = ((data[i]) >> (2*j)) & 0x03;
+        s[index-offset] = bases[idx];
+    }
+
+    s[length] = 0; // 0-terminated string
+
+    /*char v, tmp = data[offset / 4] >> (2 * (offset % 4));
+
+    for (size_t i = offset; i < offset + length; i++, tmp >>= 2, s++) {
+
+        if (i % 4 == 0) tmp = data[i / 4];
+
+        v = tmp & 0x3;
+        *s = 0x40 | (v + 1) | (0x1 << (v-1)*2);
+    }
+
+    *s = '\0';*/
 }
 
+Kmer CompressedSequence::getKmer(const size_t offset) const {
 
-// use:  km = cs.getKmer(offset);
-// pre:  offset + Kmer::k <= cs._length
-// post: The DNA string in km is cs[offset,...,offset+Kmer::k-1]
-Kmer CompressedSequence::getKmer(size_t offset) const {
-  char s[Kmer::MAX_K+1];
-  toString(&s[0], offset, Kmer::k);
-  return Kmer(s);
+    /*Kmer km;
+
+    const char* data = getPointer();
+
+    const size_t len = offset + Kmer::k;
+
+    size_t j = 0;
+
+    uint64_t tmp = (uint64_t)(data[offset / 4] >> (2 * (offset % 4)));
+
+    for (size_t i = offset; i != len; i++, j++, tmp >>= 2) {
+
+        if (i % 4 == 0) tmp = (uint64_t)(data[i / 4]);
+
+        km.longs[j/32] = (km.longs[j/32] << 2) | (tmp & 0x3);
+    }
+
+    km.longs[j/32] <<= 2 * (32 - (j % 32));
+
+    return km;*/
+
+    Kmer km;
+
+    const char* data = getPointer();
+
+    const size_t len = offset + Kmer::k;
+    const size_t nlongs = (Kmer::k + 31) / 32;
+
+    size_t j = 0;
+
+    uint64_t tmp_data = (uint64_t)(data[offset / 4] >> (2 * (offset % 4)));
+
+    for (size_t i = offset; j < nlongs; j++){
+
+        uint64_t tmp_km = 0;
+        const size_t end = len < i + 32 ? len : i + 32;
+
+        for (; i != end; i++, tmp_data >>= 2){
+
+            if (i % 4 == 0) tmp_data = (uint64_t) data[i / 4];
+            tmp_km = (tmp_km << 2) | (tmp_data & 0x3);
+        }
+
+        km.longs[j] = tmp_km;
+    }
+
+    km.longs[j-1] <<= 2 * (32 - (Kmer::k % 32));
+
+    return km;
+}
+
+bool CompressedSequence::compareKmer(const size_t offset, const Kmer& km) const {
+
+    /*const char* data = getPointer();
+
+    const size_t len = offset + Kmer::k;
+
+    uint64_t tmp_km, tmp_data = (uint64_t)(data[offset / 4] >> (2 * (offset % 4)));
+
+    for (size_t i = offset, j = 0; i != len; i++, j++, tmp_data >>= 2, tmp_km <<= 2) {
+
+        if (i % 4 == 0) tmp_data = (uint64_t)(data[i / 4]);
+        if (j % 32 == 0) tmp_km = km.longs[j / 32];
+
+        if ((tmp_data & 0x3) != (tmp_km >> 62)) return false;
+    }
+
+    return true;*/
+
+    const char* data = getPointer();
+
+    const size_t len = offset + Kmer::k;
+    const size_t nlongs = (Kmer::k + 31) / 32;
+
+    uint64_t tmp_data = (uint64_t)(data[offset / 4] >> (2 * (offset % 4)));
+
+    for (size_t i = offset, j = 0; j < nlongs; j++){
+
+        uint64_t tmp_km = km.longs[j];
+        const size_t end = len < i + 32 ? len : i + 32;
+
+        for (; i != end; i++, tmp_km <<= 2, tmp_data >>= 2){
+
+            if (i % 4 == 0) tmp_data = (uint64_t) data[i / 4];
+            if ((tmp_data & 0x3) != (tmp_km >> 62)) return false;
+        }
+    }
+
+    return true;
 }
 
 int64_t CompressedSequence::findKmer(const Kmer& km) const {

@@ -40,6 +40,7 @@ class Kmer {
 
         void set_empty();
         void set_deleted();
+        void set_kmer(const char *s);
 
         bool operator<(const Kmer& o) const;
 
@@ -60,9 +61,11 @@ class Kmer {
             return !(*this == o);
         }
 
-        void set_kmer(const char *s);
+        //uint64_t hash() const;
 
-        uint64_t hash() const;
+        inline uint64_t hash() const {
+            return (uint64_t)XXH64((const void *)bytes, MAX_K/4, 0);
+        }
 
         Kmer twin() const;
         Kmer rep() const;
@@ -85,18 +88,18 @@ class Kmer {
         static const unsigned int MAX_K = MAX_KMER_SIZE;
         static unsigned int k;
 
-    private:
-
-        static unsigned int k_bytes;
-        static unsigned int k_longs;
-        static unsigned int k_modmask; // int?
-
         // data fields
         union {
 
             uint8_t bytes[MAX_K/4];
             uint64_t longs[MAX_K/32];
         };
+
+    private:
+
+        static unsigned int k_bytes;
+        static unsigned int k_longs;
+        static unsigned int k_modmask; // int?
 
         // By default MAX_K == 64 so the union uses 16 bytes
         // However sizeof(Kmer) == 24
@@ -156,7 +159,12 @@ class Minimizer {
 
         void set_minimizer(const char *s);
 
-        uint64_t hash() const;
+        //uint64_t hash() const;
+
+        inline uint64_t hash() const {
+
+            return (uint64_t)XXH64((const void *)bytes, MAX_G/4, 0);
+        }
 
         Minimizer twin() const;
         Minimizer rep() const;

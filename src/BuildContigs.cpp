@@ -47,19 +47,19 @@ struct BuildContigs_ProgramOptions {
 // post: Information about the correct parameters to build contigs has been printed to cerr
 void BuildContigs_PrintUsage() {
   cout << endl << "BFGraph " << BFG_VERSION << endl;
-  cout << "Creates contigs from filtered fasta/fastq files and saves results" << endl << endl;
-  cout << "Usage: BFGraph contigs [arguments] ... FASTQ files";
+  cout << "Create a compacted de Bruijn graph from filtered FASTA/FASTQ files and save it to a GFA file" << endl << endl;
+  cout << "Usage: BFGraph contigs [arguments] ... FASTQ_files";
   cout << endl << endl << "Required arguments:" << endl <<
-       "  -v, --verbose               Print lots of messages during run" << endl <<
-       "  -t, --threads=INT           Number of threads to use (default 1)" << endl <<
-       "  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default=10000)" << endl <<
-       "  -k, --kmer-size=INT         Size of k-mers, same as for filtering reads" << endl <<
-       "  -f, --filtered=STRING       File with filtered reads" << endl <<
-       "  -o, --output=STRING         Prefix for output files"
-       << endl << endl << "Optional arguments:" << endl <<
-       "  -g, --min-size=INT          Size of minimizers, same as for filtering reads (default=23)" << endl <<
+       "  -t, --threads=INT           Number of threads (default is 1)" << endl <<
+       "  -k, --kmer-size=INT         Size of k-mers, same as for filtering reads (default is 31)" << endl <<
+       "  -g, --min-size=INT          Size of minimizers, same as for filtering reads (default is 23)" << endl <<
+       "  -f, --filtered=STRING       Filtered reads file" << endl <<
+       "  -o, --output=STRING         Prefix for output files" << endl <<
+       "  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default is 10000)" << endl <<
+       endl << "Optional arguments:" << endl <<
        "  -n, --clip-tips             Clip tips shorter than k k-mers in length" << endl <<
-       "  -d, --rm-isolated           Delete isolated contigs shorter than k k-mers in length" << endl;
+       "  -d, --rm-isolated           Delete isolated contigs shorter than k k-mers in length" << endl <<
+       "  -v, --verbose               Print lots of messages during run" << endl;
 }
 
 
@@ -270,7 +270,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
         f = NULL;
     }
 
-    //ContigMapper cmap("minimizers");
     ContigMapper cmap;
 
     cmap.mapBloomFilter(&bf);
@@ -309,14 +308,10 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
 
             const char* s_x = x->c_str();
 
-            //bool found_minz = false;
-            //bool found = false;
-            //size_t it_h = 0;
-
             KmerHashIterator<RepHash> it_kmer_h(s_x, x->length(), opt.k), it_kmer_h_end;
             preAllocMinHashIterator<RepHash> it_min(s_x, x->length(), opt.k, opt.g, rep, true);
 
-            for (int last_pos_km = -2/*, last_pos_min = -2*/; it_kmer_h != it_kmer_h_end; it_kmer_h++, it_min++) {
+            for (int last_pos_km = -2; it_kmer_h != it_kmer_h_end; it_kmer_h++, it_min++) {
 
                 std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
 
@@ -340,106 +335,73 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
                 last_pos_km = p_.second;
                 last_it_min_h = it_min_h;
 
-                //----------------- TEST --------------------
-                /*if (it_min.getPosition() != last_pos_min){
+                size_t r = cmap.bf->contains_block(p_.first, block_bf);
 
-                    preAllocMinHashResultIterator<RepHash> it_it_min = *it_min, it_it_min_end;
-                    found_minz = false;
+                if (r != 0){
 
-                    while (!found_minz && (it_it_min != it_it_min_end)){
+                    ContigMap cm = cmap.findContig(km, *x, p_.second, it_min);
 
-                        found_minz = cmap.isMinPresent(Minimizer(&s_x[(*it_it_min).pos]).rep());
-                        it_it_min++;
-                    }
+                    if (cm.isEmpty) { // kmer did not map, push into queue for next contig generation round
 
-                    last_pos_min = it_min.getPosition();
-                }
+                        bool selfLoop = false;
+                        bool isIsolated = false;
 
-                if (found_minz){*/
-                //----------------- TEST --------------------
+                        string newseq;
 
-                    size_t r = cmap.bf->contains_block(p_.first, block_bf);
+                        size_t pos_match = cmap.findContigSequence(km, newseq, selfLoop, isIsolated, *l_ignored_km_tip); //Build contig from Bloom filter
 
-                    if (r != 0){
+                        if (isIsolated){ // According to the BF, k-mer is isolated in the graph and is a potential false positive
 
-                        /*ContigMap cm;
+                            const uint64_t block = ((r == 1 ? block_bf.first : block_bf.second) - cmap.bf->getTable_ptr()) / NB_ELEM_BLOCK;
 
-                        if (found && (it_min.getNbMin() == 1) && (last_pos_min == it_min.getPosition())){
+                            Kmer km_rep = km.rep();
+                            const tiny_vector<Kmer, 3>& v = fp_candidate[block];
+                            tuple<bool, uint64_t, Kmer> t_fp_cand = make_tuple(true, block, km_rep);
 
-                            cm = cmap.findContig(km, *x, p_.second, it_min.getPosition(), it_h);
-                        }
-                        else {
+                            for (auto km_tmp : v){ // Go over global list of existing FP candidates
 
-                            cm = cmap.findContig(km, *x, p_.second, it_min);
-                            it_h = cm.pos_min;
-                        }*/
-                        ContigMap cm = cmap.findContig(km, *x, p_.second, it_min);
+                                if (km_tmp == km_rep){ // If already stored as a FP candidate, it is a TP
 
-                        //found = true;
+                                    std::get<0>(t_fp_cand) = false; // K-mer must be removed from list of FP candidate
+                                    break;
+                                }
+                            }
 
-                        if (cm.isEmpty) { // kmer did not map, push into queue for next contig generation round
+                            if (!std::get<0>(t_fp_cand)){ // If k-mer was a FP candidate now turned into a TP, insert into data structure
 
-                            bool selfLoop = false;
-                            bool isIsolated = false;
+                                smallv->emplace_back(km, *x, p_.second, selfLoop ? std::string() : newseq);
+                                v_fp_cand->emplace_back(t_fp_cand); // TP will be removed from list of FP later
+                            }
+                            else { // Need to make sure the FP candidate was not already inserted locally as a FP candidate (else it is a TP)
 
-                            string newseq;
+                                bool found_fp = false;
 
-                            size_t pos_match = cmap.findContigSequence(km, newseq, selfLoop, isIsolated, *l_ignored_km_tip); //Build contig from Bloom filter
+                                for (auto& t_fp_cand_tmp : *v_fp_cand){ // Go over local (to the thread) list of existing FP candidates
 
-                            if (isIsolated){ // According to the BF, k-mer is isolated in the graph and is a potential false positive
+                                    if (std::get<2>(t_fp_cand_tmp) == km_rep){ // If present as FP candidate
 
-                                const uint64_t block = ((r == 1 ? block_bf.first : block_bf.second) - cmap.bf->getTable_ptr()) / NB_ELEM_BLOCK;
-
-                                Kmer km_rep = km.rep();
-                                const tiny_vector<Kmer, 3>& v = fp_candidate[block];
-                                tuple<bool, uint64_t, Kmer> t_fp_cand = make_tuple(true, block, km_rep);
-
-                                for (auto km_tmp : v){ // Go over global list of existing FP candidates
-
-                                    if (km_tmp == km_rep){ // If already stored as a FP candidate, it is a TP
-
-                                        std::get<0>(t_fp_cand) = false; // K-mer must be removed from list of FP candidate
+                                        std::get<0>(t_fp_cand_tmp) = false; // Indicate FP must be removed from list of false positive candidate
+                                        found_fp = true;
                                         break;
                                     }
                                 }
 
-                                if (!std::get<0>(t_fp_cand)){ // If k-mer was a FP candidate now turned into a TP, insert into data structure
-
-                                    smallv->emplace_back(km, *x, p_.second, selfLoop ? std::string() : newseq);
-                                    v_fp_cand->emplace_back(t_fp_cand); // TP will be removed from list of FP later
-                                }
-                                else { // Need to make sure the FP candidate was not already inserted locally as a FP candidate (else it is a TP)
-
-                                    bool found_fp = false;
-
-                                    for (auto& t_fp_cand_tmp : *v_fp_cand){ // Go over local (to the thread) list of existing FP candidates
-
-                                        if (std::get<2>(t_fp_cand_tmp) == km_rep){ // If present as FP candidate
-
-                                            std::get<0>(t_fp_cand_tmp) = false; // Indicate FP must be removed from list of false positive candidate
-                                            found_fp = true;
-                                            break;
-                                        }
-                                    }
-
-                                    if (found_fp) smallv->emplace_back(km, *x, p_.second, selfLoop ? std::string() : newseq);
-                                    else v_fp_cand->emplace_back(t_fp_cand);
-                                }
-                            }
-                            else {
-
-                                smallv->emplace_back(km, *x, p_.second, selfLoop ? std::string() : newseq);
-                                it_kmer_h += cstrMatch(&s_x[p_.second + opt.k], &newseq.c_str()[pos_match + opt.k]);
+                                if (found_fp) smallv->emplace_back(km, *x, p_.second, selfLoop ? std::string() : newseq);
+                                else v_fp_cand->emplace_back(t_fp_cand);
                             }
                         }
                         else {
 
-                            cmap.mapRead(cm);
-                            it_kmer_h += cm.len - 1;
+                            smallv->emplace_back(km, *x, p_.second, selfLoop ? std::string() : newseq);
+                            it_kmer_h += cstrMatch(&s_x[p_.second + opt.k], &newseq.c_str()[pos_match + opt.k]);
                         }
                     }
-                    //else found = false;
-                //}
+                    else {
+
+                        cmap.mapRead(cm);
+                        it_kmer_h += cm.len - 1;
+                    }
+                }
             }
         }
     };
@@ -560,10 +522,7 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
 
         for (auto &v : v_ignored_km_tip_thread) { // for each thread
 
-            for (auto x : v){
-
-                ignored_km_tips.insert(make_pair(x, false));
-            }
+            for (auto x : v) ignored_km_tips.insert(make_pair(x, false));
 
             v.clear();
         }
@@ -590,7 +549,6 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
     }
 
     size_t contigsBefore = cmap.contigCount();
-    cerr << "Before split: " << contigsBefore << " contigs" << endl;
 
     cerr << endl << "--- Splitting unitigs (1/2) ---" << endl;
     pair<size_t, size_t> contigSplit = cmap.splitAllContigs();
@@ -642,6 +600,8 @@ void BuildContigs_Normal(const BuildContigs_ProgramOptions& opt) {
         cerr << "After: " << contigsAfter4 << " contigs" << endl;
         cerr << "Removed " << removed << " contigs" << endl;
         cerr << "Joined " << joined << " contigs" << endl;
+
+        v_joins.clear();
     }
 
     cerr << endl << "--- Creating GFA ---" << endl;

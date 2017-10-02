@@ -13,6 +13,8 @@ SET(CMAKE_CXX_FLAGS "-std=c++11 -DXXH_NAMESPACE=BFGRAPH_HASH_")
 
 set_property(SOURCE xxhash.c APPEND_STRING PROPERTY COMPILE_FLAGS " -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef")
 
+set_property(SOURCE BlockedBloomFilter.hpp APPEND_STRING PROPERTY COMPILE_FLAGS " -funroll-loops")
+
 if(CMAKE_BUILD_TYPE MATCHES Debug)
 	message("debug mode")
 	add_compile_options(-g)
