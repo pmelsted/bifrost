@@ -14,12 +14,12 @@ using namespace std;
 // post: How to run BFGraph has been printed to cout
 void PrintUsage() {
   cout << "BFGraph " << BFG_VERSION << endl << endl;
-  cout << "A memory efficient de Bruijn graph assembler." << endl << endl;
+  cout << "Highly Parallel and Memory Efficient Compacted de Bruijn Graph Construction" << endl << endl;
   cout << "Usage: BFGraph <cmd> [options] ..." << endl << endl;
   cout << "Where <cmd> can be one of:" << endl;
   cout <<
        "    filter       Filters errors from reads" << endl <<
-       "    contigs      Builds an initial contig graph" << endl <<
+       "    contigs      Builds a compacted de Bruijn graph" << endl <<
        "    cite         Prints information for citing the paper" << endl <<
        "    version      Displays version number" << endl << endl;
   ;

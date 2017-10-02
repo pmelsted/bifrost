@@ -2,11 +2,11 @@
 
 Highly Parallel and Memory Efficient Compacted de Bruijn Graph Construction
 
-This repository contains the source code for a new parallel and memory efficient algorithm enabling the direct construction of the compacted de Bruijn graph without producing the intermediate uncompacted de Bruijn graph. Despite making extensive use of a probabilistic data structure, the Bloom filter, our algorithm guarantees that the produced compacted de Bruijn graph is deterministic. Furthermore, the algorithm features de Bruijn graph simplification steps used by assemblers such as tip clipping and isolated unitig removal. In addition, as disk-based software performance is significantly affected by the discrepancy of speed among disk storage technologies, our method uses only main memory storage.
+This repository contains the source code for a new parallel and memory efficient algorithm enabling the direct construction of the compacted de Bruijn graph without producing the intermediate uncompacted de Bruijn graph. Despite making extensive use of a probabilistic data structure (the Bloom filter), our algorithm guarantees that the produced compacted de Bruijn graph is deterministic. Furthermore, the algorithm features de Bruijn graph simplification steps used by assemblers such as tip clipping and isolated unitig removal. In addition, as disk-based software performance is significantly affected by the discrepancy of speed among disk storage technologies, our method uses only main memory storage.
 
 ## Dependencies
 
-In order to compile and use the BFT, you need a machine running a 64 bits Linux or Mac OS operating system. BFGraph successfully compiles and runs on Ubuntu 17.04 and MacOS.
+In order to compile and use BFGraph, you need a machine running a 64 bits Linux or MacOS operating system. BFGraph successfully compiles and runs on Ubuntu 17.04 and MacOS.
 
 In order to install BFGraph, you will need Cmake (https://cmake.org/), Jemalloc (http://www.canonware.com/jemalloc) and zlib (https://zlib.net/). All can be downloaded and installed by following the instructions on their respective websites. It is however most likely that at least few of them are available via a package manager for your operating system.
 
@@ -15,7 +15,7 @@ If you operating system is Ubuntu/Debian:
 sudo apt-get install cmake libjemalloc1 libjemalloc-dev zlib1g
 ```
 
-If you operating system is MacOS, Jemalloc can be easily downloaded and installed via Homebrew:
+If you operating system is MacOS, all can be easily downloaded and installed via Homebrew:
 ```
 brew install cmake jemalloc zlib
 ```
@@ -47,7 +47,7 @@ cmake ..
 make
 ```
 
-The default maximum *k*-mer size supported is 31. To work with larger *k*, you must replace *MAX_KMER_SIZE* in *CMakeLists.txt* with an larger (appropriate) number, such as:
+The default maximum *k*-mer size supported is 31. To work with larger *k*, you must replace *MAX_KMER_SIZE* in *CMakeLists.txt* with a larger (appropriate) number, such as:
 ```
 set( MAX_KMER_SIZE "64")
 ```
@@ -63,13 +63,13 @@ Type the following command to run BFGraph:
 
 It should display the list of available commands:
 ```
-A memory efficient de Bruijn graph assembler.
+Highly Parallel and Memory Efficient Compacted de Bruijn Graph Construction
 
 Usage: BFGraph <cmd> [options] ...
 
 Where <cmd> can be one of:
     filter       Filters errors from reads
-    contigs      Builds an initial contig graph
+    contigs      Builds a compacted de Bruijn graph
     cite         Prints information for citing the paper
     version      Displays version number
 ```
@@ -102,7 +102,8 @@ Required arguments:
 ```
 
 To obtain quickly the arguments *-n* and *-N* from a FASTQ file (if you have no idea), the tool KmerStream can be used (https://github.com/pmelsted/KmerStream). KmerStream output 3 numbers *F0*, *f1* and *F1*. You can then configure BFGraph with *F0* for *-n* and *F0-f1* for *-N*.
-Arguments *-b* and *-B* basically control the Bloom filter false positive rates. A larger number means less false positives in the Bloom filters but more memory used. We advise to not modify these parameters unless you know what you are doing with Bloom filters.
+
+Arguments *-b* and *-B* basically control the Bloom filter false positive rates. A larger number means less false positives to deal with during construction but more memory used. We advise to not modify those two parameters unless you know exactly what you are doing with Bloom filters.
 
 ### Building
 
@@ -120,7 +121,7 @@ Required arguments:
   -k, --kmer-size=INT         Size of k-mers, same as for filtering reads (default is 31)
   -g, --min-size=INT          Size of minimizers, same as for filtering reads (default is 23)
   -f, --filtered=STRING       Filtered reads file
-  -o, --output=STRING         Prefix for output files
+  -o, --output=STRING         Prefix for output GFA file
   -c, --chunk-size=INT        Read chunksize to split betweeen threads (default is 10000)
 
 Optional arguments:

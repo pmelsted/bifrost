@@ -54,7 +54,7 @@ void BuildContigs_PrintUsage() {
        "  -k, --kmer-size=INT         Size of k-mers, same as for filtering reads (default is 31)" << endl <<
        "  -g, --min-size=INT          Size of minimizers, same as for filtering reads (default is 23)" << endl <<
        "  -f, --filtered=STRING       Filtered reads file" << endl <<
-       "  -o, --output=STRING         Prefix for output files" << endl <<
+       "  -o, --output=STRING         Prefix for output GFA file" << endl <<
        "  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default is 10000)" << endl <<
        endl << "Optional arguments:" << endl <<
        "  -n, --clip-tips             Clip tips shorter than k k-mers in length" << endl <<
