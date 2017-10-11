@@ -61,74 +61,41 @@ Type the following command to run BFGraph:
 ./BFGraph
 ```
 
-It should display the list of available commands:
+It should display the command line interface:
 ```
+BFGraph
+
 Highly Parallel and Memory Efficient Compacted de Bruijn Graph Construction
 
-Usage: BFGraph <cmd> [options] ...
+Usage: BFGraph [Parameters] FAST(A|Q)_file_1 ...
 
-Where <cmd> can be one of:
-    filter       Filters errors from reads
-    contigs      Builds a compacted de Bruijn graph
-    cite         Prints information for citing the paper
-    version      Displays version number
+Parameters with required argument:
+
+  -n, --num-kmers          [MANDATORY] Estimated number (upper bound) of different k-mers in the FASTA/FASTQ files
+  -N, --num-kmer2          [MANDATORY] Estimated number (upper bound) of different k-mers occurring twice or more in the FASTA/FASTQ files
+  -o, --output             [MANDATORY] Prefix for output GFA file
+  -t, --threads            Number of threads (default is 1)
+  -k, --kmer-length        Length of k-mers (default is 31)
+  -g, --min-length         Length of minimizers (default is 23)
+  -b, --bloom-bits         Number of Bloom filter bits per k-mer occurring at least once in the FASTA/FASTQ files (default is 14)
+  -B, --bloom-bits2        Number of Bloom filter bits per k-mer occurring at least twice in the FASTA/FASTQ files (default is 14)
+  -l, --load               Filename for input Blocked Bloom Filter, skips filtering step (default is no input)
+  -f, --output2            Filename for output Blocked Bloom Filter (default is no output)
+  -s, --chunk-size         Read chunksize to split between threads (default is 10000)
+
+Parameters with no argument:
+
+      --ref                Reference mode, no filtering
+  -c, --clip-tips          Clip tips shorter than k k-mers in length
+  -r, --rm-isolated        Delete isolated contigs shorter than k k-mers in length
+  -v, --verbose            Print information messages during construction
 ```
 
-BFGraph works (for now) in two steps: first, errors are removed from the reads (*filter* command), then, the compacted de Bruijn graph is built from the filtered reads (*contigs* command).
+BFGraph works in two steps: first, errors are removed from the reads and then, the compacted de Bruijn graph is built from the filtered reads.
 
-### Filtering
-
-```
-./BFGraph filter
-```
-
-```
-Filter errors from FASTA/FASTQ files
-
-Usage: BFGraph filter [arguments] ... FASTQ_files
-
-Required arguments:
-  -t, --threads=INT           Number of threads (default is 1)
-  -k, --kmer-size=INT         Size of k-mers (default is 31)
-  -g, --min-size=INT          Size of minimizers (default is 23)
-      --ref                   Reference mode, no filtering
-  -n, --num-kmers=LONG        Estimated number (upper bound) of different k-mers in the reads
-  -b, --bloom-bits=INT        Number of Bloom filter bits per k-mer occurring at least once in the reads (default is 14)
-  -N, --num-kmer2=LONG        Estimated number (upper bound) of different k-mers occurring at least twice in the reads
-  -B, --bloom-bits2=INT       Number of Bloom filter bits per k-mer occurring at least twice in the reads (default is 14)
-  -o, --output=STRING         Filename for output
-  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default is 10000)
-  -v, --verbose               Print lots of messages during run
-```
-
-To obtain quickly the arguments *-n* and *-N* from a FASTQ file (if you have no idea), the tool KmerStream can be used (https://github.com/pmelsted/KmerStream). KmerStream output 3 numbers *F0*, *f1* and *F1*. You can then configure BFGraph with *F0* for *-n* and *F0-f1* for *-N*.
+To obtain quickly the arguments *-n* and *-N* from a FASTQ file (if you have no idea), the tool KmerStream can be used (https://github.com/pmelsted/KmerStream). KmerStream output 3 numbers *F0*, *f1* and *F1*. You can then configure BFGraph with *-n=F0* and *-N=F0-f1*.
 
 Arguments *-b* and *-B* basically control the Bloom filter false positive rates. A larger number means less false positives to deal with during construction but more memory used. We advise to not modify those two parameters unless you know exactly what you are doing with Bloom filters.
-
-### Building
-
-```
-./BFGraph contigs
-```
-
-```
-Create a compacted de Bruijn graph from filtered FASTA/FASTQ files and save it to a GFA file
-
-Usage: BFGraph contigs [arguments] ... FASTQ_files
-
-Required arguments:
-  -t, --threads=INT           Number of threads (default is 1)
-  -k, --kmer-size=INT         Size of k-mers, same as for filtering reads (default is 31)
-  -g, --min-size=INT          Size of minimizers, same as for filtering reads (default is 23)
-  -f, --filtered=STRING       Filtered reads file
-  -o, --output=STRING         Prefix for output GFA file
-  -c, --chunk-size=INT        Read chunksize to split betweeen threads (default is 10000)
-
-Optional arguments:
-  -n, --clip-tips             Clip tips shorter than k k-mers in length
-  -d, --rm-isolated           Delete isolated contigs shorter than k k-mers in length
-  -v, --verbose               Print lots of messages during run
-```
 
 ## Notes
 

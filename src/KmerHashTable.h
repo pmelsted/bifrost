@@ -5,6 +5,8 @@
 #include <string>
 #include <iterator>
 
+#include "Kmer.hpp"
+
 template<typename T, typename Hash = KmerHash>
 struct KmerHashTable {
 
@@ -80,8 +82,9 @@ struct KmerHashTable {
 
             bool operator==(const iterator_ &o) const {return (ht->table == o.ht->table) && (h == o.h);}
             bool operator!=(const iterator_ &o) const {return !(this->operator==(o));}
+
             friend class iterator_<true>;
-        };
+    };
 
     typedef iterator_<true> const_iterator;
     typedef iterator_<false> iterator;
@@ -129,13 +132,20 @@ struct KmerHashTable {
 
     void init_table(size_t sz) {
 
-        clear_table();
+        /*clear_table();
         size_ = rndup(sz);
 
         num_empty = 0;
         table = new value_type[size_];
 
-        std::fill(table, table+size_, empty_val);
+        std::fill(table, table+size_, empty_val);*/
+
+        clear_table();
+
+        size_ = rndup(sz);
+        table = new value_type[size_];
+
+        clear();
     }
 
     iterator find(const Kmer& key) {
@@ -152,14 +162,6 @@ struct KmerHashTable {
         }
     }
 
-    iterator find(const size_t h) {
-
-        if ((h < size_) && (table[h].first != empty_val.first) && (table[h].first != deleted.first))
-            return iterator(this, h);
-
-        return iterator(this);
-    }
-
     const_iterator find(const Kmer& key) const {
 
         size_t h = hasher(key) & (size_-1);
@@ -172,6 +174,22 @@ struct KmerHashTable {
 
             if (h==end_h) return const_iterator(this);
         }
+    }
+
+    iterator find(const size_t h) {
+
+        if ((h < size_) && (table[h].first != empty_val.first) && (table[h].first != deleted.first))
+            return iterator(this, h);
+
+        return iterator(this);
+    }
+
+    const_iterator find(const size_t h) const {
+
+        if ((h < size_) && (table[h].first != empty_val.first) && (table[h].first != deleted.first))
+            return const_iterator(this, h);
+
+        return const_iterator(this);
     }
 
     iterator erase(const_iterator pos) {
@@ -412,13 +430,20 @@ struct MinimizerHashTable {
 
         void init_table(size_t sz) {
 
-            clear_table();
+            /*clear_table();
 
             size_ = rndup(sz);
             num_empty = 0;
             table = new value_type[size_];
 
-            std::fill(table, table+size_, empty_val);
+            std::fill(table, table+size_, empty_val);*/
+
+            clear_table();
+
+            size_ = rndup(sz);
+            table = new value_type[size_];
+
+            clear();
         }
 
         iterator find(const Minimizer& key) {
@@ -436,14 +461,6 @@ struct MinimizerHashTable {
             }
         }
 
-        iterator find(const size_t h) {
-
-            if ((h < size_) && (table[h].first != empty_val.first) && (table[h].first != deleted.first))
-                return iterator(this, h);
-
-            return iterator(this);
-        }
-
         const_iterator find(const Minimizer& key) const {
 
             size_t h = hasher(key) & (size_-1);
@@ -456,6 +473,22 @@ struct MinimizerHashTable {
 
                 if (h==end_h) return const_iterator(this);
             }
+        }
+
+        iterator find(const size_t h) {
+
+            if ((h < size_) && (table[h].first != empty_val.first) && (table[h].first != deleted.first))
+                return iterator(this, h);
+
+            return iterator(this);
+        }
+
+        const_iterator find(const size_t h) const {
+
+            if ((h < size_) && (table[h].first != empty_val.first) && (table[h].first != deleted.first))
+                return const_iterator(this, h);
+
+            return const_iterator(this);
         }
 
         iterator erase(const_iterator pos) {

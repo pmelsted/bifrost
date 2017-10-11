@@ -283,9 +283,22 @@ class BlockedBloomFilter {
             k_ = 0;
         }
 
+        void get(BlockedBloomFilter& bf) {
+
+            clear();
+
+            table_ = bf.table_;
+            size_table_ = bf.size_table_;
+            blocks_ = bf.blocks_;
+            k_ = bf.k_;
+            fast_div_ = bf.fast_div_;
+
+            bf.table_ = NULL;
+        }
+
         inline uint64_t getNbBlocks() const { return blocks_; }
 
-        inline uint64_t* getTable_ptr() const { return table_; }
+        inline const uint64_t* getTable_ptr() const { return table_; }
 
     private:
 

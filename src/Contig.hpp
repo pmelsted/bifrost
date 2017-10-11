@@ -11,10 +11,10 @@
  *  - Use the CompressedSequence class for storing the DNA string
  *  - Use the CompressedCoverage class for storing the kmer coverage
  *  */
-class Contig {
+class Unitig {
  public:
-  Contig() : coveragesum(0) {}
-  Contig(const char *s, bool full=false) : seq(s) { initializeCoverage(full); }
+  Unitig() : coveragesum(0) {}
+  Unitig(const char *s, bool full=false) : seq(s) { initializeCoverage(full); }
   void initializeCoverage(bool full);
   void cover(size_t start, size_t end);
 

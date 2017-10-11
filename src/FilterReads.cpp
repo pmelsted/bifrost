@@ -275,8 +275,6 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
     FastqFile FQ(opt.files);
     vector<string> readv;
 
-    //MinimizerHashTable<uint8_t> hmap_min;
-
     // Main worker thread
     auto worker_function = [&](vector<string>::iterator a, vector<string>::iterator b) {
 
@@ -314,57 +312,6 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
                     ++l_num_ins;
                 }
             }
-
-            /*char* str = const_cast<char*>(x->c_str());
-            int len = x->length();
-
-            KmerHashIterator<RepHash> it_kmer_h(str, len, opt.k), it_kmer_h_end;
-            minHashIterator<RepHash> it_min(str, len, opt.k, Minimizer::g, RepHash(), true);
-
-            for (int last_pos_km = -1, last_pos_min = -1; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min, ++l_num_kmers) {
-
-                std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
-
-                // If one or more k-mer were jumped because contained non-ACGT char.
-                if (p_.second != last_pos_km + 1){
-
-                    str = &str[p_.second];
-                    it_min = minHashIterator<RepHash>(str, len - p_.second, opt.k, Minimizer::g, RepHash(), true);
-                    last_pos_min = -1;
-                }
-
-                last_pos_km = p_.second;
-                uint64_t min_hr = it_min.getHash();
-
-                if (!opt.ref) {
-
-                    if (BF.search_and_insert(p_.first, min_hr, multi_threaded)) ++l_num_ins;
-                    else {
-
-                        if (BF2.search_and_insert(p_.first, min_hr, multi_threaded)) ++l_num_ins;
-
-                        if (last_pos_min < it_min.getPosition()){
-
-                            minHashResultIterator<RepHash> it_it_min = *it_min, it_it_min_end;
-
-                            while (it_it_min != it_it_min_end){
-
-                                const minHashResult& min_h_res = *it_it_min;
-
-                                hmap_min.insert(make_pair(Minimizer(&str[min_h_res.pos]).rep(), 0));
-
-                                last_pos_min = min_h_res.pos;
-                                it_it_min++;
-                            }
-                        }
-                    }
-                }
-                else {
-
-                    BF.insert(p_.first, min_hr);
-                    ++l_num_ins;
-                }
-            }*/
         }
 
         // atomic adds
@@ -433,31 +380,6 @@ void FilterReads_Normal(const FilterReads_ProgramOptions& opt) {
     }
 
     fclose(opt.outputfile);
-
-    // --------------- TEST ---------------------
-    /*FILE* fp = fopen("minimizers", "wb");
-    assert(fp != NULL);
-
-    size_t hmap_min_sz = hmap_min.size();
-    cerr << "Number of different minimizers is " << hmap_min_sz << endl;
-
-    if (fwrite(&hmap_min_sz, sizeof(size_t), 1, fp) != 1){
-
-        cerr << "FilterReads_Normal(): cannot write minimizers to disk" << endl;
-        exit(1);
-    }
-
-    for (MinimizerHashTable<uint8_t>::iterator it = hmap_min.begin(); it != hmap_min.end(); it++){
-
-        if (!it->first.write(fp)){
-
-            cerr << "FilterReads_Normal(): cannot write minimizers to disk" << endl;
-            exit(1);
-        }
-    }
-
-    fclose(fp);*/
-    // --------------- TEST ---------------------
 }
 
 // use:  FilterReads(argc, argv);

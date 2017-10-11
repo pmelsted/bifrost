@@ -23,71 +23,71 @@
 /*
   Short description:
 
-  This class keeps track of all contigs with coverage information as
+  This class keeps track of all unitigs with coverage information as
   necessary.
 
-  For a contig c, we denote the canonical k-mer as the minimum of the
+  For a unitig c, we denote the canonical k-mer as the minimum of the
   two representative k-mers at the endpoints.  The class stores shortcut
-  information for longer contigs for efficiency reasons.
+  information for longer unitigs for efficiency reasons.
  */
 
-class ContigMapper {
+class UnitigMapper {
 
     public:
 
-        ContigMapper();
-        ~ContigMapper();
+        UnitigMapper();
+        ~UnitigMapper();
 
-        void mapBloomFilter(const BlockedBloomFilter *bf);
+        void empty();
 
-        ContigMap findContig(const Kmer& km, const string& s, size_t pos) const;
-        ContigMap findContig(const Kmer& km, const string& s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h) const;
+        UnitigMap findUnitig(const Kmer& km, const string& s, size_t pos) const;
+        UnitigMap findUnitig(const Kmer& km, const string& s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h) const;
 
-        ContigMap find(const Kmer& km, bool extremities_only = false) const;
-
-        void mapRead(const ContigMap& cc);
-
-        bool addContigSequence(Kmer km, const string& read, size_t pos, const string& seq, vector<Kmer>& l_ignored_km_tip);
-
-        size_t findContigSequence(Kmer km, string& s, bool& selfLoop, bool& isIsolated, vector<Kmer>& l_ignored_km_tip);
-
-        pair<size_t, size_t> splitAllContigs();
-
-        size_t joinAllContigs(vector<Kmer>* v_joins = NULL);
-        bool checkJoin(const Kmer& a, const ContigMap& cm_a, Kmer& b);
-
-        void writeGFA(string graphfilename);
-
-        void checkIntegrity();
-        void printState() const;
-        size_t contigCount() const;
-        void printContigCount() const;
-
-        const BlockedBloomFilter *bf;
+        UnitigMap find(const Kmer& km, bool extremities_only = false) const;
 
         inline size_t find(const preAllocMinHashIterator<RepHash>& it_min_h) const {
 
-            int pos = it_min_h.getPosition();
+            const int pos = it_min_h.getPosition();
 
-            return (hmap_min_contigs.find(Minimizer(&it_min_h.s[pos]).rep()) != hmap_min_contigs.end() ? 0 : pos - it_min_h.p);
+            return (hmap_min_unitigs.find(Minimizer(&it_min_h.s[pos]).rep()) != hmap_min_unitigs.end() ? 0 : pos - it_min_h.p);
         }
+
+        void mapRead(const UnitigMap& cc);
+
+        bool addUnitigSequence(Kmer km, const string& read, size_t pos, const string& seq, vector<Kmer>& l_ignored_km_tip);
+        size_t findUnitigSequence(Kmer km, string& s, bool& selfLoop, bool& isIsolated, vector<Kmer>& l_ignored_km_tip);
+
+        pair<size_t, size_t> splitAllUnitigs();
+
+        size_t joinAllUnitigs(vector<Kmer>* v_joins = NULL);
+        bool checkJoin(const Kmer& a, const UnitigMap& cm_a, Kmer& b);
+
+        void writeGFA(string graphfilename) const;
+
+        void printState() const;
+        size_t unitigCount() const;
+        void printUnitigCount() const;
 
         void check_fp_tips(KmerHashTable<bool>& ignored_km_tips);
 
         size_t removeUnitigs(bool rmIsolated, bool clipTips, vector<Kmer>& v);
 
+        void mapBloomFilter(const BlockedBloomFilter *bf);
+
+        const BlockedBloomFilter *bf;
+
     private:
 
-        ContigMap find(const Kmer& km, const preAllocMinHashIterator<RepHash>& it_min_h) const;
+        UnitigMap find(const Kmer& km, const preAllocMinHashIterator<RepHash>& it_min_h) const;
 
         bool fwBfStep(Kmer km, Kmer& end, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;
         bool bwBfStep(Kmer km, Kmer& front, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;
 
-        bool addContig(const string& str_contig, const size_t id_contig);
-        void deleteContig(const bool isShort, const bool isAbundant, const size_t id_contig);
-        void swapContigs(const bool isShort, const size_t id_a, const size_t id_b);
+        bool addUnitig(const string& str_unitig, const size_t id_unitig);
+        void deleteUnitig(const bool isShort, const bool isAbundant, const size_t id_unitig);
+        void swapUnitigs(const bool isShort, const size_t id_a, const size_t id_b);
 
-        bool splitContig(size_t& pos_v_contigs, size_t& nxt_pos_insert_v_contigs, size_t& v_contigs_sz, size_t& v_kmers_sz,
+        bool splitUnitig(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs, size_t& v_unitigs_sz, size_t& v_kmers_sz,
                          const vector<pair<int,int>>& sp);
 
         static const int tiny_vector_sz = 2;
@@ -95,12 +95,12 @@ class ContigMapper {
         static const int max_abundance_lim = 15;
 
         typedef KmerHashTable<CompressedCoverage> h_kmers_ccov_t;
-        typedef MinimizerHashTable<tiny_vector<size_t,tiny_vector_sz>> hmap_min_contigs_t;
+        typedef MinimizerHashTable<tiny_vector<size_t,tiny_vector_sz>> hmap_min_unitigs_t;
 
-        vector<Contig*> v_contigs;
+        vector<Unitig*> v_unitigs;
         vector<pair<Kmer, CompressedCoverage>> v_kmers;
 
-        hmap_min_contigs_t hmap_min_contigs;
+        hmap_min_unitigs_t hmap_min_unitigs;
         h_kmers_ccov_t h_kmers_ccov;
 };
 

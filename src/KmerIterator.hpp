@@ -21,6 +21,7 @@ class KmerIterator : public std::iterator<std::input_iterator_tag, std::pair<Kme
         KmerIterator(const KmerIterator& o) : s_(o.s_), p_(o.p_), invalid_(o.invalid_) {}
 
         KmerIterator& operator++();
+        KmerIterator& operator+=(const int length);
         KmerIterator operator++(int);
         void raise(Kmer& km, Kmer& rep);
 

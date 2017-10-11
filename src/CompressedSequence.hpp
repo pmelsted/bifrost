@@ -46,28 +46,28 @@ class CompressedSequence {
         bool compareKmer(const size_t offset, const Kmer& km) const;
 
         //  void setSequence(const CompressedSequence &o, size_t length, size_t offset = 0, bool reversed=false);
-        void setSequence(const CompressedSequence& o, size_t start, size_t length, size_t offset = 0, bool reversed = false);
-        void setSequence(const char *s, size_t length, size_t offset = 0, bool reversed=false);
-        void setSequence(const string& s, size_t length, size_t offset = 0, bool reversed=false);
-        void setSequence(const Kmer& km, size_t length, size_t offset = 0, bool reversed=false);
+        void setSequence(const CompressedSequence& o, const size_t start, const size_t length, const size_t offset = 0, const bool reversed = false);
+        void setSequence(const char *s, const size_t length, const size_t offset = 0, const bool reversed = false);
+        void setSequence(const string& s, const size_t length, const size_t offset = 0, const bool reversed=false);
+        void setSequence(const Kmer& km, const size_t length, const size_t offset = 0, const bool reversed=false);
 
-        void reserveLength(size_t new_length);
+        void reserveLength(const size_t new_length);
 
         CompressedSequence rev() const;
 
-        size_t jump(const char *s, size_t i, int pos, bool reversed) const;
+        size_t jump(const char *s, const size_t i, int pos, const bool reversed) const;
+        size_t bw_jump(const char *s, const size_t i, int pos, const bool reversed) const;
 
-        size_t bw_jump(const char *s, size_t i, int pos, bool reversed) const;
         int64_t findKmer(const Kmer& km) const;
 
         bool isShort() const;
 
     private:
 
-        size_t round_to_bytes(const size_t len) const { return (len+3)/4; }
-        void _resize_and_copy(size_t new_cap, size_t copy_limit);
+        inline size_t round_to_bytes(const size_t len) const { return (len+3)/4; }
+        void _resize_and_copy(const size_t new_cap, const size_t copy_limit);
         void initShort();
-        void setSize(size_t size);
+        void setSize(const size_t size);
 
         size_t capacity() const;
         const char *getPointer() const;

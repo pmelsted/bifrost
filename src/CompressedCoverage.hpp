@@ -28,44 +28,51 @@ using std::pair;
  *    - If the full bit is set then the pointer must be 0 and the memory released
  * */
 class CompressedCoverage {
- public:
-  CompressedCoverage(size_t sz=0, bool full=false);
-  void initialize(size_t sz, bool full);
-  ~CompressedCoverage();
 
+    public:
 
-  void cover(size_t start, size_t end);
+        CompressedCoverage(size_t sz=0, bool full=false);
+        CompressedCoverage(const CompressedCoverage& o);
+        ~CompressedCoverage();
 
-  bool isFull() const;
-  void setFull();
-  size_t size() const;
-  uint8_t covAt(size_t index) const;
-  std::string toString() const; // for debugging
+        void initialize(const size_t sz, const bool full);
 
-  vector<pair<int, int>> splittingVector() const;
-  pair<size_t, size_t> lowCoverageInfo() const;
+        void cover(size_t start, size_t end);
+        uint8_t covAt(const size_t index) const;
 
-  static const size_t size_limit = 28; // 56 bit array, 28 2-bit integers
-  static const size_t cov_full = 2;
+        bool isFull() const;
+        void setFull();
 
- private:
+        vector<pair<int, int>> splittingVector() const;
+        pair<size_t, size_t> lowCoverageInfo() const;
 
-  static const uintptr_t tagMask = 1; // local array bit
-  static const uintptr_t fullMask = 2; // full bit
-  static const uintptr_t sizeMask = 0xFC; // 0b11111100
-  static const uintptr_t localCoverageMask = 0xAAAAAAAAAAAAAA; // 0b10101010101010101010101010101010101010101010101010101010
-  static const uintptr_t pointerMask = ~(tagMask | fullMask); // rest of bits
+        size_t size() const;
+        std::string toString() const; // for debugging
 
+        static const size_t size_limit = 28; // 56 bit array, 28 2-bit integers
+        static const size_t cov_full = 2;
 
-  uint8_t *get8Pointer() const { return reinterpret_cast<uint8_t *>(asBits & pointerMask); }
-  uint32_t *get32Pointer() const { return reinterpret_cast<uint32_t *>(asBits & pointerMask); }
-  const uint32_t *getConst32Pointer() const { return reinterpret_cast<const uint32_t *>(asBits & pointerMask); }
-  void releasePointer();
+    private:
 
-  union {
-    uint8_t *asPointer;
-    uintptr_t asBits;
-  };
+        static const uintptr_t tagMask = 1; // local array bit
+        static const uintptr_t fullMask = 2; // full bit
+        static const uintptr_t sizeMask = 0xFC; // 0b11111100
+        static const uintptr_t localCoverageMask = 0xAAAAAAAAAAAAAA; // 0b10101010101010101010101010101010101010101010101010101010
+        static const uintptr_t pointerMask = ~(tagMask | fullMask); // rest of bits
+
+        inline size_t round_to_bytes(const size_t len) const { return (len + 3) / 4; }
+
+        inline uint8_t *get8Pointer() const { return reinterpret_cast<uint8_t *>(asBits & pointerMask); }
+        inline uint32_t *get32Pointer() const { return reinterpret_cast<uint32_t *>(asBits & pointerMask); }
+        inline const uint32_t *getConst32Pointer() const { return reinterpret_cast<const uint32_t *>(asBits & pointerMask); }
+
+        void releasePointer();
+
+        union {
+
+            uint8_t *asPointer;
+            uintptr_t asBits;
+        };
 };
 
 #endif // BFG_COMPRESSED_COVERAGE_HPP
