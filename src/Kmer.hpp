@@ -11,8 +11,6 @@
 #include <cstring>
 #include <string>
 
-#include "hash.hpp"
-
 #ifndef XXH_NAMESPACE
 #define XXH_NAMESPACE BFGRAPH_HASH_
 #endif
@@ -20,6 +18,8 @@
 extern "C" {
     #include "xxhash.h"
 }
+
+class CompressedSequence;
 
 /* Short description:
  *  - Store kmer strings by using 2 bits per base instead of 8
@@ -31,6 +31,8 @@ extern "C" {
 class Kmer {
 
     public:
+
+        friend class CompressedSequence;
 
         Kmer();
         Kmer(const Kmer& o);
@@ -44,24 +46,8 @@ class Kmer {
 
         bool operator<(const Kmer& o) const;
 
-        // use:  b = (km1 == km2);
-        // pre:
-        // post: b is true <==> the DNA strings in km1 and km2 are equal
-        inline bool operator==(const Kmer& o) const {
-
-            for (size_t i = 0; i < MAX_K/32; i++) {
-                if (longs[i] != o.longs[i]) return false;
-            }
-
-            return true;
-            //  return memcmp(bytes,o.bytes,MAX_K/4)==0;
-        }
-
-        bool operator!=(const Kmer& o) const {
-            return !(*this == o);
-        }
-
-        //uint64_t hash() const;
+        bool operator==(const Kmer& o) const;
+        bool operator!=(const Kmer& o) const;
 
         inline uint64_t hash() const {
             return (uint64_t)XXH64((const void *)bytes, MAX_K/4, 0);
@@ -88,6 +74,8 @@ class Kmer {
         static const unsigned int MAX_K = MAX_KMER_SIZE;
         static unsigned int k;
 
+    private:
+
         // data fields
         union {
 
@@ -95,11 +83,9 @@ class Kmer {
             uint64_t longs[MAX_K/32];
         };
 
-    private:
-
-        static unsigned int k_bytes;
-        static unsigned int k_longs;
-        static unsigned int k_modmask; // int?
+        //static unsigned int k_bytes;
+        //static unsigned int k_longs;
+        //static unsigned int k_modmask; // int?
 
         // By default MAX_K == 64 so the union uses 16 bytes
         // However sizeof(Kmer) == 24
@@ -139,27 +125,10 @@ class Minimizer {
         void set_deleted();
 
         bool operator<(const Minimizer& o) const;
-
-        // use:  b = (km1 == km2);
-        // pre:
-        // post: b is true <==> the DNA strings in km1 and km2 are equal
-        inline bool operator==(const Minimizer& o) const {
-
-            for (size_t i = 0; i < MAX_G/32; i++) {
-                if (longs[i] != o.longs[i]) return false;
-            }
-
-            return true;
-            //  return memcmp(bytes,o.bytes,MAX_K/4)==0;
-        }
-
-        bool operator!=(const Minimizer& o) const {
-            return !(*this == o);
-        }
+        bool operator==(const Minimizer& o) const;
+        bool operator!=(const Minimizer& o) const;
 
         void set_minimizer(const char *s);
-
-        //uint64_t hash() const;
 
         inline uint64_t hash() const {
 
@@ -172,7 +141,6 @@ class Minimizer {
         Minimizer getLink(const size_t index) const;
 
         Minimizer forwardBase(const char b) const;
-
         Minimizer backwardBase(const char b) const;
 
         std::string getBinary() const;
@@ -180,14 +148,13 @@ class Minimizer {
         void toString(char *s) const;
         std::string toString() const;
 
-        bool write(FILE *fp);
-        bool read(FILE *fp);
-
         // static functions
         static void set_g(unsigned int _g);
 
         static const unsigned int MAX_G = MAX_KMER_SIZE;
         static unsigned int g;
+
+    private:
 
         // data fields
         union {
@@ -196,11 +163,9 @@ class Minimizer {
             uint64_t longs[MAX_G/32];
         };
 
-    private:
-
-        static unsigned int g_bytes;
-        static unsigned int g_longs;
-        static unsigned int g_modmask; // int?
+        //static unsigned int g_bytes;
+        //static unsigned int g_longs;
+        //static unsigned int g_modmask; // int?
 
         // By default MAX_K == 64 so the union uses 16 bytes
         // However sizeof(Kmer) == 24
@@ -220,4 +185,5 @@ struct MinimizerHash {
         return minz.hash();
     }
 };
+
 #endif // BFG_KMER_HPP

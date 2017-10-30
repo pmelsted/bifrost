@@ -16,6 +16,13 @@ CompressedCoverage::CompressedCoverage(size_t sz, bool full) {
     else asBits = full ? fullMask : tagMask;
 }
 
+// use:  delete cc;
+// post:
+CompressedCoverage::~CompressedCoverage() {
+
+    releasePointer();
+}
+
 CompressedCoverage::CompressedCoverage(const CompressedCoverage& o) {
 
     if (((o.asBits & fullMask) == fullMask) || ((o.asBits & tagMask) == tagMask)) asBits = o.asBits;
@@ -32,11 +39,42 @@ CompressedCoverage::CompressedCoverage(const CompressedCoverage& o) {
     }
 }
 
-// use:  delete cc;
-// post:
-CompressedCoverage::~CompressedCoverage() {
+CompressedCoverage& CompressedCoverage::operator=(const CompressedCoverage& o){
 
-    releasePointer();
+    if (((o.asBits & fullMask) == fullMask) || ((o.asBits & tagMask) == tagMask)) asBits = o.asBits;
+    else {
+
+        size_t sz = o.size();
+
+        releasePointer();
+        asPointer = new uint8_t[8+round_to_bytes(sz)];
+
+        *(get32Pointer()) = sz;
+        *(get32Pointer() + 1) = sz;
+
+        memcpy(asPointer + 8, o.asPointer + 8, round_to_bytes(sz)); // 0 out array allocated
+    }
+
+    return *this;
+}
+
+CompressedCoverage::CompressedCoverage(CompressedCoverage&& o){
+
+    asBits = o.asBits;
+    o.asBits = o.isFull() ? fullMask : tagMask;
+}
+
+CompressedCoverage& CompressedCoverage::operator=(CompressedCoverage&& o){
+
+    if (this != &o) {
+
+        releasePointer();
+
+        asBits = o.asBits;
+        o.asBits = o.isFull() ? fullMask : tagMask;
+    }
+
+    return *this;
 }
 
 

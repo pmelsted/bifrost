@@ -7,7 +7,6 @@
 
 #include "Kmer.hpp"
 
-
 /* Short description:
  *  - Compress a DNA string by using 2 bits per base instead of 8
  *  - Easily get the DNA string back from the compressed format
@@ -22,8 +21,14 @@ class CompressedSequence {
 
         CompressedSequence();
         ~CompressedSequence();
+
         CompressedSequence(const CompressedSequence& o);
         CompressedSequence& operator=(const CompressedSequence& o);
+
+        // Move constructors
+        CompressedSequence(CompressedSequence&& o);
+        CompressedSequence& operator=(CompressedSequence&& o);
+
         explicit CompressedSequence(const char *s);
         explicit CompressedSequence(const string& s);
         explicit CompressedSequence(const Kmer& km);
@@ -70,7 +75,7 @@ class CompressedSequence {
         void setSize(const size_t size);
 
         size_t capacity() const;
-        const char *getPointer() const;
+        const unsigned char *getPointer() const;
 
         static const uint8_t shortMask = 1;
 
@@ -79,13 +84,13 @@ class CompressedSequence {
             struct {
                 uint32_t _length; // size of sequence
                 uint32_t _capacity; // capacity of array allocated in bytes
-                char *_data; // 0-based 2bit compressed dna string
-                char padding[16];
+                unsigned char *_data; // 0-based 2bit compressed dna string
+                unsigned char padding[16];
             } asPointer;
 
             struct {
                 uint8_t _size; // 7 bits can index up to 128
-                char _arr[31]; // can store 124 nucleotides
+                unsigned char _arr[31]; // can store 124 nucleotides
             } asBits;
         };
 };

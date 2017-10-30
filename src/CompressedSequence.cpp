@@ -6,43 +6,62 @@
 
 
 static const char bases[256] = {
-  'A','C','G','T','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-  'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N'
+    'A','C','G','T','N','N','N','N',  'N','N','N','N','N','N','N','N',
+    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
+    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N'
 };
 
 static const uint8_t bits[256] = {
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
+static const unsigned char revBits[256] =
+{
+    0x0, 0x40, 0x80, 0xc0, 0x10, 0x50, 0x90, 0xd0, 0x20, 0x60, 0xa0, 0xe0, 0x30, 0x70, 0xb0, 0xf0,
+    0x4, 0x44, 0x84, 0xc4, 0x14, 0x54, 0x94, 0xd4, 0x24, 0x64, 0xa4, 0xe4, 0x34, 0x74, 0xb4, 0xf4,
+    0x8, 0x48, 0x88, 0xc8, 0x18, 0x58, 0x98, 0xd8, 0x28, 0x68, 0xa8, 0xe8, 0x38, 0x78, 0xb8, 0xf8,
+    0xc, 0x4c, 0x8c, 0xcc, 0x1c, 0x5c, 0x9c, 0xdc, 0x2c, 0x6c, 0xac, 0xec, 0x3c, 0x7c, 0xbc, 0xfc,
+    0x1, 0x41, 0x81, 0xc1, 0x11, 0x51, 0x91, 0xd1, 0x21, 0x61, 0xa1, 0xe1, 0x31, 0x71, 0xb1, 0xf1,
+    0x5, 0x45, 0x85, 0xc5, 0x15, 0x55, 0x95, 0xd5, 0x25, 0x65, 0xa5, 0xe5, 0x35, 0x75, 0xb5, 0xf5,
+    0x9, 0x49, 0x89, 0xc9, 0x19, 0x59, 0x99, 0xd9, 0x29, 0x69, 0xa9, 0xe9, 0x39, 0x79, 0xb9, 0xf9,
+    0xd, 0x4d, 0x8d, 0xcd, 0x1d, 0x5d, 0x9d, 0xdd, 0x2d, 0x6d, 0xad, 0xed, 0x3d, 0x7d, 0xbd, 0xfd,
+    0x2, 0x42, 0x82, 0xc2, 0x12, 0x52, 0x92, 0xd2, 0x22, 0x62, 0xa2, 0xe2, 0x32, 0x72, 0xb2, 0xf2,
+    0x6, 0x46, 0x86, 0xc6, 0x16, 0x56, 0x96, 0xd6, 0x26, 0x66, 0xa6, 0xe6, 0x36, 0x76, 0xb6, 0xf6,
+    0xa, 0x4a, 0x8a, 0xca, 0x1a, 0x5a, 0x9a, 0xda, 0x2a, 0x6a, 0xaa, 0xea, 0x3a, 0x7a, 0xba, 0xfa,
+    0xe, 0x4e, 0x8e, 0xce, 0x1e, 0x5e, 0x9e, 0xde, 0x2e, 0x6e, 0xae, 0xee, 0x3e, 0x7e, 0xbe, 0xfe,
+    0x3, 0x43, 0x83, 0xc3, 0x13, 0x53, 0x93, 0xd3, 0x23, 0x63, 0xa3, 0xe3, 0x33, 0x73, 0xb3, 0xf3,
+    0x7, 0x47, 0x87, 0xc7, 0x17, 0x57, 0x97, 0xd7, 0x27, 0x67, 0xa7, 0xe7, 0x37, 0x77, 0xb7, 0xf7,
+    0xb, 0x4b, 0x8b, 0xcb, 0x1b, 0x5b, 0x9b, 0xdb, 0x2b, 0x6b, 0xab, 0xeb, 0x3b, 0x7b, 0xbb, 0xfb,
+    0xf, 0x4f, 0x8f, 0xcf, 0x1f, 0x5f, 0x9f, 0xdf, 0x2f, 0x6f, 0xaf, 0xef, 0x3f, 0x7f, 0xbf, 0xff
+};
 
 CompressedSequence::CompressedSequence() {
 
@@ -91,6 +110,47 @@ CompressedSequence& CompressedSequence::operator=(const CompressedSequence& o) {
     return *this;
 }
 
+CompressedSequence::CompressedSequence(CompressedSequence&& o) {
+
+    if (o.isShort()) {
+
+        asBits._size = o.asBits._size;
+        memcpy(asBits._arr, o.asBits._arr, 31); // plain vanilla copy
+    }
+    else {
+
+        asPointer._length = o.asPointer._length;
+        asPointer._capacity = o.asPointer._capacity;
+        asPointer._data = o.asPointer._data;
+
+        o.initShort();
+    }
+}
+
+CompressedSequence& CompressedSequence::operator=(CompressedSequence&& o) {
+
+    if (this != &o) {
+
+        if (o.isShort()) {
+
+            asBits._size = o.asBits._size;
+            memcpy(asBits._arr, o.asBits._arr, 31); // plain vanilla copy
+        }
+        else {
+
+            clear();
+
+            asPointer._length = o.asPointer._length;
+            asPointer._capacity = o.asPointer._capacity;
+            asPointer._data = o.asPointer._data;
+
+            o.initShort();
+        }
+    }
+
+    return *this;
+}
+
 
 // use:  s
 // pre:  s has only the characters 'A','C','G' and 'T' and can have any length
@@ -125,20 +185,16 @@ CompressedSequence::CompressedSequence(const Kmer& km) {
 // post: c is character nr. index in the DNA string inside cs
 const char CompressedSequence::operator[](size_t index) const {
 
-    return bases[(getPointer()[index / 4] >> (2 * (index % 4))) & 0x03];
+    return bases[(getPointer()[index >> 2] >> ((index & 0x3) << 1)) & 0x03];
 }
 
-
-//void CompressedSequence::setSequence(const CompressedSequence &o, size_t length, size_t offset, bool reversed) {
-//  setSequence(o,0,length,offset,reversed);
-//}
 
 bool CompressedSequence::isShort() const {
 
     return ((asBits._size & shortMask) == 1);
 }
 
-const char *CompressedSequence::getPointer() const {
+const unsigned char *CompressedSequence::getPointer() const {
 
     if (isShort()) return &(asBits._arr[0]);
     return asPointer._data;
@@ -175,8 +231,8 @@ void CompressedSequence::setSequence(const CompressedSequence& o, const size_t s
 
     if (round_to_bytes(length+offset) > capacity()) _resize_and_copy(round_to_bytes(length+offset),size());
 
-    char *data = const_cast<char *>(getPointer());
-    const char *odata = o.getPointer();
+    unsigned char* data = const_cast<unsigned char*>(getPointer());
+    const unsigned char *odata = o.getPointer();
 
     size_t w_index = offset;
     size_t r_index = reversed ? o.size() - start - 1 : start;
@@ -184,10 +240,10 @@ void CompressedSequence::setSequence(const CompressedSequence& o, const size_t s
 
     for (size_t i = 0; i < length; i++) {
 
-        wi = w_index / 4;
-        wj = (w_index % 4) * 2;
-        ri = r_index / 4;
-        rj = (r_index % 4) * 2;
+        wi = w_index >> 2;
+        wj = (w_index & 0x3) << 1;
+        ri = r_index >> 2;
+        rj = (r_index & 0x3) << 1;
 
         data[wi] &= ~(0x03 << wj); // clear bits
 
@@ -224,7 +280,7 @@ void CompressedSequence::_resize_and_copy(const size_t new_cap, const size_t cop
 
     if (new_cap <= capacity()) return;
 
-    char *new_data = new char[new_cap]; // allocate new storage
+    unsigned char* new_data = new unsigned char[new_cap]; // allocate new storage
     size_t bytes = round_to_bytes(copy_limit);
 
     memcpy(new_data, getPointer(), bytes); // copy old data
@@ -261,12 +317,12 @@ void CompressedSequence::setSequence(const char *s, const size_t length, const s
 
     if (round_to_bytes(len) > capacity()) _resize_and_copy(round_to_bytes(length + offset), size());
 
-    char* data = const_cast<char*>(getPointer());
+    unsigned char* data = const_cast<unsigned char*>(getPointer());
 
     for (size_t index = offset; index < len; index++) {
 
-        const size_t i = index / 4;
-        const size_t j = (index % 4) * 2;
+        const size_t i = index >> 2;
+        const size_t j = (index & 0x3) << 1;
         const uint8_t c = reversed ? bases[0x03-bits[(uint8_t)*(s+len-index-1)]] : *(s+index-offset);
 
         data[i] &= ~(0x03 << j); // set bits to 0, default
@@ -308,35 +364,18 @@ void CompressedSequence::setSequence(const Kmer& km, const size_t length, const 
 // post: s is the DNA string from c[offset,...,offset+length-1]
 string CompressedSequence::toString(const size_t offset, const size_t length) const {
 
-    const char *data = getPointer();
+    const unsigned char* data = getPointer();
 
     assert(offset+length <= size());
 
     string s(length, 0);
 
-    size_t i,j,idx;
-
     for (size_t index = offset; index < offset+length; index++) {
 
-        i = index / 4;
-        j = index % 4;
-        idx = ((data[i]) >> (2*j)) & 0x03;
-        s[index-offset] = bases[idx];
+        s[index-offset] = bases[(data[index >> 2] >> ((index & 0x3) << 1)) & 0x03];
     }
 
     return s;
-
-    /*char v, tmp = data[offset / 4] >> (2 * (offset % 4));
-
-    for (size_t i = offset; i < offset + length; i++, tmp >>= 2) {
-
-        if (i % 4 == 0) tmp = data[i / 4];
-
-        v = tmp & 0x3;
-        s[i-offset] = 0x40 | (v + 1) | (0x1 << (v-1)*2);
-    }
-
-    return s;*/
 }
 
 
@@ -346,122 +385,113 @@ string CompressedSequence::toString(const size_t offset, const size_t length) co
 // post: s is the same as cs[offset,...,offset+length-1]
 void CompressedSequence::toString(char *s, const size_t offset, const size_t length) const {
 
-    const char *data = getPointer();
+    const unsigned char* data = getPointer();
 
     assert(offset+length <= size());
 
-    size_t i,j,idx;
-
     for (size_t index = offset; index < offset+length; index++) {
 
-        i = index / 4;
-        j = index % 4;
-        idx = ((data[i]) >> (2*j)) & 0x03;
-        s[index-offset] = bases[idx];
+        s[index-offset] = bases[(data[index >> 2] >> ((index & 0x3) << 1)) & 0x03];
     }
 
     s[length] = 0; // 0-terminated string
-
-    /*char v, tmp = data[offset / 4] >> (2 * (offset % 4));
-
-    for (size_t i = offset; i < offset + length; i++, tmp >>= 2, s++) {
-
-        if (i % 4 == 0) tmp = data[i / 4];
-
-        v = tmp & 0x3;
-        *s = 0x40 | (v + 1) | (0x1 << (v-1)*2);
-    }
-
-    *s = '\0';*/
 }
 
 Kmer CompressedSequence::getKmer(const size_t offset) const {
 
-    /*Kmer km;
-
-    const char* data = getPointer();
-
-    const size_t len = offset + Kmer::k;
-
-    size_t j = 0;
-
-    uint64_t tmp = (uint64_t)(data[offset / 4] >> (2 * (offset % 4)));
-
-    for (size_t i = offset; i != len; i++, j++, tmp >>= 2) {
-
-        if (i % 4 == 0) tmp = (uint64_t)(data[i / 4]);
-
-        km.longs[j/32] = (km.longs[j/32] << 2) | (tmp & 0x3);
-    }
-
-    km.longs[j/32] <<= 2 * (32 - (j % 32));
-
-    return km;*/
-
     Kmer km;
 
-    const char* data = getPointer();
+    const unsigned char* data = getPointer();
 
     const size_t len = offset + Kmer::k;
-    const size_t nlongs = (Kmer::k + 31) / 32;
 
-    size_t j = 0;
+    if ((offset & 0x3) == 0){ // Extraction byte to byte is possible
 
-    uint64_t tmp_data = (uint64_t)(data[offset / 4] >> (2 * (offset % 4)));
+        const size_t nbytes = (Kmer::k + 3) / 4;
 
-    for (size_t i = offset; j < nlongs; j++){
+        size_t i = offset >> 2, j = 0;
 
-        uint64_t tmp_km = 0;
-        const size_t end = len < i + 32 ? len : i + 32;
+        for (; j < nbytes - 1; i++, j++) km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)] = revBits[data[i]];
 
-        for (; i != end; i++, tmp_data >>= 2){
+        unsigned char tmp_km = 0;
+        unsigned char tmp_data = data[i];
 
-            if (i % 4 == 0) tmp_data = (uint64_t) data[i / 4];
-            tmp_km = (tmp_km << 2) | (tmp_data & 0x3);
+        for (i <<= 2; i < len; i++, tmp_data >>= 2) tmp_km = (tmp_km << 2) | (tmp_data & 0x3);
+
+        tmp_km <<= (4 - (Kmer::k & 0x3)) << 1;
+        km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)] = tmp_km;
+    }
+    else { // Extraction 2 bits per 2 bits
+
+        const size_t nlongs = (Kmer::k + 31) / 32;
+
+        size_t j = 0;
+
+        uint64_t tmp_data = static_cast<uint64_t>(data[offset >> 2] >> ((offset & 0x3) << 1));
+
+        for (size_t i = offset; j < nlongs; j++){
+
+            uint64_t tmp_km = 0;
+            const size_t end = len < i + 32 ? len : i + 32;
+
+            for (; i != end; i++, tmp_data >>= 2){
+
+                if ((i & 0x3) == 0) tmp_data = static_cast<uint64_t>(data[i >> 2]);
+                tmp_km = (tmp_km << 2) | (tmp_data & 0x3);
+            }
+
+            km.longs[j] = tmp_km;
         }
 
-        km.longs[j] = tmp_km;
+        km.longs[j-1] <<= (32 - (Kmer::k & 0x1f)) << 1;
     }
-
-    km.longs[j-1] <<= 2 * (32 - (Kmer::k % 32));
 
     return km;
 }
 
 bool CompressedSequence::compareKmer(const size_t offset, const Kmer& km) const {
 
-    /*const char* data = getPointer();
+    const unsigned char* data = getPointer();
 
     const size_t len = offset + Kmer::k;
 
-    uint64_t tmp_km, tmp_data = (uint64_t)(data[offset / 4] >> (2 * (offset % 4)));
+    if (len > size()) return false;
 
-    for (size_t i = offset, j = 0; i != len; i++, j++, tmp_data >>= 2, tmp_km <<= 2) {
+    if ((offset & 0x3) == 0){ // Comparison byte to byte is possible
 
-        if (i % 4 == 0) tmp_data = (uint64_t)(data[i / 4]);
-        if (j % 32 == 0) tmp_km = km.longs[j / 32];
+        const size_t nbytes = (Kmer::k + 3) / 4;
 
-        if ((tmp_data & 0x3) != (tmp_km >> 62)) return false;
+        size_t i = offset >> 2, j = 0;
+
+        for (; j < nbytes - 1; i++, j++){
+
+            if (data[i] != revBits[km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)]]) return false;
+        }
+
+        unsigned char tmp_km = km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)];
+        unsigned char tmp_data = data[i];
+
+        for (i <<= 2; i < len; i++, tmp_km <<= 2, tmp_data >>= 2){
+
+            if ((tmp_data & 0x3) != (tmp_km >> 6)) return false;
+        }
     }
+    else { //Comparison 2 bits per 2 bits
 
-    return true;*/
+        const size_t nlongs = (Kmer::k + 31) / 32;
 
-    const char* data = getPointer();
+        uint64_t tmp_data = static_cast<uint64_t>(data[offset >> 2] >> ((offset & 0x3) << 1));
 
-    const size_t len = offset + Kmer::k;
-    const size_t nlongs = (Kmer::k + 31) / 32;
+        for (size_t i = offset, j = 0; j < nlongs; j++){
 
-    uint64_t tmp_data = (uint64_t)(data[offset / 4] >> (2 * (offset % 4)));
+            uint64_t tmp_km = km.longs[j];
+            const size_t end = len < i + 32 ? len : i + 32;
 
-    for (size_t i = offset, j = 0; j < nlongs; j++){
+            for (; i != end; i++, tmp_km <<= 2, tmp_data >>= 2){
 
-        uint64_t tmp_km = km.longs[j];
-        const size_t end = len < i + 32 ? len : i + 32;
-
-        for (; i != end; i++, tmp_km <<= 2, tmp_data >>= 2){
-
-            if (i % 4 == 0) tmp_data = (uint64_t) data[i / 4];
-            if ((tmp_data & 0x3) != (tmp_km >> 62)) return false;
+                if ((i & 0x3) == 0) tmp_data = static_cast<uint64_t>(data[i >> 2]);
+                if ((tmp_data & 0x3) != (tmp_km >> 62)) return false;
+            }
         }
     }
 
@@ -481,8 +511,8 @@ int64_t CompressedSequence::findKmer(const Kmer& km) const {
         if (sz > k){
 
             size_t i = k;
-            const char* data = getPointer();
-            char tmp = data[i/4] >> (2 * (i % 4));
+            const unsigned char* data = getPointer();
+            unsigned char tmp = data[i/4] >> (2 * (i % 4));
 
             for (; i < sz; i++, tmp >>= 2){
 
@@ -523,7 +553,7 @@ size_t CompressedSequence::jump(const char *s, const size_t i, int pos, const bo
     assert(pos >= -1);
     assert(0 <= size() - pos); // this prevents -1 <= _length from giving false
 
-    const char* data = getPointer();
+    const unsigned char* data = getPointer();
 
     size_t i_cpy = i;
 
@@ -531,8 +561,8 @@ size_t CompressedSequence::jump(const char *s, const size_t i, int pos, const bo
 
         if (pos == -1) return 0;
 
-        int idx_div = pos / 4;
-        int idx_mod = 2 * (pos % 4);
+        int idx_div = pos >> 2;
+        int idx_mod = (pos & 0x3) << 1;
 
         for (; (s[i_cpy] != '\0') && (pos != -1); pos--, i_cpy++, idx_mod -= 2) {
 
@@ -550,11 +580,11 @@ size_t CompressedSequence::jump(const char *s, const size_t i, int pos, const bo
 
         if (pos == cs_size) return 0;
 
-        char tmp = data[pos/4] >> (2 * (pos % 4));
+        unsigned char tmp = data[pos >> 2] >> ((pos & 0x3) << 1);
 
         for (; (s[i_cpy] != '\0') && (pos != cs_size); pos++, i_cpy++, tmp >>= 2) {
 
-            if (pos%4 == 0) tmp = data[pos/4];
+            if ((pos & 0x3) == 0) tmp = data[pos >> 2];
             if (s[i_cpy] != bases[tmp & 0x3]) break;
         }
     }
@@ -569,7 +599,7 @@ size_t CompressedSequence::bw_jump(const char *s, const size_t i, int pos, const
     assert(pos >= -1);
     assert(0 <= size() - pos); // this prevents -1 <= _length from giving false
 
-    const char* data = getPointer();
+    const unsigned char* data = getPointer();
 
     size_t i_cpy = i;
 
@@ -579,7 +609,7 @@ size_t CompressedSequence::bw_jump(const char *s, const size_t i, int pos, const
 
         if (pos == cs_size) return 0;
 
-        char tmp = data[pos/4] >> (2 * (pos % 4));
+        unsigned char tmp = data[pos/4] >> (2 * (pos % 4));
 
         for (; (i_cpy != -1) && (pos != cs_size); pos++, i_cpy--, tmp >>= 2) {
 

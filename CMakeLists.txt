@@ -26,7 +26,7 @@ else(CMAKE_BUILD_TYPE MATCHES Debug)
 		set (CMAKE_EXE_LINKER_FLAGS "-pg")
 	else(CMAKE_BUILD_TYPE MATCHES Profile)
 		message("release mode")
-		add_compile_options(-O3)
+		add_compile_options(-O2)
 	endif(CMAKE_BUILD_TYPE MATCHES Profile)
 endif(CMAKE_BUILD_TYPE MATCHES Debug)
 

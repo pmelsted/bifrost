@@ -97,6 +97,10 @@ To obtain quickly the arguments *-n* and *-N* from a FASTQ file (if you have no 
 
 Arguments *-b* and *-B* basically control the Bloom filter false positive rates. A larger number means less false positives to deal with during construction but more memory used. We advise to not modify those two parameters unless you know exactly what you are doing with Bloom filters.
 
+## API
+
+Coming soon.
+
 ## Notes
 
 * BFGraph has been developed on x86-64 GNU/Linux and is compatible with MacOS. Porting it to a non-unix platform should be relatively easy, but we have not done it so far.

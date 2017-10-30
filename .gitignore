@@ -27,6 +27,7 @@ graph.py
 *~
 \#*
 .\#*
+build/
 old/
 dist/
 debug/

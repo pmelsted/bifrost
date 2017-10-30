@@ -18,8 +18,6 @@
 
 #include <jemalloc/jemalloc.h>
 
-//#include "BuildContigs.hpp"
-//#include "FilterReads.hpp"
 #include "CompactedDBG.hpp"
 #include "Common.hpp"
 
@@ -315,6 +313,36 @@ bool check_ProgramOptions(ProgramOptions& opt) {
     return ret;
 }
 
+/*class myInt {
+
+    public:
+
+        myInt(int int_init = 1) : Int(int_init) {}
+
+        static myInt* joinData(const UnitigMap& um_tail, const UnitigMap& um_head, const CompactedDBG<myInt>& cdbg){
+
+            myInt* join = new myInt;
+            join->Int = cdbg.getData(um_tail)->Int + cdbg.getData(um_head)->Int;
+
+            return join;
+        }
+
+        static vector<myInt*> splitData(const UnitigMap& a, const vector<pair<int,int>>& split_a, const CompactedDBG<myInt>& cdbg){
+
+            vector<myInt*> v_return;
+
+            for (size_t i = 0; i < split_a.size(); i++){
+
+                v_return.push_back(new myInt);
+                v_return[i]->Int = cdbg.getData(a)->Int / split_a.size();
+            }
+
+            return v_return;
+        }
+
+        int Int;
+};*/
+
 int main(int argc, char **argv){
 
     if (argc < 2) PrintUsage();
@@ -326,14 +354,59 @@ int main(int argc, char **argv){
 
         if (check_ProgramOptions(opt)){ //Program options are valid
 
-            CompactedDBG cdbg(opt.k, opt.g);
+            /*int i = 1;
+            for (unsigned char c = 0, c_tmp; i <= 256; i++, c++){
 
-            cdbg.build(opt.files, opt.nkmers, opt.nkmers2, opt.ref, opt.threads,
+                c_tmp = (c << 6) | ((c << 2) & 0x30) | ((c >> 2) & 0xc) | (c >> 6);
+
+                cout << "0x" << hex << (int) c_tmp << ",";
+
+                if (i%16 == 0) cout << endl;
+                else cout << " ";
+            }
+
+            exit(1);*/
+
+            CompactedDBG<> cdbg;
+
+            cdbg.setK(opt.k, opt.g);
+
+            cdbg.build(opt.files, opt.nkmers, opt.nkmers2, opt.ref, opt.threads, nullptr,
                        opt.bf, opt.bf2, opt.inFilenameBBF, opt.outFilenameBBF,
                        opt.read_chunksize, 1000000, opt.verbose);
 
             cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-            cdbg.write(opt.filenameGFA, opt.verbose);
+
+            cdbg.write(opt.prefixFilenameGFA, opt.verbose);
+
+
+            /*CompactedDBG<myInt> cdbg(&myInt::joinData, &myInt::splitData);
+            cdbg.setK(opt.k, opt.g);
+
+            string seq1 = "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+            string seq2 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC";
+
+            cdbg.add(seq1, true);
+
+            UnitigMap um1 = cdbg.find(Kmer(seq1.c_str()));
+
+            const myInt* data1 = cdbg.getData(um1);
+
+            cout << "Before: data1 = " << data1->Int << endl;
+
+
+            cdbg.add(seq2, true);
+
+            UnitigMap um2 = cdbg.find(Kmer(seq2.c_str()));
+
+            const myInt* data2 = cdbg.getData(um2);
+
+            cout << "data2 = " << data2->Int << endl;
+
+            for (CompactedDBG<myInt>::iterator it = cdbg.begin(), it_end; it != it_end; it++){
+
+                cout << cdbg.toString(*it) << endl;
+            }*/
         }
     }
 }

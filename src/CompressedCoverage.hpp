@@ -8,7 +8,6 @@
 using std::vector;
 using std::pair;
 
-
 /* Short description:
  *  - Tagged pointer union that is either
  *    - a pointer to a char array that stores 2-bit integers
@@ -32,8 +31,15 @@ class CompressedCoverage {
     public:
 
         CompressedCoverage(size_t sz=0, bool full=false);
-        CompressedCoverage(const CompressedCoverage& o);
         ~CompressedCoverage();
+
+        // Copy constructors
+        CompressedCoverage(const CompressedCoverage& o);
+        CompressedCoverage& operator=(const CompressedCoverage& o);
+
+        // move constructors
+        CompressedCoverage(CompressedCoverage&& o);
+        CompressedCoverage& operator=(CompressedCoverage&& o);
 
         void initialize(const size_t sz, const bool full);
 
@@ -73,6 +79,29 @@ class CompressedCoverage {
             uint8_t *asPointer;
             uintptr_t asBits;
         };
+};
+
+template<typename T> struct CompressedCoverage_t {
+
+    CompressedCoverage_t(size_t sz = 0, bool full = false){ ccov = CompressedCoverage(sz, full); }
+
+    inline const T* getData() const { return &data; }
+    inline void setData(const T* const data_){ data = *data_; }
+    inline void releaseData(T* const data){ delete data; }
+
+    CompressedCoverage ccov;
+    T data;
+};
+
+template<> struct CompressedCoverage_t<void> {
+
+    CompressedCoverage_t(size_t sz = 0, bool full = false){ ccov = CompressedCoverage(sz, full); }
+
+    inline const void* getData() const { return nullptr; }
+    inline void setData(const void* const data_){ return; }
+    inline void releaseData(void* const data){ return; }
+
+    CompressedCoverage ccov;
 };
 
 #endif // BFG_COMPRESSED_COVERAGE_HPP

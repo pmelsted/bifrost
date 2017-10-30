@@ -44,7 +44,7 @@ struct KmerHashTable {
             ValueReferenceType operator*() const {return ht->table[h];}
             ValuePointerType operator->() const {return &(ht->table[h]);}
 
-            size_t getHash(){ return h; }
+            size_t getHash() const { return h; }
 
             void find_first() {
 
@@ -104,6 +104,43 @@ struct KmerHashTable {
         init_table((size_t) (1.2*sz));
     }
 
+    KmerHashTable(KmerHashTable&& o){
+
+        hasher = o.hasher;
+        size_ = o.size_;
+        pop = o.pop;
+        num_empty = o.num_empty;
+        table = o.table;
+        empty_val = o.empty_val;
+        deleted = o.deleted;
+
+        o.table = nullptr;
+
+        o.clear_table();
+    }
+
+    KmerHashTable& operator=(KmerHashTable&& o){
+
+        if (this != &o) {
+
+            clear_table();
+
+            hasher = o.hasher;
+            size_ = o.size_;
+            pop = o.pop;
+            num_empty = o.num_empty;
+            table = o.table;
+            empty_val = o.empty_val;
+            deleted = o.deleted;
+
+            o.table = nullptr;
+
+            o.clear_table();
+        }
+
+        return *this;
+    }
+
     ~KmerHashTable() { clear_table(); }
 
     void clear_table() {
@@ -111,6 +148,7 @@ struct KmerHashTable {
         if (table != nullptr) {
 
             delete[] table;
+            //free(table);
             table = nullptr;
         }
 
@@ -126,24 +164,19 @@ struct KmerHashTable {
     void clear() {
 
         std::fill(table, table+size_, empty_val);
+
         pop = 0;
         num_empty = size_;
     }
 
     void init_table(size_t sz) {
 
-        /*clear_table();
-        size_ = rndup(sz);
-
-        num_empty = 0;
-        table = new value_type[size_];
-
-        std::fill(table, table+size_, empty_val);*/
-
         clear_table();
 
         size_ = rndup(sz);
+
         table = new value_type[size_];
+        //table = (value_type*) malloc(size_ * sizeof(value_type));
 
         clear();
     }
@@ -272,6 +305,58 @@ struct KmerHashTable {
 
         delete[] old_table;
         old_table = nullptr;
+
+        /*if (sz <= size_) return;
+
+        const size_t prev_size_ = size_;
+
+        size_ = rndup(sz);
+        pop = 0;
+        num_empty = size_;
+
+        table = (value_type*) realloc(table, size_ * sizeof(value_type));
+
+        std::sort(table, table + prev_size_, sortKmerHashTable(*this));
+
+        value_type* table_empty = table;
+
+        for (; table_empty < table + prev_size_; table_empty++) {
+
+            if (((*table_empty).first == empty_val.first) || ((*table_empty).first == deleted.first)) break;
+        }
+
+        std::fill(table_empty, table + size_, empty_val);
+
+        std::vector<value_type> v;
+
+        for (int64_t i = table_empty - table - 1; i >= 0; i--) {
+
+            size_t h = hasher(table[i].first) & (size_-1);
+
+            if (h > i){
+
+                for ( ; h < size_; h++) {
+
+                    if (table[h].first == empty_val.first) {
+
+                        num_empty--;
+                        pop++;
+
+                        std::swap(table[h], table[i]);
+
+                        break;
+                    }
+                }
+
+                if (h == size_){
+
+                    v.push_back(table[i]);
+                    table[i] = empty_val;
+                }
+            }
+        }
+
+        for (auto& vt : v) insert(vt);*/
     }
 
     size_t rndup(size_t v) {
@@ -303,6 +388,23 @@ struct KmerHashTable {
     iterator end() { return iterator(this); }
 
     const_iterator end() const { return const_iterator(this); }
+
+    /*private:
+
+        struct sortKmerHashTable {
+
+            sortKmerHashTable(const KmerHashTable& kht_) : kht(kht_) {}
+
+            bool operator() (const value_type& a, const value_type& b) const {
+
+                const size_t h_a = (a.first == kht.empty_val.first) || (a.first == kht.deleted.first) ? 0xffffffffffffffff : kht.hasher(a.first) & (kht.size_-1);
+                const size_t h_b = (b.first == kht.empty_val.first) || (b.first == kht.deleted.first) ? 0xffffffffffffffff : kht.hasher(b.first) & (kht.size_-1);
+
+                return (h_a < h_b);
+            }
+
+            const KmerHashTable& kht;
+        };*/
 };
 
 template<typename T, typename Hash = MinimizerHash>
@@ -313,11 +415,13 @@ struct MinimizerHashTable {
     using mapped_type = T;
 
     Hash hasher;
-    value_type *table;
+
     size_t size_, pop, num_empty;
+
+    value_type* table;
+
     value_type empty_val;
     value_type deleted;
-
 
 // ---- iterator ----
     template<bool is_const_iterator = true>
@@ -341,7 +445,7 @@ struct MinimizerHashTable {
             ValueReferenceType operator*() const {return ht->table[h];}
             ValuePointerType operator->() const {return &(ht->table[h]);}
 
-            size_t getHash(){ return h; }
+            size_t getHash() const { return h; }
 
             void find_first() {
 
@@ -401,6 +505,43 @@ struct MinimizerHashTable {
             init_table((size_t) (1.2*sz));
         }
 
+        MinimizerHashTable(MinimizerHashTable&& o){
+
+            hasher = o.hasher;
+            size_ = o.size_;
+            pop = o.pop;
+            num_empty = o.num_empty;
+            table = o.table;
+            empty_val = o.empty_val;
+            deleted = o.deleted;
+
+            o.table = nullptr;
+
+            o.clear_table();
+        }
+
+        MinimizerHashTable& operator=(MinimizerHashTable&& o){
+
+            if (this != &o) {
+
+                clear_table();
+
+                hasher = o.hasher;
+                size_ = o.size_;
+                pop = o.pop;
+                num_empty = o.num_empty;
+                table = o.table;
+                empty_val = o.empty_val;
+                deleted = o.deleted;
+
+                o.table = nullptr;
+
+                o.clear_table();
+            }
+
+            return *this;
+        }
+
         ~MinimizerHashTable() { clear_table(); }
 
         void clear_table() {
@@ -408,6 +549,7 @@ struct MinimizerHashTable {
             if (table != nullptr) {
 
                 delete[] table;
+                //free(table);
                 table = nullptr;
             }
 
@@ -430,18 +572,12 @@ struct MinimizerHashTable {
 
         void init_table(size_t sz) {
 
-            /*clear_table();
-
-            size_ = rndup(sz);
-            num_empty = 0;
-            table = new value_type[size_];
-
-            std::fill(table, table+size_, empty_val);*/
-
             clear_table();
 
             size_ = rndup(sz);
+
             table = new value_type[size_];
+            //table = (value_type*) malloc(size_ * sizeof(value_type));
 
             clear();
         }
@@ -557,8 +693,60 @@ struct MinimizerHashTable {
             if (old_table[i].first != empty_val.first && old_table[i].first != deleted.first) insert(old_table[i]);
         }
 
-        delete[] old_table;
+        free(old_table);
         old_table = nullptr;
+
+        /*if (sz <= size_) return;
+
+        const size_t prev_size_ = size_;
+
+        size_ = rndup(sz);
+        pop = 0;
+        num_empty = size_;
+
+        table = (value_type*) realloc(table, size_ * sizeof(value_type));
+
+        std::sort(table, table + prev_size_, sortMinimizerHashTable(*this));
+
+        value_type* table_empty = table;
+
+        for (; table_empty < table + prev_size_; table_empty++) {
+
+            if (((*table_empty).first == empty_val.first) || ((*table_empty).first == deleted.first)) break;
+        }
+
+        std::fill(table_empty, table + size_, empty_val);
+
+        std::vector<value_type> v;
+
+        for (int64_t i = table_empty - table - 1; i >= 0; i--) {
+
+            size_t h = hasher(table[i].first) & (size_-1);
+
+            if (h > i){
+
+                for ( ; h < size_; h++) {
+
+                    if (table[h].first == empty_val.first) {
+
+                        num_empty--;
+                        pop++;
+
+                        std::swap(table[h], table[i]);
+
+                        break;
+                    }
+                }
+
+                if (h == size_){
+
+                    v.push_back(table[i]);
+                    table[i] = empty_val;
+                }
+            }
+        }
+
+        for (auto& vt : v) insert(vt);*/
     }
 
     size_t rndup(size_t v) {
@@ -592,6 +780,23 @@ struct MinimizerHashTable {
     iterator end() { return iterator(this); }
 
     const_iterator end() const { return const_iterator(this); }
+
+    /*private:
+
+        struct sortMinimizerHashTable {
+
+            sortMinimizerHashTable(const MinimizerHashTable& mht_) : mht(mht_) {}
+
+            bool operator() (const value_type& a, const value_type& b) const {
+
+                const size_t h_a = (a.first == mht.empty_val.first) || (a.first == mht.deleted.first) ? 0xffffffffffffffff : mht.hasher(a.first) & (mht.size_-1);
+                const size_t h_b = (b.first == mht.empty_val.first) || (b.first == mht.deleted.first) ? 0xffffffffffffffff : mht.hasher(b.first) & (mht.size_-1);
+
+                return (h_a < h_b);
+            }
+
+            const MinimizerHashTable& mht;
+        };*/
 };
 
 #endif // KALLISTO_KMERHASHTABLE_H

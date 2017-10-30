@@ -5,7 +5,7 @@
 #include <iostream>
 #include <cstdlib>
 
-#include "hash.hpp"
+//#include "hash.hpp"
 #include "libdivide.h"
 
 #include <vector>
@@ -113,7 +113,7 @@ class BlockedBloomFilter {
             return (contains_block(kmer_hash, block_ptr) != 0);
         }
 
-        size_t contains_block(uint64_t kmer_hash, const std::pair<uint64_t*, uint64_t*> block_ptr) const {
+        size_t contains_block(uint64_t kmer_hash, const std::pair<const uint64_t* const, const uint64_t* const> block_ptr) const {
 
             uint64_t kmer_hash_2 = kmer_hash;
 
