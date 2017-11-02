@@ -4,8 +4,8 @@
 #include <cstring>
 #include <string>
 #include <stdint.h>
-#include "Kmer.hpp"
 
+#include "Kmer.hpp"
 
 /* Short description:
  *  - Compress a DNA string by using 2 bits per base instead of 8
@@ -16,62 +16,83 @@
  *  - Easily get length of matching substring from a given string
  * */
 class CompressedSequence {
- public:
-  CompressedSequence();
-  ~CompressedSequence();
-  CompressedSequence(const CompressedSequence& o);
-  CompressedSequence& operator=(const CompressedSequence& o);
-  explicit CompressedSequence(const char *s);
-  explicit CompressedSequence(const string& s);
-  explicit CompressedSequence(const Kmer& km);
+
+    public:
+
+        CompressedSequence();
+        ~CompressedSequence();
+
+        CompressedSequence(const CompressedSequence& o);
+        CompressedSequence& operator=(const CompressedSequence& o);
+
+        // Move constructors
+        CompressedSequence(CompressedSequence&& o);
+        CompressedSequence& operator=(CompressedSequence&& o);
+
+        explicit CompressedSequence(const char *s);
+        explicit CompressedSequence(const string& s);
+        explicit CompressedSequence(const Kmer& km);
+
+        const char operator[](size_t index) const;
+
+        void clear();
+
+        size_t size() const;
+
+        void toString(char *s, const size_t offset, const size_t length) const;
+        string toString(const size_t offset, const size_t length) const;
 
 
-  const char operator[](size_t index) const;
+        inline string toString() const { return toString(0,size()); }
+        inline void toString(char *s) const { toString(s,0,size()); }
 
-  void clear();
+        Kmer getKmer(size_t offset) const;
 
-  size_t size() const;
-  Kmer getKmer(size_t offset) const;
-  string toString() const;
-  void toString(char *s) const;
-  void toString(char *s, size_t offset, size_t length) const;
-  string toString(size_t offset, size_t length) const;
+        bool compareKmer(const size_t offset, const Kmer& km) const;
 
-  //  void setSequence(const CompressedSequence &o, size_t length, size_t offset = 0, bool reversed=false);
-  void setSequence(const CompressedSequence& o, size_t start, size_t length, size_t offset = 0, bool reversed = false);
-  void setSequence(const char *s, size_t length, size_t offset = 0, bool reversed=false);
-  void setSequence(const string& s, size_t length, size_t offset = 0, bool reversed=false);
-  void setSequence(const Kmer& km, size_t length, size_t offset = 0, bool reversed=false);
+        //  void setSequence(const CompressedSequence &o, size_t length, size_t offset = 0, bool reversed=false);
+        void setSequence(const CompressedSequence& o, const size_t start, const size_t length, const size_t offset = 0, const bool reversed = false);
+        void setSequence(const char *s, const size_t length, const size_t offset = 0, const bool reversed = false);
+        void setSequence(const string& s, const size_t length, const size_t offset = 0, const bool reversed=false);
+        void setSequence(const Kmer& km, const size_t length, const size_t offset = 0, const bool reversed=false);
 
-  void reserveLength(size_t new_length);
+        void reserveLength(const size_t new_length);
 
-  CompressedSequence rev() const;
-  size_t jump(const char *s, size_t i, int pos, bool reversed) const;
+        CompressedSequence rev() const;
 
-  bool isShort() const;
- private:
-  size_t round_to_bytes(const size_t len) const { return (len+3)/4; }
-  void _resize_and_copy(size_t new_cap, size_t copy_limit);
-  void initShort();
-  void setSize(size_t size);
+        size_t jump(const char *s, const size_t i, int pos, const bool reversed) const;
+        size_t bw_jump(const char *s, const size_t i, int pos, const bool reversed) const;
 
-  size_t capacity() const;
-  const char *getPointer() const;
+        int64_t findKmer(const Kmer& km) const;
 
-  static const uint8_t shortMask = 1;
+        bool isShort() const;
 
-  union {
-    struct {
-      uint32_t _length; // size of sequence
-      uint32_t _capacity; // capacity of array allocated in bytes
-      char *_data; // 0-based 2bit compressed dna string
-      char padding[16];
-    } asPointer;
-    struct {
-      uint8_t _size; // 7 bits can index up to 128
-      char _arr[31]; // can store 124 nucleotides
-    } asBits;
-  };
+    private:
+
+        inline size_t round_to_bytes(const size_t len) const { return (len+3)/4; }
+        void _resize_and_copy(const size_t new_cap, const size_t copy_limit);
+        void initShort();
+        void setSize(const size_t size);
+
+        size_t capacity() const;
+        const unsigned char *getPointer() const;
+
+        static const uint8_t shortMask = 1;
+
+        union {
+
+            struct {
+                uint32_t _length; // size of sequence
+                uint32_t _capacity; // capacity of array allocated in bytes
+                unsigned char *_data; // 0-based 2bit compressed dna string
+                unsigned char padding[16];
+            } asPointer;
+
+            struct {
+                uint8_t _size; // 7 bits can index up to 128
+                unsigned char _arr[31]; // can store 124 nucleotides
+            } asBits;
+        };
 };
 
 #endif // BFG_COMPRESSED_SEQUENCE_HPP

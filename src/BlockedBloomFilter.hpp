@@ -5,214 +5,315 @@
 #include <iostream>
 #include <cstdlib>
 
-#include "hash.hpp"
+//#include "hash.hpp"
 #include "libdivide.h"
 
+#include <vector>
 
 
-static const uint64_t mask[8] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
+// ------ TEST ------
+#include <algorithm>
+#include <fstream>
+#include <random>
 
+#include "KmerHashTable.h"
+#include "Kmer.hpp"
+#include "RepHash.hpp"
+
+#include "libpopcnt.h"
+
+#define NB_BITS_BLOCK (0x800ULL)
+#define MASK_BITS_BLOCK (0x7ffULL)
+#define NB_ELEM_BLOCK (32)
 
 /* Short description:
  *  - Extended BloomFilter which hashes into 64-bit blocks
  *    that can be accessed very fast from the CPU cache
  * */
 class BlockedBloomFilter {
- private:
-  uint64_t *table_;
-  uint64_t blocks_;
-  uint32_t seed_;
-  uint64_t size_;
-  size_t k_;
-  libdivide::divider<uint64_t> fast_div_; // fast division
 
- public:
-  BlockedBloomFilter() : seed_(0), size_(0), table_(NULL), k_(0), blocks_(0), fast_div_() {}
-  BlockedBloomFilter(size_t num, size_t bits, uint32_t seed) : seed_(seed), size_(0), table_(NULL), fast_div_() {
-    //std::cerr << "num="<<num << ", bits="<<bits << std::endl;
-    size_ = rndup512(bits*num);
-    blocks_ = size_/512;
-    //cout <<", size=" << size_ << endl;
+    private:
 
-    init_table();
-    init_k(bits);
-  }
+        uint64_t* table_; //Bit array
 
-  ~BlockedBloomFilter() {
-    clear();
-  }
+        uint64_t size_table_; //Size of bit array (in bits)
+        uint64_t blocks_; //Nb blocks
+        int k_; //Nb hash functions
 
+        libdivide::divider<uint64_t> fast_div_; // fast division
 
-  size_t memory() const {
-    size_t m = sizeof(BlockedBloomFilter) + (blocks_ / 64 );
-    fprintf(stderr, "BlockedBloomFilter:\t\t%zuMB\n",  m >> 20);
-    return m;
-  }
+    public:
 
+        BlockedBloomFilter() : table_(NULL), size_table_(0), blocks_(0), k_(0), fast_div_() {}
 
+        BlockedBloomFilter(size_t nb_elem, size_t bits_per_elem) : table_(NULL), size_table_(0), blocks_(0), k_(0), fast_div_() {
 
-  template<typename T>
-  bool contains(T x) const {
-    return (search(x) == 0);
-  }
+            size_table_ = ((bits_per_elem * nb_elem + MASK_BITS_BLOCK) / NB_BITS_BLOCK) * NB_BITS_BLOCK;
+            blocks_ = size_table_ / NB_BITS_BLOCK;
 
+            init_table();
 
-  template<typename T>
-  size_t search(T x) const {
-    //size_t r = k_;
-
-    uint64_t hash; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_, &hash);
-    uint64_t hash0 = hash / fast_div_; // hash0 = hash / blocks;
-    uint64_t block = hash - hash0 * blocks_; // blocks = hash % blocks;
-    //uint64_t block; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_+2, &block);
-    // block is the index of the 512 bit memory block where x would be stored
-    // 0 <= block < blocks
-    //block = block - (block / fast_div_) * (blocks_); // block % blocks
-
-    //uint64_t hash0; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_ , &hash0);
-    //hash0 = hash0 & 0xFFFFFFFF;
-    //hash0 |= 1; // make hash0 an odd number
-    //uint64_t hash1; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_+1, &hash1);
-    __builtin_prefetch(table_+8*block,0,1);
-    for (uint64_t i = 0; i < k_; i++) {
-      // 0 <= bit < 512, which bit to set
-      uint64_t bit = (hash0) & 0x1ffULL; // equal to hash % 512;
-      hash0 = (hash0 * 48271) % (2147483647ULL);
-      /*MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_ +2+i, &hash0);
-      uint64_t bit = hash0 & 0x1ffULL;*/
-      // we set bit number (id % 8) in byte (table_[block + id/8]) to 1
-      uint64_t maskcheck = 1ULL << (bit & 0x3fULL);
-      uint64_t loc = 8*block + (bit>>6);
-
-      if ((table_[loc] &  maskcheck) != 0) {
-        //r--;
-      } else {
-        return k_;
-      }
-    }
-    //return r;
-    return 0;
-  }
-
-  template<typename T>
-  size_t insert(T x) {
-    size_t r = 0;
-    uint64_t hash; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_, &hash);
-    uint64_t hash0 = hash / fast_div_; // hash0 = hash / blocks;
-    uint64_t block = hash - hash0 * blocks_; // blocks = hash % blocks;
-    // block is the index of the 512 bit memory block where x would be stored
-    // 0 <= block < blocks
-    //block = block - (block / fast_div_) * (blocks_); // block % blocks
-    // Multiply block by 64 to get the first byte of the block
-
-    //uint64_t hash0; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_  , &hash0);
-    //hash0 = hash0 & 0xFFFFFFFF;
-    //hash0 |= 1; // make hash0 an odd number
-    //uint64_t hash1; MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_+1, &hash1);
-    for(uint64_t i = 0; i < k_; i++) {
-      // 0 <= bit < 512, which bit to set
-      uint64_t bit = (hash0) & 0x1ffULL; // equal to hash % 512;
-      hash0 = (hash0 * 48271) % (2147483647ULL);
-      /*MurmurHash3_x64_64((const void *) &x, sizeof(T), seed_ +2+i, &hash0);
-      uint64_t bit = hash0 & 0x1ffULL;*/
-      // we set bit number (id % 8) in byte (table_[block + id/8]) to 1
-      uint64_t maskcheck = 1ULL << (bit & 0x3fULL);
-      uint64_t loc = 8*block + (bit>>6);
-
-      if ((table_[loc] &  maskcheck) == 0) {
-        uint64_t val = __sync_fetch_and_or(table_ + loc, maskcheck);
-        if ((val & maskcheck) == 0) {
-          r++;
+            k_ = (int) (bits_per_elem * log(2));
+            if (fpp(bits_per_elem, k_) >= fpp(bits_per_elem, k_+1)) k_++;
         }
-      }
-    }
-    return r;
-  }
 
+        ~BlockedBloomFilter() {
 
-  bool WriteBloomFilter(FILE *fp) {
-    if (fwrite(&size_,   sizeof(size_),   1, fp) != 1) { return false;}
-    if (fwrite(&blocks_, sizeof(blocks_), 1, fp) != 1) {return false;}
-    if (fwrite(&seed_,   sizeof(seed_),   1, fp) != 1) {return false;}
-    if (fwrite(&k_,      sizeof(k_),      1, fp) != 1) {return false;}
-
-    if (fwrite(table_, sizeof(uint64_t), 8*blocks_, fp) != (8*blocks_)) {return false;}
-    return true;
-  }
-
-  bool ReadBloomFilter(FILE *fp) {
-    clear();
-    if (fread(&size_, sizeof(size_), 1, fp) != 1) { return false;}
-    if (fread(&blocks_, sizeof(blocks_), 1, fp) != 1) { return false;}
-    if (fread(&seed_, sizeof(seed_), 1, fp) != 1) { return false;}
-    if (fread(&k_,    sizeof(k_),    1, fp) != 1) {return false;}
-
-    init_table();
-    if (fread(table_, sizeof(uint64_t), 8*blocks_, fp) != (8*blocks_)) {return false;}
-
-    return true;
-  }
-
-  size_t count() const {
-    unsigned char *t = (unsigned char *) table_;
-    size_t c = 0;
-    for (size_t i = 0; i < 64*blocks_; i++) {
-      unsigned char u = t[i];
-      for (size_t j = 128; j != 0; j = j>>1) {
-        if ((u & j) != 0) {
-          c++;
+            clear();
         }
-      }
-    }
-    //std::cout << c << " bits set out of " << size_ << " with k = " << k_ << std::endl;
-    if (c != 0) {
-      double n = size_*(-log(1.0-((double)c)/size_))/k_;
-      //cout << "estimate =" << (size_t)n  << endl;
-      return (size_t) n;
-    } else {
-      return 0;
-    }
-  }
 
-  void clear() {
-    if (table_ != NULL) {
-      //delete[] table_;
-      free(table_);
-    }
-    table_ = NULL;
-    size_ = 0;
-    blocks_ = 0;
-  }
+        inline std::pair<uint64_t*,uint64_t*> getBlock(uint64_t min_hash) const{
 
- private:
+            uint64_t min_hash_2 = (min_hash * 49157) % (1610612741ULL);
 
+            min_hash -= (min_hash / fast_div_) * blocks_;
+            min_hash_2 -= (min_hash_2 / fast_div_) * blocks_;
 
+            return std::make_pair(table_ + NB_ELEM_BLOCK * min_hash, table_ + NB_ELEM_BLOCK * min_hash_2);
+        }
 
-  void init_table() {
-    fast_div_ = libdivide::divider<uint64_t>(blocks_);
-    //table_ = new uint64_t[8*blocks_];
-    posix_memalign((void**)&table_, 64, 8*blocks_*sizeof(table_[0]));
-    memset(table_, 0, 8*blocks_*sizeof(table_[0]));
-  }
+        bool contains(uint64_t kmer_hash, const uint64_t min_hash) const {
 
-  void init_k(size_t bits) {
-    size_t k = (size_t) (bits*log(2));
-    if (fpp(bits,k) < fpp(bits,k+1)) {
-      k_ = k;
-    } else {
-      k_ = k+1;
-    }
-    //std::cerr << "k="<<k_<<", fpp="<<fpp(bits,k_) <<  std::endl;
-  }
+            int i = 0;
 
-  double fpp(size_t bits, size_t k) const {
-    //    cout << bits<<","<<k<<","<<(-((double)k)/((double)bits)) << endl;
-    return pow(1-exp(-((double)k)/((double)bits)),(double)k);
-  }
+            const int k = k_;
 
-  uint64_t rndup512(uint64_t x) const {
-    return ((x+511)/512)*512;
-  }
+            uint64_t kmer_hash_2 = kmer_hash;
+
+            uint64_t* table = table_ + ((min_hash - (min_hash / fast_div_) * blocks_) * NB_ELEM_BLOCK);
+
+            __builtin_prefetch(table, 0, 1);
+
+            for (; i < k; i++) {
+
+                if ((table[(kmer_hash & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmer_hash & 0x3fULL))) == 0) break;
+                kmer_hash = (kmer_hash * 49157) % (1610612741ULL);
+            }
+
+            if (i != k){
+
+                const uint64_t min_hash_2 = (min_hash * 49157) % (1610612741ULL);
+
+                table = table_ + ((min_hash_2 - (min_hash_2 / fast_div_) * blocks_) * NB_ELEM_BLOCK);
+
+                __builtin_prefetch(table, 0, 1);
+
+                for (i = 0; i < k; i++) {
+
+                    if ((table[(kmer_hash_2 & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmer_hash_2 & 0x3fULL))) == 0) break;
+                    kmer_hash_2 = (kmer_hash_2 * 49157) % (1610612741ULL);
+                }
+            }
+
+            return i == k;
+        }
+
+        inline bool contains(uint64_t kmer_hash, const std::pair<uint64_t*, uint64_t*> block_ptr) const {
+
+            return (contains_block(kmer_hash, block_ptr) != 0);
+        }
+
+        size_t contains_block(uint64_t kmer_hash, const std::pair<const uint64_t* const, const uint64_t* const> block_ptr) const {
+
+            uint64_t kmer_hash_2 = kmer_hash;
+
+            int i = 0;
+
+            const int k = k_;
+
+            __builtin_prefetch(block_ptr.first, 0, 1);
+
+            for (; i != k; i++) {
+
+                if ((block_ptr.first[(kmer_hash & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmer_hash & 0x3fULL))) == 0) break;
+                kmer_hash = (kmer_hash * 49157) % (1610612741ULL);
+            }
+
+            if (i != k){
+
+                __builtin_prefetch(block_ptr.second, 0, 1);
+
+                for (i = 0; i != k; i++) {
+
+                    if ((block_ptr.second[(kmer_hash_2 & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmer_hash_2 & 0x3fULL))) == 0) break;
+                    kmer_hash_2 = (kmer_hash_2 * 49157) % (1610612741ULL);
+                }
+
+                return (i == k ? 2 : 0);
+            }
+
+            return 1;
+        }
+
+        bool search_and_insert(uint64_t kmer_hash, const uint64_t min_hash, const bool multi_threaded = false) {
+
+            int i = 0, j = 0;
+
+            const int k = k_;
+
+            uint64_t kmer_hash_2 = kmer_hash;
+
+            uint64_t* table = table_ + ((min_hash - (min_hash / fast_div_) * blocks_) * NB_ELEM_BLOCK);
+
+            __builtin_prefetch(table, 0, 1);
+
+            for (; i != k; i++) {
+
+                if ((table[(kmer_hash & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmer_hash & 0x3fULL))) == 0) break;
+                kmer_hash = (kmer_hash * 49157) % (1610612741ULL);
+            }
+
+            if (i != k){
+
+                const uint64_t min_hash_2 = (min_hash * 49157) % (1610612741ULL);
+
+                uint64_t* table2 = table_ + ((min_hash_2 - (min_hash_2 / fast_div_) * blocks_) * NB_ELEM_BLOCK);
+
+                __builtin_prefetch(table2, 0, 1);
+
+                for (; j != k; j++) {
+
+                    if ((table2[(kmer_hash_2 & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmer_hash_2 & 0x3fULL))) == 0) break;
+                    kmer_hash_2 = (kmer_hash_2 * 49157) % (1610612741ULL);
+                }
+
+                if (j != k){
+
+                    if (!multi_threaded){
+
+                        if (popcnt(table2, NB_ELEM_BLOCK * sizeof(uint64_t)) < popcnt(table, NB_ELEM_BLOCK * sizeof(uint64_t))){
+
+                            i = j;
+                            table = table2;
+                            kmer_hash = kmer_hash_2;
+                        }
+
+                        __builtin_prefetch(table, 1, 1);
+
+                        for (; i != k; i++) {
+
+                            //__sync_fetch_and_or(table + ((kmer_hash & MASK_BITS_BLOCK) >> 6), 1ULL << (kmer_hash & 0x3fULL));
+                            table[(kmer_hash & MASK_BITS_BLOCK) >> 6] |= 1ULL << (kmer_hash & 0x3fULL);
+                            kmer_hash = (kmer_hash * 49157) % (1610612741ULL);
+                        }
+                    }
+                    else {
+
+                        if (popcnt(table2, NB_ELEM_BLOCK * sizeof(uint64_t)) < popcnt(table, NB_ELEM_BLOCK * sizeof(uint64_t))){
+
+                            int tmp = i;
+                            i = j;
+                            j = tmp;
+
+                            uint64_t tmp_size_t = kmer_hash;
+                            kmer_hash = kmer_hash_2;
+                            kmer_hash_2 = tmp_size_t;
+
+                            uint64_t* tmp_ptr = table;
+                            table = table2;
+                            table2 = tmp_ptr;
+                        }
+
+                        __builtin_prefetch(table, 1, 1);
+
+                        for (; i != k; i++) {
+
+                            __sync_fetch_and_or(table + ((kmer_hash & MASK_BITS_BLOCK) >> 6), 1ULL << (kmer_hash & 0x3fULL));
+                            //table[(kmer_hash & MASK_BITS_BLOCK) >> 6] |= 1ULL << (kmer_hash & 0x3fULL);
+                            kmer_hash = (kmer_hash * 49157) % (1610612741ULL);
+                        }
+
+                        __builtin_prefetch(table2, 0, 1);
+
+                        for (; j != k; j++) {
+
+                            if ((table2[(kmer_hash_2 & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmer_hash_2 & 0x3fULL))) == 0) break;
+                            kmer_hash_2 = (kmer_hash_2 * 49157) % (1610612741ULL);
+                        }
+                    }
+
+                    return j != k;
+                }
+            }
+
+            return false;
+        }
+
+        inline void insert(uint64_t kmer_hash, const uint64_t min_hash){
+
+            search_and_insert(kmer_hash, min_hash, false);
+        }
+
+        bool WriteBloomFilter(FILE *fp) {
+
+            if (fwrite(&size_table_, sizeof(size_table_), 1, fp) != 1) return false;
+            if (fwrite(&blocks_, sizeof(blocks_), 1, fp) != 1) return false;
+            if (fwrite(&k_, sizeof(k_), 1, fp) != 1) return false;
+
+            if (fwrite(table_, sizeof(uint64_t), NB_ELEM_BLOCK * blocks_, fp) != (NB_ELEM_BLOCK * blocks_)) return false;
+
+            return true;
+        }
+
+        bool ReadBloomFilter(FILE *fp) {
+
+            clear();
+
+            if (fread(&size_table_, sizeof(size_table_), 1, fp) != 1) return false;
+            if (fread(&blocks_, sizeof(blocks_), 1, fp) != 1) return false;
+            if (fread(&k_, sizeof(k_), 1, fp) != 1) return false;
+
+            init_table();
+
+            if (fread(table_, sizeof(uint64_t), NB_ELEM_BLOCK * blocks_, fp) != (NB_ELEM_BLOCK * blocks_)) return false;
+
+            return true;
+        }
+
+        void clear() {
+
+            if (table_ != NULL){
+
+                free(table_);
+                table_ = NULL;
+            }
+
+            size_table_ = 0;
+            blocks_ = 0;
+            k_ = 0;
+        }
+
+        void get(BlockedBloomFilter& bf) {
+
+            clear();
+
+            table_ = bf.table_;
+            size_table_ = bf.size_table_;
+            blocks_ = bf.blocks_;
+            k_ = bf.k_;
+            fast_div_ = bf.fast_div_;
+
+            bf.table_ = NULL;
+        }
+
+        inline uint64_t getNbBlocks() const { return blocks_; }
+
+        inline const uint64_t* getTable_ptr() const { return table_; }
+
+    private:
+
+        void init_table(){
+
+            fast_div_ = libdivide::divider<uint64_t>(blocks_);
+
+            posix_memalign((void**)&table_, 64, NB_ELEM_BLOCK * blocks_* sizeof(table_[0]));
+            memset(table_, 0, NB_ELEM_BLOCK * blocks_ * sizeof(table_[0]));
+        }
+
+        inline double fpp(size_t bits, int k) const {
+
+            return pow(1-exp(-((double)k)/((double)bits)),(double)k);
+        }
 };
 
 #endif // BFG_BLOCKEDBLOOMFILTER_HPP

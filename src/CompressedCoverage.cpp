@@ -8,158 +8,200 @@
 
 using namespace std;
 
-size_t round_to_bytes(const size_t len)  { return (len+3)/4; }
-
-
 // use:  cc = CompressedCoverage(sz, full);
 // post: if (sz > 0) then initialize the instance else skip initializing, if full is true, initialize as full regardlesss of sz.
 CompressedCoverage::CompressedCoverage(size_t sz, bool full) {
-  if (sz > 0) {
-    initialize(sz, full);
-  } else {
-    if (full) {
-      asBits = fullMask;
-    } else {
-      asBits = tagMask;
+
+    if (sz > 0) initialize(sz, full);
+    else asBits = full ? fullMask : tagMask;
+}
+
+// use:  delete cc;
+// post:
+CompressedCoverage::~CompressedCoverage() {
+
+    releasePointer();
+}
+
+CompressedCoverage::CompressedCoverage(const CompressedCoverage& o) {
+
+    if (((o.asBits & fullMask) == fullMask) || ((o.asBits & tagMask) == tagMask)) asBits = o.asBits;
+    else {
+
+        size_t sz = o.size();
+
+        asPointer = new uint8_t[8+round_to_bytes(sz)];
+
+        *(get32Pointer()) = sz;
+        *(get32Pointer() + 1) = sz;
+
+        memcpy(asPointer + 8, o.asPointer + 8, round_to_bytes(sz)); // 0 out array allocated
     }
-  }
+}
+
+CompressedCoverage& CompressedCoverage::operator=(const CompressedCoverage& o){
+
+    if (((o.asBits & fullMask) == fullMask) || ((o.asBits & tagMask) == tagMask)) asBits = o.asBits;
+    else {
+
+        size_t sz = o.size();
+
+        releasePointer();
+        asPointer = new uint8_t[8+round_to_bytes(sz)];
+
+        *(get32Pointer()) = sz;
+        *(get32Pointer() + 1) = sz;
+
+        memcpy(asPointer + 8, o.asPointer + 8, round_to_bytes(sz)); // 0 out array allocated
+    }
+
+    return *this;
+}
+
+CompressedCoverage::CompressedCoverage(CompressedCoverage&& o){
+
+    asBits = o.asBits;
+    o.asBits = o.isFull() ? fullMask : tagMask;
+}
+
+CompressedCoverage& CompressedCoverage::operator=(CompressedCoverage&& o){
+
+    if (this != &o) {
+
+        releasePointer();
+
+        asBits = o.asBits;
+        o.asBits = o.isFull() ? fullMask : tagMask;
+    }
+
+    return *this;
 }
 
 
 // use:  cc.initialize(sz, full);
 // post: the data structure has been initialized either as a small local array on the stack
 //       or a bigger array on the heap if sz > size_limit
-void CompressedCoverage::initialize(size_t sz, bool full) {
-  if (sz <= size_limit) {
-    asBits = 0; // zero out
-    asBits |= tagMask;  // set 0-bit to 1
-    asBits |= (sizeMask & (sz << 2)); // set bits 2-6 to size;
-    if (full) {
-      asBits |= fullMask;
+void CompressedCoverage::initialize(const size_t sz, const bool full) {
+
+    if (full) asBits = fullMask | (sz << 32);
+    else if (sz <= size_limit) asBits = tagMask | (sizeMask & (sz << 2));
+    else {
+
+        asPointer = new uint8_t[8+round_to_bytes(sz)];
+
+        *(get32Pointer()) = sz;
+        *(get32Pointer() + 1) = sz;
+
+        memset(asPointer + 8, 0, round_to_bytes(sz)); // 0 out array allocated
     }
-  } else {
-    if (!full) {
-      uint8_t *ptr = new uint8_t[8+round_to_bytes(sz)];
-      asPointer = ptr; // last bit is 0
-      *(get32Pointer()) = sz;
-      *(get32Pointer() + 1) = sz;
-      memset(ptr+8, 0, round_to_bytes(sz)); // 0 out array allocated
-    } else {
-      asBits = fullMask;
-      asBits |= (sz << 32);
-    }
-  }
-  assert(sz == size());
+
+    assert(sz == size());
+
 }
-
-
-// use:  delete cc;
-// post:
-CompressedCoverage::~CompressedCoverage() {
-}
-
 
 // use:  cc.releasePointer();
 // post: if there was data on the heap then it has been freed
 void CompressedCoverage::releasePointer() {
-  if ((asBits & tagMask) == 0 && (asBits & fullMask) != fullMask) {
-    // release pointer
-    uint8_t *ptr = get8Pointer();
-    uintptr_t sz = size();
-    uintptr_t *change = &asBits;
-    uintptr_t oldval = *change;
-    uintptr_t newval = fullMask | (sz << 32);
-    while ((oldval & fullMask) != fullMask) {
-      if (__sync_bool_compare_and_swap(change, oldval, newval)) {
-        delete[] ptr;
-        break;
-      }
-      oldval = *change;
+
+    if (((asBits & tagMask) != tagMask) && ((asBits & fullMask) != fullMask)) {
+        // release pointer
+        uint8_t* ptr = get8Pointer();
+
+        uintptr_t* change = &asBits;
+
+        uintptr_t oldval = asBits;
+        uintptr_t newval = fullMask | (size() << 32);
+
+        bool replaced = false;
+
+        while (oldval != newval){
+
+            replaced = __sync_bool_compare_and_swap(change, oldval, newval);
+            oldval = *change;
+        }
+
+        if (replaced) delete[] ptr;
     }
-  }
 }
 
 
 // use:  i = cc.size();
 // post: i is the number of kmers that cc can hold coverage for
 size_t CompressedCoverage::size() const {
-  if ((asBits & tagMask) == tagMask) {
-    return ((asBits & sizeMask) >> 2);
-  } else {
-    if ((asBits & fullMask) == fullMask) {
-      return asBits >> 32;
-    } else {
-      return *(get32Pointer());
-    }
-  }
+
+    if ((asBits & tagMask) == tagMask) return ((asBits & sizeMask) >> 2);
+    if ((asBits & fullMask) == fullMask) return asBits >> 32;
+    return *(get32Pointer());
 }
 
 
 // use:  s = cc.toString();
 // post: s contains all important information about cc
 string CompressedCoverage::toString() const {
-  bool isPtr = ((asBits & tagMask) == 0);
-  size_t sz = size();
-  bool full = isFull();
-  uintptr_t one(1);
 
-  string bits(64, '0');
+    bool isPtr = ((asBits & tagMask) == 0);
+    size_t sz = size();
+    bool full = isFull();
+    uintptr_t one(1);
 
-  for (int i = 0; i < 64; i++) {
-    if (asBits & (one << (63-i))) {
-      bits[i] = '1';
+    string bits(64, '0');
+
+    for (int i = 0; i < 64; i++) {
+
+        if (asBits & (one << (63-i))) bits[i] = '1';
     }
-  }
 
-  if (isPtr) {
     ostringstream info;
-    info << "Pointer: ";
-    if (full) {
-      info << "Full, size = ";
-      info << sz;
-      info << endl;
-    } else {
-      info << "Non-full, size = " << sz << ", not-filled = ";
-      const uint32_t filled = *(getConst32Pointer() + 1);
-      info << filled << endl;
 
-      info << "[";
-      for (int i = 0; i < sz; i++) {
-        if (i>0) { info << ", "; }
-        info << (int)covAt(i);
-      }
-      info << "] " << endl;
-      //size_t nbytes = round_to_bytes(sz);
-      
-      /*uint8_t *ptr = get8Pointer() + 8;
-      string ptrbits(nbytes*8, '0');
-      for (size_t i = 0; i < nbytes; i++) {
-        for (size_t j = 0; j < 8; j++) {
-          if (((ptr[i] & (1<<j)) >> j) == 1) {
-            ptrbits[nbytes*8-1-(8*i+j)] = '1';
-          }
+    if (isPtr) {
+
+        info << "Pointer: ";
+
+        if (full) {
+
+            info << "Full, size = ";
+            info << sz;
+            info << endl;
         }
-      }
-      bits += ptrbits;*/
-    }
-    return bits + "\n" + info.str();
-  } else {
-    ostringstream info;
-    info << "Local array:";
-    if (full) {
-      info << ", Full,";
-    }
-    info <<" size = " << sz;
+        else {
 
-    info << endl <<  "[";
-      for (int i = 0; i < sz; i++) {
-        if (i>0) { info << ", "; }
-        info << (int)covAt(i);
-      }
-      info << "] " << endl;
-    
+            const uint32_t filled = *(getConst32Pointer() + 1);
+
+            info << "Non-full, size = " << sz << ", not-filled = ";
+            info << filled << endl;
+            info << "[";
+
+            for (int i = 0; i < sz; i++) {
+
+                if (i > 0) info << ", ";
+
+                info << (int)covAt(i);
+            }
+
+            info << "] " << endl;
+        }
+    }
+    else {
+
+        info << "Local array:";
+
+        if (full) info << ", Full,";
+
+        info <<" size = " << sz;
+
+        info << endl <<  "[";
+
+        for (int i = 0; i < sz; i++) {
+
+            if (i > 0) info << ", ";
+
+            info << (int)covAt(i);
+        }
+
+        info << "] " << endl;
+    }
+
     return bits + "\n" + info.str();
-  }
 }
 
 
@@ -169,102 +211,110 @@ string CompressedCoverage::toString() const {
 //       has been increased by one
 void CompressedCoverage::cover(size_t start, size_t end) {
 
-  if (end < start) {
-    std::swap(start,end);
-  }
+    if (end < start) std::swap(start, end);
 
-  assert(end < size());
+    assert(end < size());
 
-  if (isFull()) {
-    return;
-  } else {
-    if ((asBits & tagMask) == tagMask) { // local array
-      uintptr_t s(3); // 0b11
-      s <<= (8 + 2*start);
-      size_t val;
-      for (; start <= end; start++,s<<=2) {
-        val = (asBits & s) >> (8 + 2*start);
-        if (val < 2) {
-          val++;
-          uintptr_t *change = &asBits;
-          while (1) {
-            uintptr_t oldval = *change;
-            uintptr_t newval = oldval & ~s;
-            newval |= ( val << (8 + 2*start));
-            if (__sync_bool_compare_and_swap(change, oldval, newval)) {
-              break;
-            }
-          }
-        }
-      }
-      if (isFull()) {
-        asBits |= fullMask;
-      }
-    } else {
-      size_t fillednow = 0;
-      uint8_t s(3); // 0b11
-      uint8_t *ptr = get8Pointer() + 8;
-      size_t val;
-      size_t index, pos;
-      for (; start <= end; start++) {
-        index = start >> 2;
-        pos = 2*(start & 0x03);
-        val = (ptr[index] & (s << pos)) >> pos;
-        if (val < 2) {
-          val++;
-          uint8_t *change = &ptr[index];
-          while (1) {
-            uintptr_t oldval = *change;
-            if ((oldval & (s << pos)) >> pos == 2) {
-              break;
-            }
-            uintptr_t newval = oldval & ~(s << pos);
-            newval |= ( val << pos);
-            if (__sync_bool_compare_and_swap(change, oldval, newval)) {
-              if (((newval & (s << pos)) >> pos)  == 2) {
-                fillednow++;
-              }
-              break;
-            }
-          }
-        }
-      }
-      if (fillednow > 0) {
-        // Decrease filledcounter
-        __sync_add_and_fetch(get32Pointer() + 1, -fillednow);
-      }
-      /*
-      uint32_t *change = get32Pointer() + 1;
-      while (1) {
-        uint32_t oldval = *change;
-        uint32_t newval = oldval - fillednow;
-        if (__sync_bool_compare_and_swap(change, oldval, newval)) {
-          break;
-        }
-      }
-      */
+    if (isFull()) return;
+    else if ((asBits & tagMask) == tagMask) { // local array
 
-      if (isFull()) {
-        releasePointer();
-        assert((asBits & fullMask) == fullMask);
-      }
+        uintptr_t s = 0x3;
+        uintptr_t val = asBits;
+
+        start = 8 + 2 * start;
+        end = 8 + 2 * end;
+
+        s <<= start;
+        val >>= start;
+
+        for (uintptr_t val_tmp; start <= end; start += 2, s <<= 2, val >>= 2) {
+
+            val_tmp = val & 0x3;
+
+            if (val_tmp < 2) {
+
+                val_tmp++;
+                val_tmp <<= start;
+
+                uintptr_t* change = &asBits;
+                uintptr_t oldval = asBits;
+                uintptr_t newval = (oldval & ~s) | val_tmp;
+
+                while (!__sync_bool_compare_and_swap(change, oldval, newval)) {
+
+                    oldval = *change;
+                    newval = (oldval & ~s) | val_tmp;
+                }
+            }
+        }
+
+        if (isFull()) asBits = fullMask | (size() << 32);
     }
-  }
+    else {
+
+        size_t fillednow = 0;
+        uint8_t s(3); // 0b11
+        uint8_t *ptr = get8Pointer() + 8;
+        size_t val;
+        size_t index, pos;
+
+        for (; start <= end; start++) {
+
+            index = start >> 2;
+            pos = 2*(start & 0x03);
+            val = (ptr[index] & (s << pos)) >> pos;
+
+            if (val < 2) {
+
+                val++;
+
+                uint8_t *change = &ptr[index];
+
+                while (1) {
+
+                    uintptr_t oldval = *change;
+
+                    if ((oldval & (s << pos)) >> pos == 2) break;
+
+                    uintptr_t newval = oldval & ~(s << pos);
+
+                    newval |= ( val << pos);
+
+                    if (__sync_bool_compare_and_swap(change, oldval, newval)) {
+
+                        if (((newval & (s << pos)) >> pos)  == 2) fillednow++;
+
+                        break;
+                    }
+                }
+            }
+        }
+        // Decrease filledcounter
+        if (fillednow > 0) __sync_add_and_fetch(get32Pointer() + 1, -fillednow);
+
+        if (isFull()) {
+
+            releasePointer();
+            assert((asBits & fullMask) == fullMask);
+        }
+    }
 }
 
 
 // use:  k = cc.covat(index);
 // pre:  0 <= index < size(), cc is not full
 // post: k is the coverage at index
-uint8_t CompressedCoverage::covAt(size_t index) const {
-  assert((asBits & fullMask) != fullMask);
-  if ((asBits & tagMask) == tagMask) {
-    return ((asBits >> (8 + 2*index)) & 0x03);
-  } else {
-    uint8_t *ptr = get8Pointer() + 8;
-    size_t pos = 2*(index & 0x03);
-    return (ptr[index >> 2] & (0x03 << pos)) >> pos;
-  }
+uint8_t CompressedCoverage::covAt(const size_t index) const {
+
+    assert((asBits & fullMask) != fullMask);
+
+    if ((asBits & tagMask) == tagMask) return ((asBits >> (8 + 2*index)) & 0x03);
+    else {
+
+        uint8_t* ptr = get8Pointer() + 8;
+        size_t pos = 2*(index & 0x03);
+        return (ptr[index >> 2] & (0x03 << pos)) >> pos;
+    }
 }
 
 
@@ -274,20 +324,24 @@ uint8_t CompressedCoverage::covAt(size_t index) const {
 //       sum is the sum of these low coverages
 pair<size_t, size_t> CompressedCoverage::lowCoverageInfo() const {
 
-  if (isFull()) {
-    return make_pair(0,0);
-  }
-  size_t sz = size();
-  size_t low = 0;
-  size_t sum = 0;
-  for(size_t i=0; i<sz; ++i) {
-    size_t cov = covAt(i);
-    if (cov < 2) {
-      ++low;
-      sum += cov;
+    if (isFull()) return make_pair(0,0);
+
+    size_t sz = size();
+    size_t low = 0;
+    size_t sum = 0;
+
+    for(size_t i=0; i<sz; ++i) {
+
+        size_t cov = covAt(i);
+
+        if (cov < 2) {
+
+            ++low;
+            sum += cov;
+        }
     }
-  }
-  return make_pair(low, sum);
+
+    return make_pair(low, sum);
 }
 
 
@@ -299,47 +353,49 @@ pair<size_t, size_t> CompressedCoverage::lowCoverageInfo() const {
 //       these pairs are all the fully covered subintervals of the corresponding contig
 //       i.e. [ai,...,bi-1] is fully covered
 vector<pair<int, int>> CompressedCoverage::splittingVector() const {
-  size_t a = 0, b = 0, sz = size();
-  vector<pair<int, int>> v;
 
-  while (b != sz) {
-    // [a,...,b-1] is a fully covered subinterval and (a,b) has been added to v
-    while (a < sz && covAt(a) <= 1) {
-      a++;
+    size_t a = 0, b = 0, sz = size();
+    vector<pair<int, int>> v;
+
+    while (b != sz) {
+        // [a,...,b-1] is a fully covered subinterval and (a,b) has been added to v
+        while (a < sz && covAt(a) <= 1) a++;
+
+        if (a == sz) break;
+
+        b = a;
+
+        while (b < sz && covAt(b) > 1) b++;
+
+        v.push_back(make_pair(a,b));
+
+        a = b;
     }
-    if (a == sz) {
-      break;
-    }
-    b = a;
-    while (b < sz && covAt(b) > 1) {
-      b++;
-    }
-    v.push_back(make_pair(a,b));
-    a = b;
-  }
-  return v;
+
+    return v;
 }
 
 
 // use:  b = cc.isFull();
 // post: (b == true) <==> cc is full
 bool CompressedCoverage::isFull() const {
-  if ((asBits & fullMask) == fullMask) {
-    return true;
-  }
 
-  if ((asBits & tagMask) == tagMask) {
-    return (asBits >> 8) == (localCoverageMask >> 2*(28 - size()));
-  } else {
+    if ((asBits & fullMask) == fullMask) return true;
+    if ((asBits & tagMask) == tagMask) return (asBits >> 8) == (localCoverageMask >> 2*(28 - size()));
+
     return *(getConst32Pointer() + 1) == 0;
-  }
 }
 
 // use: cc.setFull()
 // pre:
 // post: cc is full and any memory is released
 void CompressedCoverage::setFull() {
-  if (!isFull()) {
-    releasePointer();
-  }
+
+    if ((asBits & fullMask) != fullMask){
+
+        if ((asBits & tagMask) == tagMask) asBits = fullMask | (size() << 32);
+        else releasePointer();
+    }
+
+    return;
 }
