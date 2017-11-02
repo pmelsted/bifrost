@@ -73,6 +73,9 @@ class CompactedDBG {
 
         typedef KmerHashTable<CompressedCoverage_t<T>> h_kmers_ccov_t;
         typedef MinimizerHashTable<tiny_vector<size_t,tiny_vector_sz>> hmap_min_unitigs_t;
+        typedef typename hmap_min_unitigs_t::iterator hmap_min_unitigs_iterator;
+        typedef typename hmap_min_unitigs_t::const_iterator hmap_min_unitigs_const_iterator;
+        
 
         vector<Unitig<T>*> v_unitigs;
         vector<pair<Kmer, CompressedCoverage_t<T>>> v_kmers;

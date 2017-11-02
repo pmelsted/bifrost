@@ -370,7 +370,7 @@ void Kmer::set_k(unsigned int _k) {
 
     assert(_k < MAX_K);
     assert(_k > 0);
-    assert(k_bytes == 0); // we can only call this once
+    //assert(k_bytes == 0); // we can only call this once
 
     k = _k;
     //k_bytes = (_k+3)/4;

@@ -355,7 +355,7 @@ UnitigMap CompactedDBG<T>::find(const Kmer& km, bool extremities_only) const {
 
         const minHashResult& min_h_res = *it_it_min;
         Minimizer minz = Minimizer(&km_tmp[min_h_res.pos]).rep();
-        hmap_min_unitigs_t::const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
+        hmap_min_unitigs_const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
 
         mhr = min_h_res;
 
@@ -1794,7 +1794,7 @@ bool CompactedDBG<T>::addUnitig(const string& str_unitig, const size_t id_unitig
 
                 const minHashResult& min_h_res = *it_it_min;
                 Minimizer minz_rep = Minimizer(&c_str[min_h_res.pos]).rep(); //Get the minimizer to insert
-                std::pair<hmap_min_unitigs_t::iterator, bool> p = hmap_min_unitigs.insert(make_pair(minz_rep, tiny_vector<size_t,tiny_vector_sz>()));
+                std::pair<hmap_min_unitigs_iterator, bool> p = hmap_min_unitigs.insert(make_pair(minz_rep, tiny_vector<size_t,tiny_vector_sz>()));
                 size_t v_sz = p.first->second.size();
 
                 pos = min_h_res.pos;
@@ -1872,7 +1872,7 @@ bool CompactedDBG<T>::addUnitig(const string& str_unitig, const size_t id_unitig
                     const minHashResult& min_h_res = *it_it_min;
                     Minimizer minz_rep = Minimizer(&c_str[min_h_res.pos]).rep(); //Get the minimizer to insert
 
-                    std::pair<hmap_min_unitigs_t::iterator, bool> p = hmap_min_unitigs.insert(make_pair(minz_rep, tiny_vector<size_t,tiny_vector_sz>()));
+                    std::pair<hmap_min_unitigs_iterator, bool> p = hmap_min_unitigs.insert(make_pair(minz_rep, tiny_vector<size_t,tiny_vector_sz>()));
 
                     tiny_vector<size_t,tiny_vector_sz>& v = p.first->second;
                     size_t v_sz = v.size();
@@ -1923,7 +1923,7 @@ void CompactedDBG<T>::deleteUnitig(const bool isShort, const bool isAbundant, co
                     const minHashResult& min_h_res = *it_it_min;
                     Minimizer minz_rep = Minimizer(&km_str[min_h_res.pos]).rep(); // Get canonical minimizer
 
-                    hmap_min_unitigs_t::iterator it_h = hmap_min_unitigs.find(minz_rep); // Look for the minimizer in the hash table
+                    hmap_min_unitigs_iterator it_h = hmap_min_unitigs.find(minz_rep); // Look for the minimizer in the hash table
 
                     if (it_h != hmap_min_unitigs.end()){ // If the minimizer is found
 
@@ -1983,7 +1983,7 @@ void CompactedDBG<T>::deleteUnitig(const bool isShort, const bool isAbundant, co
 
                 const minHashResult& min_h_res = *it_it_min;
                 Minimizer minz_rep = Minimizer(&s[min_h_res.pos]).rep(); // Get canonical minimizer
-                hmap_min_unitigs_t::iterator it_h = hmap_min_unitigs.find(minz_rep); // Look for the minimizer in the hash table
+                hmap_min_unitigs_iterator it_h = hmap_min_unitigs.find(minz_rep); // Look for the minimizer in the hash table
 
                 mhr = min_h_res;
 
@@ -2089,7 +2089,7 @@ void CompactedDBG<T>::swapUnitigs(const bool isShort, const size_t id_a, const s
 
                 if (!isShort){
 
-                    hmap_min_unitigs_t::iterator it_h = hmap_min_unitigs.find(minz_rep);
+                    hmap_min_unitigs_iterator it_h = hmap_min_unitigs.find(minz_rep);
 
                     if (it_h != hmap_min_unitigs.end()){
 
@@ -2134,12 +2134,12 @@ void CompactedDBG<T>::swapUnitigs(const bool isShort, const size_t id_a, const s
 
         if ((it_v_min == v_min_a.begin()) || (*it_v_min != *(it_v_min-1))){ //If the minimizer is diff. from the previous one
 
-            hmap_min_unitigs_t::iterator it_h = hmap_min_unitigs.find(*it_v_min); // Look for the minimizer in the hash table
+            hmap_min_unitigs_iterator it_h = hmap_min_unitigs.find(*it_v_min); // Look for the minimizer in the hash table
 
             if (it_h != hmap_min_unitigs.end()){ // If the minimizer is found
 
                 tiny_vector<size_t,tiny_vector_sz>& v_id_unitigs = it_h->second;
-                tiny_vector<size_t,tiny_vector_sz>::iterator it_v_c = v_id_unitigs.begin();
+                typename tiny_vector<size_t,tiny_vector_sz>::iterator it_v_c = v_id_unitigs.begin();
 
                 // Iterate over unitig IDs associated with this minimizer
                 for (; it_v_c != v_id_unitigs.end(); it_v_c++){
@@ -2176,7 +2176,7 @@ void CompactedDBG<T>::swapUnitigs(const bool isShort, const size_t id_a, const s
 
                 if (!isShort){
 
-                    hmap_min_unitigs_t::iterator it_h = hmap_min_unitigs.find(minz_rep);
+                    hmap_min_unitigs_iterator it_h = hmap_min_unitigs.find(minz_rep);
 
                     if (it_h != hmap_min_unitigs.end()){
 
@@ -2231,12 +2231,12 @@ void CompactedDBG<T>::swapUnitigs(const bool isShort, const size_t id_a, const s
 
         if ((it_v_min == v_min_b.begin()) || (*it_v_min != *(it_v_min-1))){ //If the minimizer is diff. from the previous one
 
-            hmap_min_unitigs_t::iterator it_h = hmap_min_unitigs.find(*it_v_min); // Look for the minimizer in the hash table
+            hmap_min_unitigs_iterator it_h = hmap_min_unitigs.find(*it_v_min); // Look for the minimizer in the hash table
 
             if (it_h != hmap_min_unitigs.end()){ // If the minimizer is found
 
                 tiny_vector<size_t,tiny_vector_sz>& v_id_unitigs = it_h->second;
-                tiny_vector<size_t,tiny_vector_sz>::iterator it_v_c = v_id_unitigs.begin();
+                typename tiny_vector<size_t,tiny_vector_sz>::iterator it_v_c = v_id_unitigs.begin();
 
                 // Iterate over unitig IDs associated with this minimizer
                 for (; it_v_c != v_id_unitigs.end(); it_v_c++){
@@ -2405,7 +2405,7 @@ UnitigMap CompactedDBG<T>::find(const Kmer& km, const preAllocMinHashIterator<Re
 
         const minHashResult& min_h_res = *it_it_min;
         Minimizer minz = Minimizer(&it_min.s[min_h_res.pos]).rep();
-        hmap_min_unitigs_t::const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
+        hmap_min_unitigs_const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
 
         mhr = min_h_res;
 
