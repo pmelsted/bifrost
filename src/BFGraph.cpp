@@ -19,35 +19,8 @@
 #include <jemalloc/jemalloc.h>
 
 #include "CompactedDBG.hpp"
-#include "Common.hpp"
 
 using namespace std;
-
-struct ProgramOptions {
-
-    bool ref;
-    bool verbose;
-    bool clipTips;
-    bool deleteIsolated;
-
-    size_t threads;
-    size_t k, g;
-    size_t read_chunksize;
-    size_t contig_size;
-    size_t bf, bf2;
-    size_t nkmers, nkmers2;
-
-    string prefixFilenameGFA;
-    string filenameGFA;
-    string inFilenameBBF;
-    string outFilenameBBF;
-
-    vector<string> files;
-
-    ProgramOptions() :  threads(1), k(31), g(23), nkmers(0), nkmers2(0), bf(14), bf2(14), read_chunksize(10000), \
-                        contig_size(1000000), ref(false), verbose(false), clipTips(false), deleteIsolated(false), \
-                        inFilenameBBF(""), outFilenameBBF("") {}
-};
 
 // use:  PrintVersion();
 // post: The version of the program has been printed to cout
@@ -86,7 +59,7 @@ void PrintUsage() {
     endl;
 }
 
-void parse_ProgramOptions(int argc, char **argv, ProgramOptions& opt) {
+void parse_ProgramOptions(int argc, char **argv, CDBG_Build_opt& opt) {
 
     const char* opt_string = "n:N:o:t:k:g:b:B:l:f:s:crv";
 
@@ -117,7 +90,7 @@ void parse_ProgramOptions(int argc, char **argv, ProgramOptions& opt) {
         switch (c) {
 
             case 0:
-                if (strcmp(long_options[option_index].name, "ref") == 0) opt.ref = true;
+                if (strcmp(long_options[option_index].name, "ref") == 0) opt.reference_mode = true;
                 break;
             case 'v':
                 opt.verbose = true;
@@ -129,7 +102,7 @@ void parse_ProgramOptions(int argc, char **argv, ProgramOptions& opt) {
                 opt.deleteIsolated = true;
                 break;
             case 't':
-                opt.threads = atoi(optarg);
+                opt.nb_threads = atoi(optarg);
                 break;
             case 'k':
                 opt.k = atoi(optarg);
@@ -141,16 +114,16 @@ void parse_ProgramOptions(int argc, char **argv, ProgramOptions& opt) {
                 opt.read_chunksize = atoi(optarg);
                 break;
             case 'n':
-                opt.nkmers = atoi(optarg);
+                opt.nb_unique_kmers = atoi(optarg);
                 break;
             case 'N':
-                opt.nkmers2 = atoi(optarg);
+                opt.nb_non_unique_kmers = atoi(optarg);
                 break;
             case 'b':
-                opt.bf = atoi(optarg);
+                opt.nb_bits_unique_kmers_bf = atoi(optarg);
                 break;
             case 'B':
-                opt.bf2 = atoi(optarg);
+                opt.nb_bits_non_unique_kmers_bf = atoi(optarg);
                 break;
             case 'o':
                 opt.prefixFilenameGFA = optarg;
@@ -166,21 +139,21 @@ void parse_ProgramOptions(int argc, char **argv, ProgramOptions& opt) {
     }
 
     // all other arguments are fast[a/q] files to be read
-    while (optind < argc) opt.files.push_back(argv[optind++]);
+    while (optind < argc) opt.fastx_filename_in.push_back(argv[optind++]);
 }
 
-bool check_ProgramOptions(ProgramOptions& opt) {
+bool check_ProgramOptions(CDBG_Build_opt& opt) {
 
     bool ret = true;
 
     size_t max_threads = std::thread::hardware_concurrency();
 
-    if (opt.threads <= 0){
+    if (opt.nb_threads <= 0){
 
         cerr << "Error: Number of threads cannot be less than or equal to 0" << endl;
         ret = false;
     }
-    else if (opt.threads > max_threads){
+    else if (opt.nb_threads > max_threads){
 
         cerr << "Error: Number of threads cannot be greater than or equal to " << max_threads << endl;
         ret = false;
@@ -216,41 +189,41 @@ bool check_ProgramOptions(ProgramOptions& opt) {
         ret = false;
     }
 
-    if (opt.nkmers <= 0){
+    if (opt.nb_unique_kmers <= 0){
 
         cerr << "Error: Number of Bloom filter bits per unique k-mer cannot be less than or equal to 0" << endl;
         ret = false;
     }
 
-    if (!opt.ref && (opt.nkmers2 <= 0)){
+    if (!opt.reference_mode && (opt.nb_non_unique_kmers <= 0)){
 
         cerr << "Error: Number of Bloom filter bits per non unique k-mer cannot be less than or equal to 0" << endl;
         ret = false;
     }
 
-    if (!opt.ref && (opt.nkmers2 > opt.nkmers)){
+    if (!opt.reference_mode && (opt.nb_non_unique_kmers > opt.nb_unique_kmers)){
 
         cerr << "Error: The estimated number of non unique k-mers ";
         cerr << "cannot be greater than the estimated number of unique k-mers" << endl;
         ret = false;
     }
 
-    if (opt.bf <= 0){
+    if (opt.nb_bits_unique_kmers_bf <= 0){
 
         cerr << "Error: Number of Bloom filter bits per unique k-mer cannot be less than or equal to 0" << endl;
         ret = false;
     }
 
-    if (!opt.ref && (opt.bf2 <= 0)){
+    if (!opt.reference_mode && (opt.nb_bits_non_unique_kmers_bf <= 0)){
 
         cerr << "Error: Number of Bloom filter bits per non unique k-mer cannot be less than or equal to 0" << endl;
         ret = false;
     }
 
-    if (opt.ref) {
+    if (opt.reference_mode) {
 
-        opt.bf2 = 0;
-        opt.nkmers2 = 0;
+        opt.nb_bits_non_unique_kmers_bf = 0;
+        opt.nb_non_unique_kmers = 0;
     }
 
     if (opt.outFilenameBBF.length() != 0){
@@ -288,7 +261,7 @@ bool check_ProgramOptions(ProgramOptions& opt) {
     }
     else fclose(fp);
 
-    if (opt.files.size() == 0) {
+    if (opt.fastx_filename_in.size() == 0) {
 
         cerr << "Error: Missing FASTA/FASTQ input files" << endl;
         ret = false;
@@ -299,7 +272,7 @@ bool check_ProgramOptions(ProgramOptions& opt) {
         vector<string>::const_iterator it;
         int intStat;
 
-        for(it = opt.files.begin(); it != opt.files.end(); ++it) {
+        for(it = opt.fastx_filename_in.begin(); it != opt.fastx_filename_in.end(); ++it) {
 
             intStat = stat(it->c_str(), &stFileInfo);
 
@@ -313,131 +286,132 @@ bool check_ProgramOptions(ProgramOptions& opt) {
     return ret;
 }
 
-/*class myInt {
+class myInt : public CDBG_Data_t<myInt> {
 
     public:
 
         myInt(int int_init = 1) : Int(int_init) {}
 
-        static myInt* joinData(const UnitigMap& um_tail, const UnitigMap& um_head, const CompactedDBG<myInt>& cdbg){
+        void join(const myInt& data, CompactedDBG<myInt>& cdbg){
 
-            myInt* join = new myInt;
-            join->Int = cdbg.getData(um_tail)->Int + cdbg.getData(um_head)->Int;
+            Int += data.Int;
 
-            return join;
+            cout << "join: " << Int << " += "  << data.Int << endl;
         }
 
-        static vector<myInt*> splitData(const UnitigMap& a, const vector<pair<int,int>>& split_a, const CompactedDBG<myInt>& cdbg){
+        void split(const size_t pos, const size_t len, myInt& new_data, CompactedDBG<myInt>& cdbg) const {
 
-            vector<myInt*> v_return;
-
-            for (size_t i = 0; i < split_a.size(); i++){
-
-                v_return.push_back(new myInt);
-                v_return[i]->Int = cdbg.getData(a)->Int / split_a.size();
-            }
-
-            return v_return;
+            new_data.Int = 0;
         }
 
         int Int;
-};*/
+};
+
+class myColors : public CDBG_Data_t<myColors> {
+
+    public:
+
+        void join(const myColors& data, CompactedDBG<myColors>& cdbg){
+
+            for (auto color : data.colors) add(color);
+        }
+
+        void split(const size_t pos, const size_t len, myColors& new_data, CompactedDBG<myColors>& cdbg) const {
+
+        }
+
+        void add(int color){
+
+            if ((colors.size() == 0) || (color > colors[colors.size() - 1])) colors.push_back(color);
+            else {
+
+                for (vector<int>::iterator it = colors.begin(); it < colors.end(); it++){
+
+                    if (*it == color) break;
+                    else if (*it > color){
+
+                        colors.insert(it, color);
+                        break;
+                    }
+                }
+            }
+        }
+
+        void erase(int color){
+
+            if ((colors.size() > 0) && (color <= colors[colors.size() - 1])){
+
+                for (vector<int>::iterator it = colors.begin(); it < colors.end(); it++){
+
+                    if (*it == color){
+
+                        colors.erase(it);
+                        break;
+                    }
+                    else if (*it > color) break;
+                }
+            }
+        }
+
+        void print() const {
+
+            for (auto color : colors){
+
+                cout << "Color ID: " << color << endl;
+            }
+        }
+
+    private:
+
+        vector<int> colors; //color_id, position, len
+};
 
 int main(int argc, char **argv){
 
     if (argc < 2) PrintUsage();
     else {
 
-        ProgramOptions opt;
+        CDBG_Build_opt opt;
 
         parse_ProgramOptions(argc, argv, opt);
 
         if (check_ProgramOptions(opt)){ //Program options are valid
 
-            /*int i = 1;
-            for (unsigned char c = 0, c_tmp; i <= 256; i++, c++){
+            CompactedDBG<> cdbg(opt.k, opt.g);
 
-                c_tmp = (c << 6) | ((c << 2) & 0x30) | ((c >> 2) & 0xc) | (c >> 6);
-
-                cout << "0x" << hex << (int) c_tmp << ",";
-
-                if (i%16 == 0) cout << endl;
-                else cout << " ";
-            }
-
-            exit(1);*/
-
-            CompactedDBG<> cdbg;
-
-            cdbg.setK(opt.k, opt.g);
-
-            cdbg.build(opt.files, opt.nkmers, opt.nkmers2, opt.ref, opt.threads, nullptr,
-                       opt.bf, opt.bf2, opt.inFilenameBBF, opt.outFilenameBBF,
-                       opt.read_chunksize, 1000000, opt.verbose);
+            cdbg.build(opt);
 
             cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
 
             cdbg.write(opt.prefixFilenameGFA, opt.verbose);
 
 
-            /*CompactedDBG<myInt> cdbg(&myInt::joinData, &myInt::splitData);
-            cdbg.setK(opt.k, opt.g);
+            /*CompactedDBG<myColors> cdbg(opt.k, opt.g);
+            myColors* data = nullptr;
 
             string seq1 = "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
             string seq2 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC";
+            string seq3 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAG";
+            string seq4 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+            string seq5 = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
             cdbg.add(seq1, true);
-
-            UnitigMap um1 = cdbg.find(Kmer(seq1.c_str()));
-
-            const myInt* data1 = cdbg.getData(um1);
-
-            cout << "Before: data1 = " << data1->Int << endl;
-
-
             cdbg.add(seq2, true);
 
-            UnitigMap um2 = cdbg.find(Kmer(seq2.c_str()));
+            UnitigMap<myColors> um1 = cdbg.find(Kmer(seq1.c_str()));
+            UnitigMap<myColors> um2 = cdbg.find(Kmer(seq2.c_str()));
 
-            const myInt* data2 = cdbg.getData(um2);
+            data = um1.getData();
+            data->add(1);
 
-            cout << "data2 = " << data2->Int << endl;
+            data = um2.getData();
+            data->add(2);
 
-            for (CompactedDBG<myInt>::iterator it = cdbg.begin(), it_end; it != it_end; it++){
+            for (auto unitig : cdbg){
 
-                cout << cdbg.toString(*it) << endl;
+                cout << unitig.toString() << endl;
+                unitig.getData()->print();
             }*/
         }
     }
 }
-
-/*
-// use:  PrintUsage();
-// post: How to run BFGraph has been printed to cout
-void PrintUsage() {
-    cout << "BFGraph " << BFG_VERSION << endl << endl;
-    cout << "Highly Parallel and Memory Efficient Compacted de Bruijn Graph Construction" << endl << endl;
-    cout << "Usage: BFGraph <cmd> [options] ..." << endl << endl;
-    cout << "Where <cmd> can be one of:" << endl;
-    cout <<
-        "    filter       Filters errors from reads" << endl <<
-        "    contigs      Builds a compacted de Bruijn graph" << endl <<
-        "    cite         Prints information for citing the paper" << endl <<
-        "    version      Displays version number" << endl << endl;
-    ;
-}
-
-
-int main(int argc, char **argv) {
-
-    if (argc < 2) PrintUsage();
-    else if (strcmp(argv[1], "cite") == 0) PrintCite();
-    else if (strcmp(argv[1], "version") == 0) PrintVersion();
-    else if (strcmp(argv[1], "filter") == 0) FilterReads(argc-1,argv+1);
-    else if (strcmp(argv[1], "contigs") == 0) BuildContigs(argc-1,argv+1);
-    else {
-
-        cout << "Did not understand command " << argv[1] << endl;
-        PrintUsage();
-    }
-}*/

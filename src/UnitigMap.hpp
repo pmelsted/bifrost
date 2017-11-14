@@ -5,6 +5,13 @@
 #include "Common.hpp"
 #include "Kmer.hpp"
 
+template<typename T> class CompactedDBG;
+template<typename T> class Unitig;
+template<typename T, bool is_const> class BackwardCDBG;
+template<typename T, bool is_const> class ForwardCDBG;
+template<typename T, bool is_const> class neighborIterator;
+
+template<typename T = void>
 struct UnitigMap {
     /**
      xxxxxxxxxxxxxxxxxxxxxxxxxxxxx unitig
@@ -27,21 +34,43 @@ struct UnitigMap {
     bool isIsolated; // true if unitig is isolated
     bool isTip;    // true if this is a short tip
 
-    UnitigMap(size_t p_unitig, size_t i, size_t l, size_t sz, bool short_, bool abundance, bool strd) :
-            pos_unitig(p_unitig), dist(i), len(l), size(sz), strand(strd), isShort(short_), isAbundant(abundance),
-            selfLoop(false), isEmpty(false), isTip(false), isIsolated(false) {}
+    CompactedDBG<T>* cdbg;
 
-    UnitigMap(size_t l = 1) :   len(l), isTip(false), isIsolated(false), isShort(false), isAbundant(false),
-                                isEmpty(true), selfLoop(false), strand(true), pos_unitig(0), dist(0), size(0) {}
+    typedef neighborIterator<T, false> neighbor_iterator;
+    typedef neighborIterator<T, true> const_neighbor_iterator;
 
-    bool operator==(const UnitigMap& o) {
+    UnitigMap(size_t p_unitig, size_t i, size_t l, size_t sz, bool short_, bool abundance, bool strd, CompactedDBG<T>& cdbg_);
+    UnitigMap(size_t l = 1);
 
-        return  (pos_unitig == o.pos_unitig) && (dist == o.dist) && (len == o.len) && (size == o.size) && (strand == o.strand) &&
-                (selfLoop == o.selfLoop) && (isEmpty == o.isEmpty) && (isShort == o.isShort) && (isAbundant == o.isAbundant) &&
-                (isIsolated == o.isIsolated) && (isTip == o.isTip);
-    }
+    bool operator==(const UnitigMap& o);
+    bool operator!=(const UnitigMap& o);
 
-    bool operator!=(const UnitigMap& o) { return !operator==(o); }
+    string toString() const;
+
+    Kmer getHead() const;
+    Kmer getTail() const;
+
+    const T* getData() const;
+    T* getData();
+    void setData(const T* const data);
+    void mergeData(const UnitigMap& um);
+    Unitig<T> splitData(const size_t pos, const size_t len);
+
+    BackwardCDBG<T, true> getPredecessors() const;
+    ForwardCDBG<T, true> getSuccessors() const;
+
+    BackwardCDBG<T, false> getPredecessors();
+    ForwardCDBG<T, false> getSuccessors();
+
+    neighbor_iterator bw_begin();
+    const_neighbor_iterator bw_begin() const;
+    neighbor_iterator bw_end();
+    const_neighbor_iterator bw_end() const;
+
+    neighbor_iterator fw_begin();
+    const_neighbor_iterator fw_begin() const;
+    neighbor_iterator fw_end();
+    const_neighbor_iterator fw_end() const;
 };
 
 struct NewUnitig {
@@ -54,5 +83,7 @@ struct NewUnitig {
 
     NewUnitig(const Kmer km_, const string& read_, const size_t pos_, const string& seq_) : km(km_), read(read_), pos(pos_), seq(seq_) {}
 };
+
+#include "UnitigMap.tpp"
 
 #endif

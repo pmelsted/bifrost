@@ -5,18 +5,18 @@
 #include "KmerHashTable.h"
 #include "CompressedCoverage.hpp"
 
-template<typename T> class superCompactedDBG;
+template<typename T> class CompactedDBG;
 
 template<typename T = void, bool is_const = true>
-class unitigIterator : public std::iterator<std::input_iterator_tag, UnitigMap, int> {
+class unitigIterator : public std::iterator<std::input_iterator_tag, UnitigMap<T>, int> {
 
     public:
 
-        typedef typename std::conditional<is_const, const UnitigMap&, UnitigMap&>::type UnitigMap_ref_t;
-        typedef typename std::conditional<is_const, const UnitigMap*, UnitigMap*>::type UnitigMap_ptr_t;
+        typedef typename std::conditional<is_const, const UnitigMap<T>&, UnitigMap<T>&>::type UnitigMap_ref_t;
+        typedef typename std::conditional<is_const, const UnitigMap<T>*, UnitigMap<T>*>::type UnitigMap_ptr_t;
 
         unitigIterator();
-        unitigIterator(const CompactedDBG<T>* cdbg_);
+        unitigIterator(CompactedDBG<T>* cdbg_);
         unitigIterator(const unitigIterator& o);
 
         unitigIterator& operator++();
@@ -41,9 +41,9 @@ class unitigIterator : public std::iterator<std::input_iterator_tag, UnitigMap, 
 
         typename KmerHashTable<CompressedCoverage_t<T>>::const_iterator it_h_kmers_ccov;
 
-        UnitigMap um;
+        UnitigMap<T> um;
 
-        const CompactedDBG<T>* cdbg;
+        CompactedDBG<T>* cdbg;
 };
 
 #include "UnitigIterator.tpp"

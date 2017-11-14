@@ -4,7 +4,7 @@ template<typename T, bool is_const>
 unitigIterator<T,is_const>::unitigIterator() :  i(0), v_unitigs_sz(0), v_kmers_sz(0), h_kmers_ccov_sz(0), sz(0), invalid(true), cdbg(NULL) {}
 
 template<typename T, bool is_const>
-unitigIterator<T,is_const>::unitigIterator(const CompactedDBG<T>* cdbg_) :
+unitigIterator<T,is_const>::unitigIterator(CompactedDBG<T>* cdbg_) :
                 i(0), v_unitigs_sz(0), v_kmers_sz(0), h_kmers_ccov_sz(0), sz(0), invalid(true), cdbg(cdbg_),
                 it_h_kmers_ccov((cdbg_ == NULL) || cdbg_->invalid ? typename KmerHashTable<CompressedCoverage_t<T>>::const_iterator() : cdbg_->h_kmers_ccov.begin()){
 
@@ -35,14 +35,14 @@ unitigIterator<T,is_const>& unitigIterator<T,is_const>::operator++() {
         return *this;
     }
 
-    if (i < v_unitigs_sz) um = UnitigMap(i, 0, 1, cdbg->v_unitigs[i]->seq.size(), false, false, true);
+    if (i < v_unitigs_sz) um = UnitigMap<T>(i, 0, 1, cdbg->v_unitigs[i]->seq.size(), false, false, true, *cdbg);
     else if (i < (v_unitigs_sz + v_kmers_sz)){
 
-        um = UnitigMap(i - v_unitigs_sz, 0, 1, cdbg->getK(), true, false, true);
+        um = UnitigMap<T>(i - v_unitigs_sz, 0, 1, cdbg->getK(), true, false, true, *cdbg);
     }
     else {
 
-        um = UnitigMap(it_h_kmers_ccov.getHash(), 0, 1, cdbg->getK(), false, true, true);
+        um = UnitigMap<T>(it_h_kmers_ccov.getHash(), 0, 1, cdbg->getK(), false, true, true, *cdbg);
 
         it_h_kmers_ccov++;
     }

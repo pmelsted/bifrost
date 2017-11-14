@@ -1,35 +1,44 @@
 #include "CompactedDBG.hpp"
+#include "UnitigMap.hpp"
 
 template<typename T, bool is_const>
-neighborIterator<T, is_const>::neighborIterator() : i(3), is_fw(true), cdbg(NULL) {}
+neighborIterator<T, is_const>::neighborIterator() : i(7), is_fw(true), is_km(false), cdbg(nullptr) {}
 
 template<typename T, bool is_const>
-neighborIterator<T, is_const>::neighborIterator(const Kmer km_, const CompactedDBG<T>* cdbg_, const bool is_forward_) : i(-1), is_fw(is_forward_), km(km_), cdbg(cdbg_) {
+neighborIterator<T, is_const>::neighborIterator(const UnitigMap<T>& um_, const bool is_forward_) : i(-1), is_fw(is_forward_), is_km(um_.isShort || um_.isAbundant), cdbg(um_.cdbg) {
 
-    if ((cdbg == NULL) || cdbg->invalid) i = 3;
+    if (um_.isEmpty || (um_.cdbg == nullptr) || cdbg->invalid) i = 7;
+    else if (is_fw){
+
+        km_tail = um_.getTail();
+        km_head = um_.getHead().twin();
+    }
+    else {
+
+        km_head = um_.getHead();
+        km_tail = um_.getTail().twin();
+    }
 }
 
 template<typename T, bool is_const>
-neighborIterator<T, is_const>::neighborIterator(const UnitigMap& um_, const CompactedDBG<T>* cdbg_, const bool is_forward_) : i(-1), is_fw(is_forward_), cdbg(cdbg_) {
-
-    if (um_.isEmpty || (cdbg == NULL) || cdbg->invalid) i = 3;
-    else if (is_fw) km = cdbg->getTail(um_);
-    else km = cdbg->getHead(um_);
-}
-
-template<typename T, bool is_const>
-neighborIterator<T, is_const>::neighborIterator(const neighborIterator& o) : i(o.i), is_fw(o.is_fw), um(o.um), km(o.km), cdbg(o.cdbg) {}
+neighborIterator<T, is_const>::neighborIterator(const neighborIterator& o) : i(o.i), is_fw(o.is_fw), is_km(o.is_km), um(o.um), km_head(o.km_head), km_tail(o.km_tail), cdbg(o.cdbg) {}
 
 template<typename T, bool is_const>
 neighborIterator<T, is_const>& neighborIterator<T, is_const>::operator++() {
 
-    if ((cdbg == NULL) || cdbg->invalid || (i >= 3)) return *this;
+    if ((cdbg == NULL) || cdbg->invalid || (i >= 7)) return *this;
 
-    while (i < 3){
+    while (i < 7){
 
         i++;
 
-        um = cdbg->find(is_fw ? km.forwardBase(alpha[i]) : km.backwardBase(alpha[i]));
+        if (i <= 3) um = cdbg->find(is_fw ? km_tail.forwardBase(alpha[i]) : km_head.backwardBase(alpha[i]));
+        else if (is_km){
+
+            i = 7;
+            um = UnitigMap<T>();
+        }
+        else um = cdbg->find(is_fw ? km_head.forwardBase(alpha[i-4]) : km_tail.backwardBase(alpha[i-4]));
 
         if (!um.isEmpty) break;
     }
@@ -49,8 +58,8 @@ neighborIterator<T, is_const> neighborIterator<T, is_const>::operator++(int) {
 template<typename T, bool is_const>
 bool neighborIterator<T, is_const>::operator==(const neighborIterator& o) {
 
-    if ((i >= 3) || (o.i >= 3)) return (i >= 3) && (o.i >= 3);
-    return (is_fw == o.is_fw) && (km == o.km) && (cdbg == o.cdbg) && (um == o.um);
+    if ((i >= 7) || (o.i >= 7)) return (i >= 7) && (o.i >= 7);
+    return (is_fw == o.is_fw) && (km_head == o.km_head) && (km_tail == o.km_tail) && (cdbg == o.cdbg) && (um == o.um);
 }
 
 template<typename T, bool is_const>
@@ -66,36 +75,36 @@ typename neighborIterator<T, is_const>::UnitigMap_ptr_t neighborIterator<T, is_c
 
 
 
-template<typename T>
-BackwardCDBG<T>::BackwardCDBG(const UnitigMap& um_, const CompactedDBG<T>& cdbg_) : um(um_), cdbg(cdbg_) {}
+template<typename T, bool is_const>
+BackwardCDBG<T, is_const>::BackwardCDBG(BackwardCDBG<T, is_const>::UnitigMap_ref_t um_) : um(um_) {}
 
-template<typename T>
-typename CompactedDBG<T>::neighbor_iterator BackwardCDBG<T>::begin() { return cdbg.bw_begin(um); }
+template<typename T, bool is_const>
+typename UnitigMap<T>::neighbor_iterator BackwardCDBG<T, is_const>::begin() { return um.bw_begin(); }
 
-template<typename T>
-typename CompactedDBG<T>::neighbor_iterator BackwardCDBG<T>::end() { return cdbg.bw_end(); }
+template<typename T, bool is_const>
+typename UnitigMap<T>::neighbor_iterator BackwardCDBG<T, is_const>::end() { return um.bw_end(); }
 
-template<typename T>
-typename CompactedDBG<T>::const_neighbor_iterator BackwardCDBG<T>::begin() const { return cdbg.bw_begin(um); }
+template<typename T, bool is_const>
+typename UnitigMap<T>::const_neighbor_iterator BackwardCDBG<T, is_const>::begin() const { return um.bw_begin(); }
 
-template<typename T>
-typename CompactedDBG<T>::const_neighbor_iterator BackwardCDBG<T>::end() const { return cdbg.bw_end(); }
-
-
+template<typename T, bool is_const>
+typename UnitigMap<T>::const_neighbor_iterator BackwardCDBG<T, is_const>::end() const { return um.bw_end(); }
 
 
 
-template<typename T>
-ForwardCDBG<T>::ForwardCDBG(const UnitigMap& um_, const CompactedDBG<T>& cdbg_) : um(um_), cdbg(cdbg_) {}
 
-template<typename T>
-typename CompactedDBG<T>::neighbor_iterator ForwardCDBG<T>::begin() { return cdbg.fw_begin(um); }
 
-template<typename T>
-typename CompactedDBG<T>::neighbor_iterator ForwardCDBG<T>::end() { return cdbg.fw_end(); }
+template<typename T, bool is_const>
+ForwardCDBG<T, is_const>::ForwardCDBG(ForwardCDBG<T, is_const>::UnitigMap_ref_t um_) : um(um_) {}
 
-template<typename T>
-typename CompactedDBG<T>::const_neighbor_iterator ForwardCDBG<T>::begin() const { return cdbg.fw_begin(um); }
+template<typename T, bool is_const>
+typename UnitigMap<T>::neighbor_iterator ForwardCDBG<T, is_const>::begin() { return um.fw_begin(); }
 
-template<typename T>
-typename CompactedDBG<T>::const_neighbor_iterator ForwardCDBG<T>::end() const { return cdbg.fw_end(); }
+template<typename T, bool is_const>
+typename UnitigMap<T>::neighbor_iterator ForwardCDBG<T, is_const>::end() { return um.fw_end(); }
+
+template<typename T, bool is_const>
+typename UnitigMap<T>::const_neighbor_iterator ForwardCDBG<T, is_const>::begin() const { return um.fw_begin(); }
+
+template<typename T, bool is_const>
+typename UnitigMap<T>::const_neighbor_iterator ForwardCDBG<T, is_const>::end() const { return um.fw_end(); }

@@ -1,22 +1,21 @@
 #ifndef SUPER_NEIGHBOR_ITERATOR_HPP
 #define SUPER_NEIGHBOR_ITERATOR_HPP
 
-#include "UnitigMap.hpp"
 #include "Kmer.hpp"
 
 template<typename T> class CompactedDBG;
+template<typename T> class UnitigMap;
 
 template<typename T = void, bool is_const = true>
-class neighborIterator : public std::iterator<std::input_iterator_tag, UnitigMap, int> {
+class neighborIterator : public std::iterator<std::input_iterator_tag, UnitigMap<T>, int> {
 
     public:
 
-        typedef typename std::conditional<is_const, const UnitigMap&, UnitigMap&>::type UnitigMap_ref_t;
-        typedef typename std::conditional<is_const, const UnitigMap*, UnitigMap*>::type UnitigMap_ptr_t;
+        typedef typename std::conditional<is_const, const UnitigMap<T>&, UnitigMap<T>&>::type UnitigMap_ref_t;
+        typedef typename std::conditional<is_const, const UnitigMap<T>*, UnitigMap<T>*>::type UnitigMap_ptr_t;
 
         neighborIterator();
-        neighborIterator(const Kmer km_, const CompactedDBG<T>* cdbg_, const bool is_forward_);
-        neighborIterator(const UnitigMap& um_, const CompactedDBG<T>* cdbg_, const bool is_forward_);
+        neighborIterator(const UnitigMap<T>& um_, const bool is_forward_);
         neighborIterator(const neighborIterator& o);
 
         neighborIterator& operator++();
@@ -33,50 +32,54 @@ class neighborIterator : public std::iterator<std::input_iterator_tag, UnitigMap
         int i;
 
         const bool is_fw;
+        const bool is_km;
 
-        UnitigMap um;
+        UnitigMap<T> um;
 
-        Kmer km;
+        Kmer km_head;
+        Kmer km_tail;
 
-        const CompactedDBG<T>* cdbg;
+        CompactedDBG<T>* cdbg;
 };
 
-template<typename T>
+template<typename T = void, bool is_const = true>
 class BackwardCDBG{
 
+    typedef typename std::conditional<is_const, const UnitigMap<T>&, UnitigMap<T>&>::type UnitigMap_ref_t;
+
     public:
 
-        explicit BackwardCDBG(const UnitigMap& um_, const CompactedDBG<T>& cdbg_);
+        explicit BackwardCDBG(UnitigMap_ref_t um_);
 
-        typename CompactedDBG<T>::neighbor_iterator begin();
-        typename CompactedDBG<T>::neighbor_iterator end();
+        typename UnitigMap<T>::neighbor_iterator begin();
+        typename UnitigMap<T>::neighbor_iterator end();
 
-        typename CompactedDBG<T>::const_neighbor_iterator begin() const;
-        typename CompactedDBG<T>::const_neighbor_iterator end() const;
+        typename UnitigMap<T>::const_neighbor_iterator begin() const;
+        typename UnitigMap<T>::const_neighbor_iterator end() const;
 
     private:
 
-        const UnitigMap& um;
-        const CompactedDBG<T>& cdbg;
+        UnitigMap_ref_t um;
 };
 
-template<typename T>
+template<typename T = void, bool is_const = true>
 class ForwardCDBG{
+
+    typedef typename std::conditional<is_const, const UnitigMap<T>&, UnitigMap<T>&>::type UnitigMap_ref_t;
 
     public:
 
-        explicit ForwardCDBG(const UnitigMap& um_, const CompactedDBG<T>& cdbg_);
+        explicit ForwardCDBG(UnitigMap_ref_t um_);
 
-        typename CompactedDBG<T>::neighbor_iterator begin();
-        typename CompactedDBG<T>::neighbor_iterator end();
+        typename UnitigMap<T>::neighbor_iterator begin();
+        typename UnitigMap<T>::neighbor_iterator end();
 
-        typename CompactedDBG<T>::const_neighbor_iterator begin() const;
-        typename CompactedDBG<T>::const_neighbor_iterator end() const;
+        typename UnitigMap<T>::const_neighbor_iterator begin() const;
+        typename UnitigMap<T>::const_neighbor_iterator end() const;
 
     private:
 
-        const UnitigMap& um;
-        const CompactedDBG<T>& cdbg;
+        UnitigMap_ref_t um;
 };
 
 #include "NeighborIterator.tpp"

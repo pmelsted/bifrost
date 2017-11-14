@@ -54,9 +54,9 @@ class Unitig {
         inline size_t numKmers() const { return seq.size( ) -Kmer::k + 1; }
         inline size_t length() const { return seq.size(); }
 
-        inline const T* getData() { return &data; }
+        inline const T* getData() const { return &data; }
+        inline T* getData() { return &data; }
         inline void setData(const T* const data_){ data = *data_; }
-        inline void releaseData(T* const data){ delete data; }
 
         uint64_t coveragesum;
 
@@ -108,9 +108,10 @@ class Unitig<void> {
         inline size_t numKmers() const { return seq.size( ) - Kmer::k + 1; }
         inline size_t length() const { return seq.size(); }
 
-        inline const void* getData() { return nullptr; }
+        inline const void* getData() const { return nullptr; }
+        inline void* getData() { return nullptr; }
         inline void setData(const void* const data_){ return; }
-        inline void releaseData(void* const data){ return; }
+        //inline void releaseData(void* const data){ return; }
 
         uint64_t coveragesum;
 
