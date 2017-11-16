@@ -1,9 +1,14 @@
-#ifndef SUPER_UNITIGMAP_HPP
-#define SUPER_UNITIGMAP_HPP
+#ifndef UNITIGMAP_HPP
+#define UNITIGMAP_HPP
 
 #include <string>
 #include "Common.hpp"
 #include "Kmer.hpp"
+
+/** @file src/UnitigMap.hpp
+* UnitigMap type interface.
+* Code snippets using this interface are provided in snippets.hpp.
+*/
 
 template<typename T> class CompactedDBG;
 template<typename T> class Unitig;
@@ -11,9 +16,29 @@ template<typename T, bool is_const> class BackwardCDBG;
 template<typename T, bool is_const> class ForwardCDBG;
 template<typename T, bool is_const> class neighborIterator;
 
+/** @struct UnitigMap
+* @brief Contain all the information for the mapping of a k-mer or a sequence to a unitig
+* of a Compacted de Bruijn graph. Its template parameter indicates the type of data associated with
+* the unitig and should be the same as the one specified for CompactedDBG. An example of using such
+* a structure is shown in src/snippets.hpp.
+* @var UnitigMap<T>::isEmpty
+* True if the k-mer or sequence does not match a unitig of the graph, false otherwise
+* @var UnitigMap<T>::dist
+* 0-based distance of the match from start of the unitig
+* @var UnitigMap<T>::len
+* Length of the match on the unitig
+* @var UnitigMap<T>::size
+* Length of the unitig
+* @var UnitigMap<T>::strand
+* True if the k-mer or sequence matches the forward strand, false if it matches its reverse-complement.
+* @var UnitigMap<T>::cdbg
+* Compacted de Bruijn graph containing the unitig associated with the mapping.
+*/
 template<typename T = void>
 struct UnitigMap {
-    /**
+
+    /*
+
      xxxxxxxxxxxxxxxxxxxxxxxxxxxxx unitig
     |dist ->         xxxxxxxxxyyyyyyy  read on forward strand
                      | len ->|
@@ -21,6 +46,7 @@ struct UnitigMap {
     | dist -> | len  |
 
     */
+
     size_t pos_unitig; // unitig pos. in v_unitigs or v_kmers or h_kmers
     size_t dist; // 0-based distance from start of unitig
     size_t len;  // length of match in k-mers, >= 1
@@ -73,6 +99,7 @@ struct UnitigMap {
     const_neighbor_iterator fw_end() const;
 };
 
+///@cond NO_DOC
 struct NewUnitig {
 
     Kmer km;
@@ -83,6 +110,7 @@ struct NewUnitig {
 
     NewUnitig(const Kmer km_, const string& read_, const size_t pos_, const string& seq_) : km(km_), read(read_), pos(pos_), seq(seq_) {}
 };
+///@endcond
 
 #include "UnitigMap.tpp"
 

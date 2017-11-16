@@ -6,9 +6,16 @@ UnitigMap<T>::UnitigMap(size_t p_unitig, size_t i, size_t l, size_t sz, bool sho
                         pos_unitig(p_unitig), dist(i), len(l), size(sz), cdbg(&cdbg_), strand(strd), isShort(short_), isAbundant(abundance),
                         selfLoop(false), isEmpty(false), isTip(false), isIsolated(false) {}
 
+/** UnitigMap constructor.
+* @return an empty UnitigMap.
+*/
 template<typename T>
 UnitigMap<T>::UnitigMap(size_t l) : len(l), isTip(false), isIsolated(false), isShort(false), isAbundant(false), isEmpty(true),
                                     selfLoop(false), strand(true), pos_unitig(0), dist(0), size(0), cdbg(nullptr) {}
+
+/** Check if two UnitigMaps are the same.
+* @return a boolean indicating if the two UnitigMaps are the same.
+*/
 template<typename T>
 bool UnitigMap<T>::operator==(const UnitigMap& o) {
 
@@ -17,8 +24,15 @@ bool UnitigMap<T>::operator==(const UnitigMap& o) {
             (isIsolated == o.isIsolated) && (isTip == o.isTip) && (cdbg == o.cdbg);
 }
 
+/** Check if two UnitigMaps are different.
+* @return a boolean indicating if the two UnitigMaps are different.
+*/
 template<typename T> bool UnitigMap<T>::operator!=(const UnitigMap& o) { return !operator==(o); }
 
+/** Return a string containing the sequence of the mapped unitig.
+* @return a string containing the sequence of the mapped unitig or
+* an empty string if there is no mapping (UnitigMap<T>::isEmpty = true).
+*/
 template<typename T>
 string UnitigMap<T>::toString() const {
 
@@ -28,6 +42,10 @@ string UnitigMap<T>::toString() const {
     else return cdbg->v_unitigs[pos_unitig]->seq.toString();
 }
 
+/** Return the head k-mer of the mapped unitig.
+* @return a Kmer object which is either the head k-mer of the mapped unitig or
+* an empty k-mer if there is no mapping (UnitigMap<T>::isEmpty = true).
+*/
 template<typename T>
 Kmer UnitigMap<T>::getHead() const {
 
@@ -45,6 +63,10 @@ Kmer UnitigMap<T>::getHead() const {
     return km;
 }
 
+/** Return the tail k-mer of the mapped unitig.
+* @return a Kmer object which is either the tail k-mer of the mapped unitig or
+* an empty k-mer if there is no mapping (UnitigMap<T>::isEmpty = true).
+*/
 template<typename T>
 Kmer UnitigMap<T>::getTail() const {
 
@@ -62,6 +84,11 @@ Kmer UnitigMap<T>::getTail() const {
     return km;
 }
 
+/** Return a pointer to the data associated with the mapped unitig.
+* @return a constant pointer to the data associated with the mapped unitig or
+* a constant null pointer if there is no mapping (UnitigMap<T>::isEmpty = true) or no data
+* associated with the unitigs (T = void).
+*/
 template<typename T>
 const T* UnitigMap<T>::getData() const {
 
@@ -80,6 +107,10 @@ T* UnitigMap<T>::getData() {
     else return cdbg->v_unitigs[pos_unitig]->getData();
 }
 
+/** Set the data associated with a mapped unitig. The function does not set anything if
+* there is no mapping (UnitigMap<T>::isEmpty = true) or no data associated with the unitigs (T = void).
+* @param data is a pointer to the data that will be copied to the data associated with the mapped unitig.
+*/
 template<typename T>
 void UnitigMap<T>::setData(const T* const data) {
 
@@ -92,6 +123,11 @@ void UnitigMap<T>::setData(const T* const data) {
     else cdbg->v_unitigs[pos_unitig]->setData(data);
 }
 
+/** Merge the data of the mapped unitig with the data of another mapped unitig.
+* This function calls the function CDBG_Data_t<T>::join but it does not set anything
+* if there is no mapping (UnitigMap<T>::isEmpty = true) or no data associated with the unitigs (T = void).
+* @param um is a reference to a mapped unitig that will be merged with the current mapped unitig.
+*/
 template<typename T>
 void UnitigMap<T>::mergeData(const UnitigMap& um) {
 
@@ -100,6 +136,14 @@ void UnitigMap<T>::mergeData(const UnitigMap& um) {
 
 template<> void UnitigMap<void>::mergeData(const UnitigMap& um) { /* Does nothing */ }
 
+/** Create new data to associate with a new unitig which is a subsequence of the current mapped unitig.
+* This function calls the function CDBG_Data_t<T>::split but it does not create anything
+* if there is no mapping (UnitigMap<T>::isEmpty = true) or no data associated with the unitigs (T = void).
+* @param pos is the start position of the new unitig within the current mapped unitig.
+* @param len is the length of the new unitig.
+* @return a Unitig object containing the new data. The unitig sequence and coverage are not set, only
+* the data (if there are some).
+*/
 template<typename T>
 Unitig<T> UnitigMap<T>::splitData(const size_t pos, const size_t len) {
 
@@ -112,15 +156,35 @@ Unitig<T> UnitigMap<T>::splitData(const size_t pos, const size_t len) {
 
 template<> Unitig<void> UnitigMap<void>::splitData(const size_t pos, const size_t len) { return Unitig<void>(); }
 
+/** Return a BackwardCDBG object that can create iterators (through BackwardCDBG::begin() and
+* BackwardCDBG::end()) over the predecessors of the current mapped unitig.
+* @return a BackwardCDBG object that can create iterators (through BackwardCDBG::begin() and
+* BackwardCDBG::end()) over the predecessors of the current mapped unitig.
+*/
 template<typename T>
 BackwardCDBG<T, false> UnitigMap<T>::getPredecessors() { return BackwardCDBG<T, false>(*this); }
 
+/** Return a BackwardCDBG object that can create iterators (through BackwardCDBG::begin() and
+* BackwardCDBG::end()) over the successors of the current mapped unitig.
+* @return a BackwardCDBG object that can create iterators (through BackwardCDBG::begin() and
+* BackwardCDBG::end()) over the successors of the current mapped unitig.
+*/
 template<typename T>
 ForwardCDBG<T, false> UnitigMap<T>::getSuccessors() { return ForwardCDBG<T, false>(*this); }
 
+/** Return a constant BackwardCDBG object that can create iterators (through BackwardCDBG::begin() and
+* BackwardCDBG::end()) over the predecessors of the current mapped unitig.
+* @return a constant BackwardCDBG object that can create iterators (through BackwardCDBG::begin() and
+* BackwardCDBG::end()) over the predecessors of the current mapped unitig.
+*/
 template<typename T>
 BackwardCDBG<T, true> UnitigMap<T>::getPredecessors() const { return BackwardCDBG<T, true>(*this); }
 
+/** Return a constant BackwardCDBG object that can create iterators (through BackwardCDBG::begin() and
+* BackwardCDBG::end()) over the successors of the current mapped unitig.
+* @return a constant BackwardCDBG object that can create iterators (through BackwardCDBG::begin() and
+* BackwardCDBG::end()) over the successors of the current mapped unitig.
+*/
 template<typename T>
 ForwardCDBG<T, true> UnitigMap<T>::getSuccessors() const { return ForwardCDBG<T, true>(*this); }
 

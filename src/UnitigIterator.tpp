@@ -1,8 +1,15 @@
 #include "CompactedDBG.hpp"
 
+/** Constructor.
+* @return an empty unitigIterator.
+*/
 template<typename T, bool is_const>
 unitigIterator<T,is_const>::unitigIterator() :  i(0), v_unitigs_sz(0), v_kmers_sz(0), h_kmers_ccov_sz(0), sz(0), invalid(true), cdbg(NULL) {}
 
+/** Constructor.
+* @param cdbg_ is a Compacted de Bruijn graph from which the unitigs are iterated over.
+* @return a unitigIterator.
+*/
 template<typename T, bool is_const>
 unitigIterator<T,is_const>::unitigIterator(CompactedDBG<T>* cdbg_) :
                 i(0), v_unitigs_sz(0), v_kmers_sz(0), h_kmers_ccov_sz(0), sz(0), invalid(true), cdbg(cdbg_),
@@ -20,10 +27,17 @@ unitigIterator<T,is_const>::unitigIterator(CompactedDBG<T>* cdbg_) :
     }
 }
 
+/** Copy constructor.
+* @return a copy of a unitigIterator.
+*/
 template<typename T, bool is_const>
 unitigIterator<T,is_const>::unitigIterator(const unitigIterator& o) :   i(o.i), v_unitigs_sz(o.v_unitigs_sz), v_kmers_sz(o.v_kmers_sz),
                                             h_kmers_ccov_sz(o.h_kmers_ccov_sz), sz(o.sz), invalid(o.invalid),
                                             um(o.um), cdbg(o.cdbg) {}
+
+/** Prefix increment, iterate over the next unitig.
+* Note that no specific order (such as a lexicographic one) is assumed during iteration.
+*/
 template<typename T, bool is_const>
 unitigIterator<T,is_const>& unitigIterator<T,is_const>::operator++() {
 
@@ -52,6 +66,9 @@ unitigIterator<T,is_const>& unitigIterator<T,is_const>::operator++() {
     return *this;
 }
 
+/** Postfix increment, iterate over the next unitig.
+* Note that no specific order (such as a lexicographic one) is assumed during iteration.
+*/
 template<typename T, bool is_const>
 unitigIterator<T,is_const> unitigIterator<T,is_const>::operator++(int) {
 
@@ -61,6 +78,10 @@ unitigIterator<T,is_const> unitigIterator<T,is_const>::operator++(int) {
     return tmp;
 }
 
+/** Check if two unitigIterators are the same.
+* @param o is another unitigIterator.
+* @return a boolean indicating whether the two unitigIterators are the same.
+*/
 template<typename T, bool is_const>
 bool unitigIterator<T,is_const>::operator==(const unitigIterator& o) {
 
@@ -70,11 +91,21 @@ bool unitigIterator<T,is_const>::operator==(const unitigIterator& o) {
             (cdbg == o.cdbg) && (um == o.um);
 }
 
+/** Check if two unitigIterators are different.
+* @param o is another unitigIterator.
+* @return a boolean indicating whether the two unitigIterators are different.
+*/
 template<typename T, bool is_const>
 bool unitigIterator<T,is_const>::operator!=(const unitigIterator& o) { return !operator==(o); }
 
+/** Return a UnitigMap object reference which contains information about the mapped unitig.
+* @return a UnitigMap object reference which contains information about the mapped unitig.
+*/
 template<typename T, bool is_const>
 typename unitigIterator<T,is_const>::UnitigMap_ref_t unitigIterator<T,is_const>::operator*() { return um; }
 
+/** Return a UnitigMap object pointer which contains information about the mapped unitig.
+* @return a UnitigMap object pointer which contains information about the mapped unitig.
+*/
 template<typename T, bool is_const>
 typename unitigIterator<T,is_const>::UnitigMap_ptr_t unitigIterator<T,is_const>::operator->() { return &um; }

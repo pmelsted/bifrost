@@ -6,12 +6,23 @@
 #include "CompressedSequence.hpp"
 #include "CompressedCoverage.hpp"
 
+/** @file src/Unitig.hpp
+* The Unitig interface.
+* Code snippets using these interface are provided in snippets.hpp.
+*/
 
 /* Short description:
  *  - Use the CompressedSequence class for storing the DNA string
  *  - Use the CompressedCoverage class for storing the kmer coverage
  *  */
 
+ /** @class Unitig
+* @brief Represent a unitig which is a vertex of the compacted de Bruijn graph.
+* The first template argument T is the type of data associated with the unitigs
+* of the graph.
+* @var Unitig::data
+* Data associated with the unitigs of the graph.
+*/
 template<typename T>
 class Unitig {
 
@@ -54,8 +65,17 @@ class Unitig {
         inline size_t numKmers() const { return seq.size( ) -Kmer::k + 1; }
         inline size_t length() const { return seq.size(); }
 
+        /** Return a constant pointer to the data associated with the unitig.
+        * @return a constant pointer to the data associated with the unitig.
+        */
         inline const T* getData() const { return &data; }
+
         inline T* getData() { return &data; }
+
+        /** Set the data associated with the unitig.
+        * @param data_ is a constant pointer to data that must be copied to the data
+        * associated with the current unitig
+        */
         inline void setData(const T* const data_){ data = *data_; }
 
         uint64_t coveragesum;
@@ -66,6 +86,7 @@ class Unitig {
         T data;
 };
 
+///@cond NO_DOC
 template<>
 class Unitig<void> {
 
@@ -111,13 +132,12 @@ class Unitig<void> {
         inline const void* getData() const { return nullptr; }
         inline void* getData() { return nullptr; }
         inline void setData(const void* const data_){ return; }
-        //inline void releaseData(void* const data){ return; }
 
         uint64_t coveragesum;
 
         CompressedCoverage ccov;
         CompressedSequence seq;
 };
-
+///@endcond
 
 #endif // BFG_CONTIG_HPP

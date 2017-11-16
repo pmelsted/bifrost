@@ -84,7 +84,7 @@ class BlockedBloomFilter {
 
             __builtin_prefetch(table, 0, 1);
 
-            for (; i < k; i++) {
+            for (; i < k; ++i) {
 
                 if ((table[(kmer_hash & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmer_hash & 0x3fULL))) == 0) break;
                 kmer_hash = (kmer_hash * 49157) % (1610612741ULL);
@@ -98,7 +98,7 @@ class BlockedBloomFilter {
 
                 __builtin_prefetch(table, 0, 1);
 
-                for (i = 0; i < k; i++) {
+                for (i = 0; i < k; ++i) {
 
                     if ((table[(kmer_hash_2 & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmer_hash_2 & 0x3fULL))) == 0) break;
                     kmer_hash_2 = (kmer_hash_2 * 49157) % (1610612741ULL);
@@ -123,7 +123,7 @@ class BlockedBloomFilter {
 
             __builtin_prefetch(block_ptr.first, 0, 1);
 
-            for (; i != k; i++) {
+            for (; i != k; ++i) {
 
                 if ((block_ptr.first[(kmer_hash & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmer_hash & 0x3fULL))) == 0) break;
                 kmer_hash = (kmer_hash * 49157) % (1610612741ULL);
@@ -133,7 +133,7 @@ class BlockedBloomFilter {
 
                 __builtin_prefetch(block_ptr.second, 0, 1);
 
-                for (i = 0; i != k; i++) {
+                for (i = 0; i != k; ++i) {
 
                     if ((block_ptr.second[(kmer_hash_2 & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmer_hash_2 & 0x3fULL))) == 0) break;
                     kmer_hash_2 = (kmer_hash_2 * 49157) % (1610612741ULL);
@@ -157,7 +157,7 @@ class BlockedBloomFilter {
 
             __builtin_prefetch(table, 0, 1);
 
-            for (; i != k; i++) {
+            for (; i != k; ++i) {
 
                 if ((table[(kmer_hash & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmer_hash & 0x3fULL))) == 0) break;
                 kmer_hash = (kmer_hash * 49157) % (1610612741ULL);
@@ -171,7 +171,7 @@ class BlockedBloomFilter {
 
                 __builtin_prefetch(table2, 0, 1);
 
-                for (; j != k; j++) {
+                for (; j != k; ++j) {
 
                     if ((table2[(kmer_hash_2 & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmer_hash_2 & 0x3fULL))) == 0) break;
                     kmer_hash_2 = (kmer_hash_2 * 49157) % (1610612741ULL);
@@ -190,7 +190,7 @@ class BlockedBloomFilter {
 
                         __builtin_prefetch(table, 1, 1);
 
-                        for (; i != k; i++) {
+                        for (; i != k; ++i) {
 
                             //__sync_fetch_and_or(table + ((kmer_hash & MASK_BITS_BLOCK) >> 6), 1ULL << (kmer_hash & 0x3fULL));
                             table[(kmer_hash & MASK_BITS_BLOCK) >> 6] |= 1ULL << (kmer_hash & 0x3fULL);
@@ -216,7 +216,7 @@ class BlockedBloomFilter {
 
                         __builtin_prefetch(table, 1, 1);
 
-                        for (; i != k; i++) {
+                        for (; i != k; ++i) {
 
                             __sync_fetch_and_or(table + ((kmer_hash & MASK_BITS_BLOCK) >> 6), 1ULL << (kmer_hash & 0x3fULL));
                             //table[(kmer_hash & MASK_BITS_BLOCK) >> 6] |= 1ULL << (kmer_hash & 0x3fULL);
@@ -225,7 +225,7 @@ class BlockedBloomFilter {
 
                         __builtin_prefetch(table2, 0, 1);
 
-                        for (; j != k; j++) {
+                        for (; j != k; ++j) {
 
                             if ((table2[(kmer_hash_2 & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmer_hash_2 & 0x3fULL))) == 0) break;
                             kmer_hash_2 = (kmer_hash_2 * 49157) % (1610612741ULL);

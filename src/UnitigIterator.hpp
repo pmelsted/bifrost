@@ -1,12 +1,24 @@
-#ifndef SUPER_UNITIG_ITERATOR_HPP
-#define SUPER_UNITIG_ITERATOR_HPP
+#ifndef UNITIG_ITERATOR_HPP
+#define UNITIG_ITERATOR_HPP
 
 #include "UnitigMap.hpp"
 #include "KmerHashTable.h"
 #include "CompressedCoverage.hpp"
 
+/** @file src/UnitigIterator.hpp
+* The unitigIterator type interface.
+* Code snippets using this interface are provided in snippets.hpp.
+*/
+
 template<typename T> class CompactedDBG;
 
+/** @class unitigIterator
+* @brief Iterator for the unitigs of a Compacted de Bruijn graph.
+* The first template argument, type T, is the type of data associated with the unitigs in the
+* Compacted de Bruijn graph. Second template argument indicates whether the iterator is a constant.
+* Note that no specific order (such as a lexicographic one) is assumed during iteration.
+* An example of using such a class is shown in src/snippets.hpp.
+*/
 template<typename T = void, bool is_const = true>
 class unitigIterator : public std::iterator<std::input_iterator_tag, UnitigMap<T>, int> {
 

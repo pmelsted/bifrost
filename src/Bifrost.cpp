@@ -36,9 +36,9 @@ void PrintCite() {
 
 void PrintUsage() {
 
-    cout << endl << "BFGraph " << BFG_VERSION << endl << endl;
+    cout << endl << "Bifrost " << BFG_VERSION << endl << endl;
     cout << "Highly Parallel and Memory Efficient Compacted de Bruijn Graph Construction" << endl << endl;
-    cout << "Usage: BFGraph [Parameters] FAST(A|Q)_file_1 ..." << endl << endl;
+    cout << "Usage: Bifrost [Parameters] FAST(A|Q)_file_1 ..." << endl << endl;
     cout << "Parameters with required argument:" << endl << endl <<
     "  -n, --num-kmers          [MANDATORY] Estimated number (upper bound) of different k-mers in the FASTA/FASTQ files" << endl <<
     "  -N, --num-kmer2          [MANDATORY] Estimated number (upper bound) of different k-mers occurring twice or more in the FASTA/FASTQ files" << endl <<

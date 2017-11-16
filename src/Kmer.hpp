@@ -12,7 +12,7 @@
 #include <string>
 
 #ifndef XXH_NAMESPACE
-#define XXH_NAMESPACE BFGRAPH_HASH_
+#define XXH_NAMESPACE BIFROST_HASH_
 #endif
 
 extern "C" {

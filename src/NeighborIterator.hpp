@@ -1,11 +1,25 @@
-#ifndef SUPER_NEIGHBOR_ITERATOR_HPP
-#define SUPER_NEIGHBOR_ITERATOR_HPP
+#ifndef NEIGHBOR_ITERATOR_HPP
+#define NEIGHBOR_ITERATOR_HPP
 
 #include "Kmer.hpp"
+
+/** @file src/NeighborIterator.hpp
+* The neighborIterator, BackwardCDBG and ForwardCDBG type interfaces.
+* Code snippets using these interfaces are provided in snippets.hpp.
+*/
 
 template<typename T> class CompactedDBG;
 template<typename T> class UnitigMap;
 
+/** @class neighborIterator
+* @brief Iterator for the neighbors (predecessors or successors) of a mapped unitig object UnitigMap.
+* The first template argument, type T, is the type of data associated with the unitigs in the
+* Compacted de Bruijn graph. Second template argument indicates whether the iterator is a constant.
+* This iterator considers the forward and reverse-complement strand of the mapped unitig so the mapped
+* unitig can have more than 4 predecessors/successors (up to 4 in one direction and 4 in the other
+* direction). Also, note that no specific order (such as a lexicographic one) is assumed during iteration.
+* An example of using such a class is shown in src/snippets.hpp.
+*/
 template<typename T = void, bool is_const = true>
 class neighborIterator : public std::iterator<std::input_iterator_tag, UnitigMap<T>, int> {
 
@@ -27,7 +41,7 @@ class neighborIterator : public std::iterator<std::input_iterator_tag, UnitigMap
         UnitigMap_ref_t operator*();
         UnitigMap_ptr_t operator->();
 
-    protected:
+    private:
 
         int i;
 
@@ -42,8 +56,14 @@ class neighborIterator : public std::iterator<std::input_iterator_tag, UnitigMap
         CompactedDBG<T>* cdbg;
 };
 
+/** @class BackwardCDBG
+* @brief Wrapper for class neighborIterator to iterate over the predecessors of a mapped unitig object UnitigMap.
+* An example of using such a class is shown in src/snippets.hpp. The first template argument, type T, is the type
+* of data associated with the unitigs in the Compacted de Bruijn graph. Second template argument indicates whether
+* the iterator accessible through this wrapper is a constant.
+*/
 template<typename T = void, bool is_const = true>
-class BackwardCDBG{
+class BackwardCDBG {
 
     typedef typename std::conditional<is_const, const UnitigMap<T>&, UnitigMap<T>&>::type UnitigMap_ref_t;
 
@@ -62,8 +82,14 @@ class BackwardCDBG{
         UnitigMap_ref_t um;
 };
 
+/** @class ForwardCDBG
+* @brief Wrapper for class neighborIterator to iterate over the successors of a mapped unitig object UnitigMap.
+* An example of using such a class is shown in src/snippets.hpp. The first template argument, type T, is the type
+* of data associated with the unitigs in the Compacted de Bruijn graph. Second template argument indicates whether
+* the iterator accessible through this wrapper is a constant.
+*/
 template<typename T = void, bool is_const = true>
-class ForwardCDBG{
+class ForwardCDBG {
 
     typedef typename std::conditional<is_const, const UnitigMap<T>&, UnitigMap<T>&>::type UnitigMap_ref_t;
 

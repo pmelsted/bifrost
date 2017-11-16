@@ -1,4 +1,4 @@
-# BFGraph
+# Bifrost
 
 Highly Parallel and Memory Efficient Compacted de Bruijn Graph Construction
 
@@ -6,9 +6,9 @@ This repository contains the source code for a new parallel and memory efficient
 
 ## Dependencies
 
-In order to compile and use BFGraph, you need a machine running a 64 bits Linux or MacOS operating system. BFGraph successfully compiles and runs on Ubuntu 17.04 and MacOS.
+In order to compile and use Bifrost, you need a machine running a 64 bits Linux or MacOS operating system. Bifrost successfully compiles and runs on Ubuntu 17.04 and MacOS.
 
-In order to install BFGraph, you will need Cmake (https://cmake.org/), Jemalloc (http://www.canonware.com/jemalloc) and zlib (https://zlib.net/). All can be downloaded and installed by following the instructions on their respective websites. It is however most likely that at least few of them are available via a package manager for your operating system.
+In order to install Bifrost, you will need Cmake (https://cmake.org/), Jemalloc (http://www.canonware.com/jemalloc) and zlib (https://zlib.net/). All can be downloaded and installed by following the instructions on their respective websites. It is however most likely that at least few of them are available via a package manager for your operating system.
 
 If you operating system is Ubuntu/Debian:
 ```
@@ -40,7 +40,7 @@ brew install --with-toolchain llvm
 
 Then, installing should be as easy as:
 ```
-cd <BFGraph_directory>
+cd <bifrost_directory>
 mkdir build
 cd build
 cmake ..
@@ -52,22 +52,22 @@ The default maximum *k*-mer size supported is 31. To work with larger *k*, you m
 set( MAX_KMER_SIZE "64")
 ```
 
-In this case, the maximum *k* allowed is 63. Keep in mind that increasing MAX_KMER_SIZE increases BFGraph memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
+In this case, the maximum *k* allowed is 63. Keep in mind that increasing MAX_KMER_SIZE increases Bifrost memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
 
 ## Binary usage:
 
-Type the following command to run BFGraph:
+Type the following command to run Bifrost:
 ```
-./BFGraph
+./Bifrost
 ```
 
 It should display the command line interface:
 ```
-BFGraph
+Bifrost
 
 Highly Parallel and Memory Efficient Compacted de Bruijn Graph Construction
 
-Usage: BFGraph [Parameters] FAST(A|Q)_file_1 ...
+Usage: Bifrost [Parameters] FAST(A|Q)_file_1 ...
 
 Parameters with required argument:
 
@@ -91,19 +91,31 @@ Parameters with no argument:
   -v, --verbose            Print information messages during construction
 ```
 
-BFGraph works in two steps: first, errors are removed from the reads and then, the compacted de Bruijn graph is built from the filtered reads.
+Bifrost works in two steps: first, errors are removed from the reads and then, the compacted de Bruijn graph is built from the filtered reads.
 
-To obtain quickly the arguments *-n* and *-N* from a FASTQ file (if you have no idea), the tool KmerStream can be used (https://github.com/pmelsted/KmerStream). KmerStream output 3 numbers *F0*, *f1* and *F1*. You can then configure BFGraph with *-n=F0* and *-N=F0-f1*.
+To obtain quickly the arguments *-n* and *-N* from a FASTQ file (if you have no idea), the tool KmerStream can be used (https://github.com/pmelsted/KmerStream). KmerStream output 3 numbers *F0*, *f1* and *F1*. You can then configure Bifrost with *-n=F0* and *-N=F0-f1*.
 
 Arguments *-b* and *-B* basically control the Bloom filter false positive rates. A larger number means less false positives to deal with during construction but more memory used. We advise to not modify those two parameters unless you know exactly what you are doing with Bloom filters.
 
 ## API
 
-Coming soon.
+(Work in progress)
+
+Documentation for the Bifrost library is available in the /doc/doxygen folder (HTML version, open index.html).
+
+The following command regenerates the documentation:
+```
+cd <bifrost_directory>
+doxygen Doxyfile
+```
+
+The documentation contains a description of all the functions and structures of the library.
+
+TODO: Code snippets
 
 ## Notes
 
-* BFGraph has been developed on x86-64 GNU/Linux and is compatible with MacOS. Porting it to a non-unix platform should be relatively easy, but we have not done it so far.
+* Bifrost has been developed on x86-64 GNU/Linux and is compatible with MacOS. Porting it to a non-unix platform should be relatively easy, but we have not done it so far.
 
 * If you run into bugs/problems or have questions/suggestions, please feel free to file an issue on this GitHub repository.
 

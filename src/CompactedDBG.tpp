@@ -1,3 +1,8 @@
+/** Compacted de Bruijn graph constructor (set up an empty Compacted dBG).
+* @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
+* @param minimizer_length is the length g of minimizers (g < k) used in the graph.
+* @return an empty Compacted de Bruijn graph.
+*/
 template<typename T>
 CompactedDBG<T>::CompactedDBG(int kmer_length, int minimizer_length) :  k_(kmer_length), g_(minimizer_length), invalid(false),
                                                                         has_data(!is_void<T>::value) {
@@ -33,12 +38,16 @@ CompactedDBG<T>::CompactedDBG(int kmer_length, int minimizer_length) :  k_(kmer_
     }
 }
 
+/** Compacted de Bruijn graph destructor.
+*/
 template<typename T>
 CompactedDBG<T>::~CompactedDBG() {
 
     empty();
 }
 
+/** Clear the graph: empty the graph and reset its parameters.
+*/
 template<typename T>
 void CompactedDBG<T>::clear(){
 
@@ -50,6 +59,8 @@ void CompactedDBG<T>::clear(){
     empty();
 }
 
+/** Empty the graph (does not reset its parameters).
+*/
 template<typename T>
 void CompactedDBG<T>::empty(){
 
@@ -64,6 +75,10 @@ void CompactedDBG<T>::empty(){
     bf.clear();
 }
 
+/** Build the Compacted de Bruijn graph.
+* @param opt is a structure from which the members are parameters of this function. See CDBG_Build_opt.
+* @return boolean indicating if the graph has been built successfully.
+*/
 template<typename T>
 bool CompactedDBG<T>::build(const CDBG_Build_opt& opt){
 
@@ -215,6 +230,12 @@ bool CompactedDBG<T>::build(const CDBG_Build_opt& opt){
     return construct_finished;
 }
 
+/** Simplify the Compacted de Bruijn graph: clip short (less than 2k length) tips and/or delete short (less than 2k length) isolated unitigs.
+* @param delete_short_isolated_unitigs is a boolean indicating short isolated unitigs must be removed.
+* @param clip_short_tips is a boolean indicating short tips must be clipped.
+* @param verbose is a boolean indicating if information messages must be printed during the execution of the function.
+* @return boolean indicating if the graph has been simplified successfully.
+*/
 template<typename T>
 bool CompactedDBG<T>::simplify(const bool delete_short_isolated_unitigs, const bool clip_short_tips, const bool verbose){
 
@@ -250,6 +271,11 @@ bool CompactedDBG<T>::simplify(const bool delete_short_isolated_unitigs, const b
     return false;
 }
 
+/** Write the Compacted de Bruijn graph to disk (GFA1 format).
+* @param output_filename is a string containing the name of the file in which the graph will be written.
+* @param verbose is a boolean indicating if information messages must be printed during the execution of the function.
+* @return boolean indicating if the graph has been written successfully.
+*/
 template<typename T>
 bool CompactedDBG<T>::write(const string output_filename, const bool verbose) {
 
@@ -277,6 +303,12 @@ bool CompactedDBG<T>::write(const string output_filename, const bool verbose) {
     return true;
 }
 
+/** Find the unitig containing the queried k-mer in the Compacted de Bruijn graph.
+* @param km is the queried k-mer (see Kmer class).
+* @param extremities_only is a boolean indicating if the k-mer must be searched only in the unitig heads and tails (extremities_only = true).
+* By default, the k-mer is searched everywhere (extremities_only = false) but is is slightly slower than looking only in the unitig heads and tails.
+* @return UnitigMap<T> object containing the information of the unitig containg the queried k-mer (if present).
+*/
 template<typename T>
 UnitigMap<T> CompactedDBG<T>::find(const Kmer& km, bool extremities_only) {
 
@@ -394,12 +426,17 @@ UnitigMap<T> CompactedDBG<T>::find(const Kmer& km, bool extremities_only) {
             }
         }
 
-        it_it_min++;
+        ++it_it_min;
     }
 
     return UnitigMap<T>();
 }
 
+/** Add a sequence to the Compacted de Bruijn graph. Non-{A,C,G,T} characters such as Ns are discarded. The function automatically breaks the sequence into unitigs if required.
+* @param seq is a string containing the sequence to insert.
+* @param verbose is a boolean indicating if information messages must be printed during the execution of the function.
+* @return a boolean indicating if the sequence was successfully inserted in the graph.
+*/
 template<typename T>
 bool CompactedDBG<T>::add(const string& seq, const bool verbose){
 
@@ -423,7 +460,7 @@ bool CompactedDBG<T>::add(const string& seq, const bool verbose){
     vector<pair<int,int>> sp;
     vector<Kmer> v_joins;
 
-    for (KmerIterator it_km(seq.c_str()), it_km_end; it_km != it_km_end; it_km++) { //non-ACGT char. are discarded
+    for (KmerIterator it_km(seq.c_str()), it_km_end; it_km != it_km_end; ++it_km) { //non-ACGT char. are discarded
 
         const std::pair<Kmer, int>& p = *it_km;
         const UnitigMap<T> cm = findUnitig(p.first, seq, p.second);
@@ -502,6 +539,11 @@ bool CompactedDBG<T>::add(const string& seq, const bool verbose){
     return true;
 }
 
+/** Remove a unitig from the Compacted de Bruijn graph.
+* @param um is a UnitigMap object containing the information of the unitig to remove from the graph.
+* @param verbose is a boolean indicating if information messages must be printed during the execution of the function.
+* @return a boolean indicating if the unitig was successfully removed from the graph.
+*/
 template<typename T>
 bool CompactedDBG<T>::remove(const UnitigMap<T>& um, const bool verbose){
 
@@ -561,25 +603,38 @@ bool CompactedDBG<T>::remove(const UnitigMap<T>& um, const bool verbose){
     return true;
 }
 
+/** Create an iterator to the first unitig of the Compacted de Bruijn graph (unitigs are NOT sorted lexicographically).
+* @return an iterator to the first unitig of the graph.
+*/
 template<typename T>
 typename CompactedDBG<T>::iterator CompactedDBG<T>::begin() {
 
     iterator it(this);
-    it++;
+    ++it;
     return it;
 }
 
+
+/** Create an constant iterator to the first unitig of the Compacted de Bruijn graph (unitigs are NOT sorted lexicographically).
+* @return a constant iterator to the first unitig of the graph.
+*/
 template<typename T>
 typename CompactedDBG<T>::const_iterator CompactedDBG<T>::begin() const {
 
     const_iterator it(this);
-    it++;
+    ++it;
     return it;
 }
 
+/** Create an iterator to the "past-the-last" unitig of the Compacted de Bruijn graph (unitigs are NOT sorted lexicographically).
+* @return an iterator to the "past-the-last" unitig of the graph.
+*/
 template<typename T>
 typename CompactedDBG<T>::iterator CompactedDBG<T>::end() { return iterator(); }
 
+/** Create a constant iterator to the "past-the-last" unitig of the Compacted de Bruijn graph (unitigs are NOT sorted lexicographically).
+* @return a constant iterator to the "past-the-last" unitig of the graph.
+*/
 template<typename T>
 typename CompactedDBG<T>::const_iterator CompactedDBG<T>::end() const { return const_iterator(); }
 
@@ -683,8 +738,8 @@ bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
             const char* str = x->c_str();
             const int len = x->length();
 
-            KmerHashIterator<RepHash> it_kmer_h(str, len, opt.k), it_kmer_h_end;
-            minHashIterator<RepHash> it_min(str, len, opt.k, opt.g, RepHash(), true);
+            KmerHashIterator<RepHash> it_kmer_h(str, len, k_), it_kmer_h_end;
+            minHashIterator<RepHash> it_min(str, len, k_, g_, RepHash(), true);
 
             for (int last_pos = -1; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min, ++l_num_kmers) {
 
@@ -692,7 +747,7 @@ bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
 
                 // If one or more k-mer were jumped because contained non-ACGT char.
                 if (p_.second != last_pos + 1)
-                    it_min = minHashIterator<RepHash>(&str[p_.second], len - p_.second, opt.k, opt.g, RepHash(), true);
+                    it_min = minHashIterator<RepHash>(&str[p_.second], len - p_.second, k_, g_, RepHash(), true);
 
                 last_pos = p_.second;
                 const uint64_t min_hr = it_min.getHash();
@@ -815,7 +870,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
             KmerHashIterator<RepHash> it_kmer_h(s_x, x->length(), k_), it_kmer_h_end;
             preAllocMinHashIterator<RepHash> it_min(s_x, x->length(), k_, g_, rep, true);
 
-            for (int last_pos_km = -2; it_kmer_h != it_kmer_h_end; it_kmer_h++, it_min++) {
+            for (int last_pos_km = -2; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min) {
 
                 std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
 
@@ -862,7 +917,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
                             const tiny_vector<Kmer, 2>& v = fp_candidate[block];
                             tuple<bool, uint64_t, Kmer> t_fp_cand = make_tuple(true, block, km_rep);
 
-                            for (auto km_tmp : v){ // Go over global list of existing FP candidates
+                            for (const auto km_tmp : v){ // Go over global list of existing FP candidates
 
                                 if (km_tmp == km_rep){ // If already stored as a FP candidate, it is a TP
 
@@ -963,16 +1018,16 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
         for (auto& t : workers) t.join();
 
-        for (auto &v : parray) { // for each thread
+        for (auto& v : parray) { // for each thread
 
-            for (auto &x : v) addUnitigSequenceBBF(x.km, x.read, x.pos, x.seq, v_ignored_km_tip_thread[0]); // add each unitig for this thread
+            for (const auto& x : v) addUnitigSequenceBBF(x.km, x.read, x.pos, x.seq, v_ignored_km_tip_thread[0]); // add each unitig for this thread
 
             v.clear(); //clear the map
         }
 
-        for (auto &v : v_fp_cand_threads) { // for each thread
+        for (auto& v : v_fp_cand_threads) { // for each thread
 
-            for (auto &x : v){ //for each FP cadndiate to add or delete
+            for (const auto& x : v){ //for each FP cadndiate to add or delete
 
                 Kmer km_fp = std::get<2>(x);
 
@@ -1034,7 +1089,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
         for (auto &v : v_ignored_km_tip_thread) { // for each thread
 
-            for (auto x : v) ignored_km_tips.insert(make_pair(x, false));
+            for (const auto x : v) ignored_km_tips.insert(make_pair(x, false));
 
             v.clear();
         }
@@ -1683,7 +1738,7 @@ bool CompactedDBG<T>::addUnitig(const string& str_unitig, const size_t id_unitig
 
     minHashResult mhr, mhr_tmp;
 
-    for (int64_t last_pos_min = -1; it_min != it_min_end; it_min++){
+    for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){
 
         //If current minimizer was not seen before
         if ((last_pos_min < it_min.getPosition()) || isForbidden){
@@ -1747,7 +1802,7 @@ bool CompactedDBG<T>::addUnitig(const string& str_unitig, const size_t id_unitig
                 else if (v[v_sz-1] != pos_id_unitig) v.push_back(pos_id_unitig);
 
                 last_pos_min = min_h_res.pos;
-                it_it_min++;
+                ++it_it_min;
             }
         }
     }
@@ -1762,7 +1817,7 @@ bool CompactedDBG<T>::addUnitig(const string& str_unitig, const size_t id_unitig
 
         it_min = minHashIterator<RepHash>(c_str, len, k_, g_, RepHash(), true);
 
-        for (int64_t last_pos_min = -1; it_min != it_min_end; it_min++){
+        for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){
 
             if (last_pos_min < it_min.getPosition()){ //If current minimizer was not seen before
 
@@ -1782,7 +1837,7 @@ bool CompactedDBG<T>::addUnitig(const string& str_unitig, const size_t id_unitig
                     else v.push_back(MASK_CONTIG_ID + 1);
 
                     last_pos_min = min_h_res.pos;
-                    it_it_min++;
+                    ++it_it_min;
                 }
             }
         }
@@ -1813,7 +1868,7 @@ void CompactedDBG<T>::deleteUnitig(const bool isShort, const bool isAbundant, co
 
         minHashIterator<RepHash> it_min(km_str, k_, k_, g_, RepHash(), true), it_min_end;
 
-        for (int64_t last_pos_min = -1; it_min != it_min_end; it_min++){ // Iterate over minimizers of unitig to delete
+        for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){ // Iterate over minimizers of unitig to delete
 
             if (last_pos_min < it_min.getPosition()){ // If a new minimizer hash is found in unitig to delete
 
@@ -1841,7 +1896,7 @@ void CompactedDBG<T>::deleteUnitig(const bool isShort, const bool isAbundant, co
                     }
 
                     last_pos_min = min_h_res.pos;
-                    it_it_min++;
+                    ++it_it_min;
                 }
             }
         }
@@ -1873,7 +1928,7 @@ void CompactedDBG<T>::deleteUnitig(const bool isShort, const bool isAbundant, co
 
     minHashResult mhr, mhr_tmp;
 
-    for (int64_t last_pos_min = -1; it_min != it_min_end; it_min++){ // Iterate over minimizers of unitig to delete
+    for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){ // Iterate over minimizers of unitig to delete
 
         if ((last_pos_min < it_min.getPosition()) || isForbidden){ // If a new minimizer hash is found in unitig to delete
 
@@ -1921,7 +1976,7 @@ void CompactedDBG<T>::deleteUnitig(const bool isShort, const bool isAbundant, co
                 }
 
                 last_pos_min = min_h_res.pos;
-                it_it_min++;
+                ++it_it_min;
             }
         }
     }
@@ -1976,7 +2031,7 @@ void CompactedDBG<T>::swapUnitigs(const bool isShort, const size_t id_a, const s
 
     minHashResult mhr, mhr_tmp;
 
-    for (int64_t last_pos_min = -1; it_min != it_min_end; it_min++){ // Iterate over minimizers of unitig
+    for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){ // Iterate over minimizers of unitig
 
         if ((last_pos_min < it_min.getPosition()) || isForbidden){ // If a new minimizer is found in unitig
 
@@ -2024,14 +2079,14 @@ void CompactedDBG<T>::swapUnitigs(const bool isShort, const size_t id_a, const s
                 else v_min_a.push_back(minz_rep); //Add minimizer to list of minimizers
 
                 last_pos_min = min_h_res.pos;
-                it_it_min++;
+                ++it_it_min;
             }
         }
     }
 
     sort(v_min_a.begin(), v_min_a.end()); //Sort the list of minimizers
 
-    for (vector<Minimizer>::iterator it_v_min = v_min_a.begin(); it_v_min != v_min_a.end(); it_v_min++){ // Iterate over minimizers
+    for (vector<Minimizer>::iterator it_v_min = v_min_a.begin(); it_v_min != v_min_a.end(); ++it_v_min){ // Iterate over minimizers
 
         if ((it_v_min == v_min_a.begin()) || (*it_v_min != *(it_v_min-1))){ //If the minimizer is diff. from the previous one
 
@@ -2043,7 +2098,7 @@ void CompactedDBG<T>::swapUnitigs(const bool isShort, const size_t id_a, const s
                 typename tiny_vector<size_t,tiny_vector_sz>::iterator it_v_c = v_id_unitigs.begin();
 
                 // Iterate over unitig IDs associated with this minimizer
-                for (; it_v_c != v_id_unitigs.end(); it_v_c++){
+                for (; it_v_c != v_id_unitigs.end(); ++it_v_c){
 
                      // Swap the unitig ids but do not change positions;
                     if ((*it_v_c & mask) == shift_id_unitig_b) *it_v_c = shift_id_unitig_a | (*it_v_c & MASK_CONTIG_POS);
@@ -2063,7 +2118,7 @@ void CompactedDBG<T>::swapUnitigs(const bool isShort, const size_t id_a, const s
 
     it_min = minHashIterator<RepHash>(s, len, k_, g_, RepHash(), true);
 
-    for (int64_t last_pos_min = -1; it_min != it_min_end; it_min++){ // Iterate over minimizers of unitig
+    for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){ // Iterate over minimizers of unitig
 
         if ((last_pos_min < it_min.getPosition()) || isForbidden){ // If a new minimizer is found in unitig
 
@@ -2111,7 +2166,7 @@ void CompactedDBG<T>::swapUnitigs(const bool isShort, const size_t id_a, const s
                 else v_min_b.push_back(minz_rep); //Add minimizer to list of minimizers
 
                 last_pos_min = min_h_res.pos;
-                it_it_min++;
+                ++it_it_min;
             }
         }
     }
@@ -2128,7 +2183,7 @@ void CompactedDBG<T>::swapUnitigs(const bool isShort, const size_t id_a, const s
                                     return (it_a != it_a_end && *it_a == minz);
                                 });
 
-    for (vector<Minimizer>::iterator it_v_min = v_min_b.begin(); it_v_min != iter; it_v_min++){ // Iterate over minimizers
+    for (vector<Minimizer>::iterator it_v_min = v_min_b.begin(); it_v_min != iter; ++it_v_min){ // Iterate over minimizers
 
         if ((it_v_min == v_min_b.begin()) || (*it_v_min != *(it_v_min-1))){ //If the minimizer is diff. from the previous one
 
@@ -2140,7 +2195,7 @@ void CompactedDBG<T>::swapUnitigs(const bool isShort, const size_t id_a, const s
                 typename tiny_vector<size_t,tiny_vector_sz>::iterator it_v_c = v_id_unitigs.begin();
 
                 // Iterate over unitig IDs associated with this minimizer
-                for (; it_v_c != v_id_unitigs.end(); it_v_c++){
+                for (; it_v_c != v_id_unitigs.end(); ++it_v_c){
 
                      // Swap the unitig ids;
                     if ((*it_v_c & mask) == shift_id_unitig_a) *it_v_c = shift_id_unitig_b | (*it_v_c & MASK_CONTIG_POS);
@@ -2170,7 +2225,7 @@ bool CompactedDBG<T>::splitUnitig(size_t& pos_v_unitigs, size_t& nxt_pos_insert_
 
         size_t i = 0;
 
-        for (vector<pair<int,int>>::const_iterator sit = sp.begin(); sit != sp.end(); sit++, i++) { //Iterate over created split unitigs
+        for (vector<pair<int,int>>::const_iterator sit = sp.begin(); sit != sp.end(); ++sit, i++) { //Iterate over created split unitigs
 
             size_t pos = sit->first;
             size_t len = sit->second - pos;
@@ -2267,7 +2322,7 @@ UnitigMap<T> CompactedDBG<T>::find(const Kmer& km, const preAllocMinHashIterator
 
     bool isShort;
 
-    size_t unitig_id, len;
+    size_t unitig_id, unitig_id_pos_tmp, len;
 
     int64_t pos_match;
 
@@ -2282,7 +2337,7 @@ UnitigMap<T> CompactedDBG<T>::find(const Kmer& km, const preAllocMinHashIterator
 
         const minHashResult& min_h_res = *it_it_min;
         Minimizer minz = Minimizer(&it_min.s[min_h_res.pos]).rep();
-         hmap_min_unitigs_const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
+        hmap_min_unitigs_const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
 
         mhr = min_h_res;
 
@@ -2292,7 +2347,7 @@ UnitigMap<T> CompactedDBG<T>::find(const Kmer& km, const preAllocMinHashIterator
 
             it = hmap_min_unitigs.end();
 
-            for (auto unitig_id_pos : v){ // For each unitig associated with the minimizer
+            for (const auto unitig_id_pos : v){ // For each unitig associated with the minimizer
 
                 unitig_id = unitig_id_pos >> 32;
 
@@ -2323,25 +2378,25 @@ UnitigMap<T> CompactedDBG<T>::find(const Kmer& km, const preAllocMinHashIterator
                 else {
 
                     isShort = (unitig_id_pos & MASK_CONTIG_TYPE) != 0;
-                    unitig_id_pos &= MASK_CONTIG_POS;
+                    unitig_id_pos_tmp = unitig_id_pos & MASK_CONTIG_POS;
 
                     if (isShort){
 
-                        if (min_h_res.pos == unitig_id_pos){
+                        if (min_h_res.pos == unitig_id_pos_tmp){
 
                             if (v_kmers[unitig_id].first == km_rep){
 
                                 return UnitigMap<T>(unitig_id, 0, 1, k_, true, false, true, *this);
                             }
                         }
-                        else if ((min_h_res.pos == diff - unitig_id_pos) && (v_kmers[unitig_id].first == km_rep)){
+                        else if ((min_h_res.pos == diff - unitig_id_pos_tmp) && (v_kmers[unitig_id].first == km_rep)){
 
                             return UnitigMap<T>(unitig_id, 0, 1, k_, true, false, false, *this);
                         }
                     }
                     else {
 
-                        pos_match = unitig_id_pos - min_h_res.pos;
+                        pos_match = unitig_id_pos_tmp - min_h_res.pos;
                         len = v_unitigs[unitig_id]->length() - k_;
 
                         if ((pos_match >= 0) && (pos_match <= len) && v_unitigs[unitig_id]->seq.compareKmer(pos_match, km)){
@@ -2349,7 +2404,7 @@ UnitigMap<T> CompactedDBG<T>::find(const Kmer& km, const preAllocMinHashIterator
                             return UnitigMap<T>(unitig_id, pos_match, 1, len + k_, false, false, true, *this);
                         }
 
-                        pos_match = unitig_id_pos - diff + min_h_res.pos;
+                        pos_match = unitig_id_pos_tmp - diff + min_h_res.pos;
 
                         if ((pos_match >= 0) && (pos_match <= len) && v_unitigs[unitig_id]->seq.compareKmer(pos_match, km_twin)){
 
@@ -2360,7 +2415,7 @@ UnitigMap<T> CompactedDBG<T>::find(const Kmer& km, const preAllocMinHashIterator
             }
         }
 
-        it_it_min++;
+        ++it_it_min;
     }
 
     return UnitigMap<T>();
@@ -2380,7 +2435,7 @@ pair<size_t, size_t> CompactedDBG<T>::splitAllUnitigs() {
     size_t v_unitigs_sz = v_unitigs.size();
     size_t nxt_pos_insert = v_unitigs.size();
 
-    for (typename h_kmers_ccov_t::iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); it++) {
+    for (typename h_kmers_ccov_t::iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it) {
 
         if (!it->second.ccov.isFull()){
 
@@ -2443,7 +2498,7 @@ size_t CompactedDBG<T>::joinAllUnitigs(vector<Kmer>* v_joins) {
 
     if (v_joins == nullptr){
 
-        for (typename h_kmers_ccov_t::iterator it_ccov = h_kmers_ccov.begin(); it_ccov != h_kmers_ccov.end(); it_ccov++) {
+        for (typename h_kmers_ccov_t::iterator it_ccov = h_kmers_ccov.begin(); it_ccov != h_kmers_ccov.end(); ++it_ccov) {
 
             Kmer& tail = it_ccov->first;
             Kmer head_twin = tail.twin();
@@ -2510,7 +2565,7 @@ size_t CompactedDBG<T>::joinAllUnitigs(vector<Kmer>* v_joins) {
         (*v_joins).clear();
     }
 
-    for (KmerHashTable<Kmer>::iterator it = joins.begin(); it != joins.end(); it++) {
+    for (KmerHashTable<Kmer>::iterator it = joins.begin(); it != joins.end(); ++it) {
 
         const Kmer head = it->second;
         const Kmer tail = it->first.twin();
@@ -2775,7 +2830,7 @@ void CompactedDBG<T>::check_fp_tips(KmerHashTable<bool>& ignored_km_tips){
 
     vector<pair<int,int>> sp;
 
-    for (KmerHashTable<bool>::iterator it = ignored_km_tips.begin(); it != ignored_km_tips.end(); it++) {
+    for (KmerHashTable<bool>::iterator it = ignored_km_tips.begin(); it != ignored_km_tips.end(); ++it) {
 
         Kmer km = it->first;
 
@@ -2954,7 +3009,7 @@ size_t CompactedDBG<T>::removeUnitigs(bool rmIsolated, bool clipTips, vector<Kme
         }
     }
 
-    for (typename h_kmers_ccov_t::iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); it++) {
+    for (typename h_kmers_ccov_t::iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it) {
 
         nb_pred = 0;
 
@@ -2997,7 +3052,7 @@ size_t CompactedDBG<T>::removeUnitigs(bool rmIsolated, bool clipTips, vector<Kme
     for (j = v_kmers_sz; j < v_kmers.size(); j++) deleteUnitig(true, false, j);
     v_kmers.resize(v_kmers_sz);
 
-    for (typename h_kmers_ccov_t::iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); it++){
+    for (typename h_kmers_ccov_t::iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it){
 
         if (it->second.ccov.size() == 0) deleteUnitig(false, true, it.getHash());
     }
@@ -3045,7 +3100,7 @@ void CompactedDBG<T>::writeGFA(string graphfilename) {
         k_ << "\tXC:i:" << (p.second.ccov.isFull() ? p.second.ccov.cov_full : p.second.ccov.covAt(0)) << "\n";
     }
 
-    for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); it++) {
+    for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it) {
 
         id++;
         idmap.insert(make_pair(it->first, id));

@@ -55,7 +55,10 @@ class minHashIterator {
 
             // advance to first position or set to invalid
             if (n < k || k < g) invalid = true;
-            else operator++();
+            else {
+                //operator++(0); // 0 to call prefix instead of postfix
+                ++(*this);
+            }
         }
 
 
@@ -65,7 +68,7 @@ class minHashIterator {
             return s==o.s && n==o.n && g==o.g && k==o.k && nh==o.nh;
         }
 
-        bool operator!=(const minHashIterator& o) { return !this->operator==(o); }
+        bool operator!=(const minHashIterator& o) { return !operator==(o); }
 
         // invariant:
         //   v[0..sz] contains only ascending elements in s from [p,p+k-g+1)
@@ -139,7 +142,12 @@ class minHashIterator {
 
         minHashIterator& operator+=(int i) {
 
-            for (; i > 0; i--) operator++();
+            for (; i > 0; i--){
+
+                //operator++(0); // 0 to call prefix instead of postfix
+                ++(*this);
+            }
+
             return *this;
         }
 
@@ -233,7 +241,7 @@ struct minHashResultIterator {
     }
 
     bool operator!=(const minHashResultIterator& o) {
-        return !this->operator==(o);
+        return !operator==(o);
     }
 
     minHashResultIterator& operator++() {
@@ -295,7 +303,8 @@ class preAllocMinHashIterator {
                 v = vector<minHashResult>(n-g+1);
 
                 hf.setK(g);
-                operator++();
+                //operator++(0); // 0 to call prefix instead of postfix
+                ++(*this);
             }
         }
 
@@ -373,7 +382,11 @@ class preAllocMinHashIterator {
 
         preAllocMinHashIterator& operator+=(int i) {
 
-            for (; i > 0; i--) operator++();
+            for (; i > 0; i--){
+
+                //operator++(0); // 0 to call prefix instead of postfix
+                ++(*this);
+            }
             return *this;
         }
 
@@ -409,7 +422,7 @@ class preAllocMinHashIterator {
                 j++;
             }
 
-            if ((j == end) && (hf_tmp.hash() <= mhr_discard.hash)) return /*v[p_cur_start]*/ mhr_discard;
+            if ((j == end) && (hf_tmp.hash() <= mhr_discard.hash)) return mhr_discard;
 
             minHashResult mhr = minHashResult(hf_tmp.hash(), j);
 
@@ -485,7 +498,7 @@ struct preAllocMinHashResultIterator {
     }
 
     bool operator!=(const preAllocMinHashResultIterator& o) const {
-        return !this->operator==(o);
+        return !operator==(o);
     }
 
     preAllocMinHashResultIterator& operator++() {
@@ -580,7 +593,7 @@ struct minHashKmer {
             return s==o.s && n==o.n && g==o.g && k==o.k && nh==o.nh && h==o.h && p==o.p && nb==o.nb;
         }
 
-        bool operator!=(const minHashKmer& o) { return !this->operator==(o); }
+        bool operator!=(const minHashKmer& o) { return !operator==(o); }
 
         uint64_t getHash() const { return h; }
 
