@@ -55,10 +55,7 @@ class minHashIterator {
 
             // advance to first position or set to invalid
             if (n < k || k < g) invalid = true;
-            else {
-                //operator++(0); // 0 to call prefix instead of postfix
-                ++(*this);
-            }
+            else operator++();
         }
 
 
@@ -80,7 +77,7 @@ class minHashIterator {
 
             ++p; // advance to next k-mer
 
-            if (p >= n-k+1 || s[p+k-1] == 0) {
+            if (p >= n-k+1 /*|| s[p+k-1] == 0*/) {
                 // out of bounds
                 invalid = true;
                 return *this;
@@ -142,12 +139,7 @@ class minHashIterator {
 
         minHashIterator& operator+=(int i) {
 
-            for (; i > 0; i--){
-
-                //operator++(0); // 0 to call prefix instead of postfix
-                ++(*this);
-            }
-
+            for (; i > 0; i--) operator++();
             return *this;
         }
 
@@ -303,8 +295,7 @@ class preAllocMinHashIterator {
                 v = vector<minHashResult>(n-g+1);
 
                 hf.setK(g);
-                //operator++(0); // 0 to call prefix instead of postfix
-                ++(*this);
+                operator++();
             }
         }
 
@@ -326,7 +317,7 @@ class preAllocMinHashIterator {
 
             ++p; // advance to next k-mer
 
-            if (p >= n-k+1 || s[p+k-1] == 0) {
+            if (p >= n-k+1/* || s[p+k-1] == 0*/) {
                 // out of bounds
                 invalid = true;
                 return *this;
@@ -382,11 +373,7 @@ class preAllocMinHashIterator {
 
         preAllocMinHashIterator& operator+=(int i) {
 
-            for (; i > 0; i--){
-
-                //operator++(0); // 0 to call prefix instead of postfix
-                ++(*this);
-            }
+            for (; i > 0; i--) operator++();
             return *this;
         }
 

@@ -60,7 +60,7 @@ struct KmerHashTable {
             iterator_ operator++(int) {
 
                 const iterator_ old(*this);
-                ++(*this);
+                operator++();
                 return old;
             }
 
@@ -462,7 +462,7 @@ struct MinimizerHashTable {
             iterator_ operator++(int) {
 
                 const iterator_ old(*this);
-                ++(*this);
+                operator++();
                 return old;
             }
 

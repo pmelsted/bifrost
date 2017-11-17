@@ -127,7 +127,7 @@ struct CDBG_Build_opt {
     string prefixFilenameGFA;
     string filenameGFA;
 
-    CDBG_Build_opt() :  nb_threads(1), k(31), g(23), nb_unique_kmers(0), nb_non_unique_kmers(0), nb_bits_unique_kmers_bf(14),
+    CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(DEFAULT_G), nb_unique_kmers(0), nb_non_unique_kmers(0), nb_bits_unique_kmers_bf(14),
                         nb_bits_non_unique_kmers_bf(14), read_chunksize(10000), unitig_size(1000000), reference_mode(false),
                         verbose(false), clipTips(false), deleteIsolated(false), inFilenameBBF(""), outFilenameBBF("") {}
 };

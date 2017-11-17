@@ -36,13 +36,9 @@ KmerIterator KmerIterator::operator++(int) {
 
 KmerIterator& KmerIterator::operator+=(const int length){
 
-    size_t next_pos = p_.second + length;
+    const size_t next_pos = p_.second + length;
 
-    while (!invalid_ && p_.second < next_pos){
-
-        //operator++(0); // 0 to call prefix instead of postfix
-        ++(*this);
-    }
+    while (!invalid_ && p_.second < next_pos) operator++();
 
     return *this;
 }
@@ -81,8 +77,7 @@ std::pair<Kmer, int> *KmerIterator::operator->() {
 //       if iter is not invalid, km is iter->first and rep is km.rep()
 void KmerIterator::raise(Kmer& km, Kmer& rep) {
 
-    //operator++(0); // 0 to call prefix instead of postfix
-    ++(*this);
+    operator++();
 
     if (!invalid_) {
 

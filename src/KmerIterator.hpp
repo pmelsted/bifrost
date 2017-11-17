@@ -72,7 +72,7 @@ class KmerHashIterator {
 
             ++(p_.second); // advance to next k-mer
 
-            if (p_.second >= n - k + 1 || s[p_.second + k - 1] == '\0') { // out of bounds
+            if (p_.second >= n - k + 1/* || s[p_.second + k - 1] == '\0'*/) { // out of bounds
 
                 invalid = true;
                 p_ = std::make_pair(0,-1);
@@ -94,7 +94,7 @@ class KmerHashIterator {
 
                         p_.second += j - p_.second + 1;
 
-                        if (p_.second >= n - k + 1 || s[p_.second + k - 1] == '\0') { // out of bounds
+                        if (p_.second >= n - k + 1/* || s[p_.second + k - 1] == '\0'*/) { // out of bounds
 
                             invalid = true;
                             p_ = std::make_pair(0,-1);
@@ -116,7 +116,7 @@ class KmerHashIterator {
 
                     p_.second += k;
 
-                    if (p_.second >= n - k + 1 || s[p_.second + k - 1] == '\0') { // out of bounds
+                    if (p_.second >= n - k + 1/* || s[p_.second + k - 1] == '\0'*/) { // out of bounds
 
                         invalid = true;
                         p_ = std::make_pair(0,-1);
@@ -134,7 +134,7 @@ class KmerHashIterator {
 
                             p_.second += j - p_.second + 1;
 
-                            if (p_.second >= n - k + 1 || s[p_.second + k - 1] == '\0') { // out of bounds
+                            if (p_.second >= n - k + 1/* || s[p_.second + k - 1] == '\0'*/) { // out of bounds
 
                                 invalid = true;
                                 p_ = std::make_pair(0,-1);
@@ -165,7 +165,7 @@ class KmerHashIterator {
         //Move iterator to next VALID position >= p_.second + length
         KmerHashIterator& operator+=(const int length){
 
-            size_t next_pos = p_.second + length;
+            const size_t next_pos = p_.second + length;
 
             while (!invalid && p_.second < next_pos) operator++();
 
