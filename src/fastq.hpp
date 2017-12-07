@@ -22,24 +22,27 @@ KSEQ_INIT(gzFile, gzread);
 
 
 class FastqFile {
- public:
-  FastqFile(const vector<string> fnames);
 
-  ~FastqFile();
+    public:
 
-  void close();
-  void reopen();
-  int read_next(char *read, size_t *read_len, string &seq, size_t *seq_len, unsigned int *file_id, char *qual = NULL);
+        FastqFile(const vector<string> fnames);
+        ~FastqFile();
 
-  vector<string>::const_iterator fnit; // Current filename
-  unsigned int file_no;
+        void close();
+        void reopen();
+        int read_next(char *read, size_t *read_len, string &seq, size_t *seq_len, unsigned int *file_id, char *qual = NULL);
+        int read_next(string &seq, size_t& id);
 
- private:
-  vector<string>::const_iterator open_next(); // Method
+        vector<string>::const_iterator fnit; // Current filename
+        unsigned int file_no;
 
-  vector<string> fnames; // All fasta/fastq files
-  gzFile fp;
-  kseq_t *kseq;
+    private:
+
+        vector<string>::const_iterator open_next(); // Method
+
+        vector<string> fnames; // All fasta/fastq files
+        gzFile fp;
+        kseq_t *kseq;
 };
 
 #endif // FASTQ_H

@@ -17,6 +17,15 @@
 #include <thread>
 #include <atomic>
 
+/*
+#include <queue>
+#include <memory>
+#include <mutex>
+#include <condition_variable>
+#include <future>
+#include <stdexcept>
+*/
+
 #include "BlockedBloomFilter.hpp"
 #include "Common.hpp"
 #include "fastq.hpp"
@@ -239,9 +248,9 @@ class CompactedDBG {
 
         bool build(const CDBG_Build_opt& opt);
         bool simplify(const bool delete_short_isolated_unitigs = true, const bool clip_short_tips = true, const bool verbose = false);
-        bool write(const string output_filename, const bool verbose = false);
+        bool write(const string output_filename, const size_t nb_threads = 1, const bool verbose = false);
 
-        UnitigMap<T> find(const Kmer& km, bool extremities_only = false);
+        UnitigMap<T> find(const Kmer& km, const bool extremities_only = false);
 
         bool add(const string& seq, const bool verbose = false);
         bool remove(const UnitigMap<T>& um, const bool verbose = false);
@@ -276,6 +285,8 @@ class CompactedDBG {
                         const vector<pair<int,int>>& sp);
 
         UnitigMap<T> find(const Kmer& km, const preAllocMinHashIterator<RepHash>& it_min_h);
+        vector<UnitigMap<T>> findPredecessors(const Kmer& km, const bool extremities_only = false);
+        vector<UnitigMap<T>> findSuccessors(const Kmer& km, const size_t limit = 4, const bool extremities_only = false);
 
         inline size_t find(const preAllocMinHashIterator<RepHash>& it_min_h) const {
 
@@ -284,13 +295,13 @@ class CompactedDBG {
         }
 
         pair<size_t, size_t> splitAllUnitigs();
-        size_t joinAllUnitigs(vector<Kmer>* v_joins = nullptr);
+        size_t joinAllUnitigs(vector<Kmer>* v_joins = nullptr, const size_t nb_threads = 1);
 
         bool checkJoin(const Kmer& a, const UnitigMap<T>& cm_a, Kmer& b);
         void check_fp_tips(KmerHashTable<bool>& ignored_km_tips);
         size_t removeUnitigs(bool rmIsolated, bool clipTips, vector<Kmer>& v);
 
-        void writeGFA(string graphfilename);
+        void writeGFA(string graphfilename, const size_t nb_threads = 1);
         void mapRead(const UnitigMap<T>& cc);
 
         size_t cstrMatch(const char* a, const char* b) const;

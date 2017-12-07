@@ -563,9 +563,9 @@ struct minHashKmer {
             }
         }
 
-        minHashKmer() : s(NULL), n(0), k(0), g(0), hf(HF(0)), h(0), p(-1), nb(0), invalid(true), nh(false) {}
+        minHashKmer() : s(NULL), n(0), k(0), g(0), hf(HF(0)), h(0), p(-1)/*, nb(0)*/, invalid(true), nh(false) {}
 
-        minHashKmer(const preAllocMinHashIterator<HF>& o) : s(o.s), k(o.k), g(o.g), hf(o.hf), nh(o.nh), h(0), p(-1), nb(o.nb), invalid(o.invalid){
+        minHashKmer(const preAllocMinHashIterator<HF>& o) : s(o.s), k(o.k), g(o.g), hf(o.hf), nh(o.nh), h(0), p(-1)/*, nb(o.nb)*/, invalid(o.invalid){
 
             if (!invalid){
 
@@ -577,7 +577,7 @@ struct minHashKmer {
         bool operator==(const minHashKmer& o) {
 
             if(invalid || o.invalid) return invalid && o.invalid;
-            return s==o.s && n==o.n && g==o.g && k==o.k && nh==o.nh && h==o.h && p==o.p && nb==o.nb;
+            return s==o.s && n==o.n && g==o.g && k==o.k && nh==o.nh && h==o.h && p==o.p /*&& nb==o.nb*/;
         }
 
         bool operator!=(const minHashKmer& o) { return !operator==(o); }
@@ -586,7 +586,7 @@ struct minHashKmer {
 
         int getPosition() const { return p; }
 
-        int getNbMin() const { return nb; }
+        //int getNbMin() const { return nb; }
 
     private:
 
@@ -600,13 +600,13 @@ struct minHashKmer {
 
             h = hf.hash();
             p = shift;
-            nb = 1;
+            //nb = 1;
 
             for (int j = shift; j < k-g-shift; j++) {
 
                 hf.update(s[j], s[j+g]);
 
-                if (hf.hash() <= h){
+                /*if (hf.hash() <= h){
 
                     if (hf.hash() == h) nb++;
                     else {
@@ -615,6 +615,12 @@ struct minHashKmer {
                         p = j + 1;
                         nb = 1;
                     }
+                }*/
+
+                if (hf.hash() < h){
+
+                    h = hf.hash();
+                    p = j + 1;
                 }
             }
         }
@@ -626,7 +632,7 @@ struct minHashKmer {
         int k;
         int g;
         int p;
-        int nb;
+        //int nb;
         bool invalid;
         bool nh;
 };

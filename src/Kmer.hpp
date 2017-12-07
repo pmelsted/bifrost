@@ -64,6 +64,7 @@ class Kmer {
         void selfForwardBase(const char b);
 
         std::string getBinary() const;
+        char getChar(const size_t offset) const;
 
         void toString(char *s) const;
         std::string toString() const;
@@ -109,9 +110,11 @@ struct KmerHash {
 
 
 
-
+//template<typename T> class MinimizerHashTable;
 
 class Minimizer {
+
+    //template<typename T> friend class MinimizerHashTable;
 
     public:
 

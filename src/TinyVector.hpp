@@ -198,8 +198,7 @@ class tiny_vector {
 
             *(end()) = value;
 
-            if (isShort()) ++arr.size;
-            else ++vec.size;
+            isShort() ? ++arr.size : ++vec.size;
         }
 
         void insert(const T& value, const size_t position) {
@@ -212,8 +211,7 @@ class tiny_vector {
 
             data[position] = value;
 
-            if (isShort()) ++arr.size;
-            else ++vec.size;
+            isShort() ? ++arr.size : ++vec.size;
         }
 
         void remove(const size_t position) {
@@ -223,8 +221,7 @@ class tiny_vector {
             if (position != size() - 1)
                 memmove(&data[position], &data[position + 1], (size() - position - 1) * sizeof(T));
 
-            if (isShort()) --arr.size;
-            else --vec.size;
+            isShort() ? --arr.size : --vec.size;
         }
 
         void clear() {

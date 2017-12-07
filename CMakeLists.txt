@@ -8,8 +8,8 @@ project(Bifrost)
 # Actual maximum kmer size is 1 less.
 set(MAX_KMER_SIZE "32")
 
-SET(CMAKE_C_FLAGS "-std=c99 -DXXH_NAMESPACE=BIFROST_HASH_")
-SET(CMAKE_CXX_FLAGS "-std=c++11 -DXXH_NAMESPACE=BIFROST_HASH_")
+SET(CMAKE_C_FLAGS "-std=c99 -march=native -DXXH_NAMESPACE=BIFROST_HASH_")
+SET(CMAKE_CXX_FLAGS "-std=c++11 -march=native -DXXH_NAMESPACE=BIFROST_HASH_")
 
 set_property(SOURCE xxhash.c APPEND_STRING PROPERTY COMPILE_FLAGS " -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef")
 

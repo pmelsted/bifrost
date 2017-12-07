@@ -380,10 +380,8 @@ int main(int argc, char **argv){
             CompactedDBG<> cdbg(opt.k, opt.g);
 
             cdbg.build(opt);
-
             cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-
-            cdbg.write(opt.prefixFilenameGFA, opt.verbose);
+            cdbg.write(opt.prefixFilenameGFA, opt.nb_threads, opt.verbose);
 
 
             /*CompactedDBG<myColors> cdbg(opt.k, opt.g);

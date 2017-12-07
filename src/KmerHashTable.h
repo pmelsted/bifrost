@@ -7,7 +7,13 @@
 
 #include "Kmer.hpp"
 
-template<typename T, typename Hash = KmerHash>
+/*#if defined(__AVX2__)
+
+#include <x86intrin.h>
+
+#endif*/
+
+/*template<typename T, typename Hash = KmerHash>
 struct KmerHashTable {
 
     using value_type = std::pair<Kmer, T>;
@@ -148,7 +154,6 @@ struct KmerHashTable {
         if (table != nullptr) {
 
             delete[] table;
-            //free(table);
             table = nullptr;
         }
 
@@ -305,58 +310,6 @@ struct KmerHashTable {
 
         delete[] old_table;
         old_table = nullptr;
-
-        /*if (sz <= size_) return;
-
-        const size_t prev_size_ = size_;
-
-        size_ = rndup(sz);
-        pop = 0;
-        num_empty = size_;
-
-        table = (value_type*) realloc(table, size_ * sizeof(value_type));
-
-        std::sort(table, table + prev_size_, sortKmerHashTable(*this));
-
-        value_type* table_empty = table;
-
-        for (; table_empty < table + prev_size_; table_empty++) {
-
-            if (((*table_empty).first == empty_val.first) || ((*table_empty).first == deleted.first)) break;
-        }
-
-        std::fill(table_empty, table + size_, empty_val);
-
-        std::vector<value_type> v;
-
-        for (int64_t i = table_empty - table - 1; i >= 0; i--) {
-
-            size_t h = hasher(table[i].first) & (size_-1);
-
-            if (h > i){
-
-                for ( ; h < size_; h++) {
-
-                    if (table[h].first == empty_val.first) {
-
-                        num_empty--;
-                        pop++;
-
-                        std::swap(table[h], table[i]);
-
-                        break;
-                    }
-                }
-
-                if (h == size_){
-
-                    v.push_back(table[i]);
-                    table[i] = empty_val;
-                }
-            }
-        }
-
-        for (auto& vt : v) insert(vt);*/
     }
 
     size_t rndup(size_t v) {
@@ -388,23 +341,6 @@ struct KmerHashTable {
     iterator end() { return iterator(this); }
 
     const_iterator end() const { return const_iterator(this); }
-
-    /*private:
-
-        struct sortKmerHashTable {
-
-            sortKmerHashTable(const KmerHashTable& kht_) : kht(kht_) {}
-
-            bool operator() (const value_type& a, const value_type& b) const {
-
-                const size_t h_a = (a.first == kht.empty_val.first) || (a.first == kht.deleted.first) ? 0xffffffffffffffff : kht.hasher(a.first) & (kht.size_-1);
-                const size_t h_b = (b.first == kht.empty_val.first) || (b.first == kht.deleted.first) ? 0xffffffffffffffff : kht.hasher(b.first) & (kht.size_-1);
-
-                return (h_a < h_b);
-            }
-
-            const KmerHashTable& kht;
-        };*/
 };
 
 template<typename T, typename Hash = MinimizerHash>
@@ -422,6 +358,10 @@ struct MinimizerHashTable {
 
     value_type empty_val;
     value_type deleted;
+
+    #if defined(__AVX2__)
+    __m256i empty_val256;
+    #endif
 
 // ---- iterator ----
     template<bool is_const_iterator = true>
@@ -496,6 +436,10 @@ struct MinimizerHashTable {
             empty_val.first.set_empty();
             deleted.first.set_deleted();
             init_table(1024);
+
+            #if defined(__AVX2__)
+            empty_val256 = _mm256_set1_epi64x(empty_val.first.longs[0]);
+            #endif
         }
 
         MinimizerHashTable(size_t sz, const Hash& h = Hash() ) : hasher(h), table(nullptr), size_(0), pop(0), num_empty(0) {
@@ -503,6 +447,10 @@ struct MinimizerHashTable {
             empty_val.first.set_empty();
             deleted.first.set_deleted();
             init_table((size_t) (1.2*sz));
+
+            #if defined(__AVX2__)
+            empty_val256 = _mm256_set1_epi64x(empty_val.first.longs[0]);
+            #endif
         }
 
         MinimizerHashTable(MinimizerHashTable&& o){
@@ -514,6 +462,10 @@ struct MinimizerHashTable {
             table = o.table;
             empty_val = o.empty_val;
             deleted = o.deleted;
+
+            #if defined(__AVX2__)
+            empty_val256 = o.empty_val256;
+            #endif
 
             o.table = nullptr;
 
@@ -534,6 +486,10 @@ struct MinimizerHashTable {
                 empty_val = o.empty_val;
                 deleted = o.deleted;
 
+                #if defined(__AVX2__)
+                empty_val256 = o.empty_val256;
+                #endif
+
                 o.table = nullptr;
 
                 o.clear_table();
@@ -549,7 +505,6 @@ struct MinimizerHashTable {
             if (table != nullptr) {
 
                 delete[] table;
-                //free(table);
                 table = nullptr;
             }
 
@@ -577,38 +532,74 @@ struct MinimizerHashTable {
             size_ = rndup(sz);
 
             table = new value_type[size_];
-            //table = (value_type*) malloc(size_ * sizeof(value_type));
 
             clear();
         }
 
         iterator find(const Minimizer& key) {
 
-            size_t h = hasher(key) & (size_-1);
-            size_t end_h = (h == 0) ? (size_-1) : h-1;
+            const size_t end_table = size_-1;
 
-            for (;; h =  (h+1!=size_ ? h+1 : 0)) {
+            size_t h = hasher(key) & end_table;
+            const size_t end_h = (h-1) & end_table;
+
+            #if defined(__AVX2__)
+
+            const __m256i key_val256 = _mm256_set1_epi64x(key.longs[0]);
+
+            for (; h <= end_table - 4; h += 4){
+
+                const __m256i table_val256 = _mm256_set_epi64x(table[h+3].first.longs[0], table[h+2].first.longs[0],
+                                                               table[h+1].first.longs[0], table[h].first.longs[0]);
+
+                const uint32_t pos = static_cast<uint32_t>(_mm256_movemask_epi8(_mm256_cmpeq_epi64(key_val256, table_val256)));
+
+                if (pos != 0) return iterator(this, h + ((pos >> 15) & 0x1) + (((pos >> 23) & 0x1) << 1) + (pos >> 30));
+                if (_mm256_movemask_epi8(_mm256_cmpeq_epi64(empty_val256, table_val256)) != 0) return iterator(this);
+            }
+
+            #endif
+
+            for (; h != end_h; h = (h+1) & end_table) {
 
                 if (table[h].first == empty_val.first) return iterator(this); // empty slot, not in table
-                else if (table[h].first == key) return iterator(this, h); // same key, found
-
-                // if it is deleted, we still have to continue
-                if (h==end_h) return iterator(this); // we've gone throught the table, quit
+                if (table[h].first == key) return iterator(this, h); // same key, found
             }
+
+            return iterator(this);
         }
 
         const_iterator find(const Minimizer& key) const {
 
-            size_t h = hasher(key) & (size_-1);
-            size_t end_h = (h == 0) ? (size_-1) : h-1;
+            const size_t end_table = size_ - 1;
 
-            for (;; h =  (h+1!=size_ ? h+1 : 0)) {
+            size_t h = hasher(key) & end_table;
+            const size_t end_h = (h-1) & end_table;
+
+            #if defined(__AVX2__)
+
+            const __m256i key_val256 = _mm256_set1_epi64x(key.longs[0]);
+
+            for (; h <= end_table - 4; h += 4){
+
+                const __m256i table_val256 = _mm256_set_epi64x(table[h+3].first.longs[0], table[h+2].first.longs[0],
+                                                               table[h+1].first.longs[0], table[h].first.longs[0]);
+
+                const uint32_t pos = static_cast<uint32_t>(_mm256_movemask_epi8(_mm256_cmpeq_epi64(key_val256, table_val256)));
+
+                if (pos != 0) return const_iterator(this, h + ((pos >> 15) & 0x1) + (((pos >> 23) & 0x1) << 1) + (pos >> 30));
+                if (_mm256_movemask_epi8(_mm256_cmpeq_epi64(empty_val256, table_val256)) != 0) return const_iterator(this);
+            }
+
+            #endif
+
+            for (; h != end_h; h = (h+1) & end_table) {
 
                 if (table[h].first == empty_val.first) return const_iterator(this); // empty slot, not in table
-                else if (table[h].first == key) return const_iterator(this, h); // same key, found
-
-                if (h==end_h) return const_iterator(this);
+                if (table[h].first == key) return const_iterator(this, h); // same key, found
             }
+
+            return const_iterator(this);
         }
 
         iterator find(const size_t h) {
@@ -653,7 +644,8 @@ struct MinimizerHashTable {
 
             bool is_deleted = false;
 
-            for (size_t h = hasher(val.first) & (size_-1), h_tmp;; h = (h+1 != size_ ? h+1 : 0)) {
+            //for (size_t h = hasher(val.first) & (size_-1), h_tmp;; h = (h+1 != size_ ? h+1 : 0)) {
+            for (size_t h = hasher(val.first) & (size_-1), h_tmp;; h = (h+1) & (size_-1)) {
 
                 if (table[h].first == empty_val.first) {
 
@@ -695,58 +687,6 @@ struct MinimizerHashTable {
 
         free(old_table);
         old_table = nullptr;
-
-        /*if (sz <= size_) return;
-
-        const size_t prev_size_ = size_;
-
-        size_ = rndup(sz);
-        pop = 0;
-        num_empty = size_;
-
-        table = (value_type*) realloc(table, size_ * sizeof(value_type));
-
-        std::sort(table, table + prev_size_, sortMinimizerHashTable(*this));
-
-        value_type* table_empty = table;
-
-        for (; table_empty < table + prev_size_; table_empty++) {
-
-            if (((*table_empty).first == empty_val.first) || ((*table_empty).first == deleted.first)) break;
-        }
-
-        std::fill(table_empty, table + size_, empty_val);
-
-        std::vector<value_type> v;
-
-        for (int64_t i = table_empty - table - 1; i >= 0; i--) {
-
-            size_t h = hasher(table[i].first) & (size_-1);
-
-            if (h > i){
-
-                for ( ; h < size_; h++) {
-
-                    if (table[h].first == empty_val.first) {
-
-                        num_empty--;
-                        pop++;
-
-                        std::swap(table[h], table[i]);
-
-                        break;
-                    }
-                }
-
-                if (h == size_){
-
-                    v.push_back(table[i]);
-                    table[i] = empty_val;
-                }
-            }
-        }
-
-        for (auto& vt : v) insert(vt);*/
     }
 
     size_t rndup(size_t v) {
@@ -780,23 +720,799 @@ struct MinimizerHashTable {
     iterator end() { return iterator(this); }
 
     const_iterator end() const { return const_iterator(this); }
+};*/
 
-    /*private:
+template<typename T>
+struct KmerHashTable {
 
-        struct sortMinimizerHashTable {
+    size_t size_, pop, num_empty;
 
-            sortMinimizerHashTable(const MinimizerHashTable& mht_) : mht(mht_) {}
+    Kmer* table_keys;
+    T* table_values;
 
-            bool operator() (const value_type& a, const value_type& b) const {
+    Kmer empty_key;
+    Kmer deleted_key;
 
-                const size_t h_a = (a.first == mht.empty_val.first) || (a.first == mht.deleted.first) ? 0xffffffffffffffff : mht.hasher(a.first) & (mht.size_-1);
-                const size_t h_b = (b.first == mht.empty_val.first) || (b.first == mht.deleted.first) ? 0xffffffffffffffff : mht.hasher(b.first) & (mht.size_-1);
+    /*#if defined(__AVX2__)
+    __m256i _mm_empty_key;
+    #endif*/
 
-                return (h_a < h_b);
+// ---- iterator ----
+    template<bool is_const = true>
+    class iterator_ : public std::iterator<std::forward_iterator_tag, T> {
+
+        public:
+
+            typedef typename std::conditional<is_const, const KmerHashTable *, KmerHashTable *>::type MHT_ptr_t;
+            typedef typename std::conditional<is_const, const T&, T&>::type MHT_val_ref_t;
+            typedef typename std::conditional<is_const, const T*, T*>::type MHT_val_ptr_t;
+
+            MHT_ptr_t ht;
+            size_t h;
+
+            iterator_() : ht(nullptr), h(0) {}
+            iterator_(MHT_ptr_t ht_) : ht(ht_), h(ht_->size_) {}
+            iterator_(MHT_ptr_t ht_, size_t h_) :  ht(ht_), h(h_) {}
+            iterator_(const iterator_<false>& o) : ht(o.ht), h(o.h) {}
+            iterator_& operator=(const iterator_& o) { ht=o.ht; h=o.h; return *this; }
+
+            MHT_val_ref_t operator*() const { return ht->table_values[h]; }
+            MHT_val_ptr_t operator->() const { return &(ht->table_values[h]); }
+
+            const Kmer& getKey() const { return ht->table_keys[h]; }
+
+            size_t getHash() const { return h; }
+
+            void find_first() {
+
+                h = 0;
+
+                if ((ht != nullptr) && (ht->size_ > 0) &&
+                    ((ht->table_keys[h] == ht->empty_key) || (ht->table_keys[h] == ht->deleted_key))) operator++();
             }
 
-            const MinimizerHashTable& mht;
-        };*/
+            iterator_ operator++(int) {
+
+                const iterator_ tmp(*this);
+                operator++();
+                return tmp;
+            }
+
+            iterator_& operator++() {
+
+                if (h == ht->size_) return *this;
+
+                ++h;
+
+                for (; h < ht->size_; ++h) {
+
+                    if ((ht->table_keys[h] != ht->empty_key) && (ht->table_keys[h] != ht->deleted_key)) break;
+                }
+
+                return *this;
+            }
+
+            bool operator==(const iterator_ &o) const { return (ht == o.ht) && (h == o.h); }
+            bool operator!=(const iterator_ &o) const { return (ht != o.ht) || (h != o.h); }
+
+            friend class iterator_<true>;
+        };
+
+    typedef iterator_<true> const_iterator;
+    typedef iterator_<false> iterator;
+
+    // --- hash table
+    KmerHashTable() : table_keys(nullptr), table_values(nullptr), size_(0), pop(0), num_empty(0) {
+
+        empty_key.set_empty();
+        deleted_key.set_deleted();
+
+        init_tables(1024);
+
+        /*#if defined(__AVX2__)
+        _mm_empty_key = _mm256_set1_epi64x(empty_key.longs[0]);
+        #endif*/
+    }
+
+    KmerHashTable(size_t sz) : table_keys(nullptr), table_values(nullptr), size_(0), pop(0), num_empty(0) {
+
+        empty_key.set_empty();
+        deleted_key.set_deleted();
+
+        init_tables((size_t) (1.2 * sz));
+
+        /*#if defined(__AVX2__)
+        _mm_empty_key = _mm256_set1_epi64x(empty_key.longs[0]);
+        #endif*/
+    }
+
+    KmerHashTable(KmerHashTable&& o){
+
+        size_ = o.size_;
+        pop = o.pop;
+        num_empty = o.num_empty;
+
+        empty_key = o.empty_key;
+        deleted_key = o.deleted_key;
+
+        table_keys = o.table_keys;
+        table_values = o.table_values;
+
+        /*#if defined(__AVX2__)
+        _mm_empty_key = o._mm_empty_key;
+        #endif*/
+
+        o.table_keys = nullptr;
+        o.table_values = nullptr;
+
+        o.clear_tables();
+    }
+
+    KmerHashTable& operator=(KmerHashTable&& o){
+
+        if (this != &o) {
+
+            clear_tables();
+
+            size_ = o.size_;
+            pop = o.pop;
+            num_empty = o.num_empty;
+
+            empty_key = o.empty_key;
+            deleted_key = o.deleted_key;
+
+            table_keys = o.table_keys;
+            table_values = o.table_values;
+
+            /*#if defined(__AVX2__)
+            _mm_empty_key = o._mm_empty_key;
+            #endif*/
+
+            o.table_keys = nullptr;
+            o.table_values = nullptr;
+
+            o.clear_tables();
+        }
+
+        return *this;
+    }
+
+    ~KmerHashTable() { clear_tables(); }
+
+    size_t size() const { return pop; }
+
+    bool empty() const { return pop == 0; }
+
+    void clear() {
+
+        std::fill(table_keys, table_keys + size_, empty_key);
+
+        pop = 0;
+        num_empty = size_;
+    }
+
+    void clear_tables() {
+
+        if (table_keys != nullptr) {
+
+            delete[] table_keys;
+            //free(table_keys);
+
+            table_keys = nullptr;
+        }
+
+        if (table_values != nullptr) {
+
+            delete[] table_values;
+            table_values = nullptr;
+        }
+
+        size_ = 0;
+        pop  = 0;
+        num_empty = 0;
+    }
+
+    void init_tables(size_t sz) {
+
+        clear_tables();
+
+        size_ = rndup(sz);
+
+        table_keys = new Kmer[size_];
+        //posix_memalign((void**)&table_keys, 32, size_ * sizeof(Kmer));
+
+        table_values = new T[size_];
+
+        clear();
+    }
+
+    void reserve(size_t sz) {
+
+        if (sz <= size_) return;
+
+        Kmer* old_table_keys = table_keys;
+        T* old_table_values = table_values;
+
+        size_t old_size_ = size_;
+
+        size_ = rndup(sz);
+        pop = 0;
+        num_empty = size_;
+
+        table_keys = new Kmer[size_];
+        //posix_memalign((void**)&table_keys, 32, size_ * sizeof(Kmer));
+
+        table_values = new T[size_];
+
+        std::fill(table_keys, table_keys + size_, empty_key);
+
+        for (size_t i = 0; i < old_size_; i++) {
+
+            if (old_table_keys[i] != empty_key && old_table_keys[i] != deleted_key) insert(old_table_keys[i], old_table_values[i]);
+        }
+
+        delete[] old_table_keys;
+        //free(old_table_keys);
+
+        delete[] old_table_values;
+    }
+
+    iterator find(const Kmer& key) {
+
+        const size_t end_table = size_-1;
+
+        size_t h = key.hash() & end_table;
+        const size_t end_h = (h-1) & end_table;
+
+        /*#if defined(__AVX2__)
+
+        const __m256i key_val256 = _mm256_set1_epi64x(key.longs[0]);
+
+        for (; h <= end_table - 4; h += 4){
+
+            const __m256i table_val256 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(&table_keys[h]));
+
+            const uint32_t pos = static_cast<uint32_t>(_mm256_movemask_epi8(_mm256_cmpeq_epi64(key_val256, table_val256)));
+
+            if (pos != 0) return iterator(this, h + ((pos >> 15) & 0x1) + (((pos >> 23) & 0x1) << 1) + (pos >> 30));
+            if (_mm256_movemask_epi8(_mm256_cmpeq_epi64(_mm_empty_key, table_val256)) != 0) return iterator(this);
+        }
+
+        #endif*/
+
+        for (; h != end_h; h = (h+1) & end_table) {
+
+            if ((table_keys[h] == empty_key) || (table_keys[h] == key)) break;
+        }
+
+        if ((h != end_h) && (table_keys[h] == key)) return iterator(this, h);
+
+        return iterator(this);
+    }
+
+    const_iterator find(const Kmer& key) const {
+
+        const size_t end_table = size_-1;
+
+        size_t h = key.hash() & end_table;
+        const size_t end_h = (h-1) & end_table;
+
+        /*#if defined(__AVX2__)
+
+        const __m256i key_val256 = _mm256_set1_epi64x(key.longs[0]);
+
+        for (; h <= end_table - 4; h += 4){
+
+            const __m256i table_val256 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(&table_keys[h]));
+
+            const uint32_t pos = static_cast<uint32_t>(_mm256_movemask_epi8(_mm256_cmpeq_epi64(key_val256, table_val256)));
+
+            if (pos != 0) return const_iterator(this, h + ((pos >> 15) & 0x1) + (((pos >> 23) & 0x1) << 1) + (pos >> 30));
+            if (_mm256_movemask_epi8(_mm256_cmpeq_epi64(_mm_empty_key, table_val256)) != 0) return const_iterator(this);
+        }
+
+        #endif*/
+
+        for (; h != end_h; h = (h+1) & end_table) {
+
+            if ((table_keys[h] == empty_key) || (table_keys[h] == key)) break;
+        }
+
+        if ((h != end_h) && (table_keys[h] == key)) return const_iterator(this, h);
+
+        return const_iterator(this);
+    }
+
+    iterator find(const size_t h) {
+
+        if ((h < size_) && (table_keys[h] != empty_key) && (table_keys[h] != deleted_key)) return iterator(this, h);
+        return iterator(this);
+    }
+
+    const_iterator find(const size_t h) const {
+
+        if ((h < size_) && (table_keys[h] != empty_key) && (table_keys[h] != deleted_key)) return const_iterator(this, h);
+        return const_iterator(this);
+    }
+
+    iterator erase(const_iterator pos) {
+
+        if (pos == end()) return end();
+
+        table_keys[pos.h] = deleted_key;
+        --pop;
+
+        return ++iterator(this, pos.h); // return pointer to next element
+    }
+
+    size_t erase(const Kmer& minz) {
+
+        const_iterator pos = find(minz);
+
+        size_t oldpop = pop;
+
+        if (pos != end()) erase(pos);
+
+        return oldpop - pop;
+    }
+
+    std::pair<iterator, bool> insert(const Kmer& key, const T& value) {
+
+        if ((5 * num_empty) < size_) reserve(2 * size_); // if more than 80% full, resize
+
+        bool is_deleted = false;
+
+        const size_t end_table = size_-1;
+
+        for (size_t h = key.hash() & (size_-1), h_tmp;; h = (h+1) & end_table) {
+
+            if (table_keys[h] == empty_key) {
+
+                is_deleted ? h = h_tmp : --num_empty;
+
+                table_keys[h] = key;
+                table_values[h] = value;
+
+                ++pop;
+
+                return {iterator(this, h), true};
+            }
+            else if (table_keys[h] == key) return {iterator(this, h), false};
+            else if (!is_deleted && (table_keys[h] == deleted_key)) {
+
+                is_deleted = true;
+                h_tmp = h;
+            }
+        }
+    }
+
+    size_t rndup(size_t v) {
+
+        v--;
+        v |= v >> 1;
+        v |= v >> 2;
+        v |= v >> 4;
+        v |= v >> 8;
+        v |= v >> 16;
+        v |= v >> 32;
+        v++;
+
+        return v;
+    }
+
+    iterator begin() {
+
+        iterator it(this);
+        it.find_first();
+        return it;
+    }
+
+    const_iterator begin() const {
+
+        const_iterator it(this);
+        it.find_first();
+        return it;
+    }
+
+    iterator end() { return iterator(this); }
+
+    const_iterator end() const { return const_iterator(this); }
+};
+
+template<typename T>
+struct MinimizerHashTable {
+
+    size_t size_, pop, num_empty;
+
+    Minimizer* table_keys;
+    T* table_values;
+
+    Minimizer empty_key;
+    Minimizer deleted_key;
+
+    /*#if defined(__AVX2__)
+    __m256i _mm_empty_key;
+    #endif*/
+
+// ---- iterator ----
+    template<bool is_const = true>
+    class iterator_ : public std::iterator<std::forward_iterator_tag, T> {
+
+        public:
+
+            typedef typename std::conditional<is_const, const MinimizerHashTable *, MinimizerHashTable *>::type MHT_ptr_t;
+            typedef typename std::conditional<is_const, const T&, T&>::type MHT_val_ref_t;
+            typedef typename std::conditional<is_const, const T*, T*>::type MHT_val_ptr_t;
+
+            MHT_ptr_t ht;
+            size_t h;
+
+            iterator_() : ht(nullptr), h(0) {}
+            iterator_(MHT_ptr_t ht_) : ht(ht_), h(ht_->size_) {}
+            iterator_(MHT_ptr_t ht_, size_t h_) :  ht(ht_), h(h_) {}
+            iterator_(const iterator_<false>& o) : ht(o.ht), h(o.h) {}
+            iterator_& operator=(const iterator_& o) { ht=o.ht; h=o.h; return *this; }
+
+            MHT_val_ref_t operator*() const { return ht->table_values[h]; }
+            MHT_val_ptr_t operator->() const { return &(ht->table_values[h]); }
+
+            const Minimizer& getKey() const { return ht->table_keys[h]; }
+
+            size_t getHash() const { return h; }
+
+            void find_first() {
+
+                h = 0;
+
+                if ((ht != nullptr) && (ht->size_ > 0) &&
+                    ((ht->table_keys[h] == ht->empty_key) || (ht->table_keys[h] == ht->deleted_key))) operator++();
+            }
+
+            iterator_ operator++(int) {
+
+                const iterator_ tmp(*this);
+                operator++();
+                return tmp;
+            }
+
+            iterator_& operator++() {
+
+                if (h == ht->size_) return *this;
+
+                ++h;
+
+                for (; h < ht->size_; ++h) {
+
+                    if ((ht->table_keys[h] != ht->empty_key) && (ht->table_keys[h] != ht->deleted_key)) break;
+                }
+
+                return *this;
+            }
+
+            bool operator==(const iterator_ &o) const { return (ht == o.ht) && (h == o.h); }
+            bool operator!=(const iterator_ &o) const { return (ht != o.ht) || (h != o.h); }
+            friend class iterator_<true>;
+        };
+
+    typedef iterator_<true> const_iterator;
+    typedef iterator_<false> iterator;
+
+    // --- hash table
+    MinimizerHashTable() : table_keys(nullptr), table_values(nullptr), size_(0), pop(0), num_empty(0) {
+
+        empty_key.set_empty();
+        deleted_key.set_deleted();
+
+        init_tables(1024);
+
+        /*#if defined(__AVX2__)
+        _mm_empty_key = _mm256_set1_epi64x(empty_key.longs[0]);
+        #endif*/
+    }
+
+    MinimizerHashTable(size_t sz) : table_keys(nullptr), table_values(nullptr), size_(0), pop(0), num_empty(0) {
+
+        empty_key.set_empty();
+        deleted_key.set_deleted();
+
+        init_tables((size_t) (1.2 * sz));
+
+        /*#if defined(__AVX2__)
+        _mm_empty_key = _mm256_set1_epi64x(empty_key.longs[0]);
+        #endif*/
+    }
+
+    MinimizerHashTable(MinimizerHashTable&& o){
+
+        size_ = o.size_;
+        pop = o.pop;
+        num_empty = o.num_empty;
+
+        empty_key = o.empty_key;
+        deleted_key = o.deleted_key;
+
+        table_keys = o.table_keys;
+        table_values = o.table_values;
+
+        /*#if defined(__AVX2__)
+        _mm_empty_key = o._mm_empty_key;
+        #endif*/
+
+        o.table_keys = nullptr;
+        o.table_values = nullptr;
+
+        o.clear_tables();
+    }
+
+    MinimizerHashTable& operator=(MinimizerHashTable&& o){
+
+        if (this != &o) {
+
+            clear_tables();
+
+            size_ = o.size_;
+            pop = o.pop;
+            num_empty = o.num_empty;
+
+            empty_key = o.empty_key;
+            deleted_key = o.deleted_key;
+
+            table_keys = o.table_keys;
+            table_values = o.table_values;
+
+            /*#if defined(__AVX2__)
+            _mm_empty_key = o._mm_empty_key;
+            #endif*/
+
+            o.table_keys = nullptr;
+            o.table_values = nullptr;
+
+            o.clear_tables();
+        }
+
+        return *this;
+    }
+
+    ~MinimizerHashTable() { clear_tables(); }
+
+    size_t size() const { return pop; }
+
+    bool empty() const { return pop == 0; }
+
+    void clear() {
+
+        std::fill(table_keys, table_keys + size_, empty_key);
+
+        pop = 0;
+        num_empty = size_;
+    }
+
+    void clear_tables() {
+
+        if (table_keys != nullptr) {
+
+            delete[] table_keys;
+            //free(table_keys);
+
+            table_keys = nullptr;
+        }
+
+        if (table_values != nullptr) {
+
+            delete[] table_values;
+            table_values = nullptr;
+        }
+
+        size_ = 0;
+        pop  = 0;
+        num_empty = 0;
+    }
+
+    void init_tables(size_t sz) {
+
+        clear_tables();
+
+        size_ = rndup(sz);
+
+        table_keys = new Minimizer[size_];
+        //posix_memalign((void**)&table_keys, 32, size_ * sizeof(Minimizer));
+
+        table_values = new T[size_];
+
+        clear();
+    }
+
+    void reserve(size_t sz) {
+
+        if (sz <= size_) return;
+
+        Minimizer* old_table_keys = table_keys;
+        T* old_table_values = table_values;
+
+        size_t old_size_ = size_;
+
+        size_ = rndup(sz);
+        pop = 0;
+        num_empty = size_;
+
+        table_keys = new Minimizer[size_];
+        //posix_memalign((void**)&table_keys, 32, size_ * sizeof(Minimizer));
+
+        table_values = new T[size_];
+
+        std::fill(table_keys, table_keys + size_, empty_key);
+
+        for (size_t i = 0; i < old_size_; i++) {
+
+            if (old_table_keys[i] != empty_key && old_table_keys[i] != deleted_key) insert(old_table_keys[i], old_table_values[i]);
+        }
+
+        delete[] old_table_keys;
+        //free(old_table_keys);
+
+        delete[] old_table_values;
+    }
+
+    iterator find(const Minimizer& key) {
+
+        const size_t end_table = size_-1;
+
+        size_t h = key.hash() & end_table;
+        const size_t end_h = (h-1) & end_table;
+
+        /*#if defined(__AVX2__)
+
+        const __m256i key_val256 = _mm256_set1_epi64x(key.longs[0]);
+
+        for (; h <= end_table - 4; h += 4){
+
+            const __m256i table_val256 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(&table_keys[h]));
+
+            const uint32_t pos = static_cast<uint32_t>(_mm256_movemask_epi8(_mm256_cmpeq_epi64(key_val256, table_val256)));
+
+            if (pos != 0) return iterator(this, h + ((pos >> 15) & 0x1) + (((pos >> 23) & 0x1) << 1) + (pos >> 30));
+            if (_mm256_movemask_epi8(_mm256_cmpeq_epi64(_mm_empty_key, table_val256)) != 0) return iterator(this);
+        }
+
+        #endif*/
+
+        for (; h != end_h; h = (h+1) & end_table) {
+
+            if ((table_keys[h] == empty_key) || (table_keys[h] == key)) break;
+        }
+
+        if ((h != end_h) && (table_keys[h] == key)) return iterator(this, h);
+
+        return iterator(this);
+    }
+
+    const_iterator find(const Minimizer& key) const {
+
+        const size_t end_table = size_-1;
+
+        size_t h = key.hash() & end_table;
+        const size_t end_h = (h-1) & end_table;
+
+        /*#if defined(__AVX2__)
+
+        const __m256i key_val256 = _mm256_set1_epi64x(key.longs[0]);
+
+        for (; h <= end_table - 4; h += 4){
+
+            const __m256i table_val256 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(&table_keys[h]));
+
+            const uint32_t pos = static_cast<uint32_t>(_mm256_movemask_epi8(_mm256_cmpeq_epi64(key_val256, table_val256)));
+
+            if (pos != 0) return const_iterator(this, h + ((pos >> 15) & 0x1) + (((pos >> 23) & 0x1) << 1) + (pos >> 30));
+            if (_mm256_movemask_epi8(_mm256_cmpeq_epi64(_mm_empty_key, table_val256)) != 0) return const_iterator(this);
+        }
+
+        #endif*/
+
+        for (; h != end_h; h = (h+1) & end_table) {
+
+            if ((table_keys[h] == empty_key) || (table_keys[h] == key)) break;
+        }
+
+        if ((h != end_h) && (table_keys[h] == key)) return const_iterator(this, h);
+
+        return const_iterator(this);
+    }
+
+    iterator find(const size_t h) {
+
+        if ((h < size_) && (table_keys[h] != empty_key) && (table_keys[h] != deleted_key)) return iterator(this, h);
+        return iterator(this);
+    }
+
+    const_iterator find(const size_t h) const {
+
+        if ((h < size_) && (table_keys[h] != empty_key) && (table_keys[h] != deleted_key)) return const_iterator(this, h);
+        return const_iterator(this);
+    }
+
+    iterator erase(const_iterator pos) {
+
+        if (pos == end()) return end();
+
+        table_keys[pos.h] = deleted_key;
+        --pop;
+
+        return ++iterator(this, pos.h); // return pointer to next element
+    }
+
+    size_t erase(const Minimizer& minz) {
+
+        const_iterator pos = find(minz);
+
+        size_t oldpop = pop;
+
+        if (pos != end()) erase(pos);
+
+        return oldpop - pop;
+    }
+
+    std::pair<iterator, bool> insert(const Minimizer& key, const T& value) {
+
+        if ((5 * num_empty) < size_) reserve(2 * size_); // if more than 80% full, resize
+
+        bool is_deleted = false;
+
+        const size_t end_table = size_-1;
+
+        for (size_t h = key.hash() & (size_-1), h_tmp;; h = (h+1) & end_table) {
+
+            if (table_keys[h] == empty_key) {
+
+                is_deleted ? h = h_tmp : --num_empty;
+
+                table_keys[h] = key;
+                table_values[h] = value;
+
+                ++pop;
+
+                return {iterator(this, h), true};
+            }
+            else if (table_keys[h] == key) return {iterator(this, h), false};
+            else if (!is_deleted && (table_keys[h] == deleted_key)) {
+
+                is_deleted = true;
+                h_tmp = h;
+            }
+        }
+    }
+
+    size_t rndup(size_t v) {
+
+        v--;
+        v |= v >> 1;
+        v |= v >> 2;
+        v |= v >> 4;
+        v |= v >> 8;
+        v |= v >> 16;
+        v |= v >> 32;
+        v++;
+
+        return v;
+    }
+
+    iterator begin() {
+
+        iterator it(this);
+        it.find_first();
+        return it;
+    }
+
+    const_iterator begin() const {
+
+        const_iterator it(this);
+        it.find_first();
+        return it;
+    }
+
+    iterator end() { return iterator(this); }
+
+    const_iterator end() const { return const_iterator(this); }
 };
 
 #endif // KALLISTO_KMERHASHTABLE_H

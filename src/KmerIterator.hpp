@@ -72,14 +72,12 @@ class KmerHashIterator {
 
             ++(p_.second); // advance to next k-mer
 
-            if (p_.second >= n - k + 1/* || s[p_.second + k - 1] == '\0'*/) { // out of bounds
+            if (p_.second >= n - k + 1) { // out of bounds
 
                 invalid = true;
                 p_ = std::make_pair(0,-1);
                 return *this;
             }
-
-            char c, c_twin;
 
             int j = p_.second + k - 1;
 
@@ -87,14 +85,14 @@ class KmerHashIterator {
 
                 while (j >= p_.second) {
 
-                    c = s[j] & 0xDF; // mask lowercase bit
+                    const char c = s[j] & 0xDF; // mask lowercase bit
 
                     if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) j--;
                     else {
 
                         p_.second += j - p_.second + 1;
 
-                        if (p_.second >= n - k + 1/* || s[p_.second + k - 1] == '\0'*/) { // out of bounds
+                        if (p_.second >= n - k + 1) { // out of bounds
 
                             invalid = true;
                             p_ = std::make_pair(0,-1);
@@ -109,14 +107,14 @@ class KmerHashIterator {
             }
             else {
 
-                c = s[j] & 0xDF; // mask lowercase bit
+                char c = s[j] & 0xDF; // mask lowercase bit
 
                 if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) hf.update(s[j-k], s[j]);
                 else {
 
                     p_.second += k;
 
-                    if (p_.second >= n - k + 1/* || s[p_.second + k - 1] == '\0'*/) { // out of bounds
+                    if (p_.second >= n - k + 1) { // out of bounds
 
                         invalid = true;
                         p_ = std::make_pair(0,-1);
@@ -134,7 +132,7 @@ class KmerHashIterator {
 
                             p_.second += j - p_.second + 1;
 
-                            if (p_.second >= n - k + 1/* || s[p_.second + k - 1] == '\0'*/) { // out of bounds
+                            if (p_.second >= n - k + 1) { // out of bounds
 
                                 invalid = true;
                                 p_ = std::make_pair(0,-1);

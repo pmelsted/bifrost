@@ -397,6 +397,13 @@ void CompressedSequence::toString(char *s, const size_t offset, const size_t len
     s[length] = 0; // 0-terminated string
 }
 
+char CompressedSequence::getChar(const size_t offset) const {
+
+    assert(offset < size());
+
+    return bases[(getPointer()[offset >> 2] >> ((offset & 0x3) << 1)) & 0x03];
+}
+
 Kmer CompressedSequence::getKmer(const size_t offset) const {
 
     Kmer km;
@@ -449,7 +456,7 @@ Kmer CompressedSequence::getKmer(const size_t offset) const {
     return km;
 }
 
-bool CompressedSequence::compareKmer(const size_t offset, const Kmer& km) const {
+/*bool CompressedSequence::compareKmer(const size_t offset, const Kmer& km) const {
 
     const unsigned char* data = getPointer();
 
@@ -486,6 +493,54 @@ bool CompressedSequence::compareKmer(const size_t offset, const Kmer& km) const 
 
             uint64_t tmp_km = km.longs[j];
             const size_t end = len < i + 32 ? len : i + 32;
+
+            for (; i != end; i++, tmp_km <<= 2, tmp_data >>= 2){
+
+                if ((i & 0x3) == 0) tmp_data = static_cast<uint64_t>(data[i >> 2]);
+                if ((tmp_data & 0x3) != (tmp_km >> 62)) return false;
+            }
+        }
+    }
+
+    return true;
+}*/
+
+bool CompressedSequence::compareKmer(const size_t offset, const size_t length, const Kmer& km) const {
+
+    const unsigned char* data = getPointer();
+    const size_t pos_end = offset + length;
+
+    if ((length > Kmer::k) || (pos_end > size())) return false;
+
+    if ((offset & 0x3) == 0){ // Comparison byte to byte is possible
+
+        const size_t nbytes = (length + 3) / 4;
+
+        size_t i = offset >> 2, j = 0;
+
+        for (; j < nbytes - 1; i++, j++){
+
+            if (data[i] != revBits[km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)]]) return false;
+        }
+
+        unsigned char tmp_km = km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)];
+        unsigned char tmp_data = data[i];
+
+        for (i <<= 2; i < pos_end; i++, tmp_km <<= 2, tmp_data >>= 2){
+
+            if ((tmp_data & 0x3) != (tmp_km >> 6)) return false;
+        }
+    }
+    else { //Comparison 2 bits per 2 bits
+
+        const size_t nlongs = (length + 31) / 32;
+
+        uint64_t tmp_data = static_cast<uint64_t>(data[offset >> 2] >> ((offset & 0x3) << 1));
+
+        for (size_t i = offset, j = 0; j < nlongs; j++){
+
+            uint64_t tmp_km = km.longs[j];
+            const size_t end = pos_end < i + 32 ? pos_end : i + 32;
 
             for (; i != end; i++, tmp_km <<= 2, tmp_data >>= 2){
 

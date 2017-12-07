@@ -43,12 +43,14 @@ class CompressedSequence {
         string toString(const size_t offset, const size_t length) const;
 
 
-        inline string toString() const { return toString(0,size()); }
-        inline void toString(char *s) const { toString(s,0,size()); }
+        inline string toString() const { return toString(0, size()); }
+        inline void toString(char *s) const { toString(s, 0, size()); }
 
         Kmer getKmer(size_t offset) const;
+        char getChar(const size_t offset) const;
 
-        bool compareKmer(const size_t offset, const Kmer& km) const;
+        //bool compareKmer(const size_t offset, const Kmer& km) const;
+        bool compareKmer(const size_t offset, const size_t length, const Kmer& km) const;
 
         //  void setSequence(const CompressedSequence &o, size_t length, size_t offset = 0, bool reversed=false);
         void setSequence(const CompressedSequence& o, const size_t start, const size_t length, const size_t offset = 0, const bool reversed = false);

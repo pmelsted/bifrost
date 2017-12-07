@@ -17,138 +17,110 @@ static const uint64_t hvals[4] = {
     10060236952204337488ULL, 7783083932390163561ULL
 };
 
-/**
-
- **/
 class RepHash {
-public:
 
-  RepHash(int _k) : k(_k) //, charmask (31)
-  {
-    k = k & 63;
-    seed(0);
-  }
+    public:
 
-  RepHash() : k(0) //, charmask(31)
-  {
-    seed(0);
-  }
+        RepHash(int _k) : k(_k) { k = k & 63; }
 
-  void seed(int s) {}
+        RepHash() : k(0) {}
 
+        inline void fastleftshiftk(uint64_t& x) { x = (x << k) | (x >> (64-k)); }
 
-  inline void fastleftshiftk(uint64_t& x) {
-    x = (x << k) | (x >> (64-k));
-  }
+        inline void fastrightshiftk(uint64_t& x) { x = (x >> k) | (x << (64-k)); }
 
-  inline void fastrightshiftk(uint64_t& x) {
-    x = (x >> k) | (x << (64-k));
-  }
+        inline void fastleftshift1(uint64_t& x) { x = (x << 1) | (x >> 63); }
 
-  inline void fastleftshift1(uint64_t& x) {
-    x = (x << 1) | (x >> 63);
-  }
+        inline void fastrightshift1(uint64_t& x) { x = (x >> 1) | (x << 63); }
 
-  inline void fastrightshift1(uint64_t& x) {
-    x = (x >> 1) | (x << 63);
-  }
+        inline uint64_t hash() const { return (h ^ ht); }
 
-  inline uint64_t hash() const {
-    return (h ^ ht);
-  }
+        // hash of _s[0:k]
+        void init(const char* _s) {
 
-  // hash of _s[0:k]
-  void init(const char* _s) {
-    h = uint64_t(0);
-    ht = uint64_t(0);
-    const unsigned char* s = (const unsigned char*) _s;
-    for (size_t i = 0; i < k; i++) {
-      fastleftshift1(h);
-      uint64_t hval = hvals[charmask(s[i])];
-      h ^= hval;
+            h = 0;
+            ht = 0;
 
-      fastleftshift1(ht);
-      uint64_t hvalt = hvals[twinmask(s[k-1-i])];
-      ht ^= hvalt;
-    }
-  }
+            const unsigned char* s = (const unsigned char*) _s;
 
-  // hash of s[1:]+in where s[0] == out
-  inline void update(const unsigned char out, const unsigned char in) {
-    uint64_t z(hvals[charmask(out)]);
-    fastleftshiftk(z);
-    fastleftshift1(h);
-    uint64_t hval(hvals[charmask(in)]);
-    h ^= z;
-    h ^= hval;
+            for (size_t i = 0; i < k; ++i) {
 
-    uint64_t zt(hvals[twinmask(in)]);
-    fastleftshiftk(zt);
-    uint64_t hvalt(hvals[twinmask(out)]);
-    ht ^= hvalt;
-    ht ^= zt;
-    fastrightshift1(ht);
-  }
+                fastleftshift1(h);
 
-  // hash of s+fw
-  inline void extendFW(const unsigned char fw) {
-    // update h, h(a[0.k]) = p(a[k]) + x*h(a[0..k-1])
-    uint64_t hval(hvals[charmask(fw)]);
-    fastleftshift1(h);
-    h ^= hval;
+                h ^= hvals[charmask(s[i])];
 
-    // update ht, ht(a[0..k]) = p(~a[k])*x^k + ht(a[0..k-1])
-    uint64_t hvalt(hvals[twinmask(fw)]);
-    fastleftshiftk(hvalt);
-    ht ^= hvalt;
+                fastleftshift1(ht);
 
-    // extend k by 1
-    increaseK();
-  }
+                ht ^= hvals[twinmask(s[k-1-i])];
+            }
+        }
 
-  inline void increaseK() {
-    k = (k+1) & 63; // 64 -> 0
-  }
+        // hash of s[1:]+in where s[0] == out
+        inline void update(const unsigned char out, const unsigned char in) {
 
-  void setK(int _k) {
-    h = 0;
-    ht = 0;
-    k = _k;
+            uint64_t z(hvals[charmask(out)]);
+            uint64_t zt(hvals[twinmask(in)]);
 
-  }
+            fastleftshiftk(z);
+            fastleftshiftk(zt);
 
-  // hash of bw+s
-  inline void extendBW(const unsigned char bw) {
-    // update h, h(a[-1..k-1]) = p(a[-1])*x^k + h(a[0..k-1])
-    uint64_t hval(hvals[charmask(bw)]);
-    fastleftshiftk(hval);
-    h ^= hval;
+            fastleftshift1(h);
 
-    // update ht, ht(a[-1..k-1]) = p(~a[-1]) + x * ht(a[0..k-1])
-    uint64_t hvalt(hvals[twinmask(bw)]);
-    fastleftshift1(ht);
-    ht ^= hvalt;
+            h ^= z;
+            h ^= hvals[charmask(in)];
 
-    // extend k by 1
-    increaseK();
-  }
+            ht ^= zt;
+            ht ^= hvals[twinmask(out)];
 
+            fastrightshift1(ht);
+        }
 
-  inline uint64_t charmask(unsigned char x) {
-    return (x&6)>>1;
-  }
+        // hash of s+fw
+        inline void extendFW(const unsigned char fw) {
 
-  inline uint64_t twinmask(unsigned char x) {
-    return ((x^4)&6)>>1;
-  }
+            // update h, h(a[0.k]) = p(a[k]) + x*h(a[0..k-1])
+            fastleftshift1(h);
+            h ^= hvals[charmask(fw)];
 
-private:
-  size_t k;
-    //unsigned char charmask;
-  uint64_t h,ht;
+            // update ht, ht(a[0..k]) = p(~a[k])*x^k + ht(a[0..k-1])
+            uint64_t hvalt(hvals[twinmask(fw)]);
+
+            fastleftshiftk(hvalt);
+            ht ^= hvalt;
+
+            // extend k by 1
+            increaseK();
+        }
+
+        // hash of bw+s
+        inline void extendBW(const unsigned char bw) {
+
+            // update h, h(a[-1..k-1]) = p(a[-1])*x^k + h(a[0..k-1])
+            uint64_t hval(hvals[charmask(bw)]);
+
+            fastleftshiftk(hval);
+            h ^= hval;
+
+            // update ht, ht(a[-1..k-1]) = p(~a[-1]) + x * ht(a[0..k-1])
+            fastleftshift1(ht);
+            ht ^= hvals[twinmask(bw)];
+
+            // extend k by 1
+            increaseK();
+        }
+
+        inline void increaseK() { k = (k+1) & 63; }
+
+        inline void setK(const int _k) { h = 0; ht = 0; k = _k; }
+
+        inline uint64_t charmask (const unsigned char x) const { return (x & 6) >> 1; }
+
+        inline uint64_t twinmask (const unsigned char x) const { return ((x ^ 4) & 6) >> 1; }
+
+    private:
+
+        size_t k;
+        uint64_t h, ht;
 };
-
-
-
 
 #endif // KALLISTO_REPHASH_H
