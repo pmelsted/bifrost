@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <cstdio>
 #include <functional>
 #include <getopt.h>
 #include <iostream>
@@ -59,8 +60,8 @@ using namespace std;
 * Members CDBG_Build_opt::k and CDBG_Build_opt::g are not used by the function CompactedDBG<T>::build
 * as they must be set in the constructor of the graph. Members CDBG_Build_opt::clipTips and
 * CDBG_Build_opt::deleteIsolated are not used by the function CompactedDBG<T>::build as they are
-* parameters of function CompactedDBG<T>::simplify. Members CDBG_Build_opt::prefixFilenameGFA and
-* CDBG_Build_opt::filenameGFA are not used by CompactedDBG<T>::build but by CompactedDBG<T>::write.
+* parameters of function CompactedDBG<T>::simplify. Members CDBG_Build_opt::prefixFilenameOut and
+* CDBG_Build_opt::filenameOut are not used by CompactedDBG<T>::build but by CompactedDBG<T>::write.
 * An example of using such a structure is shown in src/Bifrost.cpp.
 * @var CDBG_Build_opt::reference_mode
 * Reference mode, input are assembled genomes (no filtering step) if true, reads otherwise.
@@ -70,6 +71,8 @@ using namespace std;
 * Clip short (length < 2k) tips of the graph (not used by CompactedDBG<T>::build).
 * @var CDBG_Build_opt::deleteIsolated
 * Remove short (length < 2k) isolated unitigs of the graph (not used by CompactedDBG<T>::build).
+* @var CDBG_Build_opt::useMercyKmers
+* Keep in the graph low coverage k-mers connecting tips of the graph.
 * @var CDBG_Build_opt::k
 * Length of k-mers (not used by CompactedDBG<T>::build).
 * @var CDBG_Build_opt::g
@@ -92,9 +95,9 @@ using namespace std;
 * @var CDBG_Build_opt::nb_bits_non_unique_kmers_bf
 * Number of Bloom filter bits per k-mer occurring at least twice in the FASTA/FASTQ files of
 * CDBG_Build_opt::fastx_filename_in.
-* @var CDBG_Build_opt::prefixFilenameGFA
+* @var CDBG_Build_opt::prefixFilenameOut
 * Name of the file to which the graph must be written (not used by CompactedDBG<T>::build).
-* @var CDBG_Build_opt::filenameGFA
+* @var CDBG_Build_opt::filenameOut
 * Name of the file to which the graph must be written + extension ".gfa". Set by CompactedDBG<T>::write
 * (not used by CompactedDBG<T>::build).
 * @var CDBG_Build_opt::inFilenameBBF
@@ -130,15 +133,20 @@ struct CDBG_Build_opt {
     // such as CompactedDBG<T>::simplify or CompactedDBG<T>::write.
 
     size_t k, g;
+
     bool clipTips;
     bool deleteIsolated;
+    bool useMercyKmers;
 
-    string prefixFilenameGFA;
-    string filenameGFA;
+    bool outputGFA;
+
+    string prefixFilenameOut;
+    string filenameOut;
 
     CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(DEFAULT_G), nb_unique_kmers(0), nb_non_unique_kmers(0), nb_bits_unique_kmers_bf(14),
                         nb_bits_non_unique_kmers_bf(14), read_chunksize(10000), unitig_size(1000000), reference_mode(false),
-                        verbose(false), clipTips(false), deleteIsolated(false), inFilenameBBF(""), outFilenameBBF("") {}
+                        verbose(false), clipTips(false), deleteIsolated(false), useMercyKmers(false), outputGFA(true), inFilenameBBF(""),
+                        outFilenameBBF("") {}
 };
 
 /** @class CDBG_Data_t
@@ -169,7 +177,7 @@ class CDBG_Data_t {
         * @param new_data is an new (empty) object that you can fill in with new data.
         * @param cdbg is the compacted de Bruijn graph from which the current object is from.
         */
-        virtual void split(const size_t pos, const size_t len, T& new_data, CompactedDBG<T>& cdbg) const;
+        virtual void split(const size_t pos, const size_t len, T& new_data, CompactedDBG<T>& cdbg) const = 0;
 };
 
 /** @class CompactedDBG
@@ -189,7 +197,7 @@ class CDBG_Data_t {
 template<typename T = void>
 class CompactedDBG {
 
-    static_assert(is_base_of<CDBG_Data_t<T>, T>::value || is_void<T>::value,
+    static_assert(is_void<T>::value || is_base_of<CDBG_Data_t<T>, T>::value,
                   "Type of data associated with vertices of class CompactedDBG must be void (no data) or a class extending class CDBG_Data_t");
 
     private:
@@ -231,7 +239,7 @@ class CompactedDBG {
         typedef unitigIterator<T, true> const_iterator; /**< A constant iterator for the unitigs of the graph. No specific order is assumed. */
 
         CompactedDBG(int kmer_length = DEFAULT_K, int minimizer_length = DEFAULT_G);
-        ~CompactedDBG();
+        virtual ~CompactedDBG();
 
         void clear();
         void empty();
@@ -248,7 +256,7 @@ class CompactedDBG {
 
         bool build(const CDBG_Build_opt& opt);
         bool simplify(const bool delete_short_isolated_unitigs = true, const bool clip_short_tips = true, const bool verbose = false);
-        bool write(const string output_filename, const size_t nb_threads = 1, const bool verbose = false);
+        bool write(const string output_filename, const size_t nb_threads = 1, const bool GFA_output = true, const bool verbose = false);
 
         UnitigMap<T> find(const Kmer& km, const bool extremities_only = false);
 
@@ -264,7 +272,6 @@ class CompactedDBG {
     private:
 
         bool join(const UnitigMap<T>& um, const bool verbose);
-
         bool join(const bool verbose);
 
         bool filter(const CDBG_Build_opt& opt);
@@ -295,17 +302,21 @@ class CompactedDBG {
         }
 
         pair<size_t, size_t> splitAllUnitigs();
-        size_t joinAllUnitigs(vector<Kmer>* v_joins = nullptr, const size_t nb_threads = 1);
+        size_t joinUnitigs(vector<Kmer>* v_joins = nullptr, const size_t nb_threads = 1);
 
         bool checkJoin(const Kmer& a, const UnitigMap<T>& cm_a, Kmer& b);
         void check_fp_tips(KmerHashTable<bool>& ignored_km_tips);
         size_t removeUnitigs(bool rmIsolated, bool clipTips, vector<Kmer>& v);
 
+        size_t joinTips(string filename_MBBF_uniq_kmers, const size_t nb_threads = 1, const bool verbose = false);
+        vector<Kmer> extractMercyKmers(BlockedBloomFilter& bf_uniq_km, const size_t nb_threads = 1, const bool verbose = false);
+
         void writeGFA(string graphfilename, const size_t nb_threads = 1);
+        void writeFASTA(string graphfilename);
+
         void mapRead(const UnitigMap<T>& cc);
 
-        size_t cstrMatch(const char* a, const char* b) const;
-        inline size_t stringMatch(const string& a, const string& b, size_t pos);
+        void print() const;
 };
 
 #include "CompactedDBG.tpp"

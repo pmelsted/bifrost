@@ -88,6 +88,7 @@ Parameters with no argument:
       --ref                Reference mode, no filtering
   -c, --clip-tips          Clip tips shorter than k k-mers in length
   -r, --rm-isolated        Delete isolated contigs shorter than k k-mers in length
+  -m, --keep-mercy         Keep low coverage k-mers connecting tips
   -v, --verbose            Print information messages during construction
 ```
 

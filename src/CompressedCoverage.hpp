@@ -55,16 +55,31 @@ class CompressedCoverage {
         size_t size() const;
         std::string toString() const; // for debugging
 
-        static const size_t size_limit = 28; // 56 bit array, 28 2-bit integers
-        static const size_t cov_full = 2;
+        static void setFullCoverage(size_t cov_max) {
+
+            if ((cov_max == 1) || (cov_max == 2)){
+
+                cov_full = cov_max;
+                localCoverageMask = 0;
+
+                for (size_t i = 0; i < size_limit; ++i) localCoverageMask = (localCoverageMask << 2) | cov_full;
+            }
+        }
+
+        inline static size_t getFullCoverage() { return cov_full; }
 
     private:
+
+        static const size_t size_limit = 28; // 56 bit array, 28 2-bit integers
 
         static const uintptr_t tagMask = 1; // local array bit
         static const uintptr_t fullMask = 2; // full bit
         static const uintptr_t sizeMask = 0xFC; // 0b11111100
-        static const uintptr_t localCoverageMask = 0xAAAAAAAAAAAAAA; // 0b10101010101010101010101010101010101010101010101010101010
         static const uintptr_t pointerMask = ~(tagMask | fullMask); // rest of bits
+
+        static size_t cov_full;
+
+        static uintptr_t localCoverageMask;
 
         inline size_t round_to_bytes(const size_t len) const { return (len + 3) / 4; }
 
@@ -88,7 +103,6 @@ template<typename T> struct CompressedCoverage_t {
     inline const T* getData() const { return &data; }
     inline T* getData() { return &data; }
     inline void setData(const T* const data_){ data = *data_; }
-    //inline void releaseData(T* const data){ delete data; }
 
     CompressedCoverage ccov;
     T data;
@@ -101,7 +115,6 @@ template<> struct CompressedCoverage_t<void> {
     inline const void* getData() const { return nullptr; }
     inline void* getData() { return nullptr; }
     inline void setData(const void* const data_){ return; }
-    //inline void releaseData(void* const data){ return; }
 
     CompressedCoverage ccov;
 };

@@ -41,13 +41,13 @@ int FastqFile::read_next(char *read, size_t *read_len, string &seq, size_t *seq_
         if (qual != NULL) memcpy(qual, kseq->qual.s, kseq->qual.l + 1); // 0-terminated string
 
         if (file_id != NULL) *file_id = file_no / 2;
-        else if (r == -1) {
+    }
+    else if (r == -1) {
 
-            open_next();
+        open_next();
 
-            if (fnit != fnames.end()) return read_next(read, read_len, seq, seq_len, file_id, qual);
-            else return -1;
-        }
+        if (fnit != fnames.end()) return read_next(read, read_len, seq, seq_len, file_id, qual);
+        else return -1;
     }
 
     return r;
@@ -58,19 +58,16 @@ int FastqFile::read_next(string &seq, size_t& id) {
 
     int r;
 
-    if ((r = kseq_read(kseq)) >= 0){
+    if ((r = kseq_read(kseq)) >= 0) seq.assign(kseq->seq.s);
+    else if (r == -1) {
 
-        seq.assign(kseq->seq.s);
+        open_next();
 
-        if (r == -1) {
+        if (fnit != fnames.end()){
 
-            open_next();
+            id = file_no;
 
-            if (fnit != fnames.end()){
-
-                id++;
-                return read_next(seq, id);
-            }
+            return read_next(seq, id);
         }
     }
 

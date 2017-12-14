@@ -619,7 +619,7 @@ size_t CompressedSequence::jump(const char *s, const size_t i, int pos, const bo
         int idx_div = pos >> 2;
         int idx_mod = (pos & 0x3) << 1;
 
-        for (; (s[i_cpy] != '\0') && (pos != -1); pos--, i_cpy++, idx_mod -= 2) {
+        for (; (s[i_cpy] != '\0') && (pos != -1); --pos, ++i_cpy, idx_mod -= 2) {
 
             if (idx_mod == -2){
                 idx_div--;
@@ -637,7 +637,7 @@ size_t CompressedSequence::jump(const char *s, const size_t i, int pos, const bo
 
         unsigned char tmp = data[pos >> 2] >> ((pos & 0x3) << 1);
 
-        for (; (s[i_cpy] != '\0') && (pos != cs_size); pos++, i_cpy++, tmp >>= 2) {
+        for (; (s[i_cpy] != '\0') && (pos != cs_size); ++pos, ++i_cpy, tmp >>= 2) {
 
             if ((pos & 0x3) == 0) tmp = data[pos >> 2];
             if (s[i_cpy] != bases[tmp & 0x3]) break;

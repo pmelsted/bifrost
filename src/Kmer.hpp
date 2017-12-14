@@ -49,8 +49,8 @@ class Kmer {
         bool operator==(const Kmer& o) const;
         bool operator!=(const Kmer& o) const;
 
-        inline uint64_t hash() const {
-            return (uint64_t)XXH64((const void *)bytes, MAX_K/4, 0);
+        inline uint64_t hash(const uint64_t seed = 0) const {
+            return (uint64_t)XXH64((const void *)bytes, MAX_K/4, seed);
         }
 
         Kmer twin() const;
@@ -133,9 +133,9 @@ class Minimizer {
 
         void set_minimizer(const char *s);
 
-        inline uint64_t hash() const {
+        inline uint64_t hash(const uint64_t seed = 0) const {
 
-            return (uint64_t)XXH64((const void *)bytes, MAX_G/4, 0);
+            return (uint64_t)XXH64((const void *)bytes, MAX_G/4, seed);
         }
 
         Minimizer twin() const;

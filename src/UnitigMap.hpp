@@ -72,6 +72,9 @@ struct UnitigMap {
     bool operator!=(const UnitigMap& o);
 
     string toString() const;
+    string reverseToString() const;
+
+    size_t lcp(const char* s, const size_t pos_s = 0, const size_t pos_um_seq = 0, const bool um_reversed = false) const;
 
     Kmer getHead() const;
     Kmer getTail() const;
@@ -79,6 +82,7 @@ struct UnitigMap {
     const T* getData() const;
     T* getData();
     void setData(const T* const data);
+
     void mergeData(const UnitigMap& um);
     Unitig<T> splitData(const size_t pos, const size_t len);
 

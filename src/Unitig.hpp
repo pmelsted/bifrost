@@ -50,7 +50,7 @@ class Unitig {
             __sync_add_and_fetch(&coveragesum, end - start + 1);
         }
 
-        size_t memory() const {
+        /*size_t memory() const {
 
             size_t m = sizeof(ccov) + sizeof(seq);
             const size_t numkmers = numKmers();
@@ -60,7 +60,7 @@ class Unitig {
             if (!seq.isShort()) m += ((seqlength + 3) / 4);
 
             return m;
-        }
+        }*/
 
         inline size_t numKmers() const { return seq.size( ) -Kmer::k + 1; }
         inline size_t length() const { return seq.size(); }
@@ -114,7 +114,7 @@ class Unitig<void> {
             __sync_add_and_fetch(&coveragesum,end - start + 1);
         }
 
-        size_t memory() const {
+        /*size_t memory() const {
 
             size_t m = sizeof(ccov) + sizeof(seq);
             const size_t numkmers = numKmers();
@@ -124,7 +124,7 @@ class Unitig<void> {
             if (!seq.isShort()) m += ((seqlength + 3) / 4);
 
             return m;
-        }
+        }*/
 
         inline size_t numKmers() const { return seq.size( ) - Kmer::k + 1; }
         inline size_t length() const { return seq.size(); }

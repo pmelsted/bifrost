@@ -37,10 +37,47 @@ template<typename T>
 string UnitigMap<T>::toString() const {
 
     if (isEmpty) return string();
-    else if (isShort) return cdbg->v_kmers[pos_unitig].first.toString();
-    //else if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig)->first.toString();
-    else if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey().toString();
-    else return cdbg->v_unitigs[pos_unitig]->seq.toString();
+    if (isShort) return cdbg->v_kmers[pos_unitig].first.toString();
+    if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey().toString();
+
+    return cdbg->v_unitigs[pos_unitig]->seq.toString();
+}
+
+/** Return a string containing the reverse-complement sequence of the mapped unitig.
+* @return a string containing the reverse-complement sequence of the mapped unitig or
+* an empty string if there is no mapping (UnitigMap<T>::isEmpty = true).
+*/
+template<typename T>
+string UnitigMap<T>::reverseToString() const {
+
+    if (isEmpty) return string();
+    if (isShort) return cdbg->v_kmers[pos_unitig].first.twin().toString();
+    if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey().twin().toString();
+
+    return cdbg->v_unitigs[pos_unitig]->seq.rev().toString();
+}
+
+template<typename T>
+size_t UnitigMap<T>::lcp(const char* s, const size_t pos_s, const size_t pos_um_seq, const bool um_reversed) const {
+
+    if (isEmpty || (pos_s >= strlen(s))) return 0;
+
+    if (isShort || isAbundant){
+
+        if (pos_um_seq >= Kmer::k) return 0;
+
+        char km_str[Kmer::k + 1];
+
+        const Kmer km = isShort ? cdbg->v_kmers[pos_unitig].first : cdbg->h_kmers_ccov.find(pos_unitig).getKey();
+
+        um_reversed ? km.twin().toString(km_str) : km.toString(km_str);
+
+        return cstrMatch(&s[pos_s], &km_str[pos_um_seq]);
+    }
+
+    if (pos_um_seq >= cdbg->v_unitigs[pos_unitig]->length()) return 0;
+
+    return cdbg->v_unitigs[pos_unitig]->seq.jump(s, pos_s, pos_um_seq, um_reversed);
 }
 
 /** Return the head k-mer of the mapped unitig.
@@ -53,9 +90,9 @@ Kmer UnitigMap<T>::getHead() const {
     if (!isEmpty){
 
         if (isShort) return cdbg->v_kmers[pos_unitig].first;
-        //else if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig)->first;
-        else if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey();
-        else return cdbg->v_unitigs[pos_unitig]->seq.getKmer(0);
+        if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey();
+
+        return cdbg->v_unitigs[pos_unitig]->seq.getKmer(0);
     }
 
     Kmer km;
@@ -75,9 +112,9 @@ Kmer UnitigMap<T>::getTail() const {
     if (!isEmpty){
 
         if (isShort) return cdbg->v_kmers[pos_unitig].first;
-        //else if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig)->first;
-        else if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey();
-        else return cdbg->v_unitigs[pos_unitig]->seq.getKmer(cdbg->v_unitigs[pos_unitig]->numKmers() - 1);
+        if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey();
+
+        return cdbg->v_unitigs[pos_unitig]->seq.getKmer(cdbg->v_unitigs[pos_unitig]->numKmers() - 1);
     }
 
     Kmer km;
@@ -96,20 +133,20 @@ template<typename T>
 const T* UnitigMap<T>::getData() const {
 
     if (isEmpty || !cdbg->has_data) return nullptr;
-    else if (isShort) return cdbg->v_kmers[pos_unitig].second.getData();
-    //else if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig)->second.getData();
-    else if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig)->getData();
-    else return cdbg->v_unitigs[pos_unitig]->getData();
+    if (isShort) return cdbg->v_kmers[pos_unitig].second.getData();
+    if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig)->getData();
+
+    return cdbg->v_unitigs[pos_unitig]->getData();
 }
 
 template<typename T>
 T* UnitigMap<T>::getData() {
 
     if (isEmpty || !cdbg->has_data) return nullptr;
-    else if (isShort) return cdbg->v_kmers[pos_unitig].second.getData();
-    //else if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig)->second.getData();
-    else if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig)->getData();
-    else return cdbg->v_unitigs[pos_unitig]->getData();
+    if (isShort) return cdbg->v_kmers[pos_unitig].second.getData();
+    if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig)->getData();
+
+    return cdbg->v_unitigs[pos_unitig]->getData();
 }
 
 /** Set the data associated with a mapped unitig. The function does not set anything if
@@ -124,7 +161,6 @@ void UnitigMap<T>::setData(const T* const data) {
         // Raise error message with cerr
     }
     else if (isShort) cdbg->v_kmers[pos_unitig].second.setData(data);
-    //else if (isAbundant) cdbg->h_kmers_ccov.find(pos_unitig)->second.setData(data);
     else if (isAbundant) cdbg->h_kmers_ccov.find(pos_unitig)->setData(data);
     else cdbg->v_unitigs[pos_unitig]->setData(data);
 }

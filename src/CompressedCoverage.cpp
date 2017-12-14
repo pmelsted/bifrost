@@ -231,10 +231,9 @@ void CompressedCoverage::cover(size_t start, size_t end) {
 
             val_tmp = val & 0x3;
 
-            if (val_tmp < 2) {
+            if (val_tmp < cov_full) {
 
-                val_tmp++;
-                val_tmp <<= start;
+                val_tmp = (val_tmp + 1) << start;
 
                 uintptr_t* change = &asBits;
                 uintptr_t oldval = asBits;
@@ -243,6 +242,8 @@ void CompressedCoverage::cover(size_t start, size_t end) {
                 while (!__sync_bool_compare_and_swap(change, oldval, newval)) {
 
                     oldval = *change;
+                    val_tmp = (oldval >> start) & 0x3;
+                    val_tmp = (val_tmp < cov_full ? val_tmp + 1 : val_tmp) << start;
                     newval = (oldval & ~s) | val_tmp;
                 }
             }
@@ -252,23 +253,50 @@ void CompressedCoverage::cover(size_t start, size_t end) {
     }
     else {
 
+        const uint8_t s = 0x3;
+        uint8_t* ptr = get8Pointer() + 8;
         size_t fillednow = 0;
-        uint8_t s(3); // 0b11
-        uint8_t *ptr = get8Pointer() + 8;
-        size_t val;
-        size_t index, pos;
+        size_t /*val,*/ index, pos;
 
-        for (; start <= end; start++) {
+        uint8_t val;
 
-            index = start >> 2;
-            pos = 2*(start & 0x03);
-            val = (ptr[index] & (s << pos)) >> pos;
+        for (; start <= end; ++start) {
 
-            if (val < 2) {
+            index = start >> 2; // start / 4
+            pos = 2 * (start & 0x3); // 2 * (start % 4)
+            val = (ptr[index] >> pos) & 0x3; //(ptr[index] & (s << pos)) >> pos;
 
-                val++;
+            if (val < cov_full) {
 
-                uint8_t *change = &ptr[index];
+                ++val;
+                if (val == cov_full) ++fillednow;
+                val <<= pos;
+
+                uint8_t* change = &ptr[index];
+                uint8_t oldval = ptr[index];
+                uint8_t newval = (oldval & ~(s << pos)) | val;
+
+                while (!__sync_bool_compare_and_swap(change, oldval, newval)) {
+
+                    oldval = *change;
+                    val = (oldval >> pos) & 0x3;
+
+                    if (val < cov_full) val = (val + 1) << pos;
+                    else {
+
+                        val <<= pos;
+                        --fillednow;
+                    }
+
+                    newval = (oldval & ~(s << pos)) | val;
+                }
+            }
+
+            /*if (val < cov_full) {
+
+                ++val;
+
+                uint8_t* change = &ptr[index];
 
                 while (1) {
 
@@ -282,21 +310,17 @@ void CompressedCoverage::cover(size_t start, size_t end) {
 
                     if (__sync_bool_compare_and_swap(change, oldval, newval)) {
 
-                        if (((newval & (s << pos)) >> pos)  == 2) fillednow++;
+                        if (((newval & (s << pos)) >> pos)  == 2) ++fillednow;
 
                         break;
                     }
                 }
-            }
+            }*/
         }
+
         // Decrease filledcounter
         if (fillednow > 0) __sync_add_and_fetch(get32Pointer() + 1, -fillednow);
-
-        if (isFull()) {
-
-            releasePointer();
-            assert((asBits & fullMask) == fullMask);
-        }
+        if (isFull()) releasePointer();
     }
 }
 
@@ -306,13 +330,12 @@ void CompressedCoverage::cover(size_t start, size_t end) {
 // post: k is the coverage at index
 uint8_t CompressedCoverage::covAt(const size_t index) const {
 
-    assert((asBits & fullMask) != fullMask);
-
-    if ((asBits & tagMask) == tagMask) return ((asBits >> (8 + 2*index)) & 0x03);
+    if ((asBits & fullMask) == fullMask) return cov_full;
+    else if ((asBits & tagMask) == tagMask) return ((asBits >> (8 + 2*index)) & 0x03);
     else {
 
-        uint8_t* ptr = get8Pointer() + 8;
-        size_t pos = 2*(index & 0x03);
+        const uint8_t* ptr = get8Pointer() + 8;
+        const size_t pos = 2 * (index & 0x03);
         return (ptr[index >> 2] & (0x03 << pos)) >> pos;
     }
 }
@@ -399,3 +422,7 @@ void CompressedCoverage::setFull() {
 
     return;
 }
+
+size_t CompressedCoverage::cov_full = 2;
+
+uintptr_t CompressedCoverage::localCoverageMask = 0xAAAAAAAAAAAAAA; // 0b10101010101010101010101010101010101010101010101010101010

@@ -7,12 +7,6 @@
 
 #include "Kmer.hpp"
 
-/*#if defined(__AVX2__)
-
-#include <x86intrin.h>
-
-#endif*/
-
 /*template<typename T, typename Hash = KmerHash>
 struct KmerHashTable {
 
@@ -733,10 +727,6 @@ struct KmerHashTable {
     Kmer empty_key;
     Kmer deleted_key;
 
-    /*#if defined(__AVX2__)
-    __m256i _mm_empty_key;
-    #endif*/
-
 // ---- iterator ----
     template<bool is_const = true>
     class iterator_ : public std::iterator<std::forward_iterator_tag, T> {
@@ -808,10 +798,6 @@ struct KmerHashTable {
         deleted_key.set_deleted();
 
         init_tables(1024);
-
-        /*#if defined(__AVX2__)
-        _mm_empty_key = _mm256_set1_epi64x(empty_key.longs[0]);
-        #endif*/
     }
 
     KmerHashTable(size_t sz) : table_keys(nullptr), table_values(nullptr), size_(0), pop(0), num_empty(0) {
@@ -820,10 +806,6 @@ struct KmerHashTable {
         deleted_key.set_deleted();
 
         init_tables((size_t) (1.2 * sz));
-
-        /*#if defined(__AVX2__)
-        _mm_empty_key = _mm256_set1_epi64x(empty_key.longs[0]);
-        #endif*/
     }
 
     KmerHashTable(KmerHashTable&& o){
@@ -837,10 +819,6 @@ struct KmerHashTable {
 
         table_keys = o.table_keys;
         table_values = o.table_values;
-
-        /*#if defined(__AVX2__)
-        _mm_empty_key = o._mm_empty_key;
-        #endif*/
 
         o.table_keys = nullptr;
         o.table_values = nullptr;
@@ -863,10 +841,6 @@ struct KmerHashTable {
 
             table_keys = o.table_keys;
             table_values = o.table_values;
-
-            /*#if defined(__AVX2__)
-            _mm_empty_key = o._mm_empty_key;
-            #endif*/
 
             o.table_keys = nullptr;
             o.table_values = nullptr;
@@ -896,8 +870,6 @@ struct KmerHashTable {
         if (table_keys != nullptr) {
 
             delete[] table_keys;
-            //free(table_keys);
-
             table_keys = nullptr;
         }
 
@@ -919,8 +891,6 @@ struct KmerHashTable {
         size_ = rndup(sz);
 
         table_keys = new Kmer[size_];
-        //posix_memalign((void**)&table_keys, 32, size_ * sizeof(Kmer));
-
         table_values = new T[size_];
 
         clear();
@@ -940,8 +910,6 @@ struct KmerHashTable {
         num_empty = size_;
 
         table_keys = new Kmer[size_];
-        //posix_memalign((void**)&table_keys, 32, size_ * sizeof(Kmer));
-
         table_values = new T[size_];
 
         std::fill(table_keys, table_keys + size_, empty_key);
@@ -952,33 +920,14 @@ struct KmerHashTable {
         }
 
         delete[] old_table_keys;
-        //free(old_table_keys);
-
         delete[] old_table_values;
     }
 
     iterator find(const Kmer& key) {
 
         const size_t end_table = size_-1;
-
         size_t h = key.hash() & end_table;
         const size_t end_h = (h-1) & end_table;
-
-        /*#if defined(__AVX2__)
-
-        const __m256i key_val256 = _mm256_set1_epi64x(key.longs[0]);
-
-        for (; h <= end_table - 4; h += 4){
-
-            const __m256i table_val256 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(&table_keys[h]));
-
-            const uint32_t pos = static_cast<uint32_t>(_mm256_movemask_epi8(_mm256_cmpeq_epi64(key_val256, table_val256)));
-
-            if (pos != 0) return iterator(this, h + ((pos >> 15) & 0x1) + (((pos >> 23) & 0x1) << 1) + (pos >> 30));
-            if (_mm256_movemask_epi8(_mm256_cmpeq_epi64(_mm_empty_key, table_val256)) != 0) return iterator(this);
-        }
-
-        #endif*/
 
         for (; h != end_h; h = (h+1) & end_table) {
 
@@ -993,25 +942,8 @@ struct KmerHashTable {
     const_iterator find(const Kmer& key) const {
 
         const size_t end_table = size_-1;
-
         size_t h = key.hash() & end_table;
         const size_t end_h = (h-1) & end_table;
-
-        /*#if defined(__AVX2__)
-
-        const __m256i key_val256 = _mm256_set1_epi64x(key.longs[0]);
-
-        for (; h <= end_table - 4; h += 4){
-
-            const __m256i table_val256 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(&table_keys[h]));
-
-            const uint32_t pos = static_cast<uint32_t>(_mm256_movemask_epi8(_mm256_cmpeq_epi64(key_val256, table_val256)));
-
-            if (pos != 0) return const_iterator(this, h + ((pos >> 15) & 0x1) + (((pos >> 23) & 0x1) << 1) + (pos >> 30));
-            if (_mm256_movemask_epi8(_mm256_cmpeq_epi64(_mm_empty_key, table_val256)) != 0) return const_iterator(this);
-        }
-
-        #endif*/
 
         for (; h != end_h; h = (h+1) & end_table) {
 
@@ -1086,7 +1018,7 @@ struct KmerHashTable {
         }
     }
 
-    size_t rndup(size_t v) {
+    size_t rndup(size_t v) const {
 
         v--;
         v |= v >> 1;
@@ -1129,10 +1061,6 @@ struct MinimizerHashTable {
 
     Minimizer empty_key;
     Minimizer deleted_key;
-
-    /*#if defined(__AVX2__)
-    __m256i _mm_empty_key;
-    #endif*/
 
 // ---- iterator ----
     template<bool is_const = true>
@@ -1204,10 +1132,6 @@ struct MinimizerHashTable {
         deleted_key.set_deleted();
 
         init_tables(1024);
-
-        /*#if defined(__AVX2__)
-        _mm_empty_key = _mm256_set1_epi64x(empty_key.longs[0]);
-        #endif*/
     }
 
     MinimizerHashTable(size_t sz) : table_keys(nullptr), table_values(nullptr), size_(0), pop(0), num_empty(0) {
@@ -1216,10 +1140,6 @@ struct MinimizerHashTable {
         deleted_key.set_deleted();
 
         init_tables((size_t) (1.2 * sz));
-
-        /*#if defined(__AVX2__)
-        _mm_empty_key = _mm256_set1_epi64x(empty_key.longs[0]);
-        #endif*/
     }
 
     MinimizerHashTable(MinimizerHashTable&& o){
@@ -1233,10 +1153,6 @@ struct MinimizerHashTable {
 
         table_keys = o.table_keys;
         table_values = o.table_values;
-
-        /*#if defined(__AVX2__)
-        _mm_empty_key = o._mm_empty_key;
-        #endif*/
 
         o.table_keys = nullptr;
         o.table_values = nullptr;
@@ -1259,10 +1175,6 @@ struct MinimizerHashTable {
 
             table_keys = o.table_keys;
             table_values = o.table_values;
-
-            /*#if defined(__AVX2__)
-            _mm_empty_key = o._mm_empty_key;
-            #endif*/
 
             o.table_keys = nullptr;
             o.table_values = nullptr;
@@ -1292,8 +1204,6 @@ struct MinimizerHashTable {
         if (table_keys != nullptr) {
 
             delete[] table_keys;
-            //free(table_keys);
-
             table_keys = nullptr;
         }
 
@@ -1315,7 +1225,6 @@ struct MinimizerHashTable {
         size_ = rndup(sz);
 
         table_keys = new Minimizer[size_];
-        //posix_memalign((void**)&table_keys, 32, size_ * sizeof(Minimizer));
 
         table_values = new T[size_];
 
@@ -1336,8 +1245,6 @@ struct MinimizerHashTable {
         num_empty = size_;
 
         table_keys = new Minimizer[size_];
-        //posix_memalign((void**)&table_keys, 32, size_ * sizeof(Minimizer));
-
         table_values = new T[size_];
 
         std::fill(table_keys, table_keys + size_, empty_key);
@@ -1348,33 +1255,14 @@ struct MinimizerHashTable {
         }
 
         delete[] old_table_keys;
-        //free(old_table_keys);
-
         delete[] old_table_values;
     }
 
     iterator find(const Minimizer& key) {
 
         const size_t end_table = size_-1;
-
         size_t h = key.hash() & end_table;
         const size_t end_h = (h-1) & end_table;
-
-        /*#if defined(__AVX2__)
-
-        const __m256i key_val256 = _mm256_set1_epi64x(key.longs[0]);
-
-        for (; h <= end_table - 4; h += 4){
-
-            const __m256i table_val256 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(&table_keys[h]));
-
-            const uint32_t pos = static_cast<uint32_t>(_mm256_movemask_epi8(_mm256_cmpeq_epi64(key_val256, table_val256)));
-
-            if (pos != 0) return iterator(this, h + ((pos >> 15) & 0x1) + (((pos >> 23) & 0x1) << 1) + (pos >> 30));
-            if (_mm256_movemask_epi8(_mm256_cmpeq_epi64(_mm_empty_key, table_val256)) != 0) return iterator(this);
-        }
-
-        #endif*/
 
         for (; h != end_h; h = (h+1) & end_table) {
 
@@ -1392,22 +1280,6 @@ struct MinimizerHashTable {
 
         size_t h = key.hash() & end_table;
         const size_t end_h = (h-1) & end_table;
-
-        /*#if defined(__AVX2__)
-
-        const __m256i key_val256 = _mm256_set1_epi64x(key.longs[0]);
-
-        for (; h <= end_table - 4; h += 4){
-
-            const __m256i table_val256 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(&table_keys[h]));
-
-            const uint32_t pos = static_cast<uint32_t>(_mm256_movemask_epi8(_mm256_cmpeq_epi64(key_val256, table_val256)));
-
-            if (pos != 0) return const_iterator(this, h + ((pos >> 15) & 0x1) + (((pos >> 23) & 0x1) << 1) + (pos >> 30));
-            if (_mm256_movemask_epi8(_mm256_cmpeq_epi64(_mm_empty_key, table_val256)) != 0) return const_iterator(this);
-        }
-
-        #endif*/
 
         for (; h != end_h; h = (h+1) & end_table) {
 
@@ -1482,7 +1354,7 @@ struct MinimizerHashTable {
         }
     }
 
-    size_t rndup(size_t v) {
+    size_t rndup(size_t v) const {
 
         v--;
         v |= v >> 1;

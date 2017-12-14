@@ -19,6 +19,7 @@
 #include <jemalloc/jemalloc.h>
 
 #include "CompactedDBG.hpp"
+#include "ColoredCDBG.hpp"
 
 using namespace std;
 
@@ -42,7 +43,7 @@ void PrintUsage() {
     cout << "Parameters with required argument:" << endl << endl <<
     "  -n, --num-kmers          [MANDATORY] Estimated number (upper bound) of different k-mers in the FASTA/FASTQ files" << endl <<
     "  -N, --num-kmer2          [MANDATORY] Estimated number (upper bound) of different k-mers occurring twice or more in the FASTA/FASTQ files" << endl <<
-    "  -o, --output             [MANDATORY] Prefix for output GFA file" << endl <<
+    "  -o, --output             [MANDATORY] Prefix for output file (default is GFA format)" << endl <<
     "  -t, --threads            Number of threads (default is 1)" << endl <<
     "  -k, --kmer-length        Length of k-mers (default is 31)" << endl <<
     "  -g, --min-length         Length of minimizers (default is 23)" << endl <<
@@ -52,16 +53,18 @@ void PrintUsage() {
     "  -f, --output2            Filename for output Blocked Bloom Filter (default is no output)" << endl <<
     "  -s, --chunk-size         Read chunksize to split between threads (default is 10000)" << endl <<
     endl << "Parameters with no argument:" << endl << endl <<
-    "      --ref                Reference mode, no filtering" << endl <<
+    "  -r, --ref                Reference mode, no filtering" << endl <<
     "  -c, --clip-tips          Clip tips shorter than k k-mers in length" << endl <<
-    "  -r, --rm-isolated        Delete isolated contigs shorter than k k-mers in length" << endl <<
+    "  -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl <<
+    "  -m, --keep-mercy         Keep low coverage k-mers connecting tips" << endl <<
+    "  -a, --fasta              Output file is in FASTA format (only sequences) instead of GFA" << endl <<
     "  -v, --verbose            Print information messages during construction" << endl <<
     endl;
 }
 
 void parse_ProgramOptions(int argc, char **argv, CDBG_Build_opt& opt) {
 
-    const char* opt_string = "n:N:o:t:k:g:b:B:l:f:s:crv";
+    const char* opt_string = "n:N:o:t:k:g:b:B:l:f:s:rcdmav";
 
     static struct option long_options[] = {
 
@@ -76,9 +79,11 @@ void parse_ProgramOptions(int argc, char **argv, CDBG_Build_opt& opt) {
         {"load",            required_argument,  0, 'l'},
         {"output2",         required_argument,  0, 'f'},
         {"chunk-size",      required_argument,  0, 's'},
-        {"ref",             no_argument,        0,  0 },
+        {"ref",             no_argument,        0, 'r'},
         {"clip-tips",       no_argument,        0, 'c'},
-        {"rm-isolated",     no_argument,        0, 'r'},
+        {"del-isolated",    no_argument,        0, 'd'},
+        {"keep-mercy",      no_argument,        0, 'm'},
+        {"fasta",           no_argument,        0, 'a'},
         {"verbose",         no_argument,        0, 'v'},
         {0,                 0,                  0,  0 }
     };
@@ -89,8 +94,8 @@ void parse_ProgramOptions(int argc, char **argv, CDBG_Build_opt& opt) {
 
         switch (c) {
 
-            case 0:
-                if (strcmp(long_options[option_index].name, "ref") == 0) opt.reference_mode = true;
+            case 'r':
+                opt.reference_mode = true;
                 break;
             case 'v':
                 opt.verbose = true;
@@ -98,8 +103,14 @@ void parse_ProgramOptions(int argc, char **argv, CDBG_Build_opt& opt) {
             case 'c':
                 opt.clipTips = true;
                 break;
-            case 'r':
+            case 'd':
                 opt.deleteIsolated = true;
+                break;
+            case 'm':
+                opt.useMercyKmers = true;
+                break;
+            case 'a':
+                opt.outputGFA = false;
                 break;
             case 't':
                 opt.nb_threads = atoi(optarg);
@@ -126,7 +137,7 @@ void parse_ProgramOptions(int argc, char **argv, CDBG_Build_opt& opt) {
                 opt.nb_bits_non_unique_kmers_bf = atoi(optarg);
                 break;
             case 'o':
-                opt.prefixFilenameGFA = optarg;
+                opt.prefixFilenameOut = optarg;
                 break;
             case 'f':
                 opt.outFilenameBBF = optarg;
@@ -220,12 +231,6 @@ bool check_ProgramOptions(CDBG_Build_opt& opt) {
         ret = false;
     }
 
-    if (opt.reference_mode) {
-
-        opt.nb_bits_non_unique_kmers_bf = 0;
-        opt.nb_non_unique_kmers = 0;
-    }
-
     if (opt.outFilenameBBF.length() != 0){
 
         FILE* fp = fopen(opt.outFilenameBBF.c_str(), "wb");
@@ -250,13 +255,13 @@ bool check_ProgramOptions(CDBG_Build_opt& opt) {
         else fclose(fp);
     }
 
-    opt.filenameGFA = opt.prefixFilenameGFA + ".gfa";
+    opt.filenameOut = opt.prefixFilenameOut + (opt.outputGFA ? ".gfa" : ".fasta");
 
-    FILE* fp = fopen(opt.filenameGFA.c_str(), "w");
+    FILE* fp = fopen(opt.filenameOut.c_str(), "w");
 
     if (fp == NULL) {
 
-        cerr << "Error: Could not open file for writing output graph in GFA format: " << opt.filenameGFA << endl;
+        cerr << "Error: Could not open file for writing output graph in GFA format: " << opt.filenameOut << endl;
         ret = false;
     }
     else fclose(fp);
@@ -286,86 +291,6 @@ bool check_ProgramOptions(CDBG_Build_opt& opt) {
     return ret;
 }
 
-class myInt : public CDBG_Data_t<myInt> {
-
-    public:
-
-        myInt(int int_init = 1) : Int(int_init) {}
-
-        void join(const myInt& data, CompactedDBG<myInt>& cdbg){
-
-            Int += data.Int;
-
-            cout << "join: " << Int << " += "  << data.Int << endl;
-        }
-
-        void split(const size_t pos, const size_t len, myInt& new_data, CompactedDBG<myInt>& cdbg) const {
-
-            new_data.Int = 0;
-        }
-
-        int Int;
-};
-
-class myColors : public CDBG_Data_t<myColors> {
-
-    public:
-
-        void join(const myColors& data, CompactedDBG<myColors>& cdbg){
-
-            for (auto color : data.colors) add(color);
-        }
-
-        void split(const size_t pos, const size_t len, myColors& new_data, CompactedDBG<myColors>& cdbg) const {
-
-        }
-
-        void add(int color){
-
-            if ((colors.size() == 0) || (color > colors[colors.size() - 1])) colors.push_back(color);
-            else {
-
-                for (vector<int>::iterator it = colors.begin(); it < colors.end(); it++){
-
-                    if (*it == color) break;
-                    else if (*it > color){
-
-                        colors.insert(it, color);
-                        break;
-                    }
-                }
-            }
-        }
-
-        void erase(int color){
-
-            if ((colors.size() > 0) && (color <= colors[colors.size() - 1])){
-
-                for (vector<int>::iterator it = colors.begin(); it < colors.end(); it++){
-
-                    if (*it == color){
-
-                        colors.erase(it);
-                        break;
-                    }
-                    else if (*it > color) break;
-                }
-            }
-        }
-
-        void print() const {
-
-            for (auto color : colors){
-
-                cout << "Color ID: " << color << endl;
-            }
-        }
-
-    private:
-
-        vector<int> colors; //color_id, position, len
-};
-
 int main(int argc, char **argv){
 
     if (argc < 2) PrintUsage();
@@ -381,35 +306,10 @@ int main(int argc, char **argv){
 
             cdbg.build(opt);
             cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-            cdbg.write(opt.prefixFilenameGFA, opt.nb_threads, opt.verbose);
+            cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
 
-
-            /*CompactedDBG<myColors> cdbg(opt.k, opt.g);
-            myColors* data = nullptr;
-
-            string seq1 = "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-            string seq2 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC";
-            string seq3 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAG";
-            string seq4 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-            string seq5 = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-
-            cdbg.add(seq1, true);
-            cdbg.add(seq2, true);
-
-            UnitigMap<myColors> um1 = cdbg.find(Kmer(seq1.c_str()));
-            UnitigMap<myColors> um2 = cdbg.find(Kmer(seq2.c_str()));
-
-            data = um1.getData();
-            data->add(1);
-
-            data = um2.getData();
-            data->add(2);
-
-            for (auto unitig : cdbg){
-
-                cout << unitig.toString() << endl;
-                unitig.getData()->print();
-            }*/
+            //ColoredCDBG cdbg(opt.k, opt.g);
+            //cdbg.build(opt);
         }
     }
 }

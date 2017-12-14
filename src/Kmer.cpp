@@ -459,12 +459,12 @@ bool Minimizer::operator<(const Minimizer& o) const {
 // post: b is true <==> the DNA strings in km1 and km2 are equal
 bool Minimizer::operator==(const Minimizer& o) const {
 
-    //for (size_t i = 0; i < MAX_G/32; i++) {
-    //
-    //    if (longs[i] != o.longs[i]) return false;
-    //}
-    //
-    //return true;
+    /*for (size_t i = 0; i < MAX_G/32; i++) {
+
+        if (longs[i] != o.longs[i]) return false;
+    }
+
+    return true;*/
 
     const size_t end = MAX_G/32;
     size_t i = 0;

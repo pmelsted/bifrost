@@ -5,7 +5,6 @@
 #include <string.h>
 #include <zlib.h>
 
-
 #include <vector>
 #include <string>
 
@@ -30,6 +29,7 @@ class FastqFile {
 
         void close();
         void reopen();
+
         int read_next(char *read, size_t *read_len, string &seq, size_t *seq_len, unsigned int *file_id, char *qual = NULL);
         int read_next(string &seq, size_t& id);
 
