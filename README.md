@@ -63,7 +63,7 @@ Type the following command to run Bifrost:
 
 It should display the command line interface:
 ```
-Bifrost
+Bifrost 0.2
 
 Highly Parallel and Memory Efficient Compacted de Bruijn Graph Construction
 
@@ -73,7 +73,7 @@ Parameters with required argument:
 
   -n, --num-kmers          [MANDATORY] Estimated number (upper bound) of different k-mers in the FASTA/FASTQ files
   -N, --num-kmer2          [MANDATORY] Estimated number (upper bound) of different k-mers occurring twice or more in the FASTA/FASTQ files
-  -o, --output             [MANDATORY] Prefix for output GFA file
+  -o, --output             [MANDATORY] Prefix for output file (default is GFA format)
   -t, --threads            Number of threads (default is 1)
   -k, --kmer-length        Length of k-mers (default is 31)
   -g, --min-length         Length of minimizers (default is 23)
@@ -85,10 +85,11 @@ Parameters with required argument:
 
 Parameters with no argument:
 
-      --ref                Reference mode, no filtering
+  -r, --ref                Reference mode, no filtering
   -c, --clip-tips          Clip tips shorter than k k-mers in length
-  -r, --rm-isolated        Delete isolated contigs shorter than k k-mers in length
+  -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length
   -m, --keep-mercy         Keep low coverage k-mers connecting tips
+  -a, --fasta              Output file is in FASTA format (only sequences) instead of GFA
   -v, --verbose            Print information messages during construction
 ```
 
