@@ -169,7 +169,7 @@ class CDBG_Data_t {
         * @param data is the object to merge with.
         * @param cdbg is the compacted de Bruijn graph from which the objects are from.
         */
-        virtual void join(const T& data, CompactedDBG<T>& cdbg) = 0;
+        virtual void join(const UnitigMap<T>& um_dest, const UnitigMap<T>& um_src) = 0;
         /** Create from the current object, associated with unitig seq_un, a new object to associate with a new
         * unitig seq_un' = seq_un[pos, pos+len]
         * @param pos corresponds to the start position of the sub-unitig seq_un' into unitig seq_un.
@@ -177,7 +177,7 @@ class CDBG_Data_t {
         * @param new_data is an new (empty) object that you can fill in with new data.
         * @param cdbg is the compacted de Bruijn graph from which the current object is from.
         */
-        virtual void split(const size_t pos, const size_t len, T& new_data, CompactedDBG<T>& cdbg) const = 0;
+        virtual void split(const UnitigMap<T>& um_split, const size_t pos_split, const size_t len_split, T& new_data) const = 0;
 };
 
 /** @class CompactedDBG

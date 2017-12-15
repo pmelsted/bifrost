@@ -171,12 +171,12 @@ void UnitigMap<T>::setData(const T* const data) {
 * @param um is a reference to a mapped unitig that will be merged with the current mapped unitig.
 */
 template<typename T>
-void UnitigMap<T>::mergeData(const UnitigMap& um) {
+void UnitigMap<T>::mergeData(const UnitigMap<T>& um) {
 
-    getData()->join(*um.getData(), *cdbg);
+    getData()->join(*this, um);
 }
 
-template<> void UnitigMap<void>::mergeData(const UnitigMap& um) { /* Does nothing */ }
+template<> inline void UnitigMap<void>::mergeData(const UnitigMap<void>& um) { /* Does nothing */ }
 
 /** Create new data to associate with a new unitig which is a subsequence of the current mapped unitig.
 * This function calls the function CDBG_Data_t<T>::split but it does not create anything
@@ -191,12 +191,12 @@ Unitig<T> UnitigMap<T>::splitData(const size_t pos, const size_t len) {
 
     Unitig<T> unitig;
 
-    getData()->split(pos, len, unitig.data, *cdbg);
+    getData()->split(*this, pos, len, unitig.data);
 
     return unitig;
 }
 
-template<> Unitig<void> UnitigMap<void>::splitData(const size_t pos, const size_t len) { return Unitig<void>(); }
+template<> inline Unitig<void> UnitigMap<void>::splitData(const size_t pos, const size_t len) { return Unitig<void>(); }
 
 /** Return a BackwardCDBG object that can create iterators (through BackwardCDBG::begin() and
 * BackwardCDBG::end()) over the predecessors of the current mapped unitig.

@@ -83,7 +83,7 @@ struct UnitigMap {
     T* getData();
     void setData(const T* const data);
 
-    void mergeData(const UnitigMap& um);
+    void mergeData(const UnitigMap<T>& um);
     Unitig<T> splitData(const size_t pos, const size_t len);
 
     BackwardCDBG<T, true> getPredecessors() const;
