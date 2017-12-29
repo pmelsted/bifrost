@@ -277,6 +277,8 @@ class CompactedDBG {
         bool filter(const CDBG_Build_opt& opt);
         bool construct(const CDBG_Build_opt& opt);
 
+        bool test(const CDBG_Build_opt& opt, BlockedBloomFilter& bf);
+
         bool addUnitigSequenceBBF(Kmer km, const string& read, size_t pos, const string& seq, vector<Kmer>& l_ignored_km_tip);
         size_t findUnitigSequenceBBF(Kmer km, string& s, bool& selfLoop, bool& isIsolated, vector<Kmer>& l_ignored_km_tip);
         bool bwStepBBF(Kmer km, Kmer& front, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;

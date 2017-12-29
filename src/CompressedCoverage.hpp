@@ -98,7 +98,7 @@ class CompressedCoverage {
 
 template<typename T> struct CompressedCoverage_t {
 
-    CompressedCoverage_t(size_t sz = 0, bool full = false){ ccov = CompressedCoverage(sz, full); }
+    CompressedCoverage_t(size_t sz = 0, bool full = false) : ccov(sz, full) {}
 
     inline const T* getData() const { return &data; }
     inline T* getData() { return &data; }
@@ -110,7 +110,7 @@ template<typename T> struct CompressedCoverage_t {
 
 template<> struct CompressedCoverage_t<void> {
 
-    CompressedCoverage_t(size_t sz = 0, bool full = false){ ccov = CompressedCoverage(sz, full); }
+    CompressedCoverage_t(size_t sz = 0, bool full = false) : ccov(sz, full) {}
 
     inline const void* getData() const { return nullptr; }
     inline void* getData() { return nullptr; }

@@ -56,8 +56,8 @@ struct UnitigMap {
     bool selfLoop; // true if this is a self-loop or hairpin
     bool isEmpty; // true if proper match found
     bool isShort; // true if the unitig has length k
-    bool isAbundant; // true if isShort=true and the unitig has an abundant minimizer
-    bool isIsolated; // true if unitig is isolated
+    bool isAbundant; // true if the unitig has length k and has an abundant minimizer
+    bool isIsolated; // true if the unitig is isolated
     bool isTip;    // true if this is a short tip
 
     CompactedDBG<T>* cdbg;

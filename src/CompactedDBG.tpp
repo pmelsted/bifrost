@@ -1108,11 +1108,11 @@ bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
 
                 if (opt.reference_mode){
 
-                    bf.insert(p_.first, min_hr);
+                    bf.insert(p_.first, min_hr, multi_threaded);
                     ++l_num_ins;
                 }
-                else if (bf_tmp.search_and_insert(p_.first, min_hr, multi_threaded)) ++l_num_ins;
-                else bf.insert(p_.first, min_hr);
+                else if (bf_tmp.insert(p_.first, min_hr, multi_threaded)) ++l_num_ins;
+                else bf.insert(p_.first, min_hr, multi_threaded);
             }
         }
 
@@ -1282,7 +1282,8 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                         if (!opt.reference_mode && isIsolated){ // According to the BF, k-mer is isolated in the graph and is a potential false positive
 
-                            const uint64_t block = ((r == 1 ? block_bf.first : block_bf.second) - bf.getTable_ptr()) / NB_ELEM_BLOCK;
+                            //const uint64_t block = ((r == 1 ? block_bf.first : block_bf.second) - bf.getTable_ptr()) / NB_ELEM_BLOCK;
+                            const uint64_t block = (r == 1 ? block_bf.first : block_bf.second);
 
                             Kmer km_rep = km.rep();
                             const tiny_vector<Kmer, 2>& v = fp_candidate[block];
@@ -1590,13 +1591,13 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
     const int unitigsAfter1 = size();
 
-    if (!opt.reference_mode){
+    //if (!opt.reference_mode){
 
         if (opt.verbose) cout << endl << "CompactedDBG::construct(): Splitting unitigs (2/2)" << endl;
 
         check_fp_tips(ignored_km_tips);
         ignored_km_tips.clear();
-    }
+    //}
 
     const int unitigsAfter2 = size();
 
@@ -1794,7 +1795,7 @@ bool CompactedDBG<T>::bwStepBBF(Kmer km, Kmer& front, char& c, bool& has_no_neig
     bool pres_neigh_bw[4] = {false, false, false, false};
     uint64_t hashes_bw[4];
 
-    for (i = 0; i < 4; ++i) {
+    for (i = 0; i != 4; ++i) {
 
         rep_h_cpy = rep_h;
         rep_h_cpy.extendBW(alpha[i]);
@@ -1804,7 +1805,7 @@ bool CompactedDBG<T>::bwStepBBF(Kmer km, Kmer& front, char& c, bool& has_no_neig
 
     nb_neigh = bf.contains(hashes_bw, it_min_h, pres_neigh_bw, check_fp_cand ? 4 : 2);
 
-    for (i = 0; i < 4; ++i) {
+    for (i = 0; i != 4; ++i) {
 
         if (pres_neigh_bw[i]){
 
