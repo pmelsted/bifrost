@@ -5,16 +5,8 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
-
-#include <vector>
-
-#include <algorithm>
 #include <fstream>
 #include <atomic>
-
-#include "KmerHashTable.h"
-#include "Kmer.hpp"
-#include "RepHash.hpp"
 
 #include "libdivide.h"
 #include "libpopcnt.h"
