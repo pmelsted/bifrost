@@ -3050,7 +3050,7 @@ size_t CompactedDBG<T>::joinUnitigs(vector<Kmer>* v_joins, const size_t nb_threa
                 }
             };
 
-            vector<pair<Kmer, Kmer>> v_out[nb_threads];
+            vector<vector<pair<Kmer, Kmer>>> v_out(nb_threads);
 
             auto it_kmer = v_kmers.begin();
             auto it_kmer_end = v_kmers.end();
@@ -3851,7 +3851,7 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
 
         const int chunk_size = 1000;
 
-        vector<pair<pair<size_t, bool>, pair<size_t, bool>>> v_out[nb_threads];
+        vector<vector<pair<pair<size_t, bool>, pair<size_t, bool>>>> v_out(nb_threads);
 
         labelA = 1;
 
