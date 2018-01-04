@@ -50,7 +50,7 @@ make install
 
 `make install` might requires `sudo` (`sudo make install`) to proceed.
 
-By default, the installation creates a binary (*Bifrost*), a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS) and a static library (*libbifrost_static.a*).
+By default, the installation creates a binary (*Bifrost*), a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS) and a static library (*libbifrost.a*).
 
 The default maximum *k*-mer size supported is 31. To work with larger *k*, you must replace *MAX_KMER_SIZE* in *CMakeLists.txt* with a larger (appropriate) number, such as:
 ```
@@ -139,7 +139,7 @@ in your C++ code. Then, use the following flags for linking:
 -lbifrost -ljemalloc -lroaring -lz -pthread
 ```
 
-You can also link to the Bifrost static library (*libbifrost_static.a*) for better performance.
+You can also link to the Bifrost static library (*libbifrost.a*) for better performance.
 
 ## Contact
 
