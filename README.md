@@ -136,10 +136,13 @@ in your C++ code. Then, use the following flags for linking:
 `-lbifrost` refers to the Bifrost dynamic library which is multi-threaded and hence, requires a threading library, usually the POSIX Threads library `-pthread`. It is possible while compiling your program with the Bifrost library that your compiler complains about missing dependencies. In that case, use the following flags for linking:
 
 ```
--lbifrost -ljemalloc -lroaring -lz -pthread
+-lbifrost -ljemalloc -lroaring -pthread -lz
 ```
 
-You can also link to the Bifrost static library (*libbifrost.a*) for better performance.
+You can also link to the Bifrost static library (*libbifrost.a*) for better performance:
+```
+<path_to_lib_folder>/libbifrost.a -ljemalloc -lroaring -pthread -lz
+```
 
 ## Contact
 
