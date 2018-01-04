@@ -1,23 +1,3 @@
-#include <cmath>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
-#include <functional>
-#include <getopt.h>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <stdint.h>
-#include <string>
-#include <sys/stat.h>
-#include <utility>
-#include <vector>
-
-#include <thread>
-#include <atomic>
-
-#include <jemalloc/jemalloc.h>
-
 #include "CompactedDBG.hpp"
 #include "ColoredCDBG.hpp"
 
@@ -308,8 +288,8 @@ int main(int argc, char **argv){
             cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
             cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
 
-            /*ColoredCDBG cdbg(opt.k, opt.g);
-            cdbg.build(opt);*/
+            //ColoredCDBG cdbg(opt.k, opt.g);
+            //cdbg.build(opt);
         }
     }
 }

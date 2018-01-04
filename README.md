@@ -6,9 +6,9 @@ This repository contains the source code for a new parallel and memory efficient
 
 ## Dependencies
 
-In order to compile and use Bifrost, you need a machine running a 64 bits Linux or MacOS operating system. Bifrost successfully compiles and runs on Ubuntu 17.04 and MacOS.
+In order to compile and use Bifrost, you need a machine running a 64 bits POSIX-compliant UNIX or MacOS operating system. Bifrost successfully compiles and runs on Ubuntu 17.04 and MacOS.
 
-In order to install Bifrost, you will need Cmake (https://cmake.org/), Jemalloc (http://www.canonware.com/jemalloc) and zlib (https://zlib.net/). All can be downloaded and installed by following the instructions on their respective websites. It is however most likely that at least few of them are available via a package manager for your operating system.
+In order to compile Bifrost, you will need Cmake (https://cmake.org/), Jemalloc (http://www.canonware.com/jemalloc), zlib (https://zlib.net/). All can be downloaded and installed by following the instructions on their respective websites. It is however most likely that at least few of them are available via a package manager for your operating system.
 
 If you operating system is Ubuntu/Debian:
 ```
@@ -45,7 +45,10 @@ mkdir build
 cd build
 cmake ..
 make
+make install
 ```
+
+By default, the installation creates a binary (*Bifrost*), a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS) and a static library (*libbifrost_static.a*).
 
 The default maximum *k*-mer size supported is 31. To work with larger *k*, you must replace *MAX_KMER_SIZE* in *CMakeLists.txt* with a larger (appropriate) number, such as:
 ```
@@ -58,7 +61,7 @@ In this case, the maximum *k* allowed is 63. Keep in mind that increasing MAX_KM
 
 Type the following command to run Bifrost:
 ```
-./Bifrost
+Bifrost
 ```
 
 It should display the command line interface:
@@ -93,7 +96,7 @@ Parameters with no argument:
   -v, --verbose            Print information messages during construction
 ```
 
-Bifrost works in two steps: first, errors are removed from the reads and then, the compacted de Bruijn graph is built from the filtered reads.
+Bifrost works in two steps: first, reads are filtered to remove errors and then, the compacted de Bruijn graph is built from the filtered reads.
 
 To obtain quickly the arguments *-n* and *-N* from a FASTQ file (if you have no idea), the tool KmerStream can be used (https://github.com/pmelsted/KmerStream). KmerStream output 3 numbers *F0*, *f1* and *F1*. You can then configure Bifrost with *-n=F0* and *-N=F0-f1*.
 
@@ -103,7 +106,9 @@ Arguments *-b* and *-B* basically control the Bloom filter false positive rates.
 
 (Work in progress)
 
-Documentation for the Bifrost library is available in the /doc/doxygen folder (HTML version, open index.html).
+### Documentation
+
+Documentation for the Bifrost library is available in the */doc/doxygen* folder (HTML version, open *index.html*).
 
 The following command regenerates the documentation:
 ```
@@ -115,11 +120,28 @@ The documentation contains a description of all the functions and structures of 
 
 TODO: Code snippets
 
-## Notes
+### Usage
 
-* Bifrost has been developed on x86-64 GNU/Linux and is compatible with MacOS. Porting it to a non-unix platform should be relatively easy, but we have not done it so far.
+Once Bifrost is installed on your operating system, just use
+```
+#include <bifrost/CompactedDBG.hpp>
+```
+in your C++ code. Then, use the following flags for linking:
+```
+-lbifrost -pthread
+```
 
-* If you run into bugs/problems or have questions/suggestions, please feel free to file an issue on this GitHub repository.
+`-lbifrost` refers to the Bifrost dynamic library which is multi-threaded and hence, requires a threading library, usually the POSIX Threads library `-pthread`. It is possible while compiling your program with the Bifrost library that your compiler complains about missing dependencies. In that case, use the following flags for linking:
+
+```
+-lbifrost -ljemalloc -lz -pthread
+```
+
+You can also link to the Bifrost static library (*libbifrost_static.a*) for better performance.
+
+## Contact
+
+For any question, feedback or problem, please feel free to file an issue on this GitHub repository and we will get back to you as soon as possible.
 
 ## License
 

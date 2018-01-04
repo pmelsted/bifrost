@@ -18,6 +18,8 @@
 #include <thread>
 #include <atomic>
 
+#include <jemalloc/jemalloc.h>
+
 /*
 #include <queue>
 #include <memory>
