@@ -23,7 +23,7 @@ class ColoredCDBG : public CompactedDBG<Color> {
 
     private:
 
-        void initColorSets(const size_t max_nb_hash = 255);
+        void initColorSets(const size_t max_nb_hash = 127);
         void mapColors(const CDBG_Build_opt& opt);
 
         uint64_t seeds[256];

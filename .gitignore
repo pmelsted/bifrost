@@ -28,6 +28,7 @@ graph.py
 \#*
 .\#*
 build/
+CB_Project/
 old/
 dist/
 debug/

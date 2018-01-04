@@ -6,6 +6,7 @@ ColoredCDBG::ColoredCDBG(int kmer_length, int minimizer_length) : CompactedDBG(k
     std::default_random_engine generator(rd()); //Random number generator
     std::uniform_int_distribution<long long unsigned> distribution(0,0xFFFFFFFFFFFFFFFF); //Distribution on which to apply the generator
 
+    //Initialize the hash function seeds for
     for (int i = 0; i < 256; ++i) seeds[i] = distribution(generator);
 }
 
@@ -26,51 +27,6 @@ bool ColoredCDBG::build(const CDBG_Build_opt& opt){
     mapColors(opt);
 
     return true;
-}
-
-ColorSet* ColoredCDBG::getColorSet(const UnitigMap<Color>& um) {
-
-    ColorSet* color_set = nullptr;
-
-    if (!um.isEmpty){
-
-        const Kmer head = um.getHead();
-        const uint8_t color_id = um.getData()->getColor();
-
-        if (color_id == 0){
-
-            KmerHashTable<ColorSet>::iterator it = km_overflow.find(head);
-
-            if (it != km_overflow.end()) color_set = &(*it);
-        }
-        else color_set = &color_sets[head.hash(seeds[color_id - 1]) % nb_color_sets];
-    }
-
-    return color_set;
-}
-
-void ColoredCDBG::setColor(const UnitigMap<Color>& um, const size_t color) {
-
-    if (!um.isEmpty){
-
-        ColorSet* color_set = getColorSet(um);
-
-        if (color_set != nullptr) color_set->insertColor(color);
-    }
-}
-
-void ColoredCDBG::setColors(const UnitigMap<Color>& um_dest, const UnitigMap<Color>& um_src) {
-
-    if (!um_dest.isEmpty && !um_src.isEmpty){
-
-        ColorSet* color_set_dest = getColorSet(um_dest);
-        ColorSet* color_set_src = getColorSet(um_src);
-
-        if ((color_set_dest != nullptr) && (color_set_src != nullptr)){
-
-            // TODO
-        }
-    }
 }
 
 void ColoredCDBG::initColorSets(const size_t max_nb_hash){
@@ -136,29 +92,35 @@ void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
 
             for (KmerIterator it_km(x->c_str()), it_km_end; it_km != it_km_end; ++it_km) {
 
-                const UnitigMap<Color> um = find(it_km->first);
+                UnitigMap<Color> um = find(it_km->first);
 
                 if (!um.isEmpty) {
 
                     const Kmer head = um.getHead();
-                    const uint8_t color_id = um.getData()->getColor();
+                    Color* c = um.getData();
 
-                    if (color_id == 0) v_out->push_back(make_pair(head, file_id));
+                    c->getLock();
+
+                    const uint8_t color_id = c->getColorID();
+
+                    if (color_id == 0) v_out->push_back(make_pair(head, file_id)); //KmerHashTable is not thread safe
                     else {
 
-                        color_sets[head.hash(seeds[color_id - 1])].insertColor(file_id);
+                        color_sets[head.hash(seeds[color_id - 1]) % nb_color_sets].add(file_id);
 
                         if (um.strand || (um.dist != 0)){
 
                             it_km += um.lcp(x->c_str(), it_km->second + k_, um.strand ? um.dist + k_ : um.dist - 1, um.strand);
                         }
                     }
+
+                    c->releaseLock();
                 }
             }
         }
     };
 
-    vector<pair<Kmer, uint64_t>> km_overflow_edit[opt.nb_threads];
+    vector<vector<pair<Kmer, uint64_t>>> km_overflow_edit(opt.nb_threads);
 
     bool done = false;
 
@@ -208,7 +170,7 @@ void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
 
                 KmerHashTable<ColorSet>::iterator it = km_overflow.find(p.first);
 
-                if (it != km_overflow.end()) it->insertColor(p.second);
+                if (it != km_overflow.end()) it->add(p.second);
             }
 
             v.clear();
@@ -217,5 +179,53 @@ void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
         readv.clear();
     }
 
+    size_t cpt2colors = 0;
+
+    for (const auto& unitig: *this) cpt2colors += (getColorSet(unitig)->size() == 2);
+
+    cout << "# of unitigs with 2 colors: " << cpt2colors << endl;
+
     FQ.close();
+}
+
+ColorSet* ColoredCDBG::getColorSet(const UnitigMap<Color>& um) {
+
+    ColorSet* color_set = nullptr;
+
+    if (!um.isEmpty){
+
+        const Kmer head = um.getHead();
+        const uint8_t color_id = um.getData()->getColorID();
+
+        if (color_id == 0){
+
+            KmerHashTable<ColorSet>::iterator it = km_overflow.find(head);
+
+            if (it != km_overflow.end()) color_set = &(*it);
+        }
+        else color_set = &color_sets[head.hash(seeds[color_id - 1]) % nb_color_sets];
+    }
+
+    return color_set;
+}
+
+void ColoredCDBG::setColor(const UnitigMap<Color>& um, const size_t color) {
+
+    if (!um.isEmpty){
+
+        ColorSet* color_set = getColorSet(um);
+
+        if (color_set != nullptr) color_set->add(color);
+    }
+}
+
+void ColoredCDBG::setColors(const UnitigMap<Color>& um_dest, const UnitigMap<Color>& um_src) {
+
+    if (!um_dest.isEmpty && !um_src.isEmpty){
+
+        ColorSet* color_set_dest = getColorSet(um_dest);
+        ColorSet* color_set_src = getColorSet(um_src);
+
+        if ((color_set_dest != nullptr) && (color_set_src != nullptr)) color_set_dest->join(*color_set_src);
+    }
 }

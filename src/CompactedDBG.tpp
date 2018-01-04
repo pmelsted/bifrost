@@ -1436,9 +1436,9 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
         for(thread &worker: workers) worker.join();*/
 
-    vector<NewUnitig> parray[opt.nb_threads];
-    vector<tuple<bool, uint64_t, Kmer>> v_fp_cand_threads[opt.nb_threads];
-    vector<Kmer> v_ignored_km_tip_thread[opt.nb_threads];
+    vector<vector<NewUnitig>> parray(opt.nb_threads);
+    vector<vector<tuple<bool, uint64_t, Kmer>>> v_fp_cand_threads(opt.nb_threads);
+    vector<vector<Kmer>> v_ignored_km_tip_thread(opt.nb_threads);
 
     int round = 0;
 
