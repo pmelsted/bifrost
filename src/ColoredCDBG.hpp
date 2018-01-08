@@ -7,7 +7,7 @@
 #include "Color.hpp"
 #include "CompactedDBG.hpp"
 
-class ColoredCDBG : public CompactedDBG<Color> {
+class ColoredCDBG : public CompactedDBG<HashID> {
 
     public:
 
@@ -16,15 +16,15 @@ class ColoredCDBG : public CompactedDBG<Color> {
 
         bool build(const CDBG_Build_opt& opt);
 
-        ColorSet* getColorSet(const UnitigMap<Color>& um);
-
-        void setColor(const UnitigMap<Color>& um, size_t color);
-        void setColors(const UnitigMap<Color>& um_dest, const UnitigMap<Color>& um_src);
+        bool setColor(const UnitigMap<HashID>& um, size_t color);
+        bool joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src);
 
     private:
 
         void initColorSets(const size_t max_nb_hash = 127);
         void mapColors(const CDBG_Build_opt& opt);
+
+        ColorSet* getColorSet(const UnitigMap<HashID>& um);
 
         uint64_t seeds[256];
 

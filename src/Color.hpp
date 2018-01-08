@@ -5,36 +5,38 @@
 
 #include "CompactedDBG.hpp"
 
-class Color : public CDBG_Data_t<Color> {
+class HashID : public CDBG_Data_t<HashID> {
 
     public:
 
-        Color(const uint8_t c = 0);
+        HashID(const uint8_t hid = 0);
 
-        void join(const UnitigMap<Color>& um_dest, const UnitigMap<Color>& um_src);
-        void split(const UnitigMap<Color>& um_split, const size_t pos_split, const size_t len_split, Color& new_data) const;
+        void join(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src);
+        void split(const UnitigMap<HashID>& um_split, const size_t pos_split, const size_t len_split, HashID& new_data) const;
 
-        void getLock();
-        inline void releaseLock() { __sync_and_and_fetch(&color_id, 0x7f); }
+        void lock();
+        inline void unlock() { __sync_and_and_fetch(&hash_id, 0x7f); }
 
-        inline uint8_t getColorID() const { return color_id & 0x7f; }
-        inline void setColorID(const uint8_t col) { color_id = col & 0x7f; }
+        inline uint8_t get() const { return hash_id & 0x7f; }
+        inline void set(const uint8_t hid) { hash_id = hid & 0x7f; }
 
     private:
 
-        uint8_t color_id;
+        uint8_t hash_id;
 };
 
 class ColorSet {
 
     public:
 
+        typedef Roaring Bitmap;
+
         class ColorSet_const_iterator : public std::iterator<std::forward_iterator_tag, size_t> {
 
             private:
 
                 const ColorSet* cs;
-                size_t color;
+                size_t color_id;
 
                 size_t flag;
                 size_t it_setBits;
@@ -44,18 +46,18 @@ class ColorSet {
 
             public:
 
-                ColorSet_const_iterator() : cs(nullptr), flag(localBitVectorColor), it_setBits(maxBitVectorIDs), color(0), it_roar(empty_roar.end()) {}
+                ColorSet_const_iterator() : cs(nullptr), flag(localBitVectorColor), it_setBits(maxBitVectorIDs), color_id(0), it_roar(empty_roar.end()) {}
 
-                ColorSet_const_iterator(const ColorSet* cs_) : cs(cs_), it_setBits(0), color(0), it_roar(empty_roar.end()) {
+                ColorSet_const_iterator(const ColorSet* cs_) : cs(cs_), it_setBits(0), color_id(0), it_roar(empty_roar.end()) {
 
                     flag = cs->setBits & flagMask;
-                    if (flag == pointerCompressedBitmap) it_roar = cs->getConstPointer()->begin();
+                    if (flag == ptrCompressedBitmap) it_roar = cs->getConstPtrBitmap()->begin();
                 }
 
                 ColorSet_const_iterator& operator=(const ColorSet_const_iterator& o) {
 
                     cs = o.cs;
-                    color = o.color;
+                    color_id = o.color_id;
                     flag = o.flag;
                     it_setBits = o.it_setBits;
                     it_roar = o.it_roar;
@@ -63,7 +65,7 @@ class ColorSet {
                     return *this;
                 }
 
-                size_t operator*() const { return color; }
+                size_t operator*() const { return color_id; }
 
                 ColorSet_const_iterator operator++(int) {
 
@@ -74,9 +76,9 @@ class ColorSet {
 
                 ColorSet_const_iterator& operator++() {
 
-                    if (flag == pointerCompressedBitmap) {
+                    if (flag == ptrCompressedBitmap) {
 
-                        if (it_roar != cs->getConstPointer()->end()) color = *(++it_roar);
+                        if (it_roar != cs->getConstPtrBitmap()->end()) color_id = *(++it_roar);
                     }
                     else if (flag == localBitVectorColor){
 
@@ -84,7 +86,7 @@ class ColorSet {
 
                             if (((cs->setBits >> (it_setBits + 2)) & 0x1) != 0){
 
-                                color = it_setBits;
+                                color_id = it_setBits;
                                 break;
                             }
 
@@ -93,7 +95,7 @@ class ColorSet {
                     }
                     else if ((flag == localSingleColor) && (it_setBits < 1)){
 
-                        color = cs->setBits >> 2;
+                        color_id = cs->setBits >> 2;
                         ++it_setBits;
                     }
 
@@ -102,26 +104,24 @@ class ColorSet {
 
                 bool operator==(const ColorSet_const_iterator& o) {
 
-                    return  (cs == o.cs) && (color == o.color) && (flag == o.flag) &&
-                            ((flag == pointerCompressedBitmap) ? (it_roar == o.it_roar) : (it_setBits == o.it_setBits));
+                    return  (cs == o.cs) && (color_id == o.color_id) && (flag == o.flag) &&
+                            ((flag == ptrCompressedBitmap) ? (it_roar == o.it_roar) : (it_setBits == o.it_setBits));
                 }
 
                 bool operator!=(const ColorSet_const_iterator& o) {
 
-                    return  (cs != o.cs) || (color != o.color) || (flag != o.flag) ||
-                            ((flag == pointerCompressedBitmap) ? (it_roar != o.it_roar) : (it_setBits != o.it_setBits));
+                    return  (cs != o.cs) || (color_id != o.color_id) || (flag != o.flag) ||
+                            ((flag == ptrCompressedBitmap) ? (it_roar != o.it_roar) : (it_setBits != o.it_setBits));
                 }
         };
 
         typedef ColorSet_const_iterator const_iterator;
 
         ColorSet();
-        ColorSet(const size_t color);
         ~ColorSet();
 
-        void add(const size_t color);
-        void join(const ColorSet& cs);
-        bool contains(const size_t color) const;
+        void add(const UnitigMap<HashID>& um, const size_t color_id);
+        bool contains(const UnitigMap<HashID>& um, const size_t color_id) const;
 
         size_t size() const;
 
@@ -137,8 +137,8 @@ class ColorSet {
 
         void releasePointer();
 
-        inline Roaring* getPointer() const { return reinterpret_cast<Roaring*>(setBits & pointerMask); }
-        inline const Roaring* getConstPointer() const { return reinterpret_cast<const Roaring*>(setBits & pointerMask); }
+        inline Bitmap* getPtrBitmap() const { return reinterpret_cast<Bitmap*>(setBits & pointerMask); }
+        inline const Bitmap* getConstPtrBitmap() const { return reinterpret_cast<const Bitmap*>(setBits & pointerMask); }
 
         static const size_t maxBitVectorIDs = 62; // 64 bits - 2 bits for the color set type
 
@@ -146,13 +146,11 @@ class ColorSet {
         // Flag 0 - A pointer to a compressed bitmap containing colors
         // Flag 1 - A bit vector of 62 bits storing presence/absence of up to 62 colors (one bit = one color)
         // Flag 2 - A single integer which is a color
-        // Flag 3 - A bit vector of 54 bits storing whether the k-mers of the corresponding unitig match different color sets
-        // + 8 bits for the color ID of the next k-mer which has a different color set
+        // Flag 3 - Unused
 
-        static const uintptr_t pointerCompressedBitmap = 0x0;
+        static const uintptr_t ptrCompressedBitmap = 0x0;
         static const uintptr_t localBitVectorColor = 0x1;
         static const uintptr_t localSingleColor = 0x2;
-        static const uintptr_t localBitVectorKmer = 0x3;
 
         static const uintptr_t flagMask = 0x3;
         static const uintptr_t pointerMask = 0xfffffffffffffffc;
@@ -160,7 +158,7 @@ class ColorSet {
         union {
 
             uintptr_t setBits;
-            Roaring* setPointer;
+            Bitmap* setPointer;
         };
 };
 
