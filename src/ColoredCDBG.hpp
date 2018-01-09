@@ -9,6 +9,8 @@
 
 class ColoredCDBG : public CompactedDBG<HashID> {
 
+    friend class HashID;
+
     public:
 
         ColoredCDBG(int kmer_length = DEFAULT_K, int minimizer_length = DEFAULT_G);
@@ -18,6 +20,7 @@ class ColoredCDBG : public CompactedDBG<HashID> {
 
         bool setColor(const UnitigMap<HashID>& um, size_t color);
         bool joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src);
+        ColorSet extractColors(const UnitigMap<HashID>& um, const size_t pos, const size_t len) const;
 
     private:
 
@@ -25,6 +28,7 @@ class ColoredCDBG : public CompactedDBG<HashID> {
         void mapColors(const CDBG_Build_opt& opt);
 
         ColorSet* getColorSet(const UnitigMap<HashID>& um);
+        const ColorSet* getColorSet(const UnitigMap<HashID>& um) const;
 
         uint64_t seeds[256];
 

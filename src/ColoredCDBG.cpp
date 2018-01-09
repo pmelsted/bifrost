@@ -186,9 +186,7 @@ bool ColoredCDBG::joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<H
 
         if ((color_set_dest != nullptr) && (color_set_src != nullptr)){
 
-            // TODO: NEED TO DEAL WITH REVERSE HERE
-
-            ColorSet new_cs;
+            ColorSet new_cs, csd_rev, css_rev;
 
             size_t prev_color_id = 0xffffffffffffffff;
             size_t prev_km_dist = 0xffffffffffffffff;
@@ -196,15 +194,34 @@ bool ColoredCDBG::joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<H
             UnitigMap<HashID> new_um_dest(um_dest.pos_unitig, 0, 0, um_dest.size + um_src.size,
                                           um_dest.isShort, um_dest.isAbundant, um_dest.strand, *(um_dest.cdbg));
 
+            if (!um_dest.strand){
+
+                csd_rev = color_set_dest->reverse(um_dest.size);
+                color_set_dest = &csd_rev;
+            }
+
+            ColorSet::const_iterator it = color_set_dest->begin(), it_end = color_set_dest->end();
+
+            if (it != it_end){
+
+                prev_color_id = *it / um_dest.size;
+                prev_km_dist = *it - (prev_color_id * um_dest.size);
+
+                new_um_dest.dist = prev_km_dist;
+                new_um_dest.len = 1;
+
+                ++it;
+            }
+
             // Insert colors layer by layer
-            for (ColorSet::const_iterator it = color_set_dest->begin(); it != color_set_dest->end(); ++it){
+            for (; it != it_end; ++it){
 
                 const size_t color_id = *it / um_dest.size;
                 const size_t km_dist = *it - (color_id * um_dest.size);
 
                 if ((color_id != prev_color_id) || (km_dist != prev_km_dist + 1)){
 
-                    if (new_um_dest.dist + new_um_dest.len != 0) new_cs.add(new_um_dest, color_id);
+                    new_cs.add(new_um_dest, color_id);
 
                     new_um_dest.dist = km_dist;
                     new_um_dest.len = 1;
@@ -215,18 +232,39 @@ bool ColoredCDBG::joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<H
                 prev_km_dist = km_dist;
             }
 
+            if (new_um_dest.dist + new_um_dest.len != 0) new_cs.add(new_um_dest, prev_color_id);
+
             UnitigMap<HashID> new_um_src(um_src.pos_unitig, 0, 0, um_dest.size + um_src.size,
                                          um_src.isShort, um_src.isAbundant, um_src.strand, *(um_src.cdbg));
 
+            if (!um_src.strand){
+
+                css_rev = color_set_src->reverse(um_src.size);
+                color_set_src = &css_rev;
+            }
+
+            it = color_set_src->begin(), it_end = color_set_src->end();
+
+            if (it != it_end){
+
+                prev_color_id = *it / um_src.size;
+                prev_km_dist = *it - (prev_color_id * um_src.size);
+
+                new_um_src.dist = prev_km_dist + um_dest.size;
+                new_um_src.len = 1;
+
+                ++it;
+            }
+
             // Insert colors layer by layer
-            for (ColorSet::const_iterator it = color_set_src->begin(); it != color_set_src->end(); ++it){
+            for (; it != it_end; ++it){
 
                 const size_t color_id = *it / um_src.size;
                 const size_t km_dist = *it - (color_id * um_src.size);
 
                 if ((color_id != prev_color_id) || (km_dist != prev_km_dist + 1)){
 
-                    if (new_um_src.dist + new_um_src.len != 0) new_cs.add(new_um_src, color_id);
+                    new_cs.add(new_um_src, color_id);
 
                     new_um_src.dist = km_dist + um_dest.size;
                     new_um_src.len = 1;
@@ -237,6 +275,8 @@ bool ColoredCDBG::joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<H
                 prev_km_dist = km_dist;
             }
 
+            if (new_um_src.dist + new_um_src.len != 0) new_cs.add(new_um_src, prev_color_id);
+
             *color_set_dest = new_cs;
 
             return true;
@@ -246,6 +286,40 @@ bool ColoredCDBG::joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<H
     return false;
 }
 
+ColorSet ColoredCDBG::extractColors(const UnitigMap<HashID>& um, const size_t pos, const size_t len) const {
+
+    ColorSet new_cs;
+
+    if (!um.isEmpty && (color_sets != nullptr)){
+
+        const ColorSet* cs = getColorSet(um);
+
+        if (cs != nullptr){
+
+            const size_t end = pos + len;
+
+            UnitigMap<HashID> fake_um(0, 0, 1, len, false, false, um.strand, *(um.cdbg));
+
+            ColorSet::const_iterator it = cs->begin(), it_end = cs->end();
+
+            for (ColorSet::const_iterator it = cs->begin(), it_end = cs->end(); it != it_end; ++it){
+
+                const size_t color_id = *it / um.size;
+                const size_t km_dist = *it - (color_id * um.size);
+
+                if ((km_dist >= pos) && (km_dist < end)){
+
+                    fake_um.dist = km_dist - pos;
+
+                    new_cs.add(fake_um, color_id);
+                }
+            }
+        }
+    }
+
+    return new_cs;
+}
+
 ColorSet* ColoredCDBG::getColorSet(const UnitigMap<HashID>& um) {
 
     ColorSet* color_set = nullptr;
@@ -253,6 +327,7 @@ ColorSet* ColoredCDBG::getColorSet(const UnitigMap<HashID>& um) {
     if (!um.isEmpty && (color_sets != nullptr)){
 
         const Kmer head = um.getHead();
+
         const uint8_t hash_id = um.getData()->get();
 
         if (hash_id == 0){
@@ -265,4 +340,24 @@ ColorSet* ColoredCDBG::getColorSet(const UnitigMap<HashID>& um) {
     }
 
     return color_set;
+}
+
+const ColorSet* ColoredCDBG::getColorSet(const UnitigMap<HashID>& um) const {
+
+    if (!um.isEmpty && (color_sets != nullptr)){
+
+        const Kmer head = um.getHead();
+
+        const uint8_t hash_id = um.getData()->get();
+
+        if (hash_id == 0){
+
+            KmerHashTable<ColorSet>::const_iterator it = km_overflow.find(head);
+
+            if (it != km_overflow.end()) return &(*it);
+        }
+        else return &color_sets[head.hash(seeds[hash_id - 1]) % nb_color_sets];
+    }
+
+    return nullptr;
 }

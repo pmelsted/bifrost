@@ -78,6 +78,7 @@ struct UnitigMap {
 
     Kmer getHead() const;
     Kmer getTail() const;
+    Kmer getKmer(const size_t pos) const;
 
     const T* getData() const;
     T* getData();

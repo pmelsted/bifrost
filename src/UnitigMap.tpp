@@ -124,6 +124,27 @@ Kmer UnitigMap<T>::getTail() const {
     return km;
 }
 
+template<typename T>
+Kmer UnitigMap<T>::getKmer(const size_t pos) const {
+
+    if (!isEmpty){
+
+        if (isShort && (pos == 0)) return cdbg->v_kmers[pos_unitig].first;
+        if (isAbundant && (pos == 0)) return cdbg->h_kmers_ccov.find(pos_unitig).getKey();
+
+        if (!isShort && !isAbundant && (pos < cdbg->v_unitigs[pos_unitig]->numKmers())) {
+
+            return cdbg->v_unitigs[pos_unitig]->seq.getKmer(pos);
+        }
+    }
+
+    Kmer km;
+
+    km.set_empty();
+
+    return km;
+}
+
 /** Return a pointer to the data associated with the mapped unitig.
 * @return a constant pointer to the data associated with the mapped unitig or
 * a constant null pointer if there is no mapping (UnitigMap<T>::isEmpty = true) or no data

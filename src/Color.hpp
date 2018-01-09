@@ -52,6 +52,11 @@ class ColorSet {
 
                     flag = cs->setBits & flagMask;
                     if (flag == ptrCompressedBitmap) it_roar = cs->getConstPtrBitmap()->begin();
+                    else if (flag == unoccupied){
+
+                        flag = localBitVectorColor;
+                        it_setBits = maxBitVectorIDs;
+                    }
                 }
 
                 ColorSet_const_iterator& operator=(const ColorSet_const_iterator& o) {
@@ -120,8 +125,17 @@ class ColorSet {
         ColorSet();
         ~ColorSet();
 
+        // Copy constructors
+        ColorSet(const ColorSet& o);
+        ColorSet& operator=(const ColorSet& o);
+
+        void empty();
+        void setUnoccupied();
+
         void add(const UnitigMap<HashID>& um, const size_t color_id);
         bool contains(const UnitigMap<HashID>& um, const size_t color_id) const;
+
+        ColorSet reverse(const size_t len_unitig) const;
 
         size_t size() const;
 
@@ -137,6 +151,8 @@ class ColorSet {
 
         void releasePointer();
 
+        void add(const size_t color_id);
+
         inline Bitmap* getPtrBitmap() const { return reinterpret_cast<Bitmap*>(setBits & pointerMask); }
         inline const Bitmap* getConstPtrBitmap() const { return reinterpret_cast<const Bitmap*>(setBits & pointerMask); }
 
@@ -146,11 +162,12 @@ class ColorSet {
         // Flag 0 - A pointer to a compressed bitmap containing colors
         // Flag 1 - A bit vector of 62 bits storing presence/absence of up to 62 colors (one bit = one color)
         // Flag 2 - A single integer which is a color
-        // Flag 3 - Unused
+        // Flag 3 - Unoccupied color set (not associated with any unitig)
 
         static const uintptr_t ptrCompressedBitmap = 0x0;
         static const uintptr_t localBitVectorColor = 0x1;
         static const uintptr_t localSingleColor = 0x2;
+        static const uintptr_t unoccupied = 0x3;
 
         static const uintptr_t flagMask = 0x3;
         static const uintptr_t pointerMask = 0xfffffffffffffffc;

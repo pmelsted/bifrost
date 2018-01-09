@@ -17,14 +17,38 @@ void HashID::lock() {
 
 void HashID::join(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src){
 
-    ColoredCDBG* colored_cdbg_dest = static_cast<ColoredCDBG*>(um_dest.cdbg);
+    ColoredCDBG* colored_cdbg = static_cast<ColoredCDBG*>(um_dest.cdbg);
 
-    colored_cdbg_dest->joinColors(um_dest, um_src);
+    ColorSet* cs_dest = colored_cdbg->getColorSet(um_dest);
+    ColorSet* cs_src = colored_cdbg->getColorSet(um_src);
+
+    if (cs_dest != nullptr){
+
+        const Kmer new_head = um_dest.strand ? um_dest.getHead() : um_dest.getTail().rep();
+
+        colored_cdbg->joinColors(um_dest, um_src);
+        // TODO: Insert in tombstone if available
+        colored_cdbg->km_overflow.insert(new_head, ColorSet(*cs_dest));
+
+        cs_dest->setUnoccupied();
+    }
+
+    if (cs_src != nullptr) cs_src->setUnoccupied();
 }
 
 void HashID::split(const UnitigMap<HashID>& um_split, const size_t pos, const size_t len, HashID& data_dest) const {
 
-    //TODO
+    ColoredCDBG* colored_cdbg = static_cast<ColoredCDBG*>(um_split.cdbg);
+
+    ColorSet cs = colored_cdbg->extractColors(um_split, pos, len);
+
+    if (cs.size() != 0){
+
+        const Kmer km = um_split.getKmer(pos);
+
+        // TODO: Insert in tombstone if available
+        colored_cdbg->km_overflow.insert(km, cs);
+    }
 }
 
 
@@ -34,46 +58,80 @@ void HashID::split(const UnitigMap<HashID>& um_split, const size_t pos, const si
 
 
 
-ColorSet::ColorSet() : setBits(localBitVectorColor) {}
+ColorSet::ColorSet() : setBits(unoccupied) {}
 
 ColorSet::~ColorSet() {
 
     releasePointer();
 }
 
+ColorSet::ColorSet(const ColorSet& o){
+
+    const uintptr_t flag = o.setBits & flagMask;
+
+    if (flag == ptrCompressedBitmap){
+
+        setPointer = new Bitmap(*(o.getConstPtrBitmap()));
+
+        setBits &= pointerMask;
+    }
+    else setBits = o.setBits;
+}
+
+ColorSet& ColorSet::operator=(const ColorSet& o){
+
+    const uintptr_t flag = o.setBits & flagMask;
+
+    releasePointer();
+
+    if (flag == ptrCompressedBitmap){
+
+        setPointer = new Bitmap(*(o.getConstPtrBitmap()));
+
+        setBits &= pointerMask;
+    }
+    else setBits = o.setBits;
+
+    return *this;
+}
+
 void ColorSet::releasePointer(){
 
-    if ((setBits & flagMask) == ptrCompressedBitmap){
+    if ((setBits & flagMask) == ptrCompressedBitmap) delete getPtrBitmap();
+}
 
-        delete getPtrBitmap();
-        setBits = localBitVectorColor;
-    }
+void ColorSet::empty(){
+
+    releasePointer();
+    setBits = localBitVectorColor;
+}
+
+void ColorSet::setUnoccupied(){
+
+    releasePointer();
+    setBits = unoccupied;
 }
 
 void ColorSet::add(const UnitigMap<HashID>& um, const size_t color_id) {
 
     const uintptr_t flag = setBits & flagMask;
-    size_t color_id_start = um.size * color_id + color_id;
-    const size_t color_id_end = color_id_start + (std::min(um.size, um.dist + um.len) - um.dist);
+    size_t color_id_start = um.size * color_id + um.dist;
+    const size_t color_id_end = color_id_start + std::min(um.size - um.dist, um.len);
 
-    if (flag == ptrCompressedBitmap){
+    if (flag == unoccupied) setBits = localBitVectorColor;
 
-        Bitmap* bitmap = getPtrBitmap();
-
-        for (; color_id_start < color_id_end; ++color_id_start) bitmap->add(color_id_start);
-    }
-    else if (flag == localBitVectorColor){
+    if (flag == localBitVectorColor){
 
         if ((setBits == localBitVectorColor) && (um.len == 1)) setBits = (color_id_start << 2) | localSingleColor;
         else if ((color_id_end - 1) < maxBitVectorIDs){
 
-            for (color_id_start += 2; color_id_start < color_id_end; ++color_id_start) setBits |= 1ULL << color_id_start;
+            for (; color_id_start < color_id_end; ++color_id_start) setBits |= 1ULL << (color_id_start + 2);
         }
         else {
 
             uintptr_t setBits_tmp = setBits >> 2;
 
-            setPointer = new Roaring;
+            setPointer = new Bitmap;
 
             for (size_t i = 0; setBits_tmp != 0; ++i, setBits_tmp >>= 1) {
 
@@ -93,11 +151,11 @@ void ColorSet::add(const UnitigMap<HashID>& um, const size_t color_id) {
 
             setBits = (1ULL << (setBits_tmp + 2)) | localBitVectorColor;
 
-            for (color_id_start += 2; color_id_start < color_id_end; ++color_id_start) setBits |= 1ULL << color_id_start;
+            for (; color_id_start < color_id_end; ++color_id_start) setBits |= 1ULL << (color_id_start + 2);
         }
         else {
 
-            setPointer = new Roaring;
+            setPointer = new Bitmap;
 
             setPointer->add(setBits_tmp);
 
@@ -106,13 +164,67 @@ void ColorSet::add(const UnitigMap<HashID>& um, const size_t color_id) {
             setBits &= pointerMask;
         }
     }
+    else { // flag == ptrCompressedBitmap
+
+        Bitmap* bitmap = getPtrBitmap();
+
+        for (; color_id_start < color_id_end; ++color_id_start) bitmap->add(color_id_start);
+    }
+}
+
+// PRIVATE
+void ColorSet::add(const size_t color_id) {
+
+    const uintptr_t flag = setBits & flagMask;
+
+    if (flag == unoccupied) setBits = localBitVectorColor;
+
+    if (flag == localBitVectorColor){
+
+        if (setBits == localBitVectorColor) setBits = (color_id << 2) | localSingleColor;
+        else if (color_id < maxBitVectorIDs) setBits |= 1ULL << (color_id + 2);
+        else {
+
+            uintptr_t setBits_tmp = setBits >> 2;
+
+            setPointer = new Bitmap;
+
+            for (size_t i = 0; setBits_tmp != 0; ++i, setBits_tmp >>= 1) {
+
+                if ((setBits_tmp & 0x1) != 0) setPointer->add(i);
+            }
+
+            setPointer->add(color_id);
+
+            setBits &= pointerMask;
+        }
+    }
+    else if (flag == localSingleColor){
+
+        const uintptr_t setBits_tmp = setBits >> 2;
+
+        if ((setBits_tmp < maxBitVectorIDs) && (color_id < maxBitVectorIDs)){
+
+            setBits = (1ULL << (setBits_tmp + 2)) | (1ULL << (color_id + 2)) | localBitVectorColor;
+        }
+        else {
+
+            setPointer = new Bitmap;
+
+            setPointer->add(setBits_tmp);
+            setPointer->add(color_id);
+
+            setBits &= pointerMask;
+        }
+    }
+    else getPtrBitmap()->add(color_id); // flag == ptrCompressedBitmap
 }
 
 bool ColorSet::contains(const UnitigMap<HashID>& um, const size_t color_id) const {
 
     const uintptr_t flag = setBits & flagMask;
-    size_t color_id_start = um.size * color_id + color_id;
-    const size_t color_id_end = color_id_start + (std::min(um.size, um.dist + um.len) - um.dist);
+    size_t color_id_start = um.size * color_id + um.dist;
+    const size_t color_id_end = color_id_start + std::min(um.size - um.dist, um.len);
 
     if (flag == ptrCompressedBitmap){
 
@@ -141,7 +253,24 @@ bool ColorSet::contains(const UnitigMap<HashID>& um, const size_t color_id) cons
     }
     else if ((flag == localSingleColor) && (um.len == 1)) return color_id_start == (setBits >> 2);
 
-    return false;
+    return false; //flag == unoccupied
+}
+
+ColorSet ColorSet::reverse(const size_t len_unitig) const {
+
+    ColorSet new_cs;
+    ColorSet::const_iterator it = begin(), it_end = end();
+
+    for (; it != it_end; ++it){
+
+        const size_t color_id = *it / len_unitig;
+        const size_t km_dist = *it - (color_id * len_unitig);
+        const size_t new_km_dist = len_unitig - km_dist - Kmer::k;
+
+        new_cs.add(len_unitig * color_id + new_km_dist);
+    }
+
+    return new_cs;
 }
 
 size_t ColorSet::size() const {
@@ -152,5 +281,5 @@ size_t ColorSet::size() const {
     else if (flag == localBitVectorColor) return __builtin_popcount(setBits & pointerMask);
     else if (flag == localSingleColor) return 1;
 
-    return 0;
+    return 0; //flag == unoccupied
 }
