@@ -166,20 +166,29 @@ class CDBG_Data_t {
 
     public:
 
-        /** Merge current object with another object of the same type (because the unitigs they are associated with
-        * are going to be merged).
-        * @param data is the object to merge with.
-        * @param cdbg is the compacted de Bruijn graph from which the objects are from.
+        /** Join data of two unitigs (each represented with a UnitigMap given as parameter) which are going to be concatenated.
+        * Specifically, if A is the unitig represented by parameter um_dest and B is the unitig represented by parameter um_src
+        * then, after the call to this function, A will be the concatenation of itself with B (A = AB) and B will be removed.
+        * Be careful that if um_dest.strand = false, then the reverse-complement of A is going to be used in the concatenation.
+        * Reciprocally, if um_src.strand = false, then the reverse-complement of B is going to be used in the concatenation.
+        * The data of each unitig can be accessed and modified through the methods UnitigMap::getData() and UnitigMap::setData().
+        * Usually, after joining the data, you want to use um_dest.setData() such that the new data are associated with unitig A.
+        * @param um_dest is a UnitigMap object representing a unitig (and its data) to which another unitig is going to be appended.
+        * @param um_src is a UnitigMap object representing a unitig (and its data) that will be appended at the end of the unitig
+        * represented by parameter um_dest.
         */
         virtual void join(const UnitigMap<T>& um_dest, const UnitigMap<T>& um_src) = 0;
-        /** Create from the current object, associated with unitig seq_un, a new object to associate with a new
-        * unitig seq_un' = seq_un[pos, pos+len]
-        * @param pos corresponds to the start position of the sub-unitig seq_un' into unitig seq_un.
-        * @param len corresponds to the length of the sub-unitig seq_un'.
-        * @param new_data is an new (empty) object that you can fill in with new data.
-        * @param cdbg is the compacted de Bruijn graph from which the current object is from.
+
+        /** Extract data from a unitig A (represented by the UnitigMap object um_src given in parameter) to be associated with a
+        * sub-unitig B such that B = A[um_src.dist, um_src.dist + um_src.len]. Be careful that if um_src.strand = false, then B
+        * will be extracted from the reverse-complement of A.
+        * @param um_src is a UnitigMap object representing a unitig A (and its data) from which a new sub-unitig B will be extracted.
+        * um_src.dist corresponds to the start position of sub-unitig B into A, um_src.len corresponds to the length of sub-unitig B.
+        * @param new_data is an new (empty) object that you can fill in with the new data of B.
+        * @param last_extraction is a boolean indicating if this is the last call to this function on the unitig represented by um_src.
+        * If last_extraction is true, the unitig represented by um_src will be removed from the graph right after the call to sub().
         */
-        virtual void split(const UnitigMap<T>& um_split, const size_t pos_split, const size_t len_split, T& new_data) const = 0;
+        virtual void sub(const UnitigMap<T>& um_src, T& new_data, bool last_extraction) const = 0;
 };
 
 /** @class CompactedDBG

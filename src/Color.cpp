@@ -22,32 +22,54 @@ void HashID::join(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_
     ColorSet* cs_dest = colored_cdbg->getColorSet(um_dest);
     ColorSet* cs_src = colored_cdbg->getColorSet(um_src);
 
-    if (cs_dest != nullptr){
+    const HashID hid(0);
+
+    if (cs_dest != nullptr){ // If a colorset exists for um_dest
 
         const Kmer new_head = um_dest.strand ? um_dest.getHead() : um_dest.getTail().rep();
 
-        colored_cdbg->joinColors(um_dest, um_src);
+        colored_cdbg->joinColors(um_dest, um_src); // Join the color sets
+
         // TODO: Insert in tombstone if available
+        // TODO: if new_head = head, do not insert in overflow
+
+        // Insert new colorset with corresponding head into overflow of k-mers
         colored_cdbg->km_overflow.insert(new_head, ColorSet(*cs_dest));
 
-        cs_dest->setUnoccupied();
+        cs_dest->setUnoccupied(); // Set um_dest colorset as a tombstone
+
+        um_dest.setData(&hid);
     }
 
-    if (cs_src != nullptr) cs_src->setUnoccupied();
+    if (cs_src != nullptr){
+
+        cs_src->setUnoccupied();
+        // TODO: if new_head = head, do not insert in overflow
+        um_src.setData(&hid);
+    }
 }
 
-void HashID::split(const UnitigMap<HashID>& um_split, const size_t pos, const size_t len, HashID& data_dest) const {
+void HashID::sub(const UnitigMap<HashID>& um, HashID& data_dest, const bool last_extraction) const {
 
-    ColoredCDBG* colored_cdbg = static_cast<ColoredCDBG*>(um_split.cdbg);
+    ColoredCDBG* colored_cdbg = static_cast<ColoredCDBG*>(um.cdbg);
 
-    ColorSet cs = colored_cdbg->extractColors(um_split, pos, len);
+    ColorSet cs = colored_cdbg->extractColors(um);
 
     if (cs.size() != 0){
 
-        const Kmer km = um_split.getKmer(pos);
+        const Kmer km = um.getKmer(um.dist);
 
         // TODO: Insert in tombstone if available
         colored_cdbg->km_overflow.insert(km, cs);
+
+        if (last_extraction){
+
+            const HashID hid(0);
+
+            colored_cdbg->getColorSet(um)->setUnoccupied();
+
+            um.setData(&hid);
+        }
     }
 }
 
@@ -109,11 +131,13 @@ void ColorSet::setUnoccupied(){
 
 void ColorSet::add(const UnitigMap<HashID>& um, const size_t color_id) {
 
-    const uintptr_t flag = setBits & flagMask;
-    size_t color_id_start = um.size * color_id + um.dist;
-    const size_t color_id_end = color_id_start + std::min(um.size - um.dist, um.len);
+    const size_t um_km_sz = um.size - Kmer::k + 1;
+    size_t color_id_start = um_km_sz * color_id + um.dist;
+    const size_t color_id_end = color_id_start + std::min(um_km_sz - um.dist, um.len);
 
-    if (flag == unoccupied) setBits = localBitVectorColor;
+    if ((setBits & flagMask) == unoccupied) setBits = localBitVectorColor;
+
+    const uintptr_t flag = setBits & flagMask;
 
     if (flag == localBitVectorColor){
 
@@ -170,9 +194,9 @@ void ColorSet::add(const UnitigMap<HashID>& um, const size_t color_id) {
 // PRIVATE
 void ColorSet::add(const size_t color_id) {
 
-    const uintptr_t flag = setBits & flagMask;
+    if ((setBits & flagMask) == unoccupied) setBits = localBitVectorColor;
 
-    if (flag == unoccupied) setBits = localBitVectorColor;
+    const uintptr_t flag = setBits & flagMask;
 
     if (flag == localBitVectorColor){
 
@@ -218,8 +242,9 @@ void ColorSet::add(const size_t color_id) {
 bool ColorSet::contains(const UnitigMap<HashID>& um, const size_t color_id) const {
 
     const uintptr_t flag = setBits & flagMask;
-    size_t color_id_start = um.size * color_id + um.dist;
-    const size_t color_id_end = color_id_start + std::min(um.size - um.dist, um.len);
+    const size_t um_km_sz = um.size - Kmer::k + 1;
+    size_t color_id_start = um_km_sz * color_id + um.dist;
+    const size_t color_id_end = color_id_start + std::min(um_km_sz - um.dist, um.len);
 
     if (flag == ptrCompressedBitmap){
 
@@ -253,16 +278,18 @@ bool ColorSet::contains(const UnitigMap<HashID>& um, const size_t color_id) cons
 
 ColorSet ColorSet::reverse(const size_t len_unitig) const {
 
+    const size_t len_unitig_km = len_unitig - Kmer::k + 1;
+
     ColorSet new_cs;
     ColorSet::const_iterator it = begin(), it_end = end();
 
     for (; it != it_end; ++it){
 
-        const size_t color_id = *it / len_unitig;
-        const size_t km_dist = *it - (color_id * len_unitig);
-        const size_t new_km_dist = len_unitig - km_dist - Kmer::k;
+        const size_t color_id = *it / len_unitig_km;
+        const size_t km_dist = *it - (color_id * len_unitig_km);
+        const size_t new_km_dist = len_unitig_km - km_dist - 1;
 
-        new_cs.add(len_unitig * color_id + new_km_dist);
+        new_cs.add(len_unitig_km * color_id + new_km_dist);
     }
 
     return new_cs;

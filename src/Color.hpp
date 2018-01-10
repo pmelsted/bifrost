@@ -12,7 +12,7 @@ class HashID : public CDBG_Data_t<HashID> {
         HashID(const uint8_t hid = 0);
 
         void join(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src);
-        void split(const UnitigMap<HashID>& um_split, const size_t pos_split, const size_t len_split, HashID& new_data) const;
+        void sub(const UnitigMap<HashID>& um_src, HashID& new_data, const bool last_extraction) const;
 
         void lock();
         inline void unlock() { __sync_and_and_fetch(&hash_id, 0x7f); }

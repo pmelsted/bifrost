@@ -20,7 +20,7 @@ class ColoredCDBG : public CompactedDBG<HashID> {
 
         bool setColor(const UnitigMap<HashID>& um, size_t color);
         bool joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src);
-        ColorSet extractColors(const UnitigMap<HashID>& um, const size_t pos, const size_t len) const;
+        ColorSet extractColors(const UnitigMap<HashID>& um) const;
 
     private:
 

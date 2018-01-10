@@ -124,6 +124,12 @@ Kmer UnitigMap<T>::getTail() const {
     return km;
 }
 
+/** Return the k-mer starting at position pos in the mapped unitig.
+* @param pos is the start position of the k-mer to extract.
+* @return a Kmer object which is either the k-mer starting at position pos in the mapped unitig or
+* an empty k-mer if there is either no mapping (UnitigMap<T>::isEmpty = true) or the position is
+* greater than length(unitig)-k.
+*/
 template<typename T>
 Kmer UnitigMap<T>::getKmer(const size_t pos) const {
 
@@ -175,7 +181,7 @@ T* UnitigMap<T>::getData() {
 * @param data is a pointer to the data that will be copied to the data associated with the mapped unitig.
 */
 template<typename T>
-void UnitigMap<T>::setData(const T* const data) {
+void UnitigMap<T>::setData(const T* const data) const {
 
     if (isEmpty || !cdbg->has_data){
 
@@ -208,16 +214,16 @@ template<> inline void UnitigMap<void>::mergeData(const UnitigMap<void>& um) { /
 * the data (if there are some).
 */
 template<typename T>
-Unitig<T> UnitigMap<T>::splitData(const size_t pos, const size_t len) {
+Unitig<T> UnitigMap<T>::splitData(const bool last_split) {
 
     Unitig<T> unitig;
 
-    getData()->split(*this, pos, len, unitig.data);
+    getData()->sub(*this, unitig.data, last_split);
 
     return unitig;
 }
 
-template<> inline Unitig<void> UnitigMap<void>::splitData(const size_t pos, const size_t len) { return Unitig<void>(); }
+template<> inline Unitig<void> UnitigMap<void>::splitData(const bool last_split) { return Unitig<void>(); }
 
 /** Return a BackwardCDBG object that can create iterators (through BackwardCDBG::begin() and
 * BackwardCDBG::end()) over the predecessors of the current mapped unitig.

@@ -26,7 +26,7 @@ template<typename T, bool is_const> class neighborIterator;
 * @var UnitigMap<T>::dist
 * 0-based distance of the match from start of the unitig
 * @var UnitigMap<T>::len
-* Length of the match on the unitig
+* Length of the match on the unitig (in k-mers)
 * @var UnitigMap<T>::size
 * Length of the unitig
 * @var UnitigMap<T>::strand
@@ -82,10 +82,10 @@ struct UnitigMap {
 
     const T* getData() const;
     T* getData();
-    void setData(const T* const data);
+    void setData(const T* const data) const;
 
     void mergeData(const UnitigMap<T>& um);
-    Unitig<T> splitData(const size_t pos, const size_t len);
+    Unitig<T> splitData(const bool last_split);
 
     BackwardCDBG<T, true> getPredecessors() const;
     ForwardCDBG<T, true> getSuccessors() const;
