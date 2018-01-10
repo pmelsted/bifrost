@@ -95,11 +95,6 @@ ColorSet& ColorSet::operator=(const ColorSet& o){
     return *this;
 }
 
-void ColorSet::releasePointer(){
-
-    if ((setBits & flagMask) == ptrCompressedBitmap) delete getPtrBitmap();
-}
-
 void ColorSet::empty(){
 
     releasePointer();

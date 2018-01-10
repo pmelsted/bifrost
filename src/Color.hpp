@@ -130,7 +130,13 @@ class ColorSet {
         ColorSet& operator=(const ColorSet& o);
 
         void empty();
+
         void setUnoccupied();
+
+        inline void setOccupied(){ if (isUnoccupied()) setBits = localBitVectorColor; }
+
+        inline bool isUnoccupied() const { return ((setBits & flagMask) == unoccupied); }
+        inline bool isOccupied() const { return ((setBits & flagMask) != unoccupied); }
 
         void add(const UnitigMap<HashID>& um, const size_t color_id);
         bool contains(const UnitigMap<HashID>& um, const size_t color_id) const;
@@ -149,7 +155,10 @@ class ColorSet {
 
     private:
 
-        void releasePointer();
+        inline void releasePointer(){
+
+            if ((setBits & flagMask) == ptrCompressedBitmap) delete getPtrBitmap();
+        }
 
         void add(const size_t color_id);
 

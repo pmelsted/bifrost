@@ -31,17 +31,14 @@ bool ColoredCDBG::build(const CDBG_Build_opt& opt){
 
 void ColoredCDBG::initColorSets(const size_t max_nb_hash){
 
-    nb_color_sets = size();
-
     int i;
 
     uint64_t h_v;
 
-    const size_t sz_collisions = (nb_color_sets + 63) / 64;
-
     size_t nb_unitig_not_hashed = 0;
 
-    uint64_t* collisions = new uint64_t[sz_collisions]();
+    nb_color_sets = size();
+    color_sets = new ColorSet[nb_color_sets];
 
     for (auto& unitig : *this){
 
@@ -51,19 +48,15 @@ void ColoredCDBG::initColorSets(const size_t max_nb_hash){
 
             h_v = head.hash(seeds[i]) % nb_color_sets;
 
-            if ((collisions[h_v >> 6] & (1ULL << (h_v & 0x3f))) == 0) break;
+            if (color_sets[h_v].isUnoccupied()) break;
         }
 
         const HashID hid(static_cast<uint8_t>(i == max_nb_hash ? 0 : i + 1));
         unitig.setData(&hid);
 
         if (i == max_nb_hash) km_overflow.insert(head, ColorSet());
-        else collisions[h_v >> 6] |= 1ULL << (h_v & 0x3f);
+        else color_sets[h_v].setOccupied();
     }
-
-    delete[] collisions;
-
-    color_sets = new ColorSet[sz_collisions * 64];
 
     cout << "Number of unitigs not hashed is " << km_overflow.size() << " on " << nb_color_sets << " unitigs." << endl;
 }
