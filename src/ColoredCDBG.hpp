@@ -26,6 +26,7 @@ class ColoredCDBG : public CompactedDBG<HashID> {
 
         void initColorSets(const size_t max_nb_hash = 127);
         void mapColors(const CDBG_Build_opt& opt);
+        void checkColors(const CDBG_Build_opt& opt);
 
         ColorSet* getColorSet(const UnitigMap<HashID>& um);
         const ColorSet* getColorSet(const UnitigMap<HashID>& um) const;

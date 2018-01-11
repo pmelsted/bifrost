@@ -39,10 +39,11 @@ struct UnitigMap {
 
     /*
 
-     xxxxxxxxxxxxxxxxxxxxxxxxxxxxx unitig
-    |dist ->         xxxxxxxxxyyyyyyy  read on forward strand
+    |size ->                      |
+     xxxxxxxxxxxxxxxxxxxxxxxxxxxxx      unitig
+    |dist ->         xxxxxxxxxyyyyyyy   read on forward strand
                      | len ->|
-          yyyyXXXXXXXX                 read on reverse strand
+          yyyyXXXXXXXX                  read on reverse strand
     | dist -> | len  |
 
     */

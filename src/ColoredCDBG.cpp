@@ -26,19 +26,7 @@ bool ColoredCDBG::build(const CDBG_Build_opt& opt){
     initColorSets();
     mapColors(opt);
 
-    /*size_t cpt = 0;
-
-    for (auto& unitig : *this){
-
-        if (getColorSet(unitig)->size() == (2 * (unitig.size - getK() + 1))){
-
-            cout << unitig.toString() << endl;
-
-            ++cpt;
-        }
-    }
-
-    cout << "Number of unitigs where all k-mers have 2 colors is " << cpt << " on " << size() << " unitigs." << endl;*/
+    //checkColors(opt);
 
     return true;
 }
@@ -83,17 +71,17 @@ void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
 
     string s;
 
-    vector<string> readv;
+    vector<pair<string, size_t>> read_color_v;
 
     FastqFile FQ(opt.fastx_filename_in);
 
     // Main worker thread
-    auto worker_function = [&](vector<string>::iterator a, vector<string>::iterator b) {
+    auto worker_function = [&](vector<pair<string, size_t>>::iterator a, vector<pair<string, size_t>>::iterator b) {
 
         // for each input
         for (auto x = a; x != b; ++x) {
 
-            for (KmerIterator it_km(x->c_str()), it_km_end; it_km != it_km_end; ++it_km) {
+            for (KmerIterator it_km(x->first.c_str()), it_km_end; it_km != it_km_end; ++it_km) {
 
                 UnitigMap<HashID> um = find(it_km->first);
 
@@ -101,7 +89,7 @@ void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
 
                     if (um.strand || (um.dist != 0)){
 
-                        um.len += um.lcp(x->c_str(), it_km->second + k_, um.strand ? um.dist + k_ : um.dist - 1, um.strand);
+                        um.len += um.lcp(x->first.c_str(), it_km->second + k_, um.strand ? um.dist + k_ : um.dist - 1, um.strand);
                         it_km += um.len - 1;
                     }
 
@@ -109,7 +97,7 @@ void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
 
                     hid->lock();
 
-                    setColor(um, file_id);
+                    setColor(um, x->second);
 
                     hid->unlock();
                 }
@@ -127,7 +115,7 @@ void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
 
             if (FQ.read_next(s, file_id) >= 0){
 
-                readv.push_back(s);
+                read_color_v.push_back(make_pair(s, file_id));
                 ++reads_now;
             }
             else {
@@ -140,9 +128,9 @@ void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
         // run parallel code
         vector<thread> workers;
 
-        auto rit = readv.begin();
-        size_t batch_size = readv.size() / opt.nb_threads;
-        size_t leftover   = readv.size() % opt.nb_threads;
+        auto rit = read_color_v.begin();
+        size_t batch_size = read_color_v.size() / opt.nb_threads;
+        size_t leftover   = read_color_v.size() % opt.nb_threads;
 
         for (size_t i = 0; i < opt.nb_threads; ++i) {
 
@@ -155,11 +143,11 @@ void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
             rit = rit_end;
         }
 
-        assert(rit == readv.end());
+        assert(rit == read_color_v.end());
 
         for (auto& t : workers) t.join();
 
-        readv.clear();
+        read_color_v.clear();
     }
 
     FQ.close();
@@ -369,4 +357,87 @@ const ColorSet* ColoredCDBG::getColorSet(const UnitigMap<HashID>& um) const {
     }
 
     return nullptr;
+}
+
+void ColoredCDBG::checkColors(const CDBG_Build_opt& opt) {
+
+    cout << "ColoredCDBG::checkColors(): Start" << endl;
+
+    size_t file_id = 0;
+
+    string s;
+
+    KmerHashTable<tiny_vector<size_t, 1>> km_h;
+
+    FastqFile FQ(opt.fastx_filename_in);
+
+    while (FQ.read_next(s, file_id) >= 0){
+
+        for (KmerIterator it_km(s.c_str()), it_km_end; it_km != it_km_end; ++it_km) {
+
+            pair<KmerHashTable<tiny_vector<size_t, 1>>::iterator, bool> it = km_h.insert(it_km->first.rep(), tiny_vector<size_t, 1>());
+
+            tiny_vector<size_t, 1>& tv = *(it.first);
+
+            const size_t id = file_id / 64;
+
+            while (tv.size() < (id + 1)) tv.push_back(0);
+
+            tv[id] |= (1ULL << (file_id % 64));
+        }
+    }
+
+    FQ.close();
+
+    FastqFile FQ2(opt.fastx_filename_in);
+
+    while (FQ2.read_next(s, file_id) >= 0){
+
+        for (KmerIterator it_km(s.c_str()), it_km_end; it_km != it_km_end; ++it_km) {
+
+            UnitigMap<HashID> um = find(it_km->first);
+
+            if (um.isEmpty){
+
+                cerr << "ColoredCDBG::checkColors(): K-mer " << it_km->first.toString() << " is not found in the graph" << endl;
+                exit(1);
+            }
+
+            ColorSet* cs = getColorSet(um);
+
+            if (cs == nullptr){
+
+                cerr << "ColoredCDBG::checkColors(): K-mer " << it_km->first.toString() << " has no color set associated" << endl;
+                exit(1);
+            }
+
+            KmerHashTable<tiny_vector<size_t, 1>>::const_iterator it = km_h.find(it_km->first.rep());
+
+            if (it == km_h.end()){
+
+                cerr << "ColoredCDBG::checkColors(): K-mer " << it_km->first.toString() << " was not inserted in the hash table of k-mers" << endl;
+                exit(1);
+            }
+
+            for (size_t i = 0; i < opt.fastx_filename_in.size(); ++i){
+
+                const bool color_pres_graph = cs->contains(um, i);
+                const bool color_pres_hasht = (((*it)[i/64] >> (i%64)) & 0x1) == 0x1;
+
+                if (color_pres_graph != color_pres_hasht){
+
+                    cerr << "ColoredCDBG::checkColors(): K-mer " << it_km->first.toString() << " for color " << i << ": " << endl;
+                    cerr << "ColoredCDBG::checkColors(): Full unitig: " << um.toString() << endl;
+                    cerr << "ColoredCDBG::checkColors(): Present in graph: " << color_pres_graph << endl;
+                    cerr << "ColoredCDBG::checkColors(): Present in hash table: " << color_pres_hasht << endl;
+
+                    exit(1);
+                }
+            }
+        }
+    }
+
+    FQ2.close();
+
+    cout << "ColoredCDBG::checkColors(): Checked all colors of all k-mers: everything is fine" << endl;
 }

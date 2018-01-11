@@ -357,7 +357,7 @@ pair<size_t, size_t> CompressedCoverage::lowCoverageInfo() const {
 
         size_t cov = covAt(i);
 
-        if (cov < 2) {
+        if (cov < cov_full) {
 
             ++low;
             sum += cov;
@@ -377,18 +377,20 @@ pair<size_t, size_t> CompressedCoverage::lowCoverageInfo() const {
 //       i.e. [ai,...,bi-1] is fully covered
 vector<pair<int, int>> CompressedCoverage::splittingVector() const {
 
-    size_t a = 0, b = 0, sz = size();
+    size_t a = 0, b = 0;
+    const size_t sz = size();
+
     vector<pair<int, int>> v;
 
     while (b != sz) {
         // [a,...,b-1] is a fully covered subinterval and (a,b) has been added to v
-        while (a < sz && covAt(a) <= 1) a++;
+        while ((a < sz) && (covAt(a) < cov_full)) ++a;
 
         if (a == sz) break;
 
         b = a;
 
-        while (b < sz && covAt(b) > 1) b++;
+        while ((b < sz) && (covAt(b) >= cov_full)) ++b;
 
         v.push_back(make_pair(a,b));
 

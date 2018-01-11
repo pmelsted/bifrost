@@ -2795,24 +2795,26 @@ inline bool CompactedDBG<void>::splitUnitig(size_t& pos_v_unitigs, size_t& nxt_p
 
     if (!sp.empty()){
 
-        Unitig<void>* unitig = v_unitigs[pos_v_unitigs];
+        const Unitig<void>* unitig = v_unitigs[pos_v_unitigs];
 
-        pair<size_t, size_t> lowpair = unitig->ccov.lowCoverageInfo();
+        const pair<size_t, size_t> lowpair = unitig->ccov.lowCoverageInfo();
 
-        size_t totalcoverage = unitig->coveragesum - lowpair.second;
-        size_t ccov_size = unitig->ccov.size();
+        const size_t totalcoverage = unitig->coveragesum - lowpair.second;
+        const size_t ccov_size = unitig->ccov.size();
 
         const string str = unitig->seq.toString();
 
         size_t i = 0;
 
+        deleted = false;
+
         for (vector<pair<int,int>>::const_iterator sit = sp.begin(); sit != sp.end(); ++sit, ++i) { //Iterate over created split unitigs
 
-            size_t pos = sit->first;
-            size_t len = sit->second - pos;
+            const size_t pos = sit->first;
+            const size_t len = sit->second - pos;
 
-            string split_str = str.substr(pos, len + k_ - 1); // Split unitig sequence
-            uint64_t cov_tmp = (totalcoverage * len) / (ccov_size - lowpair.first); // Split unitig coverage
+            const string split_str = str.substr(pos, len + k_ - 1); // Split unitig sequence
+            const uint64_t cov_tmp = (totalcoverage * len) / (ccov_size - lowpair.first); // Split unitig coverage
 
             if (split_str.length() == k_){
 
@@ -2852,8 +2854,6 @@ inline bool CompactedDBG<void>::splitUnitig(size_t& pos_v_unitigs, size_t& nxt_p
                 ++nxt_pos_insert_v_unitigs;
             }
         }
-
-        deleted = false;
     }
 
     if (first_long_unitig){
@@ -2887,28 +2887,30 @@ bool CompactedDBG<T>::splitUnitig(size_t& pos_v_unitigs, size_t& nxt_pos_insert_
 
     if (!sp.empty()){
 
-        Unitig<T>* unitig = v_unitigs[pos_v_unitigs];
+        const Unitig<T>* unitig = v_unitigs[pos_v_unitigs];
 
         UnitigMap<T> um(pos_v_unitigs, 0, 0, unitig->length(), false, false, true, *this);
 
-        pair<size_t, size_t> lowpair = unitig->ccov.lowCoverageInfo();
+        const pair<size_t, size_t> lowpair = unitig->ccov.lowCoverageInfo();
 
-        size_t totalcoverage = unitig->coveragesum - lowpair.second;
-        size_t ccov_size = unitig->ccov.size();
+        const size_t totalcoverage = unitig->coveragesum - lowpair.second;
+        const size_t ccov_size = unitig->ccov.size();
 
         const string str = unitig->seq.toString();
 
         size_t i = 0;
+
+        deleted = false;
 
         for (vector<pair<int,int>>::const_iterator sit = sp.begin(); sit != sp.end(); ++sit, ++i) { //Iterate over created split unitigs
 
             um.dist = sit->first;
             um.len = sit->second - um.dist;
 
-            string split_str = str.substr(um.dist, um.len + k_ - 1); // Split unitig sequence
-            uint64_t cov_tmp = (totalcoverage * um.len) / (ccov_size - lowpair.first); // Split unitig coverage
+            const string split_str = str.substr(um.dist, um.len + k_ - 1); // Split unitig sequence
+            const uint64_t cov_tmp = (totalcoverage * um.len) / (ccov_size - lowpair.first); // Split unitig coverage
 
-            Unitig<T> data_tmp = um.splitData(sit+1 == sp.end()); //Split the data
+            const Unitig<T> data_tmp = um.splitData(sit+1 == sp.end()); //Split the data
 
             if (split_str.length() == k_){
 
@@ -2940,8 +2942,6 @@ bool CompactedDBG<T>::splitUnitig(size_t& pos_v_unitigs, size_t& nxt_pos_insert_
                 long_unitig = true;
             }
         }
-
-        deleted = false;
     }
 
     //if (long_unitig){

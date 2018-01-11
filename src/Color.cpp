@@ -139,6 +139,11 @@ void ColorSet::add(const UnitigMap<HashID>& um, const size_t color_id) {
 
     const uintptr_t flag = setBits & flagMask;
 
+    /*if (um.toString() == string("CACCTCGTCGAAATATTCGCTGGCGGCATCGATCACCGCCGGCTGC")){
+
+        cout << "ColorSet::add: " << flag << " " << um_km_sz << " " << color_id_start << " " << color_id_end << " " << color_id << endl;
+    }*/
+
     if (flag == localBitVectorColor){
 
         if ((setBits == localBitVectorColor) && (um.len == 1)) setBits = (color_id_start << 2) | localSingleColor;
@@ -245,6 +250,11 @@ bool ColorSet::contains(const UnitigMap<HashID>& um, const size_t color_id) cons
     const size_t um_km_sz = um.size - Kmer::k + 1;
     size_t color_id_start = um_km_sz * color_id + um.dist;
     const size_t color_id_end = color_id_start + std::min(um_km_sz - um.dist, um.len);
+
+    /*if (um.toString() == string("CACCTCGTCGAAATATTCGCTGGCGGCATCGATCACCGCCGGCTGC")){
+
+        cout << "ColorSet::contains: " << flag << " " << um_km_sz << " " << color_id_start << " " << color_id_end << " " << color_id << endl;
+    }*/
 
     if (flag == ptrCompressedBitmap){
 
