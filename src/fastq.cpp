@@ -27,7 +27,7 @@ void FastqFile::reopen() {
 }
 
 // returns >=0 (length of seq), -1 end of last file, -2 truncated quality string
-int FastqFile::read_next(char *read, size_t *read_len, string &seq, size_t *seq_len, unsigned int *file_id, char *qual) {
+int FastqFile::read_next(char* read, size_t* read_len, string &seq, size_t* seq_len, unsigned int* file_id, char* qual) {
 
     int r;
 
@@ -69,6 +69,21 @@ int FastqFile::read_next(string &seq, size_t& id) {
 
             return read_next(seq, id);
         }
+    }
+
+    return r;
+}
+
+int FastqFile::read_next() {
+
+    int r = kseq_read(kseq);
+
+    if (r == -1) {
+
+        open_next();
+
+        if (fnit != fnames.end()) return read_next();
+        return -1;
     }
 
     return r;

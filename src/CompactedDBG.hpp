@@ -35,6 +35,7 @@
 #include "Kmer.hpp"
 #include "KmerHashTable.h"
 #include "KmerIterator.hpp"
+#include "KmerStream.hpp"
 #include "minHashIterator.hpp"
 #include "RepHash.hpp"
 #include "TinyVector.hpp"
@@ -265,7 +266,7 @@ class CompactedDBG {
         */
         inline size_t size() const { return v_unitigs.size() + v_kmers.size() + h_kmers_ccov.size(); }
 
-        bool build(const CDBG_Build_opt& opt);
+        bool build(CDBG_Build_opt& opt);
         bool simplify(const bool delete_short_isolated_unitigs = true, const bool clip_short_tips = true, const bool verbose = false);
         bool write(const string output_filename, const size_t nb_threads = 1, const bool GFA_output = true, const bool verbose = false);
 

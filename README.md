@@ -68,27 +68,30 @@ Bifrost
 
 It should display the command line interface:
 ```
-Bifrost 0.2
+Bifrost x.y
 
 Highly Parallel and Memory Efficient Compacted de Bruijn Graph Construction
 
 Usage: Bifrost [Parameters] FAST(A|Q)_file_1 ...
 
-Parameters with required argument:
+Mandatory parameters with required argument:
 
-  -n, --num-kmers          [MANDATORY] Estimated number (upper bound) of different k-mers in the FASTA/FASTQ files
-  -N, --num-kmer2          [MANDATORY] Estimated number (upper bound) of different k-mers occurring twice or more in the FASTA/FASTQ files
-  -o, --output             [MANDATORY] Prefix for output file (default is GFA format)
+  -o, --output             Prefix for output file (default file format is GFA)
+
+Optional parameters with required argument:
+
   -t, --threads            Number of threads (default is 1)
   -k, --kmer-length        Length of k-mers (default is 31)
   -g, --min-length         Length of minimizers (default is 23)
+  -n, --num-kmers          Estimated number (upper bound) of different k-mers in input files (default: estimated with KmerStream)
+  -N, --num-kmer2          Estimated number (upper bound) of different k-mers occurring twice or more in the input files (default: estimated with KmerStream)
   -b, --bloom-bits         Number of Bloom filter bits per k-mer occurring at least once in the FASTA/FASTQ files (default is 14)
   -B, --bloom-bits2        Number of Bloom filter bits per k-mer occurring at least twice in the FASTA/FASTQ files (default is 14)
   -l, --load               Filename for input Blocked Bloom Filter, skips filtering step (default is no input)
   -f, --output2            Filename for output Blocked Bloom Filter (default is no output)
   -s, --chunk-size         Read chunksize to split between threads (default is 10000)
 
-Parameters with no argument:
+Optional parameters with no argument:
 
   -r, --ref                Reference mode, no filtering
   -c, --clip-tips          Clip tips shorter than k k-mers in length
@@ -98,11 +101,7 @@ Parameters with no argument:
   -v, --verbose            Print information messages during construction
 ```
 
-Bifrost works in two steps: first, reads are filtered to remove errors and then, the compacted de Bruijn graph is built from the filtered reads.
-
-To obtain quickly the arguments *-n* and *-N* from a FASTQ file (if you have no idea), the tool KmerStream can be used (https://github.com/pmelsted/KmerStream). KmerStream output 3 numbers *F0*, *f1* and *F1*. You can then configure Bifrost with *-n=F0* and *-N=F0-f1*.
-
-Arguments *-b* and *-B* basically control the Bloom filter false positive rates. A larger number means less false positives to deal with during construction but more memory used. We advise to not modify those two parameters unless you know exactly what you are doing with Bloom filters.
+Bifrost works in two steps: first, reads are filtered to remove errors and then, the compacted de Bruijn graph is built from the filtered reads. Note that the only mandatory parameter of Bifrost is the name of the output (GFA or FASTA) file.
 
 ## API
 
@@ -153,6 +152,8 @@ For any question, feedback or problem, please feel free to file an issue on this
 * The hash function library xxHash is BSD licensed (https://github.com/Cyan4973/xxHash)
 
 * The popcount library is BSD licensed (https://github.com/kimwalisch/libpopcnt)
+
+* The libdivide library is zlib licensed (https://github.com/ridiculousfish/libdivide)
 
 * The kseq functions for reading fast(a|q)(.gz) files are copyrighted by Heng Li and released
   under the MIT license (http://lh3lh3.users.sourceforge.net/kseq.shtml)

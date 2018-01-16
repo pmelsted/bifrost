@@ -20,19 +20,20 @@ void PrintUsage() {
     cout << endl << "Bifrost " << BFG_VERSION << endl << endl;
     cout << "Highly Parallel and Memory Efficient Compacted de Bruijn Graph Construction" << endl << endl;
     cout << "Usage: Bifrost [Parameters] FAST(A|Q)_file_1 ..." << endl << endl;
-    cout << "Parameters with required argument:" << endl << endl <<
-    "  -n, --num-kmers          [MANDATORY] Estimated number (upper bound) of different k-mers in the FASTA/FASTQ files" << endl <<
-    "  -N, --num-kmer2          [MANDATORY] Estimated number (upper bound) of different k-mers occurring twice or more in the FASTA/FASTQ files" << endl <<
-    "  -o, --output             [MANDATORY] Prefix for output file (default is GFA format)" << endl <<
+    cout << "Mandatory parameters with required argument:" << endl <<
+    endl << "  -o, --output             Prefix for output file (default file format is GFA)" << endl << endl <<
+    "Optional parameters with required argument:" << endl << endl <<
     "  -t, --threads            Number of threads (default is 1)" << endl <<
     "  -k, --kmer-length        Length of k-mers (default is 31)" << endl <<
     "  -g, --min-length         Length of minimizers (default is 23)" << endl <<
+    "  -n, --num-kmers          Estimated number (upper bound) of different k-mers in input files (default: estimated with KmerStream)" << endl <<
+    "  -N, --num-kmer2          Estimated number (upper bound) of different k-mers occurring twice or more in the input files (default: estimated with KmerStream)" << endl <<
     "  -b, --bloom-bits         Number of Bloom filter bits per k-mer occurring at least once in the FASTA/FASTQ files (default is 14)" << endl <<
     "  -B, --bloom-bits2        Number of Bloom filter bits per k-mer occurring at least twice in the FASTA/FASTQ files (default is 14)" << endl <<
     "  -l, --load               Filename for input Blocked Bloom Filter, skips filtering step (default is no input)" << endl <<
     "  -f, --output2            Filename for output Blocked Bloom Filter (default is no output)" << endl <<
     "  -s, --chunk-size         Read chunksize to split between threads (default is 10000)" << endl <<
-    endl << "Parameters with no argument:" << endl << endl <<
+    endl << "Optional parameters with no argument:" << endl << endl <<
     "  -r, --ref                Reference mode, no filtering" << endl <<
     "  -c, --clip-tips          Clip tips shorter than k k-mers in length" << endl <<
     "  -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl <<
@@ -144,7 +145,8 @@ bool check_ProgramOptions(CDBG_Build_opt& opt) {
         cerr << "Error: Number of threads cannot be less than or equal to 0" << endl;
         ret = false;
     }
-    else if (opt.nb_threads > max_threads){
+
+    if (opt.nb_threads > max_threads){
 
         cerr << "Error: Number of threads cannot be greater than or equal to " << max_threads << endl;
         ret = false;
@@ -180,17 +182,17 @@ bool check_ProgramOptions(CDBG_Build_opt& opt) {
         ret = false;
     }
 
-    if (opt.nb_unique_kmers <= 0){
+    /*if (opt.nb_unique_kmers < 0){
 
-        cerr << "Error: Number of Bloom filter bits per unique k-mer cannot be less than or equal to 0" << endl;
+        cerr << "Error: Number of Bloom filter bits per unique k-mer cannot be less than 0" << endl;
         ret = false;
     }
 
-    if (!opt.reference_mode && (opt.nb_non_unique_kmers <= 0)){
+    if (!opt.reference_mode && (opt.nb_non_unique_kmers < 0)){
 
-        cerr << "Error: Number of Bloom filter bits per non unique k-mer cannot be less than or equal to 0" << endl;
+        cerr << "Error: Number of Bloom filter bits per non unique k-mer cannot be less than 0" << endl;
         ret = false;
-    }
+    }*/
 
     if (!opt.reference_mode && (opt.nb_non_unique_kmers > opt.nb_unique_kmers)){
 
@@ -199,17 +201,17 @@ bool check_ProgramOptions(CDBG_Build_opt& opt) {
         ret = false;
     }
 
-    if (opt.nb_bits_unique_kmers_bf <= 0){
+    /*if (opt.nb_bits_unique_kmers_bf < 0){
 
-        cerr << "Error: Number of Bloom filter bits per unique k-mer cannot be less than or equal to 0" << endl;
+        cerr << "Error: Number of Bloom filter bits per unique k-mer cannot be less than 0" << endl;
         ret = false;
     }
 
-    if (!opt.reference_mode && (opt.nb_bits_non_unique_kmers_bf <= 0)){
+    if (!opt.reference_mode && (opt.nb_bits_non_unique_kmers_bf < 0)){
 
-        cerr << "Error: Number of Bloom filter bits per non unique k-mer cannot be less than or equal to 0" << endl;
+        cerr << "Error: Number of Bloom filter bits per non unique k-mer cannot be less than 0" << endl;
         ret = false;
-    }
+    }*/
 
     if (opt.outFilenameBBF.length() != 0){
 
@@ -282,13 +284,11 @@ int main(int argc, char **argv){
 
         if (check_ProgramOptions(opt)){ //Program options are valid
 
-
             CompactedDBG<> cdbg(opt.k, opt.g);
 
             cdbg.build(opt);
             cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
             cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
-
 
             /*
             ColoredCDBG cdbg(opt.k, opt.g);

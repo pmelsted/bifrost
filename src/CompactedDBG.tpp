@@ -99,7 +99,7 @@ void CompactedDBG<T>::empty(){
 * @return boolean indicating if the graph has been built successfully.
 */
 template<typename T>
-bool CompactedDBG<T>::build(const CDBG_Build_opt& opt){
+bool CompactedDBG<T>::build(CDBG_Build_opt& opt){
 
     size_t max_threads = std::thread::hardware_concurrency();
 
@@ -123,17 +123,17 @@ bool CompactedDBG<T>::build(const CDBG_Build_opt& opt){
         construct_finished = false;
     }
 
-    if (opt.nb_bits_unique_kmers_bf <= 0){
+    /*if (opt.nb_bits_unique_kmers_bf < 0){
 
-        cerr << "CompactedDBG::build(): Number of Bloom filter bits per unique k-mer cannot be less than or equal to 0" << endl;
+        cerr << "CompactedDBG::build(): Number of Bloom filter bits per unique k-mer cannot be less than 0" << endl;
         construct_finished = false;
     }
 
-    if (!opt.reference_mode && (opt.nb_bits_non_unique_kmers_bf <= 0)){
+    if (!opt.reference_mode && (opt.nb_bits_non_unique_kmers_bf < 0)){
 
-        cerr << "CompactedDBG::build(): Number of Bloom filter bits per non unique k-mer cannot be less than or equal to 0" << endl;
+        cerr << "CompactedDBG::build(): Number of Bloom filter bits per non unique k-mer cannot be less than 0" << endl;
         construct_finished = false;
-    }
+    }*/
 
     if (!opt.reference_mode && (opt.nb_non_unique_kmers > opt.nb_unique_kmers)){
 
@@ -198,6 +198,33 @@ bool CompactedDBG<T>::build(const CDBG_Build_opt& opt){
 
     empty();
 
+    if ((opt.nb_unique_kmers == 0) || (opt.nb_non_unique_kmers == 0)){
+
+        KmerStream_Build_opt kms_opt;
+
+        kms_opt.threads = opt.nb_threads;
+        kms_opt.verbose = opt.verbose;
+        kms_opt.klist.push_back(opt.k);
+        kms_opt.q_cutoff.push_back(0);
+
+        for (const auto& s : opt.fastx_filename_in) kms_opt.files.push_back(s);
+
+        KmerStream kms(kms_opt);
+
+        for (KmerStream::const_iterator it = kms.begin(), it_end; it != it_end; ++it){
+
+            opt.nb_unique_kmers = it.F0();
+
+            if (!opt.reference_mode) opt.nb_non_unique_kmers = opt.nb_unique_kmers - it.f1();
+        }
+
+        if (opt.verbose){
+
+            cout << "CompactedDBG::build(): Estimated number of k-mers occurring at least once: " << opt.nb_unique_kmers << endl;
+            if (!opt.reference_mode) cout << "CompactedDBG::build(): Estimated number of k-mers occurring twice or more: " << opt.nb_non_unique_kmers << endl;
+        }
+    }
+
     if (opt.reference_mode) CompressedCoverage::setFullCoverage(1);
 
     if (opt.inFilenameBBF.length() != 0){
@@ -239,7 +266,7 @@ bool CompactedDBG<T>::build(const CDBG_Build_opt& opt){
 
         if (construct_finished){
 
-            if (g_ == DEFAULT_G) hmap_min_unitigs = hmap_min_unitigs_t(opt.nb_non_unique_kmers / 4);
+            //if (g_ == DEFAULT_G) hmap_min_unitigs = hmap_min_unitigs_t(opt.nb_non_unique_kmers / 4);
 
             // Construction step
             construct_finished = construct(opt);
@@ -314,7 +341,7 @@ bool CompactedDBG<T>::write(const string output_filename, const size_t nb_thread
         return false;
     }
 
-    if (verbose) cout << endl << "CompactedDBG::write(): Writing graph to GFA file" << endl;
+    if (verbose) cout << endl << "CompactedDBG::write(): Writing graph to disk" << endl;
 
     string out = output_filename + (GFA_output ? ".gfa" : ".fasta");
 
@@ -1282,10 +1309,9 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                         if (!opt.reference_mode && isIsolated){ // According to the BF, k-mer is isolated in the graph and is a potential false positive
 
-                            //const uint64_t block = ((r == 1 ? block_bf.first : block_bf.second) - bf.getTable_ptr()) / NB_ELEM_BLOCK;
                             const uint64_t block = (r == 1 ? block_bf.first : block_bf.second);
 
-                            Kmer km_rep = km.rep();
+                            const Kmer km_rep = km.rep();
                             const tiny_vector<Kmer, 2>& v = fp_candidate[block];
                             tuple<bool, uint64_t, Kmer> t_fp_cand = make_tuple(true, block, km_rep);
 

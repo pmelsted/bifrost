@@ -19,7 +19,7 @@ ColoredCDBG::~ColoredCDBG() {
     }
 }
 
-bool ColoredCDBG::build(const CDBG_Build_opt& opt){
+bool ColoredCDBG::build(CDBG_Build_opt& opt){
 
     CompactedDBG::build(opt);
 

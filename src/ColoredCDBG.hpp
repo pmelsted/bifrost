@@ -16,7 +16,7 @@ class ColoredCDBG : public CompactedDBG<HashID> {
         ColoredCDBG(int kmer_length = DEFAULT_K, int minimizer_length = DEFAULT_G);
         ~ColoredCDBG();
 
-        bool build(const CDBG_Build_opt& opt);
+        bool build(CDBG_Build_opt& opt);
 
         bool setColor(const UnitigMap<HashID>& um, size_t color);
         bool joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src);
