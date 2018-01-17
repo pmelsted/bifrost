@@ -32,6 +32,7 @@
 #include "BlockedBloomFilter.hpp"
 #include "Common.hpp"
 #include "fastq.hpp"
+//#include "GFA_Parser.hpp"
 #include "Kmer.hpp"
 #include "KmerHashTable.h"
 #include "KmerIterator.hpp"

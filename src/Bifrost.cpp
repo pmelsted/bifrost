@@ -259,7 +259,7 @@ bool check_ProgramOptions(CDBG_Build_opt& opt) {
         vector<string>::const_iterator it;
         int intStat;
 
-        for(it = opt.fastx_filename_in.begin(); it != opt.fastx_filename_in.end(); ++it) {
+        for (it = opt.fastx_filename_in.begin(); it != opt.fastx_filename_in.end(); ++it) {
 
             intStat = stat(it->c_str(), &stFileInfo);
 
@@ -290,10 +290,8 @@ int main(int argc, char **argv){
             cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
             cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
 
-            /*
-            ColoredCDBG cdbg(opt.k, opt.g);
-            cdbg.build(opt);
-            */
+            /*ColoredCDBG cdbg(opt.k, opt.g);
+            cdbg.build(opt);*/
         }
     }
 }

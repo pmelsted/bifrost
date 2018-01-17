@@ -26,7 +26,7 @@ bool ColoredCDBG::build(CDBG_Build_opt& opt){
     initColorSets();
     mapColors(opt);
 
-    //checkColors(opt);
+    checkColors(opt);
 
     return true;
 }
@@ -389,6 +389,8 @@ void ColoredCDBG::checkColors(const CDBG_Build_opt& opt) {
 
     FQ.close();
 
+    file_id = 0;
+
     FastqFile FQ2(opt.fastx_filename_in);
 
     while (FQ2.read_next(s, file_id) >= 0){
@@ -419,14 +421,18 @@ void ColoredCDBG::checkColors(const CDBG_Build_opt& opt) {
                 exit(1);
             }
 
-            for (size_t i = 0; i < opt.fastx_filename_in.size(); ++i){
+            const tiny_vector<size_t, 1>& tv = *it;
+            const size_t tv_nb_max_elem = tv.size() * 64;
+
+            for (size_t i = 0; i < std::min(opt.fastx_filename_in.size(), tv_nb_max_elem); ++i){
 
                 const bool color_pres_graph = cs->contains(um, i);
-                const bool color_pres_hasht = (((*it)[i/64] >> (i%64)) & 0x1) == 0x1;
+                const bool color_pres_hasht = ((tv[i/64] >> (i%64)) & 0x1) == 0x1;
 
                 if (color_pres_graph != color_pres_hasht){
 
-                    cerr << "ColoredCDBG::checkColors(): K-mer " << it_km->first.toString() << " for color " << i << ": " << endl;
+                    cerr << "ColoredCDBG::checkColors(): Current color is " << file_id << ": " << opt.fastx_filename_in[file_id] << endl;
+                    cerr << "ColoredCDBG::checkColors(): K-mer " << it_km->first.toString() << " for color " << i << ": " << opt.fastx_filename_in[i] << endl;
                     cerr << "ColoredCDBG::checkColors(): Full unitig: " << um.toString() << endl;
                     cerr << "ColoredCDBG::checkColors(): Present in graph: " << color_pres_graph << endl;
                     cerr << "ColoredCDBG::checkColors(): Present in hash table: " << color_pres_hasht << endl;
@@ -440,4 +446,5 @@ void ColoredCDBG::checkColors(const CDBG_Build_opt& opt) {
     FQ2.close();
 
     cout << "ColoredCDBG::checkColors(): Checked all colors of all k-mers: everything is fine" << endl;
+    cout << "ColoredCDBG::checkColors(): Number of k-mers in the graph: " << km_h.size() << endl;
 }

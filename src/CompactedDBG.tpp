@@ -894,8 +894,8 @@ bool CompactedDBG<T>::add(const string& seq, const bool verbose){
 
                 v_kmers[v_kmers_sz].second.ccov.setFull();
 
-                v_kmers_sz++;
-                added++;
+                ++v_kmers_sz;
+                ++added;
             }
             else h_kmers_ccov.find(p.first.rep())->second.ccov.setFull();
 

@@ -368,16 +368,12 @@ class KmerStream {
                     }
                     else {
 
-                        const string s_ext = s.substr(s.find_last_of(".") + 1);
+                        string s_ext = s.substr(s.find_last_of(".") + 1);
 
-                        if ((s_ext == "fasta") || (s_ext == "fasta.gz") || (s_ext == "fa") || (s_ext == "fa.gz")) {
+                        if ((s_ext == "gz")) s_ext = s_ext.substr(s_ext.find_last_of(".") + 1);
 
-                            files_fasta.push_back(s);
-                        }
-                        else if ((s_ext == "fastq") || (s_ext == "fastq.gz") || (s_ext == "fq") || (s_ext == "fq.gz")) {
-
-                            files_fastq.push_back(s);
-                        }
+                        if ((s_ext == "fasta") || (s_ext == "fa")) files_fasta.push_back(s);
+                        else if ((s_ext == "fastq") || (s_ext == "fq")) files_fastq.push_back(s);
                         else {
 
                             cerr << "KmerStream::KmerStream(): Input files must be in FASTA (*.fasta, *.fa, *.fasta.gz, *.fa.gz) or " <<

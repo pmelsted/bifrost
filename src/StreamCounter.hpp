@@ -160,8 +160,8 @@ class StreamCounter {
 
                         const uint64_t val = getVal(j,i);
 
-                        if (val == 0) r0++;
-                        if (val == 1) r1++;
+                        if (val == 0) ++r0;
+                        if (val == 1) ++r1;
 
                     }
 
