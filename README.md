@@ -101,7 +101,9 @@ Optional parameters with no argument:
   -v, --verbose            Print information messages during construction
 ```
 
-Bifrost works in two steps: first, reads are filtered to remove errors and then, the compacted de Bruijn graph is built from the filtered reads. Note that the only mandatory parameter of Bifrost is the name of the output (GFA or FASTA) file.
+Bifrost works in two steps: first, reads are filtered to remove errors and then, the compacted de Bruijn graph is built from the filtered reads.
+
+Note that the only mandatory parameter of Bifrost is the name of the output (GFA or FASTA) file.
 
 ## API
 
