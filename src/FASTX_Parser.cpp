@@ -1,20 +1,17 @@
-#include <stdio.h>
-#include <string.h>
-#include <zlib.h>
+#include "FASTX_Parser.hpp"
 
-#include "fastq.hpp"
+FastqFile::FastqFile() : kseq(NULL), file_no(0) { fnit = fnames.end(); }
 
-FastqFile::FastqFile(const vector<string> files) : kseq(NULL), fnames(files) {
+FastqFile::FastqFile(const vector<string> files) : kseq(NULL), fnames(files), file_no(0) {
 
     fnit = fnames.begin();
-    file_no = 0;
     fp = gzopen(fnit->c_str(), "r");
     kseq = kseq_init(fp);
 }
 
 FastqFile::~FastqFile() {
 
-  close();
+    close();
 }
 
 void FastqFile::reopen() {

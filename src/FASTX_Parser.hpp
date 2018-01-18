@@ -1,5 +1,5 @@
-#ifndef FASTQ_H
-#define FASTQ_H
+#ifndef BFG_FASTX_H
+#define BFG_FASTX_H
 
 #include <stdio.h>
 #include <string.h>
@@ -20,6 +20,7 @@ class FastqFile {
 
     public:
 
+        FastqFile();
         FastqFile(const vector<string> fnames);
         ~FastqFile();
 

@@ -31,8 +31,9 @@
 
 #include "BlockedBloomFilter.hpp"
 #include "Common.hpp"
-#include "fastq.hpp"
-//#include "GFA_Parser.hpp"
+#include "File_Parser.hpp"
+#include "FASTX_Parser.hpp"
+#include "GFA_Parser.hpp"
 #include "Kmer.hpp"
 #include "KmerHashTable.h"
 #include "KmerIterator.hpp"
@@ -145,7 +146,6 @@ struct CDBG_Build_opt {
     bool outputGFA;
 
     string prefixFilenameOut;
-    string filenameOut;
 
     CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(DEFAULT_G), nb_unique_kmers(0), nb_non_unique_kmers(0), nb_bits_unique_kmers_bf(14),
                         nb_bits_non_unique_kmers_bf(14), read_chunksize(10000), unitig_size(1000000), reference_mode(false),

@@ -343,7 +343,7 @@ bool CompactedDBG<T>::write(const string output_filename, const size_t nb_thread
 
     if (verbose) cout << endl << "CompactedDBG::write(): Writing graph to disk" << endl;
 
-    string out = output_filename + (GFA_output ? ".gfa" : ".fasta");
+    const string out = output_filename + (GFA_output ? ".gfa" : ".fasta");
 
     FILE* fp = fopen(out.c_str(), "w");
 
@@ -352,7 +352,11 @@ bool CompactedDBG<T>::write(const string output_filename, const size_t nb_thread
         cerr << "CompactedDBG::write(): Could not open file " << out << " for writing graph" << endl;
         return false;
     }
-    else fclose(fp);
+    else {
+
+        fclose(fp);
+        if (std::remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << endl;
+    }
 
     GFA_output ? writeGFA(out, nb_threads) : writeFASTA(out);
 
@@ -3861,7 +3865,7 @@ void CompactedDBG<T>::writeFASTA(string graphfilename) {
     graphfile.close();
 }
 
-template<typename T>
+/*template<typename T>
 void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
 
     const size_t v_unitigs_sz = v_unitigs.size();
@@ -4171,6 +4175,362 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
     }
 
     graphfile.close();
+}*/
+
+template<typename T>
+void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
+
+    const size_t v_unitigs_sz = v_unitigs.size();
+    const size_t v_kmers_sz = v_kmers.size();
+
+    size_t i, labelA, labelB, id = v_unitigs_sz + v_kmers_sz + 1;
+
+    UnitigMap<T> cand;
+
+    Unitig<T>* unitig = nullptr;
+
+    KmerHashTable<size_t> idmap(h_kmers_ccov.size());
+
+    GFA_Parser graph(graphfilename);
+
+    graph.open_write(1);
+
+    for (labelA = 1; labelA <= v_unitigs_sz; ++labelA) {
+
+        unitig = v_unitigs[labelA - 1];
+
+        stringstream ss;
+        ss << labelA;
+
+        graph.write_sequence(ss.str(), unitig->seq.size(), unitig->seq.toString(), unitig->coveragesum);
+    }
+
+    for (labelA = 1; labelA <= v_kmers_sz; ++labelA) {
+
+        const pair<Kmer, CompressedCoverage_t<T>>& p = v_kmers[labelA - 1];
+
+        stringstream ss;
+        ss << (labelA + v_unitigs_sz);
+
+        graph.write_sequence(ss.str(), k_, p.first.toString(), p.second.ccov.covAt(0));
+    }
+
+    for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it) {
+
+        ++id;
+
+        idmap.insert(it.getKey(), id);
+
+        stringstream ss;
+        ss << id;
+
+        graph.write_sequence(ss.str(), k_, it.getKey().toString(), it->ccov.covAt(0));
+    }
+
+    if (nb_threads == 1){
+
+        for (labelA = 1; labelA <= v_unitigs_sz; labelA++) {
+
+            unitig = v_unitigs[labelA - 1];
+
+            Kmer head = unitig->seq.getKmer(0);
+
+            for (i = 0; i < 4; ++i) {
+
+                Kmer b = head.backwardBase(alpha[i]);
+                cand = find(b, true);
+
+                if (!cand.isEmpty) {
+
+                    if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
+                    else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
+
+                    stringstream ssa, ssb;
+
+                    ssa << labelA;
+                    ssb << labelB;
+
+                    graph.write_edge(ssa.str(), 0, k_-1, false,
+                                     ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                }
+            }
+
+            Kmer tail = unitig->seq.getKmer(unitig->seq.size() - k_);
+
+            for (i = 0; i < 4; ++i) {
+
+                Kmer b = tail.forwardBase(alpha[i]);
+                cand = find(b, true);
+
+                if (!cand.isEmpty) {
+
+                    if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
+                    else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
+
+                    stringstream ssa, ssb;
+
+                    ssa << labelA;
+                    ssb << labelB;
+
+                    graph.write_edge(ssa.str(), unitig->seq.size() - k_ + 1, unitig->seq.size(), true,
+                                     ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                }
+            }
+        }
+
+        for (labelA = v_unitigs_sz + 1; labelA <= v_kmers_sz + v_unitigs_sz; labelA++) {
+
+            const pair<Kmer, CompressedCoverage_t<T>>& p = v_kmers[labelA - v_unitigs_sz - 1];
+
+            for (i = 0; i < 4; ++i) {
+
+                Kmer b = p.first.backwardBase(alpha[i]);
+                cand = find(b, true);
+
+                if (!cand.isEmpty) {
+
+                    if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
+                    else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz : 0);
+
+                    stringstream ssa, ssb;
+
+                    ssa << labelA;
+                    ssb << labelB;
+
+                    graph.write_edge(ssa.str(), 0, k_-1, false,
+                                     ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                }
+            }
+
+            for (i = 0; i < 4; ++i) {
+
+                Kmer b = p.first.forwardBase(alpha[i]);
+                cand = find(b, true);
+
+                if (!cand.isEmpty) {
+
+                    if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
+                    else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
+
+                    stringstream ssa, ssb;
+
+                    ssa << labelA;
+                    ssb << labelB;
+
+                    graph.write_edge(ssa.str(), 0, k_-1, true,
+                                     ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                }
+            }
+        }
+    }
+    else {
+
+        auto worker_v_unitigs = [v_unitigs_sz, &idmap, this](const size_t labelA_start, const size_t labelA_end,
+                                                             vector<pair<pair<size_t, bool>, pair<size_t, bool>>>* v_out){
+
+            // We need to deal with the tail of long unitigs
+            for (size_t labelA = labelA_start; labelA < labelA_end; ++labelA) {
+
+                const Unitig<T>* unitig = v_unitigs[labelA - 1];
+
+                const Kmer head = unitig->seq.getKmer(0);
+                const Kmer tail = unitig->seq.getKmer(unitig->seq.size() - k_);
+
+                vector<UnitigMap<T>> v_um = findPredecessors(head, true);
+
+                for (const auto& um : v_um) {
+
+                    if (!um.isEmpty){
+
+                        const size_t labelB = (um.isAbundant ? *(idmap.find(um.getHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
+                        v_out->push_back(make_pair(make_pair(labelA, false), make_pair(labelB, um.strand)));
+                    }
+                }
+
+                v_um.clear();
+
+                v_um = findSuccessors(tail, 4, true);
+
+                for (const auto& um : v_um) {
+
+                    if (!um.isEmpty){
+
+                        const size_t labelB = (um.isAbundant ? *(idmap.find(um.getHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
+                        v_out->push_back(make_pair(make_pair(labelA, true), make_pair(labelB, um.strand)));
+                    }
+                }
+            }
+        };
+
+        auto worker_v_kmers = [v_unitigs_sz, &idmap, this](const size_t labelA_start, const size_t labelA_end,
+                                                             vector<pair<pair<size_t, bool>, pair<size_t, bool>>>* v_out){
+
+            // We need to deal with the tail of long unitigs
+            for (size_t labelA = labelA_start; labelA < labelA_end; ++labelA) {
+
+                const pair<Kmer, CompressedCoverage_t<T>>& p = v_kmers[labelA - v_unitigs_sz - 1];
+
+                vector<UnitigMap<T>> v_um = findPredecessors(p.first, true);
+
+                for (const auto& um : v_um) {
+
+                    if (!um.isEmpty){
+
+                        const size_t labelB = (um.isAbundant ? *(idmap.find(um.getHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
+                        v_out->push_back(make_pair(make_pair(labelA, false), make_pair(labelB, um.strand)));
+                    }
+                }
+
+                v_um.clear();
+
+                v_um = findSuccessors(p.first, 4, true);
+
+                for (const auto& um : v_um) {
+
+                    if (!um.isEmpty){
+
+                        const size_t labelB = (um.isAbundant ? *(idmap.find(um.getHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
+                        v_out->push_back(make_pair(make_pair(labelA, true), make_pair(labelB, um.strand)));
+                    }
+                }
+            }
+        };
+
+        const int chunk_size = 1000;
+
+        vector<vector<pair<pair<size_t, bool>, pair<size_t, bool>>>> v_out(nb_threads);
+
+        labelA = 1;
+
+        while (labelA <= v_unitigs_sz) {
+
+            vector<thread> workers;
+
+            for (size_t i = 0; i != nb_threads; ++i) {
+
+                if (labelA + chunk_size <= v_unitigs_sz){
+
+                    workers.push_back(thread(worker_v_unitigs, labelA, labelA + chunk_size, &v_out[i]));
+
+                    labelA += chunk_size;
+                }
+                else {
+
+                    workers.push_back(thread(worker_v_unitigs, labelA, v_unitigs_sz + 1, &v_out[i]));
+
+                    labelA += chunk_size;
+
+                    break;
+                }
+            }
+
+            for (auto &t : workers) t.join();
+
+            for (size_t i = 0; i < nb_threads; ++i) {
+
+                for (const auto& p : v_out[i]){
+
+                    stringstream ssa, ssb;
+
+                    ssa << p.first.first;
+                    ssb << p.second.first;
+
+                    graph.write_edge(ssa.str(), 0, k_-1, p.first.second, ssb.str(), 0, k_-1, p.second.second);
+                }
+
+                v_out[i].clear();
+            }
+        }
+
+        labelA = v_unitigs_sz + 1;
+
+        while (labelA <= v_kmers_sz + v_unitigs_sz) {
+
+            vector<thread> workers;
+
+            for (size_t i = 0; i != nb_threads; ++i) {
+
+                if (labelA + chunk_size <= v_kmers_sz + v_unitigs_sz){
+
+                    workers.push_back(thread(worker_v_kmers, labelA, labelA + chunk_size, &v_out[i]));
+
+                    labelA += chunk_size;
+                }
+                else {
+
+                    workers.push_back(thread(worker_v_kmers, labelA, v_kmers_sz + v_unitigs_sz + 1, &v_out[i]));
+
+                    labelA += chunk_size;
+
+                    break;
+                }
+            }
+
+            for (auto &t : workers) t.join();
+
+            for (size_t i = 0; i < nb_threads; ++i) {
+
+                for (const auto& p : v_out[i]){
+
+                    stringstream ssa, ssb;
+
+                    ssa << p.first.first;
+                    ssb << p.second.first;
+
+                    graph.write_edge(ssa.str(), 0, k_-1, p.first.second, ssb.str(), 0, k_-1, p.second.second);
+                }
+
+                v_out[i].clear();
+            }
+        }
+    }
+
+    for (KmerHashTable<size_t>::iterator it = idmap.begin(); it != idmap.end(); it++) {
+
+        labelA = *it;
+
+        for (i = 0; i < 4; ++i) {
+
+            Kmer b = it.getKey().backwardBase(alpha[i]);
+            cand = find(b, true);
+
+            if (!cand.isEmpty) {
+
+                if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
+                else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
+
+                stringstream ssa, ssb;
+
+                ssa << labelA;
+                ssb << labelB;
+
+                graph.write_edge(ssa.str(), 0, k_-1, false,
+                                 ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+            }
+        }
+
+        for (i = 0; i < 4; ++i) {
+
+            Kmer b = it.getKey().forwardBase(alpha[i]);
+            cand = find(b, true);
+
+            if (!cand.isEmpty) {
+
+                if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
+                else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
+
+                stringstream ssa, ssb;
+
+                ssa << labelA;
+                ssb << labelB;
+
+                graph.write_edge(ssa.str(), 0, k_-1, true,
+                                 ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+            }
+        }
+    }
+
+    graph.close();
 }
 
 template<typename T>

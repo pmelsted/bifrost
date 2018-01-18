@@ -15,7 +15,7 @@
 #include <thread>
 #include <atomic>
 
-#include "fastq.hpp"
+#include "FASTX_Parser.hpp"
 #include "RepHash.hpp"
 #include "StreamCounter.hpp"
 
@@ -363,7 +363,7 @@ class KmerStream {
 
                     if (intStat != 0) {
 
-                        cerr << "KmerStream::KmerStream(): File not found, " << s << endl;
+                        cerr << "KmerStream::KmerStream(): File not found: " << s << endl;
                         invalid = true;
                     }
                     else {

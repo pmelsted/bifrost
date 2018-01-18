@@ -237,16 +237,20 @@ bool check_ProgramOptions(CDBG_Build_opt& opt) {
         else fclose(fp);
     }
 
-    opt.filenameOut = opt.prefixFilenameOut + (opt.outputGFA ? ".gfa" : ".fasta");
+    const string out = opt.prefixFilenameOut + (opt.outputGFA ? ".gfa" : ".fasta");
 
-    FILE* fp = fopen(opt.filenameOut.c_str(), "w");
+    FILE* fp = fopen(out.c_str(), "w");
 
     if (fp == NULL) {
 
-        cerr << "Error: Could not open file for writing output graph in GFA format: " << opt.filenameOut << endl;
+        cerr << "Error: Could not open file for writing output graph in GFA format: " << out << endl;
         ret = false;
     }
-    else fclose(fp);
+    else {
+
+        fclose(fp);
+        if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << endl;
+    }
 
     if (opt.fastx_filename_in.size() == 0) {
 
