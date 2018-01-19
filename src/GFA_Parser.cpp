@@ -59,7 +59,7 @@ bool GFA_Parser::open_write(const size_t version_GFA) {
     }
     else cerr << "GFA_Parser::open_write(): Could not open file " << filename << " for writing" << endl;
 
-    if ((version_GFA != 1) || (version_GFA != 2)) {
+    if ((version_GFA != 1) && (version_GFA != 2)) {
 
         cerr << "GFA_Parser::open_write(): Only supports GFA format version 1 and 2" << endl;
         file_open_write = false;
@@ -101,7 +101,7 @@ bool GFA_Parser::open_read() {
 
             const string header(buffer);
 
-            if ((header != "H\tVN:Z:1.0\n") || (header != "H\tVN:Z:2.0\n")) {
+            if ((header != "H\tVN:Z:1.0\n") && (header != "H\tVN:Z:2.0\n")) {
 
                 cerr << "GFA_Parser::open_read(): Wrong GFA header or unsupported GFA format version " <<
                 "(GFA_Parser only supports version 1 and 2) in " << filename << endl;
