@@ -4,6 +4,7 @@
 #include <utility>
 #include <string>
 #include <iterator>
+#include <algorithm>
 
 #include "Kmer.hpp"
 
@@ -800,12 +801,12 @@ struct KmerHashTable {
         init_tables(1024);
     }
 
-    KmerHashTable(size_t sz) : table_keys(nullptr), table_values(nullptr), size_(0), pop(0), num_empty(0) {
+    KmerHashTable(const size_t sz) : table_keys(nullptr), table_values(nullptr), size_(0), pop(0), num_empty(0) {
 
         empty_key.set_empty();
         deleted_key.set_deleted();
 
-        init_tables((size_t) (1.2 * sz));
+        init_tables(std::max(static_cast<size_t>(1.2 * sz), static_cast<size_t>(2)));
     }
 
     KmerHashTable(KmerHashTable&& o){
@@ -853,9 +854,9 @@ struct KmerHashTable {
 
     ~KmerHashTable() { clear_tables(); }
 
-    size_t size() const { return pop; }
+    inline size_t size() const { return pop; }
 
-    bool empty() const { return pop == 0; }
+    inline bool empty() const { return pop == 0; }
 
     void clear() {
 
@@ -884,7 +885,7 @@ struct KmerHashTable {
         num_empty = 0;
     }
 
-    void init_tables(size_t sz) {
+    void init_tables(const size_t sz) {
 
         clear_tables();
 
@@ -896,7 +897,7 @@ struct KmerHashTable {
         clear();
     }
 
-    void reserve(size_t sz) {
+    void reserve(const size_t sz) {
 
         if (sz <= size_) return;
 
@@ -914,7 +915,7 @@ struct KmerHashTable {
 
         std::fill(table_keys, table_keys + size_, empty_key);
 
-        for (size_t i = 0; i < old_size_; i++) {
+        for (size_t i = 0; i < old_size_; ++i) {
 
             if (old_table_keys[i] != empty_key && old_table_keys[i] != deleted_key) insert(old_table_keys[i], old_table_values[i]);
         }
@@ -1134,12 +1135,12 @@ struct MinimizerHashTable {
         init_tables(1024);
     }
 
-    MinimizerHashTable(size_t sz) : table_keys(nullptr), table_values(nullptr), size_(0), pop(0), num_empty(0) {
+    MinimizerHashTable(const size_t sz) : table_keys(nullptr), table_values(nullptr), size_(0), pop(0), num_empty(0) {
 
         empty_key.set_empty();
         deleted_key.set_deleted();
 
-        init_tables((size_t) (1.2 * sz));
+        init_tables(std::max(static_cast<size_t>(1.2 * sz), static_cast<size_t>(2)));
     }
 
     MinimizerHashTable(MinimizerHashTable&& o){
@@ -1187,9 +1188,9 @@ struct MinimizerHashTable {
 
     ~MinimizerHashTable() { clear_tables(); }
 
-    size_t size() const { return pop; }
+    inline size_t size() const { return pop; }
 
-    bool empty() const { return pop == 0; }
+    inline bool empty() const { return pop == 0; }
 
     void clear() {
 
@@ -1218,20 +1219,19 @@ struct MinimizerHashTable {
         num_empty = 0;
     }
 
-    void init_tables(size_t sz) {
+    void init_tables(const size_t sz) {
 
         clear_tables();
 
         size_ = rndup(sz);
 
         table_keys = new Minimizer[size_];
-
         table_values = new T[size_];
 
         clear();
     }
 
-    void reserve(size_t sz) {
+    void reserve(const size_t sz) {
 
         if (sz <= size_) return;
 

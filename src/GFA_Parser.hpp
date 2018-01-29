@@ -20,11 +20,9 @@ class GFA_Parser {
         string id;
         string seq;
         size_t len;
-        int64_t coverage;
 
-        Sequence() : id(), seq("*"), len(0), coverage(-1) {};
-        Sequence(const string& id_, const string& seq_, const size_t len_, const int64_t coverage_ = -1) :  id(id_), seq(seq_), len(len_),
-                                                                                                            coverage(coverage_) {};
+        Sequence() : id(), seq("*"), len(0) {};
+        Sequence(const string& id_, const string& seq_, const size_t len_) :  id(id_), seq(seq_), len(len_) {};
     };
 
     struct Edge {
@@ -62,17 +60,21 @@ class GFA_Parser {
 
         ~GFA_Parser();
 
+        GFA_Parser(GFA_Parser&& o);
+        GFA_Parser& operator=(GFA_Parser&& o);
+
         bool open_write(const size_t version_GFA);
         bool open_read();
 
         void close();
 
-        bool write_sequence(const string& id, const size_t len, const string seq = "*", const int64_t coverage = -1);
+        bool write_sequence(const string& id, const size_t len, const string seq = "*");
         bool write_edge(const string vertexA_id, const size_t pos_start_overlapA, const size_t pos_end_overlapA, const bool strand_overlapA,
                         const string vertexB_id, const size_t pos_start_overlapB, const size_t pos_end_overlapB, const bool strand_overlapB,
                         const string edge_id = "*");
 
-        const GFA_line read();
+        const GFA_line read(size_t& file_id);
+        const GFA_line read(size_t& file_id, bool& new_file_opened, const bool skip_edges = false);
 
     private:
 

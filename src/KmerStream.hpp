@@ -397,7 +397,7 @@ class KmerStream {
                 for (auto& sp : v_fa_res){
 
                     sp.join(v_fq_res[i]);
-                    i++;
+                    ++i;
                 }
 
                 v_fq_res.clear();
@@ -412,11 +412,9 @@ class KmerStream {
 
         vector<ReadQualityHasher> RunFastqStream() {
 
-            std::ios_base::sync_with_stdio(false);
+            //std::ios_base::sync_with_stdio(false);
 
             FastqFile FQ(files_fastq);
-
-            const kseq_t* kseq = FQ.get_kseq();
 
             size_t nreads = 0;
 
@@ -437,6 +435,9 @@ class KmerStream {
             while (FQ.read_next() >= 0){
 
                 ++nreads;
+
+                const kseq_t* kseq = FQ.get_kseq();
+
                 for (size_t i = 0; i < qsize * ksize; ++i) sps[i](kseq->seq.s, kseq->seq.l, kseq->qual.s, kseq->qual.l);
             }
 
@@ -447,96 +448,89 @@ class KmerStream {
 
         vector<ReadQualityHasher> RunThreadedFastqStream() {
 
-            std::ios_base::sync_with_stdio(false);
+            //std::ios_base::sync_with_stdio(false);
 
-            size_t readCount;
-            const size_t chunk = chunksize;
             const size_t qsize = q_cutoff.size();
             const size_t ksize = klist.size();
             const size_t nb_k_q = qsize * ksize;
-            const size_t threads = nb_threads / nb_k_q;
 
-            read_fastq_t reads;
-
-            vector<ReadQualityHasher> sps(nb_k_q * threads, ReadQualityHasher(e, q_base));
+            vector<ReadQualityHasher> sps(nb_k_q * nb_threads, ReadQualityHasher(e, q_base));
 
             for (size_t i = 0; i < qsize; ++i) {
 
                 for (size_t j = 0; j < ksize; ++j) {
 
-                    for (size_t t = 0; t < threads; ++t){
+                    for (size_t t = 0; t < nb_threads; ++t){
 
-                        sps[i * ksize + j * threads + t].setQualityCutoff(q_cutoff[i]);
-                        sps[i * ksize + j * threads + t].setK(klist[j]);
+                        sps[(i * ksize + j) * nb_threads + t].setQualityCutoff(q_cutoff[i]);
+                        sps[(i * ksize + j) * nb_threads + t].setK(klist[j]);
                     }
                 }
             }
 
-            auto worker_function = [](read_fastq_t::const_iterator it_start, read_fastq_t::const_iterator it_end, ReadQualityHasher* sp) {
-
-                for (auto it = it_start; it != it_end; ++it){
-
-                    const pair<string, string>& p = *it;
-
-                    (*sp)(p.first.c_str(), p.first.size(), p.second.c_str(), p.second.size());
-                }
-            };
-
             FastqFile FQ(files_fastq);
 
-            const kseq_t* kseq = FQ.get_kseq();
-
-            int round = 0;
-
-            bool done = false;
-
-            while (!done) {
+            auto reading_function = [&](vector<pair<string, string>>& readv) {
 
                 size_t readCount = 0;
 
-                while (readCount < chunk) {
+                while (readCount < 1000) {
 
                     if (FQ.read_next() >= 0){
 
-                        reads.push_back(make_pair(string(kseq->seq.s), string(kseq->qual.s)));
+                        const kseq_t* kseq = FQ.get_kseq();
+
+                        readv.push_back(make_pair(string(kseq->seq.s), string(kseq->qual.s)));
+
                         ++readCount;
                     }
-                    else {
-
-                        done = true;
-                        break;
-                    }
+                    else return true;
                 }
 
-                ++round;
+                return false;
+            };
 
-                if (verbose) cout << "KmerStream::RunThreadedFastqStream(): Starting round " << round << endl;
+            {
+                vector<thread> workers; // need to keep track of threads so we can join them
+                vector<vector<pair<string, string>>> readvs(nb_threads);
 
-                // run parallel code
-                vector<thread> workers;
+                bool stop = false;
 
-                const size_t batch_size = reads.size() / threads;
-                const size_t leftover = reads.size() % threads;
+                mutex mutex_file;
 
-                for (size_t i = 0; i < nb_k_q; ++i){
+                for (size_t t = 0; t < nb_threads; ++t){
 
-                    auto rit = reads.begin();
+                    workers.emplace_back(
 
-                    for (size_t j = 0; j < threads; ++j) {
+                        [&, t]{
 
-                        const size_t jump = batch_size + (j < leftover ? 1 : 0);
-                        auto rit_end(rit);
+                            while (true) {
 
-                        advance(rit_end, jump);
-                        workers.push_back(thread(worker_function, rit, rit_end, &sps[i * threads + j]));
+                                {
+                                    unique_lock<mutex> lock(mutex_file);
 
-                        rit = rit_end;
-                    }
+                                    if (stop) return;
+
+                                    stop = reading_function(readvs[t]);
+                                }
+
+                                for (size_t i = 0; i < qsize; ++i) {
+
+                                    for (size_t j = 0; j < ksize; ++j){
+
+                                        const size_t id = (i * ksize + j) * nb_threads + t;
+
+                                        for (const auto& r : readvs[t]) sps[id](r.first.c_str(), r.first.size(), r.second.c_str(), r.second.size());
+                                    }
+                                }
+
+                                readvs[t].clear();
+                            }
+                        }
+                    );
                 }
 
                 for (auto& t : workers) t.join();
-
-                reads.clear();
             }
 
             FQ.close();
@@ -545,23 +539,19 @@ class KmerStream {
 
             for (size_t j = 0; j < nb_k_q; ++j){
 
-                ReadQualityHasher& sp = sps[j * threads];
+                ReadQualityHasher& sp = sps[j * nb_threads];
 
-                for (size_t i = 1; i < threads; ++i) sp.join(sps[j * threads + i]);
+                for (size_t i = 1; i < nb_threads; ++i) sp.join(sps[j * nb_threads + i]);
 
                 res.push_back(sp);
             }
 
             return res;
-        };
+        }
 
         vector<ReadHasher> RunFastaStream() {
 
-            std::ios_base::sync_with_stdio(false);
-
-            FastqFile FQ(files_fasta);
-
-            const kseq_t* kseq = FQ.get_kseq();
+            //std::ios_base::sync_with_stdio(false);
 
             size_t nreads = 0;
 
@@ -575,9 +565,13 @@ class KmerStream {
                 for (size_t j = 0; j < ksize; ++j) sps[i * ksize + j].setK(klist[j]);
             }
 
+            FastqFile FQ(files_fasta);
+
             while (FQ.read_next() >= 0){
 
                 ++nreads;
+
+                const kseq_t* kseq = FQ.get_kseq();
                 // seq->seq.s is of length seq->seq.l
                 for (size_t i = 0; i < qsize * ksize; ++i) sps[i](kseq->seq.s, kseq->seq.l, nullptr, 0);
             }
@@ -589,87 +583,83 @@ class KmerStream {
 
         vector<ReadHasher> RunThreadedFastaStream() {
 
-            std::ios_base::sync_with_stdio(false);
+            //std::ios_base::sync_with_stdio(false);
 
-            size_t readCount;
-            const size_t chunk = chunksize;
             const size_t qsize = q_cutoff.size();
             const size_t ksize = klist.size();
             const size_t nb_k_q = qsize * ksize;
-            const size_t threads = nb_threads / nb_k_q;
 
-            read_fasta_t reads;
-
-            vector<ReadHasher> sps(nb_k_q * threads, ReadHasher(e));
+            vector<ReadHasher> sps(nb_k_q * nb_threads, ReadHasher(e));
 
             for (size_t i = 0; i < qsize; ++i) {
 
                 for (size_t j = 0; j < ksize; ++j) {
 
-                    for (size_t t = 0; t < threads; ++t) sps[i * ksize + j * threads + t].setK(klist[j]);
+                    for (size_t t = 0; t < nb_threads; ++t) sps[(i * ksize + j) * nb_threads + t].setK(klist[j]);
                 }
             }
 
-            auto worker_function = [](read_fasta_t::const_iterator it_start, read_fasta_t::const_iterator it_end, ReadHasher* sp) {
-
-                for (auto it = it_start; it != it_end; ++it) (*sp)(it->c_str(), it->size(), nullptr, 0);
-            };
-
             FastqFile FQ(files_fasta);
 
-            const kseq_t* kseq = FQ.get_kseq();
-
-            int round = 0;
-
-            bool done = false;
-
-            while (!done) {
+            auto reading_function = [&](vector<string>& readv) {
 
                 size_t readCount = 0;
 
-                while (readCount < chunk) {
+                while (readCount < 1000) {
 
                     if (FQ.read_next() >= 0){
 
-                        reads.push_back(string(kseq->seq.s));
+                        readv.push_back(string(FQ.get_kseq()->seq.s));
+
                         ++readCount;
                     }
-                    else {
-
-                        done = true;
-                        break;
-                    }
+                    else return true;
                 }
 
-                ++round;
+                return false;
+            };
 
-                if (verbose) cout << "KmerStream::RunThreadedFastaStream(): Starting round " << round << endl;
+            {
+                vector<thread> workers; // need to keep track of threads so we can join them
+                vector<vector<string>> readvs(nb_threads);
 
-                // run parallel code
-                vector<thread> workers;
+                bool stop = false;
 
-                const size_t batch_size = reads.size() / threads;
-                const size_t leftover = reads.size() % threads;
+                mutex mutex_file;
 
-                for (size_t i = 0; i < nb_k_q; ++i){
+                for (size_t t = 0; t < nb_threads; ++t){
 
-                    auto rit = reads.begin();
+                    workers.emplace_back(
 
-                    for (size_t j = 0; j < threads; ++j) {
+                        [&, t]{
 
-                        const size_t jump = batch_size + (j < leftover ? 1 : 0);
-                        auto rit_end(rit);
+                            while (true) {
 
-                        advance(rit_end, jump);
-                        workers.push_back(thread(worker_function, rit, rit_end, &sps[i * threads + j]));
+                                {
+                                    unique_lock<mutex> lock(mutex_file);
 
-                        rit = rit_end;
-                    }
+                                    if (stop) return;
+
+                                    stop = reading_function(readvs[t]);
+                                }
+
+                                for (size_t i = 0; i < qsize; ++i) {
+
+                                    for (size_t j = 0; j < ksize; ++j){
+
+                                        const size_t id = (i * ksize + j) * nb_threads + t;
+
+                                        for (const auto& r : readvs[t]) sps[id](r.c_str(), r.size(), nullptr, 0);
+                                    }
+                                }
+
+                                readvs[t].clear();
+                            }
+                        }
+                    );
                 }
 
                 for (auto& t : workers) t.join();
-
-                reads.clear();
             }
 
             FQ.close();
@@ -678,18 +668,15 @@ class KmerStream {
 
             for (size_t j = 0; j < nb_k_q; ++j){
 
-                ReadHasher& sp = sps[j * threads];
+                ReadHasher& sp = sps[j * nb_threads];
 
-                for (size_t i = 1; i < threads; ++i) sp.join(sps[j * threads + i]);
+                for (size_t i = 1; i < nb_threads; ++i) sp.join(sps[j * nb_threads + i]);
 
                 res.push_back(sp);
             }
 
             return res;
         }
-
-        typedef vector<pair<string, string>> read_fastq_t;
-        typedef vector<string> read_fasta_t;
 
         vector<int> klist;
         vector<size_t> q_cutoff;

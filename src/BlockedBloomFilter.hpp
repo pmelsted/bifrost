@@ -473,7 +473,11 @@ class BlockedBloomFilter {
 
         struct BBF_Block {
 
-            BBF_Block() : lck(ATOMIC_FLAG_INIT) { memset(block, 0, NB_ELEM_BLOCK * sizeof(uint64_t)); }
+            BBF_Block() /*: lck(ATOMIC_FLAG_INIT)*/ {
+
+                lck.clear();
+                memset(block, 0, NB_ELEM_BLOCK * sizeof(uint64_t));
+            }
 
             inline void lock() { while (lck.test_and_set(std::memory_order_acquire)); }
             inline void unlock() { lck.clear(std::memory_order_release); }
@@ -996,7 +1000,11 @@ class BlockedBloomFilter {
 
         struct BBF_Block {
 
-            BBF_Block() : lck(ATOMIC_FLAG_INIT) { memset(block, 0, NB_ELEM_BLOCK * sizeof(uint64_t)); }
+            BBF_Block() /*: lck(ATOMIC_FLAG_INIT)*/ {
+
+                lck.clear();
+                memset(block, 0, NB_ELEM_BLOCK * sizeof(uint64_t));
+            }
 
             inline void lock() { while (lck.test_and_set(std::memory_order_acquire)); }
             inline void unlock() { lck.clear(std::memory_order_release); }

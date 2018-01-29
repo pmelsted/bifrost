@@ -9,6 +9,36 @@ FastqFile::FastqFile(const vector<string> files) : kseq(NULL), fnames(files), fi
     kseq = kseq_init(fp);
 }
 
+FastqFile::FastqFile(FastqFile&& o) : fp(o.fp), kseq(o.kseq), fnames(o.fnames), file_no(o.file_no) {
+
+    fnit = fnames.begin();
+
+    while (*fnit != *(o.fnit)) ++fnit;
+
+    o.kseq = NULL;
+}
+
+FastqFile& FastqFile::operator=(FastqFile&& o){
+
+    if (this != &o) {
+
+        close();
+
+        fp = o.fp;
+        kseq = o.kseq;
+        fnames = o.fnames;
+        file_no = o.file_no;
+
+        fnit = fnames.begin();
+
+        while (*fnit != *(o.fnit)) ++fnit;
+
+        o.kseq = NULL;
+    }
+
+    return *this;
+}
+
 FastqFile::~FastqFile() {
 
     close();
@@ -52,9 +82,9 @@ int FastqFile::read_next(char* read, size_t* read_len, string &seq, size_t* seq_
 // returns >=0 (length of seq), -1 end of last file, -2 truncated quality string
 int FastqFile::read_next(string &seq, size_t& id) {
 
-    int r;
+    const int r = kseq_read(kseq);
 
-    if ((r = kseq_read(kseq)) >= 0) seq.assign(kseq->seq.s);
+    if (r >= 0) seq.assign(kseq->seq.s);
     else if (r == -1) {
 
         open_next();
@@ -70,16 +100,41 @@ int FastqFile::read_next(string &seq, size_t& id) {
     return r;
 }
 
+// next_file_opened == true indicates the next file to read in the list has been opened:
+// first read entry of the file has not been read yet, method returns 0.
+// Else, method returns >= 0 (length of seq), -1 end of last file, -2 truncated quality string.
+int FastqFile::read_next(string &seq, size_t& id, bool& next_file_opened) {
+
+    const int r = kseq_read(kseq);
+
+    next_file_opened = false;
+
+    if (r >= 0) seq.assign(kseq->seq.s);
+    else if (r == -1) {
+
+        open_next();
+
+        if (fnit != fnames.end()){
+
+            id = file_no;
+            next_file_opened = true;
+
+            return 0;
+        }
+    }
+
+    return r;
+}
+
 int FastqFile::read_next() {
 
-    int r = kseq_read(kseq);
+    const int r = kseq_read(kseq);
 
     if (r == -1) {
 
         open_next();
 
         if (fnit != fnames.end()) return read_next();
-        return -1;
     }
 
     return r;

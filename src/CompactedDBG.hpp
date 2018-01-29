@@ -17,17 +17,9 @@
 
 #include <thread>
 #include <atomic>
+#include <mutex>
 
 #include <jemalloc/jemalloc.h>
-
-/*
-#include <queue>
-#include <memory>
-#include <mutex>
-#include <condition_variable>
-#include <future>
-#include <stdexcept>
-*/
 
 #include "BlockedBloomFilter.hpp"
 #include "Common.hpp"

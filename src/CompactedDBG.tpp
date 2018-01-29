@@ -1068,7 +1068,7 @@ bool CompactedDBG<T>::join(const bool verbose){
     return true;
 }
 
-template<typename T>
+/*template<typename T>
 bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
 
     if (invalid){
@@ -1108,7 +1108,8 @@ bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
 
     atomic<uint64_t> num_kmers(0), num_ins(0);
 
-    FastqFile FQ(opt.fastx_filename_in);
+    FileParser fp(opt.fastx_filename_in);
+    //FastqFile fp(opt.fastx_filename_in);
 
     vector<string> readv;
 
@@ -1158,7 +1159,8 @@ bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
 
         while (reads_now < opt.read_chunksize) {
 
-            if (FQ.read_next(s, file_id) >= 0) {
+            if (fp.read(s, file_id)) {
+            //if (fp.read_next(s, file_id) >= 0) {
 
                 readv.emplace_back(s);
                 ++n_read;
@@ -1195,7 +1197,169 @@ bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
         readv.clear();
     }
 
-    FQ.close();
+    fp.close();
+
+    if (opt.verbose) {
+
+        cout << "CompactedDBG::filter(): Closed all fasta/fastq files" << endl;
+        cout << "CompactedDBG::filter(): Processed " << num_kmers << " k-mers in " << n_read  << " reads" << endl;
+        cout << "CompactedDBG::filter(): Found " << num_ins << " unique k-mers" << endl;
+        cout << "CompactedDBG::filter(): Number of blocks in Bloom filter is " << bf.getNbBlocks() << endl;
+    }
+
+    if (opt.useMercyKmers && !opt.reference_mode){
+
+        string mbbf_uniq_filename = opt.prefixFilenameOut + "_uniq";
+
+        FILE* f_mbbf = fopen(mbbf_uniq_filename.c_str(), "wb");
+
+        if (f_mbbf == NULL){
+
+            cerr << "CompactedDBG::filter(): Minimizer Blocked Bloom filter of unique k-mers cannot be written to disk" << endl;
+            return false;
+        }
+
+        bf_tmp.WriteBloomFilter(f_mbbf);
+
+        fclose(f_mbbf);
+    }
+
+    return true;
+}*/
+
+template<typename T>
+bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
+
+    if (invalid){
+
+        cerr << "CompactedDBG::filter(): Graph is invalid and it cannot be built" << endl;
+        return false;
+    }
+
+    BlockedBloomFilter bf_tmp;
+
+    if (opt.reference_mode){
+
+        BlockedBloomFilter tmp(opt.nb_unique_kmers, opt.nb_bits_unique_kmers_bf);
+        bf.get(tmp);
+        tmp.clear();
+    }
+    else {
+
+        BlockedBloomFilter tmp(opt.nb_unique_kmers, opt.nb_bits_unique_kmers_bf);
+        bf_tmp.get(tmp);
+        tmp.clear();
+
+        BlockedBloomFilter tmp2(opt.nb_non_unique_kmers, opt.nb_bits_non_unique_kmers_bf);
+        bf.get(tmp2);
+        tmp2.clear();
+    }
+
+    const bool multi_threaded = (opt.nb_threads != 1);
+
+    uint64_t n_read = 0;
+
+    atomic<uint64_t> num_kmers(0), num_ins(0);
+
+    FileParser fp(opt.fastx_filename_in);
+
+    // Main worker thread
+    auto worker_function = [&](const vector<string>& readv) {
+
+        uint64_t l_num_kmers = 0, l_num_ins = 0;
+
+        for (vector<string>::const_iterator a = readv.begin(), b = readv.end(); a != b; ++a) { // for each input
+
+            const char* str = (*a).c_str();
+            const int len = (*a).length();
+
+            KmerHashIterator<RepHash> it_kmer_h(str, len, k_), it_kmer_h_end;
+            minHashIterator<RepHash> it_min(str, len, k_, g_, RepHash(), true);
+
+            for (int last_pos = -1; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min, ++l_num_kmers) {
+
+                std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
+
+                // If one or more k-mer were jumped because contained non-ACGT char.
+                if (p_.second != last_pos + 1)
+                    it_min = minHashIterator<RepHash>(&str[p_.second], len - p_.second, k_, g_, RepHash(), true);
+
+                last_pos = p_.second;
+                const uint64_t min_hr = it_min.getHash();
+
+                if (opt.reference_mode){
+
+                    bf.insert(p_.first, min_hr, multi_threaded);
+                    ++l_num_ins;
+                }
+                else if (bf_tmp.insert(p_.first, min_hr, multi_threaded)) ++l_num_ins;
+                else bf.insert(p_.first, min_hr, multi_threaded);
+            }
+        }
+
+        // atomic adds
+        num_kmers += l_num_kmers;
+        num_ins += l_num_ins;
+    };
+
+    auto reading_function = [&](vector<string>& readv) {
+
+        string s;
+
+        size_t file_id = 0;
+        size_t reads_now = 0;
+
+        while (reads_now < 1000) {
+
+            if (fp.read(s, file_id)) {
+
+                readv.emplace_back(s);
+
+                ++n_read;
+                ++reads_now;
+            }
+            else return true;
+        }
+
+        return false;
+    };
+
+    {
+        bool stop = false;
+
+        vector<thread> workers; // need to keep track of threads so we can join them
+        vector<vector<string>> readvs(opt.nb_threads);
+
+        mutex mutex_file;
+
+        for (size_t i = 0; i < opt.nb_threads; ++i){
+
+            workers.emplace_back(
+
+                [&, i]{
+
+                    while (true) {
+
+                        {
+                            unique_lock<mutex> lock(mutex_file);
+
+                            if (stop) return;
+
+                            stop = reading_function(readvs[i]);
+                        }
+
+                        worker_function(readvs[i]);
+
+                        readvs[i].clear();
+                    }
+                }
+            );
+        }
+
+        for (auto& t : workers) t.join();
+    }
+
+    fp.close();
 
     if (opt.verbose) {
 
@@ -1225,7 +1389,7 @@ bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
     return true;
 }
 
-template<typename T>
+/*template<typename T>
 bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
     if (invalid){
@@ -1234,17 +1398,20 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
         return false;
     }
 
-    KmerIterator iter, iterend;
-
-    FastqFile FQ(opt.fastx_filename_in);
+    FileParser fp(opt.fastx_filename_in);
 
     string s;
 
     size_t file_id = 0;
 
-    uint64_t n_read = 0;
-
     vector<string> readv;
+    vector<vector<NewUnitig>> parray(opt.nb_threads);
+    vector<vector<tuple<bool, uint64_t, Kmer>>> v_fp_cand_threads(opt.nb_threads);
+    vector<vector<Kmer>> v_ignored_km_tip_thread(opt.nb_threads);
+
+    int round = 0;
+
+    bool done = false;
 
     const bool multi_threaded = (opt.nb_threads != 1);
 
@@ -1296,11 +1463,11 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
                 last_pos_km = p_.second;
                 last_it_min_h = it_min_h;
 
-                size_t r = bf.contains_block(p_.first, it_min_h, block_bf);
+                const size_t r = bf.contains_block(p_.first, it_min_h, block_bf);
 
                 if (r != 0){
 
-                    UnitigMap<T> cm = findUnitig(km, *x, p_.second, it_min);
+                    const UnitigMap<T> cm = findUnitig(km, *x, p_.second, it_min);
 
                     if (cm.isEmpty) { // kmer did not map, push into queue for next unitig generation round
 
@@ -1309,7 +1476,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                         string newseq;
 
-                        size_t pos_match = findUnitigSequenceBBF(km, newseq, selfLoop, isIsolated, *l_ignored_km_tip); //Build unitig from Bloom filter
+                        const size_t pos_match = findUnitigSequenceBBF(km, newseq, selfLoop, isIsolated, *l_ignored_km_tip); //Build unitig from Bloom filter
 
                         if (!opt.reference_mode && isIsolated){ // According to the BF, k-mer is isolated in the graph and is a potential false positive
 
@@ -1367,125 +1534,17 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
         }
     };
 
-    /*const size_t chunk_size = 100;
-
-    vector<vector<NewUnitig>> parray(opt.read_chunksize / chunk_size);
-    vector<vector<tuple<bool, uint64_t, Kmer>>> v_fp_cand_threads(opt.read_chunksize / chunk_size);
-    vector<vector<Kmer>> v_ignored_km_tip_thread(opt.read_chunksize / chunk_size);
-
-    int round = 0;
-
-    bool done = false;
-
     while (!done) {
 
         size_t reads_now = 0;
 
         while (reads_now < opt.read_chunksize) {
 
-            if (FQ.read_next(s, file_id) >= 0){
+            if (fp.read(s, file_id)){
 
                 readv.emplace_back(s);
 
                 ++reads_now;
-                ++n_read;
-            }
-            else {
-
-                done = true;
-                break;
-            }
-        }
-
-        ++round;
-
-        if (opt.verbose) cout << "CompactedDBG::construct(): Starting round " << round << endl;
-
-        vector<thread> workers; // need to keep track of threads so we can join them
-        queue<function<void()>> tasks; // the task queue
-
-        // synchronization
-        mutex queue_mutex;
-        condition_variable condition;
-        bool stop = false;
-
-        for (size_t i = 0; i < opt.nb_threads; ++i){
-
-            workers.emplace_back(
-                [&tasks, &queue_mutex, &condition, &stop]
-                {
-                    for(;;)
-                    {
-                        function<void()> task;
-
-                        {
-                            unique_lock<mutex> lock(queue_mutex);
-                            condition.wait(lock, [&stop, &tasks]{ return stop || !tasks.empty(); });
-                            if (stop && tasks.empty()) return;
-                            task = move(tasks.front());
-                            tasks.pop();
-                        }
-
-                        task();
-                    }
-                }
-            );
-        }
-
-        auto it_read = readv.begin();
-        auto it_read_end = readv.end();
-
-        uint64_t j = 0;
-
-        while (it_read != it_read_end) {
-
-            auto it_read_tmp(it_read);
-
-            if (distance(it_read_tmp, it_read_end) >= chunk_size) advance(it_read_tmp, chunk_size);
-            else it_read_tmp = it_read_end;
-
-            std::function<void()> task = bind(worker_function, it_read, it_read_tmp, &parray[j], &v_fp_cand_threads[j], &v_ignored_km_tip_thread[j]);
-
-            unique_lock<mutex> lock(queue_mutex);
-
-            tasks.emplace(task);
-
-            condition.notify_one();
-
-            ++j;
-
-            it_read = it_read_tmp;
-        }
-
-        {
-            unique_lock<mutex> lock(queue_mutex);
-            stop = true;
-        }
-
-        condition.notify_all();
-
-        for(thread &worker: workers) worker.join();*/
-
-    vector<vector<NewUnitig>> parray(opt.nb_threads);
-    vector<vector<tuple<bool, uint64_t, Kmer>>> v_fp_cand_threads(opt.nb_threads);
-    vector<vector<Kmer>> v_ignored_km_tip_thread(opt.nb_threads);
-
-    int round = 0;
-
-    bool done = false;
-
-    while (!done) {
-
-        size_t reads_now = 0;
-
-        while (reads_now < opt.read_chunksize) {
-
-            if (FQ.read_next(s, file_id) >= 0){
-
-                readv.emplace_back(s);
-
-                ++reads_now;
-                ++n_read;
             }
             else {
 
@@ -1531,7 +1590,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
             for (const auto& x : v){ //for each FP candidate to add or delete
 
-                Kmer km_fp = std::get<2>(x);
+                const Kmer km_fp = std::get<2>(x);
 
                 tiny_vector<Kmer, 2>& v = fp_candidate[std::get<1>(x)];
 
@@ -1546,16 +1605,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                     if (i < v.size()) v.remove(i); // If k-mer has not already been deleted
 
-                    UnitigMap<T> cm = find(km_fp); // Find FP to delete (was inserted into data structure as TP)
-
-                    if (cm.isEmpty){
-
-                        empty();
-                        delete[] fp_candidate;
-
-                        cerr << "CompactedDBG::construct(): Deleted false positive candidate was not inserted into data structure" << endl;
-                        return false;
-                    }
+                    const UnitigMap<T> cm = find(km_fp); // Find FP to delete (was inserted into data structure as TP)
 
                     mapRead(cm); //Map the TP a second time;
                 }
@@ -1571,16 +1621,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                     addUnitigSequenceBBF(km_fp, str_km, 0, str_km, v_ignored_km_tip_thread[0]);
 
-                    UnitigMap<T> cm = find(km_fp); // Find FP to delete (was inserted into data structure as TP)
-
-                    if (cm.isEmpty){
-
-                        empty();
-                        delete[] fp_candidate;
-
-                        cerr << "CompactedDBG::construct(): Deleted false positive candidate was not inserted into data structure" << endl;
-                        return false;
-                    }
+                    const UnitigMap<T> cm = find(km_fp); // Find FP to delete (was inserted into data structure as TP)
 
                     mapRead(cm); //Map the TP a second time;
                 }
@@ -1605,11 +1646,287 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
         readv.clear();
     }
 
-    FQ.close();
+    fp.close();
 
     bf.clear();
 
     if (fp_candidate != nullptr) delete[] fp_candidate;
+
+    if (opt.verbose) cout << "CompactedDBG::construct(): Closed all fasta/fastq files" << endl;
+
+    const size_t unitigsBefore = size();
+
+    if (opt.verbose) cout << endl << "CompactedDBG::construct(): Splitting unitigs (1/" << (opt.reference_mode ? "1" : "2" ) << ")" << endl;
+
+    pair<size_t, size_t> unitigSplit = splitAllUnitigs();
+
+    const int unitigsAfter1 = size();
+
+    //if (!opt.reference_mode){
+
+        if (opt.verbose) cout << endl << "CompactedDBG::construct(): Splitting unitigs (2/2)" << endl;
+
+        check_fp_tips(ignored_km_tips);
+        ignored_km_tips.clear();
+    //}
+
+    const int unitigsAfter2 = size();
+
+    if (opt.verbose) {
+
+        cout << "CompactedDBG::construct(): Before split: " << unitigsBefore << " unitigs" << endl;
+        cout << "CompactedDBG::construct(): After split (1/" << (opt.reference_mode ? "1" : "2" ) << "): " << unitigsAfter1 << " unitigs" <<  endl;
+        if (!opt.reference_mode) cout << "CompactedDBG::construct(): After split (2/2): " << unitigsAfter2 << " unitigs" <<  endl;
+        cout << "CompactedDBG::construct(): Unitigs split: " << unitigSplit.first << endl;
+        cout << "CompactedDBG::construct(): Unitigs deleted: " << unitigSplit.second << endl;
+    }
+
+    if (opt.verbose) cout << endl << "CompactedDBG::construct(): Joining unitigs" << endl;
+
+    const size_t joined = joinUnitigs(nullptr, opt.nb_threads);
+
+    const int unitigsAfter3 = size();
+
+    if (opt.verbose) {
+
+        cout << "CompactedDBG::construct(): After join: " << unitigsAfter3 << " unitigs" << endl;
+        cout << "CompactedDBG::construct(): Joined " << joined << " unitigs" << endl;
+    }
+
+    if (opt.useMercyKmers && !opt.reference_mode){
+
+        string filename_mbbf_uniq_km = opt.prefixFilenameOut + "_uniq";
+
+        joinTips(filename_mbbf_uniq_km, opt.nb_threads, opt.verbose);
+
+        if (opt.verbose) cout << "CompactedDBG::construct(): After join tips using mercy k-mers: " << size() << " unitigs" << endl;
+
+        if (std::remove(filename_mbbf_uniq_km.c_str()) != 0) {
+
+            cerr << "CompactedDBG::construct(): Minimizer Blocked Bloom filter file of unique k-mers cannot be removed from disk" << endl;
+        }
+    }
+
+    return true;
+}*/
+
+template<typename T>
+bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
+
+    if (invalid){
+
+        cerr << "CompactedDBG::construct(): Graph is invalid and cannot be built" << endl;
+        return false;
+    }
+
+    FileParser fp(opt.fastx_filename_in);
+
+    string s;
+
+    size_t file_id = 0;
+
+    vector<string> readv;
+    vector<vector<NewUnitig>> parray(opt.nb_threads);
+    vector<vector<Kmer>> v_ignored_km_tip_thread(opt.nb_threads);
+
+    int round = 0;
+
+    bool done = false;
+
+    const bool multi_threaded = (opt.nb_threads != 1);
+
+    tiny_vector<Kmer, 2>* fp_candidate = opt.reference_mode ? nullptr : new tiny_vector<Kmer, 2>[bf.getNbBlocks()];
+
+    KmerHashTable<bool> ignored_km_tips;
+
+    const size_t nb_locks = opt.nb_threads * 256;
+    std::atomic_flag* locks_fp;
+
+    if (opt.reference_mode) locks_fp = nullptr;
+    else {
+
+        locks_fp = new std::atomic_flag[nb_locks];
+
+        for (size_t i = 0; i < nb_locks; ++i) locks_fp[i].clear();
+    }
+
+    auto worker_function = [&](vector<string>::const_iterator a, vector<string>::const_iterator b,
+                                vector<NewUnitig>* smallv,
+                                vector<Kmer>* l_ignored_km_tip) {
+
+        uint64_t it_min_h, last_it_min_h;
+
+        BlockedBloomFilter::BBF_Blocks block_bf;
+
+        Kmer km;
+        RepHash rep;
+
+        // for each input
+        for (auto x = a; x != b; ++x) {
+
+            const char* s_x = x->c_str();
+
+            KmerHashIterator<RepHash> it_kmer_h(s_x, x->length(), k_), it_kmer_h_end;
+            preAllocMinHashIterator<RepHash> it_min(s_x, x->length(), k_, g_, rep, true);
+
+            for (int last_pos_km = -2; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min) {
+
+                std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
+
+                if (p_.second != last_pos_km + 1){ // If one or more k-mer were jumped because contained non-ACGT char.
+
+                    km = Kmer(&s_x[p_.second]);
+
+                    it_min += (last_pos_km == -2 ? p_.second : (p_.second - last_pos_km) - 1);
+                    it_min_h = it_min.getHash();
+
+                    block_bf = bf.getBlock(it_min_h);
+                }
+                else {
+
+                    km.selfForwardBase(s_x[p_.second + k_ - 1]);
+
+                    it_min_h = it_min.getHash();
+                    if (it_min_h != last_it_min_h) block_bf = bf.getBlock(it_min_h);
+                }
+
+                last_pos_km = p_.second;
+                last_it_min_h = it_min_h;
+
+                const size_t r = bf.contains_block(p_.first, it_min_h, block_bf);
+
+                if (r != 0){
+
+                    const UnitigMap<T> cm = findUnitig(km, *x, p_.second, it_min);
+
+                    if (cm.isEmpty) { // kmer did not map, push into queue for next unitig generation round
+
+                        bool selfLoop = false;
+                        bool isIsolated = false;
+
+                        string newseq;
+
+                        const size_t pos_match = findUnitigSequenceBBF(km, newseq, selfLoop, isIsolated, *l_ignored_km_tip); //Build unitig from Bloom filter
+
+                        if (!opt.reference_mode && isIsolated){ // According to the BF, k-mer is isolated in the graph and is a potential false positive
+
+                            const uint64_t block = (r == 1 ? block_bf.first : block_bf.second);
+
+                            const Kmer km_rep = km.rep();
+                            const uint64_t id_lock = block % nb_locks;
+
+                            tiny_vector<Kmer, 2>& v = fp_candidate[block];
+
+                            size_t i = 0;
+
+                            locks_fp[id_lock].test_and_set(std::memory_order_acquire);
+
+                            for (; i < v.size(); ++i){ // Search list of fp candidate for k-mer
+
+                                if (v[i] == km_rep) break;
+                            }
+
+                            if (i >= v.size()) v.push_back(km_rep);
+                            else {
+
+                                v.remove(i); // K-mer deleted from list of FP candidates
+
+                                smallv->emplace_back(km, *x, p_.second, selfLoop ? std::string() : newseq);
+                                smallv->emplace_back(km, *x, p_.second, selfLoop ? std::string() : newseq);
+                            }
+
+                            locks_fp[id_lock].clear(std::memory_order_release);
+                        }
+                        else {
+
+                            smallv->emplace_back(km, *x, p_.second, selfLoop ? std::string() : newseq);
+                            it_kmer_h += cstrMatch(&s_x[p_.second + k_], &newseq.c_str()[pos_match + k_]);
+                        }
+                    }
+                    else {
+
+                        mapRead(cm);
+                        it_kmer_h += cm.len - 1;
+                    }
+                }
+            }
+        }
+    };
+
+    while (!done) {
+
+        size_t reads_now = 0;
+
+        while (reads_now < opt.read_chunksize) {
+
+            if (fp.read(s, file_id)){
+
+                readv.emplace_back(s);
+
+                ++reads_now;
+            }
+            else {
+
+                done = true;
+                break;
+            }
+        }
+
+        ++round;
+
+        if (opt.verbose) cout << "CompactedDBG::construct(): Starting round " << round << endl;
+
+        // run parallel code
+        vector<thread> workers;
+
+        auto rit = readv.begin();
+        size_t batch_size = readv.size() / opt.nb_threads;
+        size_t leftover   = readv.size() % opt.nb_threads;
+
+        for (size_t i = 0; i < opt.nb_threads; ++i) {
+
+            size_t jump = batch_size + (i < leftover ? 1 : 0);
+            auto rit_end(rit);
+
+            advance(rit_end, jump);
+            workers.push_back(thread(worker_function, rit, rit_end, &parray[i], &v_ignored_km_tip_thread[i]));
+
+            rit = rit_end;
+        }
+
+        assert(rit == readv.end());
+
+        for (auto& t : workers) t.join();
+
+        for (auto& v : parray) { // for each thread
+
+            for (const auto& x : v) addUnitigSequenceBBF(x.km, x.read, x.pos, x.seq, v_ignored_km_tip_thread[0]); // add each unitig for this thread
+
+            v.clear(); //clear the map
+        }
+
+        for (auto &v : v_ignored_km_tip_thread) { // for each thread
+
+            for (const auto x : v) ignored_km_tips.insert(x, false);
+
+            v.clear();
+        }
+
+        if (opt.read_chunksize > 1 && opt.verbose) {
+
+            cout << "CompactedDBG::construct(): End of round" << endl;
+            cout << "CompactedDBG::construct(): Processed " << size() << " unitigs" << endl;
+        }
+
+        readv.clear();
+    }
+
+    fp.close();
+
+    bf.clear();
+
+    if (fp_candidate != nullptr) delete[] fp_candidate;
+    if (locks_fp != nullptr) delete[] locks_fp;
 
     if (opt.verbose) cout << "CompactedDBG::construct(): Closed all fasta/fastq files" << endl;
 
@@ -2187,7 +2504,7 @@ template<typename T>
 UnitigMap<T> CompactedDBG<T>::findUnitig(const Kmer& km, const string& s, size_t pos) {
 
     // need to check if we find it right away, need to treat this common case
-    UnitigMap<T> cc = find(km);
+    const UnitigMap<T> cc = find(km);
 
     if (!cc.isEmpty && !cc.isShort && !cc.isAbundant){
 
@@ -2212,7 +2529,7 @@ template<typename T>
 UnitigMap<T> CompactedDBG<T>::findUnitig(const Kmer& km, const string& s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h) {
 
     // need to check if we find it right away, need to treat this common case
-    UnitigMap<T> cc = find(km, it_min_h);
+    const UnitigMap<T> cc = find(km, it_min_h);
 
     if (!cc.isEmpty && !cc.isShort && !cc.isAbundant){
 
@@ -2238,7 +2555,7 @@ bool CompactedDBG<T>::addUnitig(const string& str_unitig, const size_t id_unitig
 
     int pos;
 
-    size_t len = str_unitig.size();
+    const size_t len = str_unitig.size();
     size_t pos_id_unitig = id_unitig << 32;
 
     const size_t mask = MASK_CONTIG_ID | MASK_CONTIG_TYPE;
@@ -2263,7 +2580,6 @@ bool CompactedDBG<T>::addUnitig(const string& str_unitig, const size_t id_unitig
     }
 
     minHashIterator<RepHash> it_min(c_str, len, k_, g_, RepHash(), true), it_min_end;
-
     minHashResult mhr, mhr_tmp;
 
     for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){
@@ -2390,7 +2706,7 @@ void CompactedDBG<T>::deleteUnitig(const bool isShort, const bool isAbundant, co
 
         char km_str[k_ + 1];
 
-        Kmer km = h_kmers_ccov.find(id_unitig).getKey();
+        const Kmer km = h_kmers_ccov.find(id_unitig).getKey();
 
         km.toString(km_str);
 
@@ -2413,7 +2729,7 @@ void CompactedDBG<T>::deleteUnitig(const bool isShort, const bool isAbundant, co
 
                         tiny_vector<size_t, tiny_vector_sz>& v = *it_h;
 
-                        size_t last_pos_v = v.size() - 1;
+                        const size_t last_pos_v = v.size() - 1;
 
                         v[last_pos_v]--;
 
@@ -2451,7 +2767,7 @@ void CompactedDBG<T>::deleteUnitig(const bool isShort, const bool isAbundant, co
 
     const char* s = str.c_str();
 
-    size_t len = str.size();
+    const size_t len = str.size();
 
     minHashIterator<RepHash> it_min(s, len, k_, g_, RepHash(), true), it_min_end;
 
@@ -3261,12 +3577,12 @@ size_t CompactedDBG<T>::joinUnitigs(vector<Kmer>* v_joins, const size_t nb_threa
                 }
             };
 
-            vector<vector<pair<Kmer, Kmer>>> v_out(nb_threads);
-
             auto it_kmer = v_kmers.begin();
             auto it_kmer_end = v_kmers.end();
 
-            while (it_kmer != it_kmer_end) {
+            vector<vector<pair<Kmer, Kmer>>> v_out(nb_threads);
+
+            /*while (it_kmer != it_kmer_end) {
 
                 vector<thread> workers;
 
@@ -3299,12 +3615,69 @@ size_t CompactedDBG<T>::joinUnitigs(vector<Kmer>* v_joins, const size_t nb_threa
 
                     v_out[i].clear();
                 }
+            }*/
+
+
+            {
+                vector<thread> workers; // need to keep track of threads so we can join them
+                vector<vector<pair<Kmer, Kmer>>> t_v_out(nb_threads);
+
+                mutex mutex_joins, mutex_it_km;
+
+                for (size_t i = 0; i < nb_threads; ++i){
+
+                    workers.emplace_back(
+
+                        [&, i]{
+
+                            auto l_it_kmer = v_kmers.begin();
+                            auto l_it_kmer_end = v_kmers.end();
+
+                            while (true) {
+
+                                {
+                                    unique_lock<mutex> lock(mutex_it_km);
+
+                                    if (it_kmer == it_kmer_end) return;
+
+                                    l_it_kmer = it_kmer;
+                                    l_it_kmer_end = it_kmer;
+
+                                    if (distance(l_it_kmer, it_kmer_end) >= 1000){
+
+                                        advance(l_it_kmer_end, 1000);
+
+                                        it_kmer = l_it_kmer_end;
+                                    }
+                                    else {
+
+                                        it_kmer = it_kmer_end;
+                                        l_it_kmer_end = it_kmer_end;
+                                    }
+                                }
+
+                                worker_v_kmers(l_it_kmer, l_it_kmer_end, &t_v_out[i]);
+
+                                {
+                                    unique_lock<mutex> lock(mutex_joins);
+
+                                    for (const auto& p : t_v_out[i]) joins.insert(p.first, p.second);
+                                }
+
+                                t_v_out[i].clear();
+                            }
+                        }
+                    );
+                }
+
+                for (auto& t : workers) t.join();
             }
+
 
             auto it_unitig = v_unitigs.begin();
             auto it_unitig_end = v_unitigs.end();
 
-            while (it_unitig != it_unitig_end) {
+            /*while (it_unitig != it_unitig_end) {
 
                 vector<thread> workers;
 
@@ -3337,6 +3710,61 @@ size_t CompactedDBG<T>::joinUnitigs(vector<Kmer>* v_joins, const size_t nb_threa
 
                     v_out[i].clear();
                 }
+            }*/
+
+            {
+                vector<thread> workers; // need to keep track of threads so we can join them
+                vector<vector<pair<Kmer, Kmer>>> t_v_out(nb_threads);
+
+                mutex mutex_joins, mutex_it_unitig;
+
+                for (size_t i = 0; i < nb_threads; ++i){
+
+                    workers.emplace_back(
+
+                        [&, i]{
+
+                            auto l_it_unitig = v_unitigs.begin();
+                            auto l_it_unitig_end = v_unitigs.end();
+
+                            while (true) {
+
+                                {
+                                    unique_lock<mutex> lock(mutex_it_unitig);
+
+                                    if (it_unitig == it_unitig_end) return;
+
+                                    l_it_unitig = it_unitig;
+                                    l_it_unitig_end = it_unitig;
+
+                                    if (distance(l_it_unitig, it_unitig_end) >= 1000){
+
+                                        advance(l_it_unitig_end, 1000);
+
+                                        it_unitig = l_it_unitig_end;
+                                    }
+                                    else {
+
+                                        it_unitig = it_unitig_end;
+                                        l_it_unitig_end = it_unitig_end;
+                                    }
+                                }
+
+                                worker_v_unitigs(l_it_unitig, l_it_unitig_end, &t_v_out[i]);
+
+                                {
+                                    unique_lock<mutex> lock(mutex_joins);
+
+                                    for (const auto& p : t_v_out[i]) joins.insert(p.first, p.second);
+                                }
+
+                                t_v_out[i].clear();
+                            }
+                        }
+                    );
+                }
+
+                for (auto& t : workers) t.join();
             }
         }
     }
@@ -3865,317 +4293,6 @@ void CompactedDBG<T>::writeFASTA(string graphfilename) {
     graphfile.close();
 }
 
-/*template<typename T>
-void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
-
-    const size_t v_unitigs_sz = v_unitigs.size();
-    const size_t v_kmers_sz = v_kmers.size();
-
-    size_t i, labelA, labelB, id = v_unitigs_sz + v_kmers_sz + 1;
-
-    UnitigMap<T> cand;
-
-    Unitig<T>* unitig = nullptr;
-
-    ofstream graphfile;
-    ostream graph(0);
-
-    graphfile.open(graphfilename.c_str());
-    graph.rdbuf(graphfile.rdbuf());
-    assert(!graphfile.fail());
-
-    KmerHashTable<size_t> idmap(h_kmers_ccov.size());
-
-    // gfa header
-    graph << "H\tVN:Z:1.0\n";
-
-    for (labelA = 1; labelA <= v_unitigs_sz; ++labelA) {
-
-        unitig = v_unitigs[labelA - 1];
-
-        graph << "S\t" << labelA << "\t" << unitig->seq.toString() << "\tLN:i:" <<
-        unitig->seq.size() << "\tXC:i:" << unitig->coveragesum << "\n";
-    }
-
-    for (labelA = 1; labelA <= v_kmers_sz; ++labelA) {
-
-        const pair<Kmer, CompressedCoverage_t<T>>& p = v_kmers[labelA - 1];
-
-        graph << "S\t" << (labelA + v_unitigs_sz) << "\t" << p.first.toString() <<
-        "\tLN:i:" << k_ << "\tXC:i:" << p.second.ccov.covAt(0) << "\n";
-    }
-
-    for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it) {
-
-        ++id;
-
-        idmap.insert(it.getKey(), id);
-
-        graph << "S\t" << id << "\t" << it.getKey().toString() << "\tLN:i:" << k_ <<
-        "\tXC:i:" << it->ccov.covAt(0) << "\n";
-    }
-
-    if (nb_threads == 1){
-
-        for (labelA = 1; labelA <= v_unitigs_sz; labelA++) {
-
-            unitig = v_unitigs[labelA - 1];
-
-            Kmer head = unitig->seq.getKmer(0);
-
-            for (i = 0; i < 4; ++i) {
-
-                Kmer b = head.backwardBase(alpha[i]);
-                cand = find(b, true);
-
-                if (!cand.isEmpty) {
-
-                    if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
-                    else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
-
-                    graph << "L\t" << labelA << "\t-\t" << labelB << "\t" << (cand.strand ? "+" : "-") << "\t" << (k_-1) << "M\n";
-                }
-            }
-
-            Kmer tail = unitig->seq.getKmer(unitig->seq.size() - k_);
-
-            for (i = 0; i < 4; ++i) {
-
-                Kmer b = tail.forwardBase(alpha[i]);
-                cand = find(b, true);
-
-                if (!cand.isEmpty) {
-
-                    if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
-                    else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
-
-                    graph << "L\t" << labelA << "\t+\t" << labelB << "\t" << (cand.strand ? "+" : "-") << "\t" << (k_ - 1) << "M\n";
-                }
-            }
-        }
-
-        for (labelA = v_unitigs_sz + 1; labelA <= v_kmers_sz + v_unitigs_sz; labelA++) {
-
-            const pair<Kmer, CompressedCoverage_t<T>>& p = v_kmers[labelA - v_unitigs_sz - 1];
-
-            for (i = 0; i < 4; ++i) {
-
-                Kmer b = p.first.backwardBase(alpha[i]);
-                cand = find(b, true);
-
-                if (!cand.isEmpty) {
-
-                    if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
-                    else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz : 0);
-
-                    graph << "L\t" << labelA << "\t-\t" << labelB << "\t" << (cand.strand ? "+" : "-") << "\t" << (k_ - 1) << "M\n";
-                }
-            }
-
-            for (i = 0; i < 4; ++i) {
-
-                Kmer b = p.first.forwardBase(alpha[i]);
-                cand = find(b, true);
-
-                if (!cand.isEmpty) {
-
-                    if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
-                    else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
-
-                    graph << "L\t" << labelA << "\t+\t" << labelB << "\t" << (cand.strand ? "+" : "-") << "\t" << (k_ - 1) << "M\n";
-                }
-            }
-        }
-    }
-    else {
-
-        auto worker_v_unitigs = [v_unitigs_sz, &idmap, this](const size_t labelA_start, const size_t labelA_end,
-                                                             vector<pair<pair<size_t, bool>, pair<size_t, bool>>>* v_out){
-
-            // We need to deal with the tail of long unitigs
-            for (size_t labelA = labelA_start; labelA < labelA_end; ++labelA) {
-
-                const Unitig<T>* unitig = v_unitigs[labelA - 1];
-
-                const Kmer head = unitig->seq.getKmer(0);
-                const Kmer tail = unitig->seq.getKmer(unitig->seq.size() - k_);
-
-                vector<UnitigMap<T>> v_um = findPredecessors(head, true);
-
-                for (const auto& um : v_um) {
-
-                    if (!um.isEmpty){
-
-                        const size_t labelB = (um.isAbundant ? *(idmap.find(um.getHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
-                        v_out->push_back(make_pair(make_pair(labelA, false), make_pair(labelB, um.strand)));
-                    }
-                }
-
-                v_um.clear();
-
-                v_um = findSuccessors(tail, 4, true);
-
-                for (const auto& um : v_um) {
-
-                    if (!um.isEmpty){
-
-                        const size_t labelB = (um.isAbundant ? *(idmap.find(um.getHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
-                        v_out->push_back(make_pair(make_pair(labelA, true), make_pair(labelB, um.strand)));
-                    }
-                }
-            }
-        };
-
-        auto worker_v_kmers = [v_unitigs_sz, &idmap, this](const size_t labelA_start, const size_t labelA_end,
-                                                             vector<pair<pair<size_t, bool>, pair<size_t, bool>>>* v_out){
-
-            // We need to deal with the tail of long unitigs
-            for (size_t labelA = labelA_start; labelA < labelA_end; ++labelA) {
-
-                const pair<Kmer, CompressedCoverage_t<T>>& p = v_kmers[labelA - v_unitigs_sz - 1];
-
-                vector<UnitigMap<T>> v_um = findPredecessors(p.first, true);
-
-                for (const auto& um : v_um) {
-
-                    if (!um.isEmpty){
-
-                        const size_t labelB = (um.isAbundant ? *(idmap.find(um.getHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
-                        v_out->push_back(make_pair(make_pair(labelA, false), make_pair(labelB, um.strand)));
-                    }
-                }
-
-                v_um.clear();
-
-                v_um = findSuccessors(p.first, 4, true);
-
-                for (const auto& um : v_um) {
-
-                    if (!um.isEmpty){
-
-                        const size_t labelB = (um.isAbundant ? *(idmap.find(um.getHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
-                        v_out->push_back(make_pair(make_pair(labelA, true), make_pair(labelB, um.strand)));
-                    }
-                }
-            }
-        };
-
-        const int chunk_size = 1000;
-
-        vector<vector<pair<pair<size_t, bool>, pair<size_t, bool>>>> v_out(nb_threads);
-
-        labelA = 1;
-
-        while (labelA <= v_unitigs_sz) {
-
-            vector<thread> workers;
-
-            for (size_t i = 0; i != nb_threads; ++i) {
-
-                if (labelA + chunk_size <= v_unitigs_sz){
-
-                    workers.push_back(thread(worker_v_unitigs, labelA, labelA + chunk_size, &v_out[i]));
-
-                    labelA += chunk_size;
-                }
-                else {
-
-                    workers.push_back(thread(worker_v_unitigs, labelA, v_unitigs_sz + 1, &v_out[i]));
-
-                    labelA += chunk_size;
-
-                    break;
-                }
-            }
-
-            for (auto &t : workers) t.join();
-
-            for (size_t i = 0; i < nb_threads; ++i) {
-
-                for (const auto& p : v_out[i]){
-
-                    graph << "L\t" << p.first.first << "\t" << (p.first.second ? "+" : "-") << "\t" <<
-                    p.second.first << "\t" << (p.second.second ? "+" : "-") << "\t" << (k_-1) << "M\n";
-                }
-
-                v_out[i].clear();
-            }
-        }
-
-        labelA = v_unitigs_sz + 1;
-
-        while (labelA <= v_kmers_sz + v_unitigs_sz) {
-
-            vector<thread> workers;
-
-            for (size_t i = 0; i != nb_threads; ++i) {
-
-                if (labelA + chunk_size <= v_kmers_sz + v_unitigs_sz){
-
-                    workers.push_back(thread(worker_v_kmers, labelA, labelA + chunk_size, &v_out[i]));
-
-                    labelA += chunk_size;
-                }
-                else {
-
-                    workers.push_back(thread(worker_v_kmers, labelA, v_kmers_sz + v_unitigs_sz + 1, &v_out[i]));
-
-                    labelA += chunk_size;
-
-                    break;
-                }
-            }
-
-            for (auto &t : workers) t.join();
-
-            for (size_t i = 0; i < nb_threads; ++i) {
-
-                for (const auto& p : v_out[i]){
-
-                    graph << "L\t" << p.first.first << "\t" << (p.first.second ? "+" : "-") << "\t" <<
-                    p.second.first << "\t" << (p.second.second ? "+" : "-") << "\t" << (k_-1) << "M\n";
-                }
-
-                v_out[i].clear();
-            }
-        }
-    }
-
-    for (KmerHashTable<size_t>::iterator it = idmap.begin(); it != idmap.end(); it++) {
-
-        labelA = *it;
-
-        for (i = 0; i < 4; ++i) {
-
-            Kmer b = it.getKey().backwardBase(alpha[i]);
-            cand = find(b, true);
-
-            if (!cand.isEmpty) {
-
-                if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
-                else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
-
-                graph << "L\t" << labelA << "\t-\t" << labelB << "\t" << (cand.strand ? "+" : "-") << "\t" << (k_ - 1) << "M\n";
-            }
-        }
-
-        for (i = 0; i < 4; ++i) {
-
-            Kmer b = it.getKey().forwardBase(alpha[i]);
-            cand = find(b, true);
-
-            if (!cand.isEmpty) {
-
-                if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
-                else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
-
-                graph << "L\t" << labelA << "\t+\t" << labelB << "\t" << (cand.strand ? "+" : "-") << "\t" << (k_ - 1) << "M\n";
-            }
-        }
-    }
-
-    graphfile.close();
-}*/
 
 template<typename T>
 void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
@@ -4185,10 +4302,6 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
 
     size_t i, labelA, labelB, id = v_unitigs_sz + v_kmers_sz + 1;
 
-    UnitigMap<T> cand;
-
-    Unitig<T>* unitig = nullptr;
-
     KmerHashTable<size_t> idmap(h_kmers_ccov.size());
 
     GFA_Parser graph(graphfilename);
@@ -4197,12 +4310,12 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
 
     for (labelA = 1; labelA <= v_unitigs_sz; ++labelA) {
 
-        unitig = v_unitigs[labelA - 1];
+        const Unitig<T>* unitig = v_unitigs[labelA - 1];
 
         stringstream ss;
         ss << labelA;
 
-        graph.write_sequence(ss.str(), unitig->seq.size(), unitig->seq.toString(), unitig->coveragesum);
+        graph.write_sequence(ss.str(), unitig->seq.size(), unitig->seq.toString());
     }
 
     for (labelA = 1; labelA <= v_kmers_sz; ++labelA) {
@@ -4212,33 +4325,33 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
         stringstream ss;
         ss << (labelA + v_unitigs_sz);
 
-        graph.write_sequence(ss.str(), k_, p.first.toString(), p.second.ccov.covAt(0));
+        graph.write_sequence(ss.str(), k_, p.first.toString());
     }
 
     for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it) {
-
-        ++id;
 
         idmap.insert(it.getKey(), id);
 
         stringstream ss;
         ss << id;
 
-        graph.write_sequence(ss.str(), k_, it.getKey().toString(), it->ccov.covAt(0));
+        graph.write_sequence(ss.str(), k_, it.getKey().toString());
+
+        ++id;
     }
 
     if (nb_threads == 1){
 
         for (labelA = 1; labelA <= v_unitigs_sz; labelA++) {
 
-            unitig = v_unitigs[labelA - 1];
+            const Unitig<T>* unitig = v_unitigs[labelA - 1];
 
-            Kmer head = unitig->seq.getKmer(0);
+            const Kmer head = unitig->seq.getKmer(0);
 
             for (i = 0; i < 4; ++i) {
 
-                Kmer b = head.backwardBase(alpha[i]);
-                cand = find(b, true);
+                const Kmer b = head.backwardBase(alpha[i]);
+                const UnitigMap<T> cand = find(b, true);
 
                 if (!cand.isEmpty) {
 
@@ -4255,12 +4368,12 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
                 }
             }
 
-            Kmer tail = unitig->seq.getKmer(unitig->seq.size() - k_);
+            const Kmer tail = unitig->seq.getKmer(unitig->seq.size() - k_);
 
             for (i = 0; i < 4; ++i) {
 
-                Kmer b = tail.forwardBase(alpha[i]);
-                cand = find(b, true);
+                const Kmer b = tail.forwardBase(alpha[i]);
+                const UnitigMap<T> cand = find(b, true);
 
                 if (!cand.isEmpty) {
 
@@ -4284,8 +4397,8 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
 
             for (i = 0; i < 4; ++i) {
 
-                Kmer b = p.first.backwardBase(alpha[i]);
-                cand = find(b, true);
+                const Kmer b = p.first.backwardBase(alpha[i]);
+                const UnitigMap<T> cand = find(b, true);
 
                 if (!cand.isEmpty) {
 
@@ -4304,8 +4417,8 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
 
             for (i = 0; i < 4; ++i) {
 
-                Kmer b = p.first.forwardBase(alpha[i]);
-                cand = find(b, true);
+                const Kmer b = p.first.forwardBase(alpha[i]);
+                const UnitigMap<T> cand = find(b, true);
 
                 if (!cand.isEmpty) {
 
@@ -4491,8 +4604,8 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
 
         for (i = 0; i < 4; ++i) {
 
-            Kmer b = it.getKey().backwardBase(alpha[i]);
-            cand = find(b, true);
+            const Kmer b = it.getKey().backwardBase(alpha[i]);
+            const UnitigMap<T> cand = find(b, true);
 
             if (!cand.isEmpty) {
 
@@ -4511,8 +4624,8 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
 
         for (i = 0; i < 4; ++i) {
 
-            Kmer b = it.getKey().forwardBase(alpha[i]);
-            cand = find(b, true);
+            const Kmer b = it.getKey().forwardBase(alpha[i]);
+            const UnitigMap<T> cand = find(b, true);
 
             if (!cand.isEmpty) {
 
@@ -4532,6 +4645,383 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
 
     graph.close();
 }
+
+
+/*template<typename T>
+void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
+
+    const size_t v_unitigs_sz = v_unitigs.size();
+    const size_t v_kmers_sz = v_kmers.size();
+
+    size_t i, labelA, labelB, id = v_unitigs_sz + v_kmers_sz + 1;
+
+    KmerHashTable<size_t> idmap(h_kmers_ccov.size());
+
+    GFA_Parser graph(graphfilename);
+
+    graph.open_write(1);
+
+    for (labelA = 1; labelA <= v_unitigs_sz; ++labelA) {
+
+        const Unitig<T>* unitig = v_unitigs[labelA - 1];
+
+        stringstream ss;
+        ss << labelA;
+
+        graph.write_sequence(ss.str(), unitig->seq.size(), unitig->seq.toString());
+    }
+
+    for (labelA = 1; labelA <= v_kmers_sz; ++labelA) {
+
+        const pair<Kmer, CompressedCoverage_t<T>>& p = v_kmers[labelA - 1];
+
+        stringstream ss;
+        ss << (labelA + v_unitigs_sz);
+
+        graph.write_sequence(ss.str(), k_, p.first.toString());
+    }
+
+    for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it) {
+
+        idmap.insert(it.getKey(), id);
+
+        stringstream ss;
+        ss << id;
+
+        graph.write_sequence(ss.str(), k_, it.getKey().toString());
+
+        ++id;
+    }
+
+    if (nb_threads == 1){
+
+        for (labelA = 1; labelA <= v_unitigs_sz; labelA++) {
+
+            const Unitig<T>* unitig = v_unitigs[labelA - 1];
+
+            const Kmer head = unitig->seq.getKmer(0);
+
+            for (i = 0; i < 4; ++i) {
+
+                const Kmer b = head.backwardBase(alpha[i]);
+                const UnitigMap<T> cand = find(b, true);
+
+                if (!cand.isEmpty) {
+
+                    if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
+                    else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
+
+                    stringstream ssa, ssb;
+
+                    ssa << labelA;
+                    ssb << labelB;
+
+                    graph.write_edge(ssa.str(), 0, k_-1, false,
+                                     ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                }
+            }
+
+            const Kmer tail = unitig->seq.getKmer(unitig->seq.size() - k_);
+
+            for (i = 0; i < 4; ++i) {
+
+                const Kmer b = tail.forwardBase(alpha[i]);
+                const UnitigMap<T> cand = find(b, true);
+
+                if (!cand.isEmpty) {
+
+                    if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
+                    else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
+
+                    stringstream ssa, ssb;
+
+                    ssa << labelA;
+                    ssb << labelB;
+
+                    graph.write_edge(ssa.str(), unitig->seq.size() - k_ + 1, unitig->seq.size(), true,
+                                     ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                }
+            }
+        }
+
+        for (labelA = v_unitigs_sz + 1; labelA <= v_kmers_sz + v_unitigs_sz; labelA++) {
+
+            const pair<Kmer, CompressedCoverage_t<T>>& p = v_kmers[labelA - v_unitigs_sz - 1];
+
+            for (i = 0; i < 4; ++i) {
+
+                const Kmer b = p.first.backwardBase(alpha[i]);
+                const UnitigMap<T> cand = find(b, true);
+
+                if (!cand.isEmpty) {
+
+                    if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
+                    else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz : 0);
+
+                    stringstream ssa, ssb;
+
+                    ssa << labelA;
+                    ssb << labelB;
+
+                    graph.write_edge(ssa.str(), 0, k_-1, false,
+                                     ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                }
+            }
+
+            for (i = 0; i < 4; ++i) {
+
+                const Kmer b = p.first.forwardBase(alpha[i]);
+                const UnitigMap<T> cand = find(b, true);
+
+                if (!cand.isEmpty) {
+
+                    if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
+                    else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
+
+                    stringstream ssa, ssb;
+
+                    ssa << labelA;
+                    ssb << labelB;
+
+                    graph.write_edge(ssa.str(), 0, k_-1, true,
+                                     ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                }
+            }
+        }
+    }
+    else {
+
+        auto worker_v_unitigs = [v_unitigs_sz, &idmap, this](const size_t labelA_start, const size_t labelA_end,
+                                                             vector<pair<pair<size_t, bool>, pair<size_t, bool>>>* v_out){
+
+            // We need to deal with the tail of long unitigs
+            for (size_t labelA = labelA_start; labelA < labelA_end; ++labelA) {
+
+                const Unitig<T>* unitig = v_unitigs[labelA - 1];
+
+                const Kmer head = unitig->seq.getKmer(0);
+                const Kmer tail = unitig->seq.getKmer(unitig->seq.size() - k_);
+
+                vector<UnitigMap<T>> v_um = findPredecessors(head, true);
+
+                for (const auto& um : v_um) {
+
+                    if (!um.isEmpty){
+
+                        const size_t labelB = (um.isAbundant ? *(idmap.find(um.getHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
+                        v_out->push_back(make_pair(make_pair(labelA, false), make_pair(labelB, um.strand)));
+                    }
+                }
+
+                v_um.clear();
+
+                v_um = findSuccessors(tail, 4, true);
+
+                for (const auto& um : v_um) {
+
+                    if (!um.isEmpty){
+
+                        const size_t labelB = (um.isAbundant ? *(idmap.find(um.getHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
+                        v_out->push_back(make_pair(make_pair(labelA, true), make_pair(labelB, um.strand)));
+                    }
+                }
+            }
+        };
+
+        auto worker_v_kmers = [v_unitigs_sz, &idmap, this](const size_t labelA_start, const size_t labelA_end,
+                                                             vector<pair<pair<size_t, bool>, pair<size_t, bool>>>* v_out){
+
+            // We need to deal with the tail of long unitigs
+            for (size_t labelA = labelA_start; labelA < labelA_end; ++labelA) {
+
+                const pair<Kmer, CompressedCoverage_t<T>>& p = v_kmers[labelA - v_unitigs_sz - 1];
+
+                vector<UnitigMap<T>> v_um = findPredecessors(p.first, true);
+
+                for (const auto& um : v_um) {
+
+                    if (!um.isEmpty){
+
+                        const size_t labelB = (um.isAbundant ? *(idmap.find(um.getHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
+                        v_out->push_back(make_pair(make_pair(labelA, false), make_pair(labelB, um.strand)));
+                    }
+                }
+
+                v_um.clear();
+
+                v_um = findSuccessors(p.first, 4, true);
+
+                for (const auto& um : v_um) {
+
+                    if (!um.isEmpty){
+
+                        const size_t labelB = (um.isAbundant ? *(idmap.find(um.getHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
+                        v_out->push_back(make_pair(make_pair(labelA, true), make_pair(labelB, um.strand)));
+                    }
+                }
+            }
+        };
+
+        const int chunk_size = 1000;
+
+        labelA = 1;
+
+        {
+            vector<thread> workers; // need to keep track of threads so we can join them
+            vector<vector<pair<pair<size_t, bool>, pair<size_t, bool>>>> v_out(nb_threads);
+
+            mutex mutex_label, mutex_file;
+
+            for (size_t t = 0; t < nb_threads; ++t){
+
+                workers.emplace_back(
+
+                    [&, t]{
+
+                        size_t l_labelA, l_chunk_size;
+
+                        while (true) {
+
+                            {
+                                unique_lock<mutex> lock(mutex_label);
+
+                                if (labelA > v_unitigs_sz) return;
+
+                                if (labelA + chunk_size <= v_unitigs_sz) l_chunk_size = chunk_size;
+                                else l_chunk_size = v_unitigs_sz - labelA + 1;
+
+                                l_labelA = labelA;
+                                labelA += chunk_size;
+                            }
+
+                            worker_v_unitigs(l_labelA, l_labelA + l_chunk_size, &v_out[t]);
+
+                            {
+                                unique_lock<mutex> lock(mutex_file);
+
+                                for (const auto& p : v_out[t]){
+
+                                    stringstream ssa, ssb;
+
+                                    ssa << p.first.first;
+                                    ssb << p.second.first;
+
+                                    graph.write_edge(ssa.str(), 0, k_-1, p.first.second, ssb.str(), 0, k_-1, p.second.second);
+                                }
+                            }
+
+                            v_out[t].clear();
+                        }
+                    }
+                );
+            }
+
+            for (auto& t : workers) t.join();
+        }
+
+        labelA = v_unitigs_sz + 1;
+
+        {
+            vector<thread> workers; // need to keep track of threads so we can join them
+            vector<vector<pair<pair<size_t, bool>, pair<size_t, bool>>>> v_out(nb_threads);
+
+            mutex mutex_label, mutex_file;
+
+            for (size_t t = 0; t < nb_threads; ++t){
+
+                workers.emplace_back(
+
+                    [&, t]{
+
+                        size_t l_labelA, l_chunk_size;
+
+                        while (true) {
+
+                            {
+                                unique_lock<mutex> lock(mutex_label);
+
+                                if (labelA > (v_kmers_sz + v_unitigs_sz)) return;
+
+                                if (labelA + chunk_size <= (v_kmers_sz + v_unitigs_sz)) l_chunk_size = chunk_size;
+                                else l_chunk_size = (v_kmers_sz + v_unitigs_sz) - labelA + 1;
+
+                                l_labelA = labelA;
+                                labelA += chunk_size;
+                            }
+
+                            worker_v_kmers(l_labelA, l_labelA + l_chunk_size, &v_out[t]);
+
+                            {
+                                unique_lock<mutex> lock(mutex_file);
+
+                                for (const auto& p : v_out[t]){
+
+                                    stringstream ssa, ssb;
+
+                                    ssa << p.first.first;
+                                    ssb << p.second.first;
+
+                                    graph.write_edge(ssa.str(), 0, k_-1, p.first.second, ssb.str(), 0, k_-1, p.second.second);
+                                }
+                            }
+
+                            v_out[t].clear();
+                        }
+                    }
+                );
+            }
+
+            for (auto& t : workers) t.join();
+        }
+    }
+
+    for (KmerHashTable<size_t>::iterator it = idmap.begin(); it != idmap.end(); it++) {
+
+        labelA = *it;
+
+        for (i = 0; i < 4; ++i) {
+
+            const Kmer b = it.getKey().backwardBase(alpha[i]);
+            const UnitigMap<T> cand = find(b, true);
+
+            if (!cand.isEmpty) {
+
+                if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
+                else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
+
+                stringstream ssa, ssb;
+
+                ssa << labelA;
+                ssb << labelB;
+
+                graph.write_edge(ssa.str(), 0, k_-1, false,
+                                 ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+            }
+        }
+
+        for (i = 0; i < 4; ++i) {
+
+            const Kmer b = it.getKey().forwardBase(alpha[i]);
+            const UnitigMap<T> cand = find(b, true);
+
+            if (!cand.isEmpty) {
+
+                if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
+                else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
+
+                stringstream ssa, ssb;
+
+                ssa << labelA;
+                ssb << labelB;
+
+                graph.write_edge(ssa.str(), 0, k_-1, true,
+                                 ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+            }
+        }
+    }
+
+    graph.close();
+}*/
 
 template<typename T>
 void CompactedDBG<T>::mapRead(const UnitigMap<T>& cc) {
