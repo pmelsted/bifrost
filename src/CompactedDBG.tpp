@@ -1068,165 +1068,6 @@ bool CompactedDBG<T>::join(const bool verbose){
     return true;
 }
 
-/*template<typename T>
-bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
-
-    if (invalid){
-
-        cerr << "CompactedDBG::filter(): Graph is invalid and it cannot be built" << endl;
-        return false;
-    }
-
-    BlockedBloomFilter bf_tmp;
-
-    if (opt.reference_mode){
-
-        BlockedBloomFilter tmp(opt.nb_unique_kmers, opt.nb_bits_unique_kmers_bf);
-        bf.get(tmp);
-        tmp.clear();
-    }
-    else {
-
-        BlockedBloomFilter tmp(opt.nb_unique_kmers, opt.nb_bits_unique_kmers_bf);
-        bf_tmp.get(tmp);
-        tmp.clear();
-
-        BlockedBloomFilter tmp2(opt.nb_non_unique_kmers, opt.nb_bits_non_unique_kmers_bf);
-        bf.get(tmp2);
-        tmp2.clear();
-    }
-
-    bool done = false;
-
-    const bool multi_threaded = (opt.nb_threads != 1);
-
-    string s;
-
-    size_t file_id = 0;
-
-    uint64_t n_read = 0;
-
-    atomic<uint64_t> num_kmers(0), num_ins(0);
-
-    FileParser fp(opt.fastx_filename_in);
-    //FastqFile fp(opt.fastx_filename_in);
-
-    vector<string> readv;
-
-    // Main worker thread
-    auto worker_function = [&](vector<string>::iterator a, vector<string>::iterator b) {
-
-        uint64_t l_num_kmers = 0, l_num_ins = 0;
-
-        // for each input
-        for (auto x = a; x != b; ++x) {
-
-            const char* str = x->c_str();
-            const int len = x->length();
-
-            KmerHashIterator<RepHash> it_kmer_h(str, len, k_), it_kmer_h_end;
-            minHashIterator<RepHash> it_min(str, len, k_, g_, RepHash(), true);
-
-            for (int last_pos = -1; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min, ++l_num_kmers) {
-
-                std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
-
-                // If one or more k-mer were jumped because contained non-ACGT char.
-                if (p_.second != last_pos + 1)
-                    it_min = minHashIterator<RepHash>(&str[p_.second], len - p_.second, k_, g_, RepHash(), true);
-
-                last_pos = p_.second;
-                const uint64_t min_hr = it_min.getHash();
-
-                if (opt.reference_mode){
-
-                    bf.insert(p_.first, min_hr, multi_threaded);
-                    ++l_num_ins;
-                }
-                else if (bf_tmp.insert(p_.first, min_hr, multi_threaded)) ++l_num_ins;
-                else bf.insert(p_.first, min_hr, multi_threaded);
-            }
-        }
-
-        // atomic adds
-        num_kmers += l_num_kmers;
-        num_ins += l_num_ins;
-    };
-
-    while (!done) {
-
-        size_t reads_now = 0;
-
-        while (reads_now < opt.read_chunksize) {
-
-            if (fp.read(s, file_id)) {
-            //if (fp.read_next(s, file_id) >= 0) {
-
-                readv.emplace_back(s);
-                ++n_read;
-                ++reads_now;
-            }
-            else {
-
-                done = true;
-                break;
-            }
-        }
-
-        vector<thread> workers;
-
-        auto rit = readv.begin();
-        size_t batch_size = readv.size() / opt.nb_threads;
-        size_t leftover   = readv.size() % opt.nb_threads;
-
-        for (size_t i = 0; i < opt.nb_threads; i++) {
-
-            size_t jump = batch_size + ((i < leftover) ? 1 : 0);
-
-            auto rit_end(rit);
-            advance(rit_end, jump);
-            workers.push_back(thread(worker_function, rit, rit_end));
-
-            rit = rit_end;
-        }
-
-        assert(rit==readv.end());
-
-        for (auto &t : workers) t.join();
-
-        readv.clear();
-    }
-
-    fp.close();
-
-    if (opt.verbose) {
-
-        cout << "CompactedDBG::filter(): Closed all fasta/fastq files" << endl;
-        cout << "CompactedDBG::filter(): Processed " << num_kmers << " k-mers in " << n_read  << " reads" << endl;
-        cout << "CompactedDBG::filter(): Found " << num_ins << " unique k-mers" << endl;
-        cout << "CompactedDBG::filter(): Number of blocks in Bloom filter is " << bf.getNbBlocks() << endl;
-    }
-
-    if (opt.useMercyKmers && !opt.reference_mode){
-
-        string mbbf_uniq_filename = opt.prefixFilenameOut + "_uniq";
-
-        FILE* f_mbbf = fopen(mbbf_uniq_filename.c_str(), "wb");
-
-        if (f_mbbf == NULL){
-
-            cerr << "CompactedDBG::filter(): Minimizer Blocked Bloom filter of unique k-mers cannot be written to disk" << endl;
-            return false;
-        }
-
-        bf_tmp.WriteBloomFilter(f_mbbf);
-
-        fclose(f_mbbf);
-    }
-
-    return true;
-}*/
-
 template<typename T>
 bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
 
@@ -1389,327 +1230,6 @@ bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
     return true;
 }
 
-/*template<typename T>
-bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
-
-    if (invalid){
-
-        cerr << "CompactedDBG::construct(): Graph is invalid and cannot be built" << endl;
-        return false;
-    }
-
-    FileParser fp(opt.fastx_filename_in);
-
-    string s;
-
-    size_t file_id = 0;
-
-    vector<string> readv;
-    vector<vector<NewUnitig>> parray(opt.nb_threads);
-    vector<vector<tuple<bool, uint64_t, Kmer>>> v_fp_cand_threads(opt.nb_threads);
-    vector<vector<Kmer>> v_ignored_km_tip_thread(opt.nb_threads);
-
-    int round = 0;
-
-    bool done = false;
-
-    const bool multi_threaded = (opt.nb_threads != 1);
-
-    tiny_vector<Kmer, 2>* fp_candidate = opt.reference_mode ? nullptr : new tiny_vector<Kmer, 2>[bf.getNbBlocks()];
-
-    KmerHashTable<bool> ignored_km_tips;
-
-    auto worker_function = [&](vector<string>::const_iterator a, vector<string>::const_iterator b,
-                                vector<NewUnitig>* smallv,
-                                vector<tuple<bool, uint64_t, Kmer>>* v_fp_cand,
-                                vector<Kmer>* l_ignored_km_tip) {
-
-        uint64_t it_min_h, last_it_min_h;
-
-        BlockedBloomFilter::BBF_Blocks block_bf;
-
-        Kmer km;
-        RepHash rep;
-
-        // for each input
-        for (auto x = a; x != b; ++x) {
-
-            const char* s_x = x->c_str();
-
-            KmerHashIterator<RepHash> it_kmer_h(s_x, x->length(), k_), it_kmer_h_end;
-            preAllocMinHashIterator<RepHash> it_min(s_x, x->length(), k_, g_, rep, true);
-
-            for (int last_pos_km = -2; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min) {
-
-                std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
-
-                if (p_.second != last_pos_km + 1){ // If one or more k-mer were jumped because contained non-ACGT char.
-
-                    km = Kmer(&s_x[p_.second]);
-
-                    it_min += (last_pos_km == -2 ? p_.second : (p_.second - last_pos_km) - 1);
-                    it_min_h = it_min.getHash();
-
-                    block_bf = bf.getBlock(it_min_h);
-                }
-                else {
-
-                    km.selfForwardBase(s_x[p_.second + k_ - 1]);
-
-                    it_min_h = it_min.getHash();
-                    if (it_min_h != last_it_min_h) block_bf = bf.getBlock(it_min_h);
-                }
-
-                last_pos_km = p_.second;
-                last_it_min_h = it_min_h;
-
-                const size_t r = bf.contains_block(p_.first, it_min_h, block_bf);
-
-                if (r != 0){
-
-                    const UnitigMap<T> cm = findUnitig(km, *x, p_.second, it_min);
-
-                    if (cm.isEmpty) { // kmer did not map, push into queue for next unitig generation round
-
-                        bool selfLoop = false;
-                        bool isIsolated = false;
-
-                        string newseq;
-
-                        const size_t pos_match = findUnitigSequenceBBF(km, newseq, selfLoop, isIsolated, *l_ignored_km_tip); //Build unitig from Bloom filter
-
-                        if (!opt.reference_mode && isIsolated){ // According to the BF, k-mer is isolated in the graph and is a potential false positive
-
-                            const uint64_t block = (r == 1 ? block_bf.first : block_bf.second);
-
-                            const Kmer km_rep = km.rep();
-                            const tiny_vector<Kmer, 2>& v = fp_candidate[block];
-                            tuple<bool, uint64_t, Kmer> t_fp_cand = make_tuple(true, block, km_rep);
-
-                            for (const auto km_tmp : v){ // Go over global list of existing FP candidates
-
-                                if (km_tmp == km_rep){ // If already stored as a FP candidate, it is a TP
-
-                                    std::get<0>(t_fp_cand) = false; // K-mer must be removed from list of FP candidate
-                                    break;
-                                }
-                            }
-
-                            if (!std::get<0>(t_fp_cand)){ // If k-mer was a FP candidate now turned into a TP, insert into data structure
-
-                                smallv->emplace_back(km, *x, p_.second, selfLoop ? std::string() : newseq);
-                                v_fp_cand->emplace_back(t_fp_cand); // TP will be removed from list of FP later
-                            }
-                            else { // Need to make sure the FP candidate was not already inserted locally as a FP candidate (else it is a TP)
-
-                                bool found_fp = false;
-
-                                for (auto& t_fp_cand_tmp : *v_fp_cand){ // Go over local (to the thread) list of existing FP candidates
-
-                                    if (std::get<2>(t_fp_cand_tmp) == km_rep){ // If present as FP candidate
-
-                                        std::get<0>(t_fp_cand_tmp) = false; // Indicate FP must be removed from list of false positive candidate
-                                        found_fp = true;
-                                        break;
-                                    }
-                                }
-
-                                if (found_fp) smallv->emplace_back(km, *x, p_.second, selfLoop ? std::string() : newseq);
-                                else v_fp_cand->emplace_back(t_fp_cand);
-                            }
-                        }
-                        else {
-
-                            smallv->emplace_back(km, *x, p_.second, selfLoop ? std::string() : newseq);
-                            it_kmer_h += cstrMatch(&s_x[p_.second + k_], &newseq.c_str()[pos_match + k_]);
-                        }
-                    }
-                    else {
-
-                        mapRead(cm);
-                        it_kmer_h += cm.len - 1;
-                    }
-                }
-            }
-        }
-    };
-
-    while (!done) {
-
-        size_t reads_now = 0;
-
-        while (reads_now < opt.read_chunksize) {
-
-            if (fp.read(s, file_id)){
-
-                readv.emplace_back(s);
-
-                ++reads_now;
-            }
-            else {
-
-                done = true;
-                break;
-            }
-        }
-
-        ++round;
-
-        if (opt.verbose) cout << "CompactedDBG::construct(): Starting round " << round << endl;
-
-        // run parallel code
-        vector<thread> workers;
-
-        auto rit = readv.begin();
-        size_t batch_size = readv.size() / opt.nb_threads;
-        size_t leftover   = readv.size() % opt.nb_threads;
-
-        for (size_t i = 0; i < opt.nb_threads; ++i) {
-
-            size_t jump = batch_size + (i < leftover ? 1 : 0);
-            auto rit_end(rit);
-
-            advance(rit_end, jump);
-            workers.push_back(thread(worker_function, rit, rit_end, &parray[i], &v_fp_cand_threads[i], &v_ignored_km_tip_thread[i]));
-
-            rit = rit_end;
-        }
-
-        assert(rit == readv.end());
-
-        for (auto& t : workers) t.join();
-
-        for (auto& v : parray) { // for each thread
-
-            for (const auto& x : v) addUnitigSequenceBBF(x.km, x.read, x.pos, x.seq, v_ignored_km_tip_thread[0]); // add each unitig for this thread
-
-            v.clear(); //clear the map
-        }
-
-        for (auto& v : v_fp_cand_threads) { // for each thread
-
-            for (const auto& x : v){ //for each FP candidate to add or delete
-
-                const Kmer km_fp = std::get<2>(x);
-
-                tiny_vector<Kmer, 2>& v = fp_candidate[std::get<1>(x)];
-
-                size_t i = 0;
-
-                for (; i < v.size(); ++i){ //Search vector for k-mer
-
-                    if (v[i] == km_fp) break;
-                }
-
-                if (std::get<0>(x) == false){ // If FP is to delete
-
-                    if (i < v.size()) v.remove(i); // If k-mer has not already been deleted
-
-                    const UnitigMap<T> cm = find(km_fp); // Find FP to delete (was inserted into data structure as TP)
-
-                    mapRead(cm); //Map the TP a second time;
-                }
-                else if (i >= v.size()){ //
-
-                    if (!multi_threaded || find(km_fp).isEmpty) v.push_back(km_fp); //Add k-mer to vector if not already present
-                }
-                else { // K-mer already added as a FP candidate by other thread: it is now a TP
-
-                    v.remove(i); //// K-mer deleted from list of FP candidates
-
-                    const string str_km = km_fp.toString();
-
-                    addUnitigSequenceBBF(km_fp, str_km, 0, str_km, v_ignored_km_tip_thread[0]);
-
-                    const UnitigMap<T> cm = find(km_fp); // Find FP to delete (was inserted into data structure as TP)
-
-                    mapRead(cm); //Map the TP a second time;
-                }
-            }
-
-            v.clear(); //clear the map
-        }
-
-        for (auto &v : v_ignored_km_tip_thread) { // for each thread
-
-            for (const auto x : v) ignored_km_tips.insert(x, false);
-
-            v.clear();
-        }
-
-        if (opt.read_chunksize > 1 && opt.verbose) {
-
-            cout << "CompactedDBG::construct(): End of round" << endl;
-            cout << "CompactedDBG::construct(): Processed " << size() << " unitigs" << endl;
-        }
-
-        readv.clear();
-    }
-
-    fp.close();
-
-    bf.clear();
-
-    if (fp_candidate != nullptr) delete[] fp_candidate;
-
-    if (opt.verbose) cout << "CompactedDBG::construct(): Closed all fasta/fastq files" << endl;
-
-    const size_t unitigsBefore = size();
-
-    if (opt.verbose) cout << endl << "CompactedDBG::construct(): Splitting unitigs (1/" << (opt.reference_mode ? "1" : "2" ) << ")" << endl;
-
-    pair<size_t, size_t> unitigSplit = splitAllUnitigs();
-
-    const int unitigsAfter1 = size();
-
-    //if (!opt.reference_mode){
-
-        if (opt.verbose) cout << endl << "CompactedDBG::construct(): Splitting unitigs (2/2)" << endl;
-
-        check_fp_tips(ignored_km_tips);
-        ignored_km_tips.clear();
-    //}
-
-    const int unitigsAfter2 = size();
-
-    if (opt.verbose) {
-
-        cout << "CompactedDBG::construct(): Before split: " << unitigsBefore << " unitigs" << endl;
-        cout << "CompactedDBG::construct(): After split (1/" << (opt.reference_mode ? "1" : "2" ) << "): " << unitigsAfter1 << " unitigs" <<  endl;
-        if (!opt.reference_mode) cout << "CompactedDBG::construct(): After split (2/2): " << unitigsAfter2 << " unitigs" <<  endl;
-        cout << "CompactedDBG::construct(): Unitigs split: " << unitigSplit.first << endl;
-        cout << "CompactedDBG::construct(): Unitigs deleted: " << unitigSplit.second << endl;
-    }
-
-    if (opt.verbose) cout << endl << "CompactedDBG::construct(): Joining unitigs" << endl;
-
-    const size_t joined = joinUnitigs(nullptr, opt.nb_threads);
-
-    const int unitigsAfter3 = size();
-
-    if (opt.verbose) {
-
-        cout << "CompactedDBG::construct(): After join: " << unitigsAfter3 << " unitigs" << endl;
-        cout << "CompactedDBG::construct(): Joined " << joined << " unitigs" << endl;
-    }
-
-    if (opt.useMercyKmers && !opt.reference_mode){
-
-        string filename_mbbf_uniq_km = opt.prefixFilenameOut + "_uniq";
-
-        joinTips(filename_mbbf_uniq_km, opt.nb_threads, opt.verbose);
-
-        if (opt.verbose) cout << "CompactedDBG::construct(): After join tips using mercy k-mers: " << size() << " unitigs" << endl;
-
-        if (std::remove(filename_mbbf_uniq_km.c_str()) != 0) {
-
-            cerr << "CompactedDBG::construct(): Minimizer Blocked Bloom filter file of unique k-mers cannot be removed from disk" << endl;
-        }
-    }
-
-    return true;
-}*/
-
 template<typename T>
 bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
@@ -1811,9 +1331,8 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
                         if (!opt.reference_mode && isIsolated){ // According to the BF, k-mer is isolated in the graph and is a potential false positive
 
                             const uint64_t block = (r == 1 ? block_bf.first : block_bf.second);
-
-                            const Kmer km_rep = km.rep();
                             const uint64_t id_lock = block % nb_locks;
+                            const Kmer km_rep = km.rep();
 
                             tiny_vector<Kmer, 2>& v = fp_candidate[block];
 
@@ -4364,7 +3883,7 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
                     ssb << labelB;
 
                     graph.write_edge(ssa.str(), 0, k_-1, false,
-                                     ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                                     ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, !cand.strand);
                 }
             }
 
@@ -4411,7 +3930,7 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
                     ssb << labelB;
 
                     graph.write_edge(ssa.str(), 0, k_-1, false,
-                                     ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                                     ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, !cand.strand);
                 }
             }
 
@@ -4456,7 +3975,7 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
                     if (!um.isEmpty){
 
                         const size_t labelB = (um.isAbundant ? *(idmap.find(um.getHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
-                        v_out->push_back(make_pair(make_pair(labelA, false), make_pair(labelB, um.strand)));
+                        v_out->push_back(make_pair(make_pair(labelA, false), make_pair(labelB, !um.strand)));
                     }
                 }
 
@@ -4490,7 +4009,7 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
                     if (!um.isEmpty){
 
                         const size_t labelB = (um.isAbundant ? *(idmap.find(um.getHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
-                        v_out->push_back(make_pair(make_pair(labelA, false), make_pair(labelB, um.strand)));
+                        v_out->push_back(make_pair(make_pair(labelA, false), make_pair(labelB, !um.strand)));
                     }
                 }
 
@@ -4618,7 +4137,7 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
                 ssb << labelB;
 
                 graph.write_edge(ssa.str(), 0, k_-1, false,
-                                 ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                                 ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, !cand.strand);
             }
         }
 
