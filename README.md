@@ -8,7 +8,14 @@ This repository contains the source code for a new parallel and memory efficient
 
 In order to compile and use Bifrost, you need a machine running a 64 bits POSIX-compliant UNIX or MacOS operating system. Bifrost successfully compiles and runs on Ubuntu 17.04 and MacOS.
 
-In order to compile Bifrost, you will need Cmake (https://cmake.org/), Jemalloc (http://www.canonware.com/jemalloc), Roaring (https://github.com/RoaringBitmap/CRoaring) and zlib (https://zlib.net/). All can be downloaded and installed by following the instructions on their respective websites. It is however most likely that at least few of them are available via a package manager for your operating system.
+In order to compile Bifrost, you will need:
+
+- Cmake (https://cmake.org/)
+- Jemalloc (http://www.canonware.com/jemalloc)
+- Roaring (https://github.com/RoaringBitmap/CRoaring)
+- zlib (https://zlib.net/)
+
+All can be downloaded and installed by following the instructions on their respective websites. It is however most likely that at least few of them are available via a package manager for your operating system.
 
 If you operating system is Ubuntu/Debian, you can install Cmake-Jemalloc-Zlib as follows:
 ```
