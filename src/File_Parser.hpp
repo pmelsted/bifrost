@@ -134,6 +134,12 @@ class FileParser {
             return !invalid;
         }
 
+        const char* getQualityScoreString() const {
+
+            if (invalid || !reading_fastx) return nullptr;
+            return ff.get_kseq()->qual.s;
+        }
+
         void close(){
 
             ff.close();

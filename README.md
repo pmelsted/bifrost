@@ -72,7 +72,7 @@ Bifrost x.y
 
 Highly Parallel and Memory Efficient Compacted de Bruijn Graph Construction
 
-Usage: Bifrost [Parameters] FAST(A|Q)_file_1 ...
+Usage: Bifrost [Parameters] file_1 ...
 
 Mandatory parameters with required argument:
 
@@ -85,8 +85,8 @@ Optional parameters with required argument:
   -g, --min-length         Length of minimizers (default is 23)
   -n, --num-kmers          Estimated number (upper bound) of different k-mers in input files (default: estimated with KmerStream)
   -N, --num-kmer2          Estimated number (upper bound) of different k-mers occurring twice or more in the input files (default: estimated with KmerStream)
-  -b, --bloom-bits         Number of Bloom filter bits per k-mer occurring at least once in the FASTA/FASTQ files (default is 14)
-  -B, --bloom-bits2        Number of Bloom filter bits per k-mer occurring at least twice in the FASTA/FASTQ files (default is 14)
+  -b, --bloom-bits         Number of Bloom filter bits per k-mer occurring at least once in the input files (default is 14)
+  -B, --bloom-bits2        Number of Bloom filter bits per k-mer occurring at least twice in the input files (default is 14)
   -l, --load               Filename for input Blocked Bloom Filter, skips filtering step (default is no input)
   -f, --output2            Filename for output Blocked Bloom Filter (default is no output)
   -s, --chunk-size         Read chunksize to split between threads (default is 10000)
@@ -101,7 +101,7 @@ Optional parameters with no argument:
   -v, --verbose            Print information messages during construction
 ```
 
-Bifrost works in two steps: first, reads are filtered to remove errors and then, the compacted de Bruijn graph is built from the filtered reads.
+Bifrost works in two steps: first, reads are filtered to remove errors and then, the compacted de Bruijn graph is built from the filtered reads. If you want to input assembled genomes, use the `r` and no filtering will be applied, all k-mers of the files will be used to build the graph.
 
 Note that the only mandatory parameter of Bifrost is the name of the output (GFA or FASTA) file.
 
@@ -144,6 +144,24 @@ You can also link to the Bifrost static library (*libbifrost.a*) for better perf
 ```
 <path_to_lib_folder>/libbifrost.a -ljemalloc -lroaring -pthread -lz
 ```
+
+## FAQ
+
+### What are the accepted input file formats?
+
+FASTA , FASTQ and GFA. Input FASTA and FASTQ files can be compressed with gzip (extension .gz). If you input a GFA file, you probably want to run Bifrost in reference mode (`-r` parameter, build the graph from all k-mers of the sequences).
+
+### Can I mix different file formats in input?
+
+Yes, as long as they are FASTA, FASTQ and GFA.
+
+### If I input a GFA file, does it need to contain already a compacted de Bruijn graph?
+
+No, it can contain any type of sequence graph (like an uncompacted de Bruijn graph). Bifrost will extract the sequences from the file and build the compacted de Bruijn graph out of them.
+
+### Can I build a compacted de Bruijn graph from assembled genomes and reads?
+
+Yes. First, run Bifrost with your assembled genomes only (`-r` parameter) and output the unitigs to a FASTA file (`-a` parameter). Then, run Bifrost a second time with the previously produced FASTA file and your read files.
 
 ## Contact
 

@@ -19,7 +19,7 @@ void PrintUsage() {
 
     cout << endl << "Bifrost " << BFG_VERSION << endl << endl;
     cout << "Highly Parallel and Memory Efficient Compacted de Bruijn Graph Construction" << endl << endl;
-    cout << "Usage: Bifrost [Parameters] FAST(A|Q)_file_1 ..." << endl << endl;
+    cout << "Usage: Bifrost [Parameters] file_1 ..." << endl << endl;
     cout << "Mandatory parameters with required argument:" << endl <<
     endl << "  -o, --output             Prefix for output file (default file format is GFA)" << endl << endl <<
     "Optional parameters with required argument:" << endl << endl <<
@@ -182,36 +182,12 @@ bool check_ProgramOptions(CDBG_Build_opt& opt) {
         ret = false;
     }
 
-    /*if (opt.nb_unique_kmers < 0){
-
-        cerr << "Error: Number of Bloom filter bits per unique k-mer cannot be less than 0" << endl;
-        ret = false;
-    }
-
-    if (!opt.reference_mode && (opt.nb_non_unique_kmers < 0)){
-
-        cerr << "Error: Number of Bloom filter bits per non unique k-mer cannot be less than 0" << endl;
-        ret = false;
-    }*/
-
     if (!opt.reference_mode && (opt.nb_non_unique_kmers > opt.nb_unique_kmers)){
 
         cerr << "Error: The estimated number of non unique k-mers ";
         cerr << "cannot be greater than the estimated number of unique k-mers" << endl;
         ret = false;
     }
-
-    /*if (opt.nb_bits_unique_kmers_bf < 0){
-
-        cerr << "Error: Number of Bloom filter bits per unique k-mer cannot be less than 0" << endl;
-        ret = false;
-    }
-
-    if (!opt.reference_mode && (opt.nb_bits_non_unique_kmers_bf < 0)){
-
-        cerr << "Error: Number of Bloom filter bits per non unique k-mer cannot be less than 0" << endl;
-        ret = false;
-    }*/
 
     if (opt.outFilenameBBF.length() != 0){
 
@@ -254,7 +230,7 @@ bool check_ProgramOptions(CDBG_Build_opt& opt) {
 
     if (opt.fastx_filename_in.size() == 0) {
 
-        cerr << "Error: Missing FASTA/FASTQ input files" << endl;
+        cerr << "Error: Missing input files" << endl;
         ret = false;
     }
     else {

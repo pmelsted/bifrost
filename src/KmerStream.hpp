@@ -15,7 +15,7 @@
 #include <thread>
 #include <atomic>
 
-#include "FASTX_Parser.hpp"
+#include "File_Parser.hpp"
 #include "RepHash.hpp"
 #include "StreamCounter.hpp"
 
@@ -370,16 +370,31 @@ class KmerStream {
 
                         string s_ext = s.substr(s.find_last_of(".") + 1);
 
-                        if ((s_ext == "gz")) s_ext = s_ext.substr(s_ext.find_last_of(".") + 1);
+                        if ((s_ext == "gz")){
 
-                        if ((s_ext == "fasta") || (s_ext == "fa")) files_fasta.push_back(s);
-                        else if ((s_ext == "fastq") || (s_ext == "fq")) files_fastq.push_back(s);
+                            s_ext = s_ext.substr(s_ext.find_last_of(".") + 1);
+
+                            if ((s_ext == "fasta") || (s_ext == "fa")) files_no_quality.push_back(s);
+                            else if ((s_ext == "fastq") || (s_ext == "fq")) files_with_quality.push_back(s);
+                            else {
+
+                                cerr << "KmerStream::KmerStream(): Input files must be in FASTA (*.fasta, *.fa, *.fasta.gz, *.fa.gz) or " <<
+                                "FASTQ (*.fastq, *.fq, *.fastq.gz, *.fq.gz) or GFA (*.gfa) format" << endl;
+
+                                invalid = true;
+                            }
+                        }
                         else {
 
-                            cerr << "KmerStream::KmerStream(): Input files must be in FASTA (*.fasta, *.fa, *.fasta.gz, *.fa.gz) or " <<
-                            "FASTQ format (*.fastq, *.fq, *.fastq.gz, *.fq.gz)" << endl;
+                            if ((s_ext == "fasta") || (s_ext == "fa") || (s_ext == "gfa")) files_no_quality.push_back(s);
+                            else if ((s_ext == "fastq") || (s_ext == "fq")) files_with_quality.push_back(s);
+                            else {
 
-                            invalid = true;
+                                cerr << "KmerStream::KmerStream(): Input files must be in FASTA (*.fasta, *.fa, *.fasta.gz, *.fa.gz) or " <<
+                                "FASTQ (*.fastq, *.fq, *.fastq.gz, *.fq.gz) or GFA (*.gfa) format" << endl;
+
+                                invalid = true;
+                            }
                         }
                     }
                 }
@@ -387,12 +402,12 @@ class KmerStream {
 
             if (invalid) exit(1);
 
-            if (files_fastq.size() != 0) v_fq_res = nb_threads > 1 ? RunThreadedFastqStream() : RunFastqStream();
-            if (files_fasta.size() != 0) v_fa_res = nb_threads > 1 ? RunThreadedFastaStream() : RunFastaStream();
+            if (files_with_quality.size() != 0) v_fq_res = nb_threads > 1 ? RunThreadedFastqStream() : RunFastqStream();
+            if (files_no_quality.size() != 0) v_fa_res = nb_threads > 1 ? RunThreadedFastaStream() : RunFastaStream();
 
             size_t i = 0;
 
-            if ((files_fastq.size() != 0) && (files_fasta.size() != 0)){
+            if ((files_with_quality.size() != 0) && (files_no_quality.size() != 0)){
 
                 for (auto& sp : v_fa_res){
 
@@ -414,12 +429,15 @@ class KmerStream {
 
             //std::ios_base::sync_with_stdio(false);
 
-            FastqFile FQ(files_fastq);
+            FileParser fp(files_with_quality);
 
             size_t nreads = 0;
+            size_t file_id = 0;
 
             const size_t qsize = q_cutoff.size();
             const size_t ksize = klist.size();
+
+            string seq;
 
             vector<ReadQualityHasher> sps(qsize * ksize, ReadQualityHasher(e, q_base));
 
@@ -432,16 +450,16 @@ class KmerStream {
                 }
             }
 
-            while (FQ.read_next() >= 0){
+            while (fp.read(seq, file_id)){
 
                 ++nreads;
 
-                const kseq_t* kseq = FQ.get_kseq();
+                const char* qss = fp.getQualityScoreString();
 
-                for (size_t i = 0; i < qsize * ksize; ++i) sps[i](kseq->seq.s, kseq->seq.l, kseq->qual.s, kseq->qual.l);
+                for (size_t i = 0; i < qsize * ksize; ++i) sps[i](seq.c_str(), seq.length(), qss, strlen(qss));
             }
 
-            FQ.close();
+            fp.close();
 
             return sps;
         }
@@ -450,9 +468,13 @@ class KmerStream {
 
             //std::ios_base::sync_with_stdio(false);
 
+            size_t file_id = 0;
+
             const size_t qsize = q_cutoff.size();
             const size_t ksize = klist.size();
             const size_t nb_k_q = qsize * ksize;
+
+            string seq;
 
             vector<ReadQualityHasher> sps(nb_k_q * nb_threads, ReadQualityHasher(e, q_base));
 
@@ -468,7 +490,7 @@ class KmerStream {
                 }
             }
 
-            FastqFile FQ(files_fastq);
+            FileParser fp(files_with_quality);
 
             auto reading_function = [&](vector<pair<string, string>>& readv) {
 
@@ -476,11 +498,9 @@ class KmerStream {
 
                 while (readCount < 1000) {
 
-                    if (FQ.read_next() >= 0){
+                    if (fp.read(seq, file_id)){
 
-                        const kseq_t* kseq = FQ.get_kseq();
-
-                        readv.push_back(make_pair(string(kseq->seq.s), string(kseq->qual.s)));
+                        readv.push_back(make_pair(seq, string(fp.getQualityScoreString())));
 
                         ++readCount;
                     }
@@ -533,7 +553,7 @@ class KmerStream {
                 for (auto& t : workers) t.join();
             }
 
-            FQ.close();
+            fp.close();
 
             vector<ReadQualityHasher> res;
 
@@ -554,9 +574,12 @@ class KmerStream {
             //std::ios_base::sync_with_stdio(false);
 
             size_t nreads = 0;
+            size_t file_id = 0;
 
             const size_t qsize = q_cutoff.size();
             const size_t ksize = klist.size();
+
+            string seq;
 
             vector<ReadHasher> sps(qsize * ksize, ReadHasher(e));
 
@@ -565,18 +588,16 @@ class KmerStream {
                 for (size_t j = 0; j < ksize; ++j) sps[i * ksize + j].setK(klist[j]);
             }
 
-            FastqFile FQ(files_fasta);
+            FileParser fp(files_no_quality);
 
-            while (FQ.read_next() >= 0){
+            while (fp.read(seq, file_id)){
 
                 ++nreads;
 
-                const kseq_t* kseq = FQ.get_kseq();
-                // seq->seq.s is of length seq->seq.l
-                for (size_t i = 0; i < qsize * ksize; ++i) sps[i](kseq->seq.s, kseq->seq.l, nullptr, 0);
+                for (size_t i = 0; i < qsize * ksize; ++i) sps[i](seq.c_str(), seq.length(), nullptr, 0);
             }
 
-            FQ.close();
+            fp.close();
 
             return sps;
         }
@@ -585,9 +606,13 @@ class KmerStream {
 
             //std::ios_base::sync_with_stdio(false);
 
+            size_t file_id;
+
             const size_t qsize = q_cutoff.size();
             const size_t ksize = klist.size();
             const size_t nb_k_q = qsize * ksize;
+
+            string seq;
 
             vector<ReadHasher> sps(nb_k_q * nb_threads, ReadHasher(e));
 
@@ -599,7 +624,7 @@ class KmerStream {
                 }
             }
 
-            FastqFile FQ(files_fasta);
+            FileParser fp(files_no_quality);
 
             auto reading_function = [&](vector<string>& readv) {
 
@@ -607,13 +632,16 @@ class KmerStream {
 
                 while (readCount < 1000) {
 
-                    if (FQ.read_next() >= 0){
+                    if (fp.read(seq, file_id)){
 
-                        readv.push_back(string(FQ.get_kseq()->seq.s));
+                        readv.push_back(seq);
 
                         ++readCount;
                     }
-                    else return true;
+                    else {
+
+                        return true;
+                    }
                 }
 
                 return false;
@@ -662,7 +690,7 @@ class KmerStream {
                 for (auto& t : workers) t.join();
             }
 
-            FQ.close();
+            fp.close();
 
             vector<ReadHasher> res;
 
@@ -680,8 +708,8 @@ class KmerStream {
 
         vector<int> klist;
         vector<size_t> q_cutoff;
-        vector<string> files_fasta;
-        vector<string> files_fastq;
+        vector<string> files_no_quality;
+        vector<string> files_with_quality;
         vector<ReadQualityHasher> v_fq_res;
         vector<ReadHasher> v_fa_res;
         bool verbose;

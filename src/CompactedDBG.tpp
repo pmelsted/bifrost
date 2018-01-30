@@ -123,18 +123,6 @@ bool CompactedDBG<T>::build(CDBG_Build_opt& opt){
         construct_finished = false;
     }
 
-    /*if (opt.nb_bits_unique_kmers_bf < 0){
-
-        cerr << "CompactedDBG::build(): Number of Bloom filter bits per unique k-mer cannot be less than 0" << endl;
-        construct_finished = false;
-    }
-
-    if (!opt.reference_mode && (opt.nb_bits_non_unique_kmers_bf < 0)){
-
-        cerr << "CompactedDBG::build(): Number of Bloom filter bits per non unique k-mer cannot be less than 0" << endl;
-        construct_finished = false;
-    }*/
-
     if (!opt.reference_mode && (opt.nb_non_unique_kmers > opt.nb_unique_kmers)){
 
         cerr << "CompactedDBG::build(): The estimated number of non unique k-mers ";
@@ -198,52 +186,62 @@ bool CompactedDBG<T>::build(CDBG_Build_opt& opt){
 
     empty();
 
-    if ((opt.nb_unique_kmers == 0) || (opt.nb_non_unique_kmers == 0)){
+    if (construct_finished){
 
-        KmerStream_Build_opt kms_opt;
+        if (opt.reference_mode) CompressedCoverage::setFullCoverage(1);
 
-        kms_opt.threads = opt.nb_threads;
-        kms_opt.verbose = opt.verbose;
-        kms_opt.klist.push_back(opt.k);
-        kms_opt.q_cutoff.push_back(0);
+        if (opt.inFilenameBBF.length() != 0){
 
-        for (const auto& s : opt.fastx_filename_in) kms_opt.files.push_back(s);
+            FILE* fp = fopen(opt.inFilenameBBF.c_str(), "rb");
 
-        KmerStream kms(kms_opt);
+            if (fp == NULL) {
 
-        for (KmerStream::const_iterator it = kms.begin(), it_end; it != it_end; ++it){
+                cerr << "CompactedDBG::build(): Could not open input Blocked Bloom filter: " << opt.inFilenameBBF << endl;
+                construct_finished = false;
+            }
+            else {
 
-            opt.nb_unique_kmers = it.F0();
+                construct_finished = bf.ReadBloomFilter(fp);
 
-            if (!opt.reference_mode) opt.nb_non_unique_kmers = opt.nb_unique_kmers - it.f1();
-        }
-
-        if (opt.verbose){
-
-            cout << "CompactedDBG::build(): Estimated number of k-mers occurring at least once: " << opt.nb_unique_kmers << endl;
-            if (!opt.reference_mode) cout << "CompactedDBG::build(): Estimated number of k-mers occurring twice or more: " << opt.nb_non_unique_kmers << endl;
-        }
-    }
-
-    if (opt.reference_mode) CompressedCoverage::setFullCoverage(1);
-
-    if (opt.inFilenameBBF.length() != 0){
-
-        FILE* fp = fopen(opt.inFilenameBBF.c_str(), "rb");
-
-        if (fp == NULL) {
-
-            cerr << "CompactedDBG::build(): Could not open input Blocked Bloom filter: " << opt.inFilenameBBF << endl;
-            construct_finished = false;
+                fclose(fp);
+            }
         }
         else {
 
-            construct_finished = bf.ReadBloomFilter(fp);
+            if ((opt.nb_unique_kmers == 0) || (opt.nb_non_unique_kmers == 0)){
 
-            fclose(fp);
+                KmerStream_Build_opt kms_opt;
+
+                kms_opt.threads = opt.nb_threads;
+                kms_opt.verbose = opt.verbose;
+                kms_opt.klist.push_back(opt.k);
+                kms_opt.q_cutoff.push_back(0);
+
+                for (const auto& s : opt.fastx_filename_in) kms_opt.files.push_back(s);
+
+                KmerStream kms(kms_opt);
+
+                for (KmerStream::const_iterator it = kms.begin(), it_end; it != it_end; ++it){
+
+                    opt.nb_unique_kmers = it.F0();
+
+                    if (!opt.reference_mode) opt.nb_non_unique_kmers = opt.nb_unique_kmers - it.f1();
+                }
+
+                if (opt.verbose){
+
+                    cout << "CompactedDBG::build(): Estimated number of k-mers occurring at least once: " << opt.nb_unique_kmers << endl;
+
+                    if (!opt.reference_mode){
+
+                        cout << "CompactedDBG::build(): Estimated number of k-mers occurring twice or more: " << opt.nb_non_unique_kmers << endl;
+                    }
+                }
+            }
+
+            construct_finished = filter(opt);
         }
     }
-    else construct_finished = filter(opt);
 
     if (construct_finished){
 
@@ -264,13 +262,7 @@ bool CompactedDBG<T>::build(CDBG_Build_opt& opt){
             }
         }
 
-        if (construct_finished){
-
-            //if (g_ == DEFAULT_G) hmap_min_unitigs = hmap_min_unitigs_t(opt.nb_non_unique_kmers / 4);
-
-            // Construction step
-            construct_finished = construct(opt);
-        }
+        if (construct_finished) construct_finished = construct(opt); // Construction step
 
         bf.clear();
     }
@@ -401,9 +393,7 @@ UnitigMap<T> CompactedDBG<T>::find(const Kmer& km, const bool extremities_only) 
 
         while (it != hmap_min_unitigs.end()){ // If the minimizer is found
 
-            //const tiny_vector<size_t,tiny_vector_sz>& v = it->second;
             const tiny_vector<size_t,tiny_vector_sz>& v = *it;
-
             const int v_sz = v.size();
 
             it = hmap_min_unitigs.end();
@@ -1096,6 +1086,8 @@ bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
         tmp2.clear();
     }
 
+    const int chunk = 1000;
+
     const bool multi_threaded = (opt.nb_threads != 1);
 
     uint64_t n_read = 0;
@@ -1109,10 +1101,10 @@ bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
 
         uint64_t l_num_kmers = 0, l_num_ins = 0;
 
-        for (vector<string>::const_iterator a = readv.begin(), b = readv.end(); a != b; ++a) { // for each input
+        for (const auto& x : readv) { // for each input
 
-            const char* str = (*a).c_str();
-            const int len = (*a).length();
+            const char* str = x.c_str();
+            const int len = x.length();
 
             KmerHashIterator<RepHash> it_kmer_h(str, len, k_), it_kmer_h_end;
             minHashIterator<RepHash> it_min(str, len, k_, g_, RepHash(), true);
@@ -1150,7 +1142,7 @@ bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
         size_t file_id = 0;
         size_t reads_now = 0;
 
-        while (reads_now < 1000) {
+        while (reads_now < chunk) {
 
             if (fp.read(s, file_id)) {
 
@@ -1246,7 +1238,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
     size_t file_id = 0;
 
     vector<string> readv;
-    vector<vector<NewUnitig>> parray(opt.nb_threads);
+    vector<vector<pair<NewUnitig, tiny_vector<Kmer, 2>*>>> parray(opt.nb_threads);
     vector<vector<Kmer>> v_ignored_km_tip_thread(opt.nb_threads);
 
     int round = 0;
@@ -1271,8 +1263,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
     }
 
     auto worker_function = [&](vector<string>::const_iterator a, vector<string>::const_iterator b,
-                                vector<NewUnitig>* smallv,
-                                vector<Kmer>* l_ignored_km_tip) {
+                               vector<pair<NewUnitig, tiny_vector<Kmer, 2>*>>* smallv, vector<Kmer>* l_ignored_km_tip) {
 
         uint64_t it_min_h, last_it_min_h;
 
@@ -1346,19 +1337,13 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
                             }
 
                             if (i >= v.size()) v.push_back(km_rep);
-                            else {
-
-                                v.remove(i); // K-mer deleted from list of FP candidates
-
-                                smallv->emplace_back(km, *x, p_.second, selfLoop ? std::string() : newseq);
-                                smallv->emplace_back(km, *x, p_.second, selfLoop ? std::string() : newseq);
-                            }
+                            else smallv->push_back(make_pair(NewUnitig(km, *x, p_.second, selfLoop ? std::string() : newseq), &v));
 
                             locks_fp[id_lock].clear(std::memory_order_release);
                         }
                         else {
 
-                            smallv->emplace_back(km, *x, p_.second, selfLoop ? std::string() : newseq);
+                            smallv->push_back(make_pair(NewUnitig(km, *x, p_.second, selfLoop ? std::string() : newseq), nullptr));
                             it_kmer_h += cstrMatch(&s_x[p_.second + k_], &newseq.c_str()[pos_match + k_]);
                         }
                     }
@@ -1419,7 +1404,30 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
         for (auto& v : parray) { // for each thread
 
-            for (const auto& x : v) addUnitigSequenceBBF(x.km, x.read, x.pos, x.seq, v_ignored_km_tip_thread[0]); // add each unitig for this thread
+            for (const auto& p : v){
+
+                const NewUnitig& nu = p.first;
+
+                addUnitigSequenceBBF(nu.km, nu.read, nu.pos, nu.seq, v_ignored_km_tip_thread[0]); // add each unitig for this thread
+
+                if (p.second != nullptr){ // Must remove false positive km from list of false positives
+
+                    mapRead(find(nu.km)); // Map k-mer a second time to make sure its coverage is 2
+
+                    const Kmer km_rep = nu.km.rep();
+
+                    tiny_vector<Kmer, 2>& fp_block = *(p.second);
+
+                    for (size_t i = 0; i < fp_block.size(); ++i){ // Search list of fp candidate for k-mer
+
+                        if (fp_block[i] == km_rep){
+
+                            fp_block.remove(i);
+                            break;
+                        }
+                    }
+                }
+            }
 
             v.clear(); //clear the map
         }
@@ -1447,7 +1455,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
     if (fp_candidate != nullptr) delete[] fp_candidate;
     if (locks_fp != nullptr) delete[] locks_fp;
 
-    if (opt.verbose) cout << "CompactedDBG::construct(): Closed all fasta/fastq files" << endl;
+    if (opt.verbose) cout << "CompactedDBG::construct(): Closed all input files" << endl;
 
     const size_t unitigsBefore = size();
 

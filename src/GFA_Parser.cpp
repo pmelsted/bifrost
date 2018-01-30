@@ -32,13 +32,13 @@ GFA_Parser::GFA_Parser(const vector<string>& filenames, const size_t buffer_size
     buffer = new char[buff_sz]();
 }
 
-GFA_Parser::GFA_Parser(GFA_Parser&& o) :    graph_filenames(o.graph_filenames),
-                                            graphfile(move(o.graphfile)), graph_out(nullptr), graph_in(nullptr),
+GFA_Parser::GFA_Parser(GFA_Parser&& o) :    graph_filenames(o.graph_filenames), graphfile_out(move(o.graphfile_out)),
+                                            graphfile_in(move(o.graphfile_in)), graph_out(nullptr), graph_in(nullptr),
                                             v_gfa(o.v_gfa), file_no(o.file_no), buff_sz(o.buff_sz), buffer(o.buffer),
                                             file_open_write(o.file_open_write), file_open_read(o.file_open_read) {
 
-    if (file_open_write) graph_out.rdbuf(graphfile.rdbuf());
-    if (file_open_read) graph_in.rdbuf(graphfile.rdbuf());
+    if (file_open_write) graph_out.rdbuf(graphfile_out.rdbuf());
+    if (file_open_read) graph_in.rdbuf(graphfile_in.rdbuf());
 
     o.buffer = nullptr;
 
@@ -56,7 +56,8 @@ GFA_Parser& GFA_Parser::operator=(GFA_Parser&& o){
 
         graph_filenames = o.graph_filenames;
 
-        graphfile = move(o.graphfile);
+        graphfile_in = move(o.graphfile_in);
+        graphfile_out = move(o.graphfile_out);
 
         v_gfa = o.v_gfa;
         file_no = o.file_no;
@@ -67,8 +68,8 @@ GFA_Parser& GFA_Parser::operator=(GFA_Parser&& o){
         file_open_write = o.file_open_write;
         file_open_read = o.file_open_read;
 
-        if (file_open_write) graph_out.rdbuf(graphfile.rdbuf());
-        if (file_open_read) graph_in.rdbuf(graphfile.rdbuf());
+        if (file_open_write) graph_out.rdbuf(graphfile_out.rdbuf());
+        if (file_open_read) graph_in.rdbuf(graphfile_in.rdbuf());
 
         o.buffer = nullptr;
 
@@ -115,8 +116,8 @@ bool GFA_Parser::open_write(const size_t version_GFA) {
 
     if (file_open_write){
 
-        graphfile.open(filename.c_str());
-        graph_out.rdbuf(graphfile.rdbuf());
+        graphfile_out.open(filename.c_str());
+        graph_out.rdbuf(graphfile_out.rdbuf());
 
         graph_out << "H\tVN:Z:" << (v_gfa == 1 ? "1" : "2") << ".0\n";
     }
@@ -141,18 +142,17 @@ bool GFA_Parser::open_read() {
 
         if (file_open_read) {
 
-            graphfile.open(filename.c_str());
-            graph_in.rdbuf(graphfile.rdbuf());
+            graphfile_in.open(filename);
+            graph_in.rdbuf(graphfile_in.rdbuf());
 
-            graph_in >> buffer;
+            graph_in.getline(buffer, buff_sz);
 
             const string header(buffer);
 
-            if ((header != "H\tVN:Z:1.0\n") && (header != "H\tVN:Z:2.0\n")) {
+            if ((header != "H\tVN:Z:1.0") && (header != "H\tVN:Z:2.0")) {
 
                 cerr << "GFA_Parser::open_read(): Wrong GFA header or unsupported GFA format version " <<
                 "(GFA_Parser only supports version 1 and 2) in " << filename << endl;
-                close();
             }
 
             close();
@@ -166,11 +166,14 @@ bool GFA_Parser::open_read() {
 
 void GFA_Parser::close(){
 
-    if (file_open_write || file_open_read){
+    if (file_open_write){
 
-        graphfile.close();
-
+        graphfile_out.close();
         file_open_write = false;
+    }
+    else if (file_open_read){
+
+        graphfile_in.close();
         file_open_read = false;
     }
 }
@@ -254,8 +257,6 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
     if (file_open_read){
 
         vector<string> line_fields;
-
-        graph_in >> buffer;
 
         while (graph_in.getline(buffer, buff_sz).good()){
 
@@ -403,6 +404,8 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
 
                 return make_pair(nullptr, &e);
             }
+
+            line_fields.clear();
         }
 
         if (graph_in.getline(buffer, buff_sz).eof()){
@@ -453,8 +456,6 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_open
 
         vector<string> line_fields;
 
-        graph_in >> buffer;
-
         while (graph_in.getline(buffer, buff_sz).good()){
 
             if (buffer[0] == 'S'){ // Segment line
@@ -491,7 +492,6 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_open
                     }
                     else if (s.seq == "*") s.len = 0;
                     else s.len = s.seq.length();
-
                 }
                 else {
 
@@ -604,6 +604,8 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_open
                     return make_pair(nullptr, &e);
                 }
             }
+
+            line_fields.clear();
         }
 
         if (graph_in.getline(buffer, buff_sz).eof()){
@@ -642,19 +644,20 @@ bool GFA_Parser::open(const size_t idx_filename){
 
         if (file_open_read) {
 
-            graphfile.open(graph_filenames[idx_filename].c_str());
-            graph_in.rdbuf(graphfile.rdbuf());
+            graphfile_in.open(graph_filenames[idx_filename]);
+            graph_in.rdbuf(graphfile_in.rdbuf());
 
-            graph_in >> buffer;
+            graph_in.getline(buffer, buff_sz); // Read and discard header
 
             const string header(buffer);
 
-            if (header == "H\tVN:Z:1.0\n") v_gfa = 1;
-            else if (header != "H\tVN:Z:2.0\n") v_gfa = 2;
+            if (header == "H\tVN:Z:1.0") v_gfa = 1;
+            else if (header == "H\tVN:Z:2.0") v_gfa = 2;
             else {
 
                 cerr << "GFA_Parser::open(): Wrong GFA header or unsupported GFA format version " <<
                 "(GFA_Parser only supports version 1 and 2) in " << graph_filenames[idx_filename] << endl;
+
                 close();
             }
         }

@@ -82,8 +82,10 @@ class GFA_Parser {
 
         vector<string> graph_filenames;
 
-        ofstream graphfile;
+        ifstream graphfile_in;
         istream graph_in;
+
+        ofstream graphfile_out;
         ostream graph_out;
 
         size_t v_gfa;
