@@ -154,19 +154,19 @@ You can also link to the Bifrost static library (*libbifrost.a*) for better perf
 
 ## FAQ
 
-### What are the accepted input file formats?
+**What are the accepted input file formats?**
 
 FASTA , FASTQ and GFA. Input FASTA and FASTQ files can be compressed with gzip (extension .gz). If you input a GFA file, you probably want to run Bifrost in reference mode (`-r` parameter, build the graph from all k-mers of the sequences).
 
-### Can I mix different file formats in input?
+**Can I mix different file formats in input?**
 
 Yes, as long as they are FASTA, FASTQ and GFA.
 
-### If I input a GFA file, does it need to contain already a compacted de Bruijn graph?
+**If I input a GFA file, does it need to contain already a compacted de Bruijn graph?**
 
 No, it can contain any type of sequence graph (like an uncompacted de Bruijn graph). Bifrost will extract the sequences from the file and build the compacted de Bruijn graph out of them.
 
-### Can I build a compacted de Bruijn graph from assembled genomes and reads?
+**Can I build a compacted de Bruijn graph from assembled genomes and reads?**
 
 Yes. First, run Bifrost with your assembled genomes only (`-r` parameter) and output the unitigs to a FASTA file (`-a` parameter). Then, run Bifrost a second time with the previously produced FASTA file and your read files.
 
