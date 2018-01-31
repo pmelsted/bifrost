@@ -32,8 +32,8 @@ unitigIterator<T,is_const>::unitigIterator(CompactedDBG<T>* cdbg_) :
 */
 template<typename T, bool is_const>
 unitigIterator<T,is_const>::unitigIterator(const unitigIterator& o) :   i(o.i), v_unitigs_sz(o.v_unitigs_sz), v_kmers_sz(o.v_kmers_sz),
-                                            h_kmers_ccov_sz(o.h_kmers_ccov_sz), sz(o.sz), invalid(o.invalid),
-                                            um(o.um), cdbg(o.cdbg) {}
+                                                                        it_h_kmers_ccov(o.it_h_kmers_ccov), h_kmers_ccov_sz(o.h_kmers_ccov_sz),
+                                                                        sz(o.sz), invalid(o.invalid), um(o.um), cdbg(o.cdbg) {}
 
 /** Prefix increment, iterate over the next unitig.
 * Note that no specific order (such as a lexicographic one) is assumed during iteration.
@@ -58,10 +58,10 @@ unitigIterator<T,is_const>& unitigIterator<T,is_const>::operator++() {
 
         um = UnitigMap<T>(it_h_kmers_ccov.getHash(), 0, 1, cdbg->getK(), false, true, true, *cdbg);
 
-        it_h_kmers_ccov++;
+        ++it_h_kmers_ccov;
     }
 
-    i++;
+    ++i;
 
     return *this;
 }
