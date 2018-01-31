@@ -270,8 +270,11 @@ int main(int argc, char **argv){
             cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
             cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
 
-            /*ColoredCDBG cdbg(opt.k, opt.g);
-            cdbg.build(opt);*/
+            /*
+            ColoredCDBG cdbg(opt.k, opt.g);
+            cdbg.build(opt);
+            cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
+            */
         }
     }
 }

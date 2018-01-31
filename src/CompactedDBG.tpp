@@ -347,7 +347,7 @@ bool CompactedDBG<T>::write(const string output_filename, const size_t nb_thread
     else {
 
         fclose(fp);
-        if (std::remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << endl;
+        if (std::remove(out.c_str()) != 0) cerr << "CompactedDBG::write(): Could not remove temporary file " << out << endl;
     }
 
     GFA_output ? writeGFA(out, nb_threads) : writeFASTA(out);

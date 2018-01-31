@@ -320,7 +320,7 @@ Kmer Kmer::backwardBase(const char b) const {
 //       DNA string for km has been printed to stdout
 std::string Kmer::getBinary() const {
 
-    size_t nlongs = MAX_K/32;
+    const size_t nlongs = MAX_K/32;
     std::string r;
 
     r.reserve(64*nlongs);
@@ -384,6 +384,18 @@ void Kmer::set_k(unsigned int _k) {
     //k_bytes = (_k+3)/4;
     //  k_longs = (_k+15)/16;
     //k_modmask = (1 << (2*((k%4)?k%4:4)) )-1;
+}
+
+bool Kmer::write(ostream& stream_out) const {
+
+    const size_t nlongs = MAX_K/32;
+
+    for (size_t i = 0; (i < nlongs) && stream_out.good(); ++i){
+
+        stream_out.write(reinterpret_cast<const char*>(&longs[i]), sizeof(uint64_t));
+    }
+
+    return stream_out.good();
 }
 
 

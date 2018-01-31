@@ -10,6 +10,7 @@
 #include <cassert>
 #include <cstring>
 #include <string>
+#include <iostream>
 
 #ifndef XXH_NAMESPACE
 #define XXH_NAMESPACE BIFROST_HASH_
@@ -68,6 +69,8 @@ class Kmer {
 
         void toString(char *s) const;
         std::string toString() const;
+
+        bool write(std::ostream& stream_out) const;
 
         // static functions
         static void set_k(unsigned int _k);

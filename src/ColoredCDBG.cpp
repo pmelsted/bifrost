@@ -1,6 +1,7 @@
 #include "ColoredCDBG.hpp"
 
-ColoredCDBG::ColoredCDBG(int kmer_length, int minimizer_length) : CompactedDBG(kmer_length, minimizer_length), color_sets(nullptr), nb_color_sets(0) {
+ColoredCDBG::ColoredCDBG(int kmer_length, int minimizer_length) :   CompactedDBG(kmer_length, minimizer_length),
+                                                                    color_sets(nullptr), nb_color_sets(0), nb_seeds(0) {
 
     std::random_device rd; //Seed
     std::default_random_engine generator(rd()); //Random number generator
@@ -23,65 +24,137 @@ bool ColoredCDBG::build(CDBG_Build_opt& opt){
 
     CompactedDBG::build(opt);
 
-    initColorSets();
+    initColorSets(opt);
     mapColors(opt);
 
-    checkColors(opt);
+    //checkColors(opt);
 
     return true;
 }
 
-void ColoredCDBG::initColorSets(const size_t max_nb_hash){
+void ColoredCDBG::initColorSets(const CDBG_Build_opt& opt, const size_t max_nb_hash){
 
-    int i;
+    const size_t nb_locks = opt.nb_threads * 256;
 
-    uint64_t h_v;
+    mutex mutex_km_overflow;
 
-    size_t nb_unitig_not_hashed = 0;
+    std::atomic_flag* cs_locks = new std::atomic_flag[nb_locks];
 
+    for (size_t i = 0; i < nb_locks; ++i) cs_locks[i].clear();
+
+    nb_seeds = max_nb_hash;
     nb_color_sets = size();
+
     color_sets = new ColorSet[nb_color_sets];
 
-    for (auto& unitig : *this){
+    auto worker_function = [&](ColoredCDBG::iterator a, ColoredCDBG::iterator b){
 
-        const Kmer head = unitig.getHead();
+        int i;
 
-        for (i = 0; i < max_nb_hash; ++i){
+        uint64_t h_v, id_lock;
 
-            h_v = head.hash(seeds[i]) % nb_color_sets;
+        for (auto& unitig = a; unitig != b; ++unitig){
 
-            if (color_sets[h_v].isUnoccupied()) break;
+            const Kmer head = unitig->getHead();
+
+            for (i = 0; i < max_nb_hash; ++i){
+
+                h_v = head.hash(seeds[i]) % nb_color_sets; // Hash to which we can possibly put our colorset for current kmer
+                id_lock = h_v % nb_locks; // Lock ID for this hash
+
+                cs_locks[id_lock].test_and_set(std::memory_order_acquire); // Set the corresponding lock
+
+                if (color_sets[h_v].isUnoccupied()) break; // If color set is unoccupied, we want to use it, maintain lock
+
+                cs_locks[id_lock].clear(std::memory_order_release); // Else, lock is released
+            }
+
+            if (i == max_nb_hash){ // IF we couldn't find a hash matching an unoccupied color set for current k-mer
+
+                unique_lock<mutex> lock(mutex_km_overflow); // Set lock for insertion into hash table of k-mer overflow
+
+                km_overflow.insert(head, ColorSet()); // Insertion
+            }
+            else {
+
+                color_sets[h_v].setOccupied(); // Set color set to occupied
+                cs_locks[id_lock].clear(std::memory_order_release); // Release lock
+            }
+
+            const HashID hid(static_cast<uint8_t>(i == max_nb_hash ? 0 : i + 1));
+            unitig->setData(&hid); // Set the hash ID for this unitig
+        }
+    };
+
+    {
+        const size_t chunk = 1000;
+
+        vector<thread> workers; // need to keep track of threads so we can join them
+
+        ColoredCDBG::iterator g_a = begin();
+        const ColoredCDBG::iterator g_b = end();
+
+        mutex mutex_it;
+
+        for (size_t t = 0; t < opt.nb_threads; ++t){
+
+            workers.emplace_back(
+
+                [&, t]{
+
+                    ColoredCDBG::iterator l_a, l_b;
+
+                    while (true) {
+
+                        {
+                            unique_lock<mutex> lock(mutex_it);
+
+                            if (g_a == g_b) return;
+
+                            l_a = g_a;
+                            l_b = g_a;
+
+                            for (size_t cpt = 0; (cpt < chunk) && (l_b != g_b); ++cpt, ++l_b){}
+
+                            g_a = l_b;
+                        }
+
+                        worker_function(l_a, l_b);
+                    }
+                }
+            );
         }
 
-        const HashID hid(static_cast<uint8_t>(i == max_nb_hash ? 0 : i + 1));
-        unitig.setData(&hid);
-
-        if (i == max_nb_hash) km_overflow.insert(head, ColorSet());
-        else color_sets[h_v].setOccupied();
+        for (auto& t : workers) t.join();
     }
+
+    delete[] cs_locks;
 
     cout << "Number of unitigs not hashed is " << km_overflow.size() << " on " << nb_color_sets << " unitigs." << endl;
 }
 
 void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
 
+    const size_t nb_locks = opt.nb_threads * 256;
+
     const int k_ = getK();
+    const int chunk = 1000;
 
-    size_t file_id = 0;
+    FileParser fp(opt.fastx_filename_in);
 
-    string s;
+    mutex mutex_km_overflow;
 
-    vector<pair<string, size_t>> read_color_v;
+    std::atomic_flag* cs_locks = new std::atomic_flag[nb_locks];
 
-    FastqFile FQ(opt.fastx_filename_in);
+    for (size_t i = 0; i < nb_locks; ++i) cs_locks[i].clear();
 
     // Main worker thread
-    auto worker_function = [&](vector<pair<string, size_t>>::iterator a, vector<pair<string, size_t>>::iterator b) {
+    auto worker_function = [&](const vector<pair<string, size_t>>& v_read_color) {
 
         // for each input
-        for (auto x = a; x != b; ++x) {
+        for (const auto& read_color : v_read_color) {
 
-            for (KmerIterator it_km(x->first.c_str()), it_km_end; it_km != it_km_end; ++it_km) {
+            for (KmerIterator it_km(read_color.first.c_str()), it_km_end; it_km != it_km_end; ++it_km) {
 
                 UnitigMap<HashID> um = find(it_km->first);
 
@@ -89,68 +162,92 @@ void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
 
                     if (um.strand || (um.dist != 0)){
 
-                        um.len += um.lcp(x->first.c_str(), it_km->second + k_, um.strand ? um.dist + k_ : um.dist - 1, um.strand);
+                        um.len += um.lcp(read_color.first.c_str(), it_km->second + k_, um.strand ? um.dist + k_ : um.dist - 1, um.strand);
                         it_km += um.len - 1;
                     }
 
                     HashID* hid = um.getData();
 
-                    hid->lock();
+                    if (hid->get() == 0){
 
-                    setColor(um, x->second);
+                        unique_lock<mutex> lock(mutex_km_overflow);
 
-                    hid->unlock();
+                        setColor(um, read_color.second);
+                    }
+                    else {
+
+                        const uint64_t id_lock = getHash(um) % nb_locks;
+
+                        cs_locks[id_lock].test_and_set(std::memory_order_acquire); // Set the corresponding lock
+
+                        setColor(um, read_color.second);
+
+                        cs_locks[id_lock].clear(std::memory_order_release);
+                    }
                 }
             }
         }
     };
 
-    bool done = false;
+    auto reading_function = [&](vector<pair<string, size_t>>& v_read_color) {
 
-    while (!done) {
+        string s;
 
+        size_t file_id = 0;
         size_t reads_now = 0;
 
-        while (reads_now < opt.read_chunksize) {
+        while (reads_now < chunk) {
 
-            if (FQ.read_next(s, file_id) >= 0){
+            if (fp.read(s, file_id)) {
 
-                read_color_v.push_back(make_pair(s, file_id));
+                v_read_color.emplace_back(make_pair(s, file_id));
+
                 ++reads_now;
             }
-            else {
-
-                done = true;
-                break;
-            }
+            else return true;
         }
 
-        // run parallel code
-        vector<thread> workers;
+        return false;
+    };
 
-        auto rit = read_color_v.begin();
-        size_t batch_size = read_color_v.size() / opt.nb_threads;
-        size_t leftover   = read_color_v.size() % opt.nb_threads;
+    {
+        bool stop = false;
 
-        for (size_t i = 0; i < opt.nb_threads; ++i) {
+        vector<thread> workers; // need to keep track of threads so we can join them
+        vector<vector<pair<string, size_t>>> reads_colors(opt.nb_threads);
 
-            size_t jump = batch_size + (i < leftover ? 1 : 0);
-            auto rit_end(rit);
+        mutex mutex_file;
 
-            advance(rit_end, jump);
-            workers.push_back(thread(worker_function, rit, rit_end));
+        for (size_t t = 0; t < opt.nb_threads; ++t){
 
-            rit = rit_end;
+            workers.emplace_back(
+
+                [&, t]{
+
+                    while (true) {
+
+                        {
+                            unique_lock<mutex> lock(mutex_file);
+
+                            if (stop) return;
+
+                            stop = reading_function(reads_colors[t]);
+                        }
+
+                        worker_function(reads_colors[t]);
+
+                        reads_colors[t].clear();
+                    }
+                }
+            );
         }
-
-        assert(rit == read_color_v.end());
 
         for (auto& t : workers) t.join();
-
-        read_color_v.clear();
     }
 
-    FQ.close();
+    fp.close();
+
+    delete[] cs_locks;
 }
 
 bool ColoredCDBG::setColor(const UnitigMap<HashID>& um, const size_t color_id) {
@@ -359,6 +456,80 @@ const ColorSet* ColoredCDBG::getColorSet(const UnitigMap<HashID>& um) const {
     return nullptr;
 }
 
+bool ColoredCDBG::write(const string output_filename, const size_t nb_threads, const bool verbose){
+
+    if (CompactedDBG::write(output_filename, nb_threads, true, verbose)){
+
+        if (verbose) cout << endl << "ColoredCDBG::write(): Writing colors to disk" << endl;
+
+        if (nb_threads > std::thread::hardware_concurrency()){
+
+            cerr << "ColoredCDBG::write(): Number of threads cannot exceed " << std::thread::hardware_concurrency() << "threads" << endl;
+            return false;
+        }
+
+        const string out = output_filename + ".bfg_colors";
+
+        FILE* fp = fopen(out.c_str(), "wb");
+
+        if (fp == NULL) {
+
+            cerr << "ColoredCDBG::write(): Could not open file " << out << " for writing color sets" << endl;
+            return false;
+        }
+        else {
+
+            fclose(fp);
+
+            if (std::remove(out.c_str()) != 0) cerr << "ColoredCDBG::write(): Could not remove temporary file " << out << endl;
+        }
+
+        ofstream colorsfile_out;
+        ostream colors_out(nullptr);
+
+        colorsfile_out.open(out.c_str(), ios_base::out | ios_base::binary);
+        colors_out.rdbuf(colorsfile_out.rdbuf());
+
+        const size_t format_version = BFG_COLOREDCDBG_FORMAT_VERSION;
+        const size_t k_ = getK();
+        const size_t km_overflow_sz = km_overflow.size();
+
+        //Write the file format version number
+        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&format_version), sizeof(size_t));
+        //Write k-mer length
+        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&k_), sizeof(size_t));
+        //Write number of different seeds for hash function
+        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&nb_seeds), sizeof(size_t));
+        //Write number of color sets in the graph
+        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&nb_color_sets), sizeof(size_t));
+        //Write number of (kmer, color set) overflowing
+        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&km_overflow_sz), sizeof(size_t));
+
+        for (size_t i = 0; (i < nb_seeds) && colors_out.good(); ++i){
+            //Write the hash function seeds of the graph
+            colors_out.write(reinterpret_cast<const char*>(&seeds[i]), sizeof(uint64_t));
+        }
+
+        for (size_t i = 0; (i < nb_color_sets) && colors_out.good(); ++i) color_sets[i].write(colors_out); //Write the color sets
+
+        KmerHashTable<ColorSet>::const_iterator it = km_overflow.begin(), it_end = km_overflow.end();
+
+        for (; (it != it_end) && colors_out.good(); ++it){
+
+            it.getKey().write(colors_out);
+            it->write(colors_out);
+        }
+
+        const bool ret = colors_out.good();
+
+        colorsfile_out.close();
+
+        return ret;
+    }
+
+    return false;
+}
+
 void ColoredCDBG::checkColors(const CDBG_Build_opt& opt) {
 
     cout << "ColoredCDBG::checkColors(): Start" << endl;
@@ -447,4 +618,17 @@ void ColoredCDBG::checkColors(const CDBG_Build_opt& opt) {
 
     cout << "ColoredCDBG::checkColors(): Checked all colors of all k-mers: everything is fine" << endl;
     cout << "ColoredCDBG::checkColors(): Number of k-mers in the graph: " << km_h.size() << endl;
+}
+
+uint64_t ColoredCDBG::getHash(const UnitigMap<HashID>& um) const {
+
+    if (!um.isEmpty && (color_sets != nullptr)){
+
+        const Kmer head = um.getHead();
+        const uint8_t hash_id = um.getData()->get();
+
+        if (hash_id != 0) return head.hash(seeds[hash_id - 1]) % nb_color_sets;
+    }
+
+    return 0;
 }

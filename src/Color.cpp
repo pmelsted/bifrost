@@ -3,18 +3,6 @@
 
 HashID::HashID(const uint8_t hid) : hash_id(hid) {}
 
-void HashID::lock() {
-
-    uint8_t hash_id_unlocked = hash_id & 0x7f;
-    uint8_t hash_id_locked = hash_id | 0x80;
-
-    while (!__sync_bool_compare_and_swap(&hash_id, hash_id_unlocked, hash_id_locked)) {
-
-        hash_id_unlocked = hash_id & 0x7f;
-        hash_id_locked = hash_id | 0x80;
-    }
-}
-
 void HashID::join(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src){
 
     ColoredCDBG* colored_cdbg = static_cast<ColoredCDBG*>(um_dest.cdbg);
@@ -139,11 +127,6 @@ void ColorSet::add(const UnitigMap<HashID>& um, const size_t color_id) {
 
     const uintptr_t flag = setBits & flagMask;
 
-    /*if (um.toString() == string("CACCTCGTCGAAATATTCGCTGGCGGCATCGATCACCGCCGGCTGC")){
-
-        cout << "ColorSet::add: " << flag << " " << um_km_sz << " " << color_id_start << " " << color_id_end << " " << color_id << endl;
-    }*/
-
     if (flag == localBitVectorColor){
 
         if ((setBits == localBitVectorColor) && (um.len == 1)) setBits = (color_id_start << 2) | localSingleColor;
@@ -251,11 +234,6 @@ bool ColorSet::contains(const UnitigMap<HashID>& um, const size_t color_id) cons
     size_t color_id_start = um_km_sz * color_id + um.dist;
     const size_t color_id_end = color_id_start + std::min(um_km_sz - um.dist, um.len);
 
-    /*if (um.toString() == string("CACCTCGTCGAAATATTCGCTGGCGGCATCGATCACCGCCGGCTGC")){
-
-        cout << "ColorSet::contains: " << flag << " " << um_km_sz << " " << color_id_start << " " << color_id_end << " " << color_id << endl;
-    }*/
-
     if (flag == ptrCompressedBitmap){
 
         const Bitmap* bitmap = getConstPtrBitmap();
@@ -314,4 +292,33 @@ size_t ColorSet::size() const {
     else if (flag == localSingleColor) return 1;
 
     return 0; //flag == unoccupied
+}
+
+bool ColorSet::write(ostream& stream_out) const {
+
+    if (stream_out.good()){
+
+        const uintptr_t flag = setBits & flagMask;
+
+        if (flag == ptrCompressedBitmap){
+
+            const uint32_t expected_sz = getConstPtrBitmap()->getSizeInBytes();
+
+            const uintptr_t flag_expected_sz = (static_cast<uintptr_t>(expected_sz) << 32) | flag;
+
+            char* serialized = new char[expected_sz];
+
+            getConstPtrBitmap()->write(serialized);
+
+            stream_out.write(reinterpret_cast<const char*>(&flag_expected_sz), sizeof(uintptr_t));
+            stream_out.write(serialized, expected_sz);
+
+            delete[] serialized;
+        }
+        else stream_out.write(reinterpret_cast<const char*>(&setBits), sizeof(uintptr_t));
+
+        return true;
+    }
+
+    return false;
 }

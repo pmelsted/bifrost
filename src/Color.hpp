@@ -14,11 +14,8 @@ class HashID : public CDBG_Data_t<HashID> {
         void join(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src);
         void sub(const UnitigMap<HashID>& um_src, HashID& new_data, const bool last_extraction) const;
 
-        void lock();
-        inline void unlock() { __sync_and_and_fetch(&hash_id, 0x7f); }
-
-        inline uint8_t get() const { return hash_id & 0x7f; }
-        inline void set(const uint8_t hid) { hash_id = hid & 0x7f; }
+        inline uint8_t get() const { return hash_id; }
+        inline void set(const uint8_t hid) { hash_id = hid; }
 
     private:
 
@@ -152,6 +149,13 @@ class ColorSet {
         }
 
         const_iterator end() const { return const_iterator(); }
+
+        bool write(ostream& stream_out) const;
+
+        inline void optimize(){
+
+            if ((setBits & flagMask) == ptrCompressedBitmap) getPtrBitmap()->runOptimize();
+        }
 
     private:
 
