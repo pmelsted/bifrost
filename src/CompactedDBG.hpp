@@ -123,7 +123,7 @@ struct CDBG_Build_opt {
     string inFilenameBBF;
     string outFilenameBBF;
 
-    vector<string> fastx_filename_in;
+    vector<string> filename_in;
 
     // The following members are not used by CompactedDBG<T>::build
     // but you can set them to use them as parameters for other functions
@@ -183,6 +183,13 @@ class CDBG_Data_t {
         * If last_extraction is true, the unitig represented by um_src will be removed from the graph right after the call to sub().
         */
         virtual void sub(const UnitigMap<T>& um_src, T& new_data, bool last_extraction) const = 0;
+
+        /** Serialize the data to a string. This function is used when the graph is written to disk in GFA format.
+        * If the returned string is not empty, the string is appended to an optional field of the Segment line matching the unitig
+        * of this data. IF the returned string is empty, no optional field and string is appended to the Segment line matching the
+        * unitig of this data.
+        */
+        virtual string serialize() const = 0;
 };
 
 /** @class CompactedDBG
@@ -317,6 +324,7 @@ class CompactedDBG {
         vector<Kmer> extractMercyKmers(BlockedBloomFilter& bf_uniq_km, const size_t nb_threads = 1, const bool verbose = false);
 
         void writeGFA(string graphfilename, const size_t nb_threads = 1);
+        void writeGFA_sequence(GFA_Parser& graph, KmerHashTable<size_t>& idmap);
         void writeFASTA(string graphfilename);
 
         void mapRead(const UnitigMap<T>& cc);

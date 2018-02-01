@@ -19,10 +19,11 @@ class GFA_Parser {
 
         string id;
         string seq;
+        string opt;
         size_t len;
 
-        Sequence() : id(), seq("*"), len(0) {};
-        Sequence(const string& id_, const string& seq_, const size_t len_) :  id(id_), seq(seq_), len(len_) {};
+        Sequence() : id(), seq("*"), len(0), opt("") {};
+        Sequence(const string& id_, const string& seq_, const size_t len_, const string opt_ = "") :  id(id_), seq(seq_), len(len_), opt(opt_) {};
     };
 
     struct Edge {
@@ -68,7 +69,7 @@ class GFA_Parser {
 
         void close();
 
-        bool write_sequence(const string& id, const size_t len, const string seq = "*");
+        bool write_sequence(const string& id, const size_t len, const string seq = "*", const string opt = "");
         bool write_edge(const string vertexA_id, const size_t pos_start_overlapA, const size_t pos_end_overlapA, const bool strand_overlapA,
                         const string vertexB_id, const size_t pos_start_overlapB, const size_t pos_end_overlapB, const bool strand_overlapB,
                         const string edge_id = "*");

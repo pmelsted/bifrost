@@ -28,8 +28,8 @@ void PrintUsage() {
     "  -g, --min-length         Length of minimizers (default is 23)" << endl <<
     "  -n, --num-kmers          Estimated number (upper bound) of different k-mers in input files (default: estimated with KmerStream)" << endl <<
     "  -N, --num-kmer2          Estimated number (upper bound) of different k-mers occurring twice or more in the input files (default: estimated with KmerStream)" << endl <<
-    "  -b, --bloom-bits         Number of Bloom filter bits per k-mer occurring at least once in the FASTA/FASTQ files (default is 14)" << endl <<
-    "  -B, --bloom-bits2        Number of Bloom filter bits per k-mer occurring at least twice in the FASTA/FASTQ files (default is 14)" << endl <<
+    "  -b, --bloom-bits         Number of Bloom filter bits per k-mer occurring at least once in the input files (default is 14)" << endl <<
+    "  -B, --bloom-bits2        Number of Bloom filter bits per k-mer occurring at least twice in the input files (default is 14)" << endl <<
     "  -l, --load               Filename for input Blocked Bloom Filter, skips filtering step (default is no input)" << endl <<
     "  -f, --output2            Filename for output Blocked Bloom Filter (default is no output)" << endl <<
     "  -s, --chunk-size         Read chunksize to split between threads (default is 10000)" << endl <<
@@ -131,7 +131,7 @@ void parse_ProgramOptions(int argc, char **argv, CDBG_Build_opt& opt) {
     }
 
     // all other arguments are fast[a/q] files to be read
-    while (optind < argc) opt.fastx_filename_in.push_back(argv[optind++]);
+    while (optind < argc) opt.filename_in.push_back(argv[optind++]);
 }
 
 bool check_ProgramOptions(CDBG_Build_opt& opt) {
@@ -228,7 +228,7 @@ bool check_ProgramOptions(CDBG_Build_opt& opt) {
         if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << endl;
     }
 
-    if (opt.fastx_filename_in.size() == 0) {
+    if (opt.filename_in.size() == 0) {
 
         cerr << "Error: Missing input files" << endl;
         ret = false;
@@ -239,7 +239,7 @@ bool check_ProgramOptions(CDBG_Build_opt& opt) {
         vector<string>::const_iterator it;
         int intStat;
 
-        for (it = opt.fastx_filename_in.begin(); it != opt.fastx_filename_in.end(); ++it) {
+        for (it = opt.filename_in.begin(); it != opt.filename_in.end(); ++it) {
 
             intStat = stat(it->c_str(), &stFileInfo);
 

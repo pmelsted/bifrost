@@ -178,12 +178,19 @@ void GFA_Parser::close(){
     }
 }
 
-bool GFA_Parser::write_sequence(const string& id, const size_t len, const string seq){
+bool GFA_Parser::write_sequence(const string& id, const size_t len, const string seq, const string opt){
 
     if (file_open_write){
 
-        if (v_gfa == 1) graph_out << "S" << "\t" << id << "\t" << seq << "\t" << "LN:i:" << len << "\n";
-        else graph_out << "S" << "\t" << id << "\t" << len << "\t" << seq << "\n";
+        graph_out << "S" << "\t" << id;
+
+        if (v_gfa == 2) graph_out << "\t" << len;
+
+        graph_out << "\t" << seq;
+
+        if (opt != "") graph_out << "\t" << opt;
+
+        graph_out << "\n";
     }
     else cerr << "GFA_Parser::write_sequence(): Input file is not open in writing mode" << endl;
 
@@ -286,15 +293,7 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
                     s.id = line_fields[0];
                     s.seq = line_fields[1];
 
-                    if ((line_fields_sz > 2) && (line_fields[2].length() > 5)){
-
-                        const string sub = line_fields[2].substr(0, 5);
-
-                        if (sub == "LN:i:") sscanf(&(sub.c_str()[5]), "%zu", &(s.len)); // Sequence length
-                    }
-                    else if (s.seq == "*") s.len = 0;
-                    else s.len = s.seq.length();
-
+                    for (size_t i = 2; i < line_fields_sz; ++i) s.opt += "\t" + line_fields[i];
                 }
                 else {
 
@@ -307,6 +306,8 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
                     s.id = line_fields[0];
                     s.len = sscanf(line_fields[1].c_str(), "%zu", &(s.len));
                     s.seq = line_fields[2];
+
+                    for (size_t i = 3; i < line_fields_sz; ++i) s.opt += "\t" + line_fields[i];
                 }
 
                 file_id = file_no;
@@ -484,14 +485,7 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_open
                     s.id = line_fields[0];
                     s.seq = line_fields[1];
 
-                    if ((line_fields_sz > 2) && (line_fields[2].length() > 5)){
-
-                        const string sub = line_fields[2].substr(0, 5);
-
-                        if (sub == "LN:i:") sscanf(&(sub.c_str()[5]), "%zu", &(s.len)); // Sequence length
-                    }
-                    else if (s.seq == "*") s.len = 0;
-                    else s.len = s.seq.length();
+                    for (size_t i = 2; i < line_fields_sz; ++i) s.opt += "\t" + line_fields[i];
                 }
                 else {
 
@@ -504,6 +498,8 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_open
                     s.id = line_fields[0];
                     s.len = sscanf(line_fields[1].c_str(), "%zu", &(s.len));
                     s.seq = line_fields[2];
+
+                    for (size_t i = 3; i < line_fields_sz; ++i) s.opt += "\t" + line_fields[i];
                 }
 
                 file_id = file_no;

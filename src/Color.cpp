@@ -61,7 +61,7 @@ void HashID::sub(const UnitigMap<HashID>& um, HashID& data_dest, const bool last
     }
 }
 
-
+string HashID::serialize() const { return std::to_string(hash_id); }
 
 
 

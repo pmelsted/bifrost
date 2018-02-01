@@ -142,7 +142,7 @@ bool CompactedDBG<T>::build(CDBG_Build_opt& opt){
         construct_finished = false;
     }
 
-    if (opt.fastx_filename_in.size() == 0){
+    if (opt.filename_in.size() == 0){
 
         cerr << "CompactedDBG::build(): Number of FASTA/FASTQ files in input cannot be less than or equal to 0" << endl;
         construct_finished = false;
@@ -172,7 +172,7 @@ bool CompactedDBG<T>::build(CDBG_Build_opt& opt){
         else fclose(fp);
     }
 
-    for (vector<string>::const_iterator it = opt.fastx_filename_in.begin(); it != opt.fastx_filename_in.end(); ++it){
+    for (vector<string>::const_iterator it = opt.filename_in.begin(); it != opt.filename_in.end(); ++it){
 
         FILE* fp = fopen(it->c_str(), "r");
 
@@ -217,7 +217,7 @@ bool CompactedDBG<T>::build(CDBG_Build_opt& opt){
                 kms_opt.klist.push_back(opt.k);
                 kms_opt.q_cutoff.push_back(0);
 
-                for (const auto& s : opt.fastx_filename_in) kms_opt.files.push_back(s);
+                for (const auto& s : opt.filename_in) kms_opt.files.push_back(s);
 
                 KmerStream kms(kms_opt);
 
@@ -1094,7 +1094,7 @@ bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
 
     atomic<uint64_t> num_kmers(0), num_ins(0);
 
-    FileParser fp(opt.fastx_filename_in);
+    FileParser fp(opt.filename_in);
 
     // Main worker thread
     auto worker_function = [&](const vector<string>& readv) {
@@ -1231,7 +1231,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
         return false;
     }
 
-    FileParser fp(opt.fastx_filename_in);
+    FileParser fp(opt.filename_in);
 
     string s;
 
@@ -3107,44 +3107,6 @@ size_t CompactedDBG<T>::joinUnitigs(vector<Kmer>* v_joins, const size_t nb_threa
             auto it_kmer = v_kmers.begin();
             auto it_kmer_end = v_kmers.end();
 
-            vector<vector<pair<Kmer, Kmer>>> v_out(nb_threads);
-
-            /*while (it_kmer != it_kmer_end) {
-
-                vector<thread> workers;
-
-                for (size_t i = 0; i != nb_threads; ++i) {
-
-                    auto it_kmer_tmp(it_kmer);
-
-                    if (distance(it_kmer_tmp, it_kmer_end) >= chunk_size){
-
-                        advance(it_kmer_tmp, chunk_size);
-                        workers.push_back(thread(worker_v_kmers, it_kmer, it_kmer_tmp, &v_out[i]));
-
-                        it_kmer = it_kmer_tmp;
-                    }
-                    else {
-
-                        workers.push_back(thread(worker_v_kmers, it_kmer, it_kmer_end, &v_out[i]));
-
-                        it_kmer = it_kmer_end;
-
-                        break;
-                    }
-                }
-
-                for (auto &t : workers) t.join();
-
-                for (size_t i = 0; i < nb_threads; ++i) {
-
-                    for (const auto& p : v_out[i]) joins.insert(p.first, p.second);
-
-                    v_out[i].clear();
-                }
-            }*/
-
-
             {
                 vector<thread> workers; // need to keep track of threads so we can join them
                 vector<vector<pair<Kmer, Kmer>>> t_v_out(nb_threads);
@@ -3200,44 +3162,8 @@ size_t CompactedDBG<T>::joinUnitigs(vector<Kmer>* v_joins, const size_t nb_threa
                 for (auto& t : workers) t.join();
             }
 
-
             auto it_unitig = v_unitigs.begin();
             auto it_unitig_end = v_unitigs.end();
-
-            /*while (it_unitig != it_unitig_end) {
-
-                vector<thread> workers;
-
-                for (size_t i = 0; i != nb_threads; ++i) {
-
-                    auto it_unitig_tmp(it_unitig);
-
-                    if (distance(it_unitig_tmp, it_unitig_end) >= chunk_size){
-
-                        advance(it_unitig_tmp, chunk_size);
-                        workers.push_back(thread(worker_v_unitigs, it_unitig, it_unitig_tmp, &v_out[i]));
-
-                        it_unitig = it_unitig_tmp;
-                    }
-                    else {
-
-                        workers.push_back(thread(worker_v_unitigs, it_unitig, it_unitig_end, &v_out[i]));
-
-                        it_unitig = it_unitig_end;
-
-                        break;
-                    }
-                }
-
-                for (auto &t : workers) t.join();
-
-                for (size_t i = 0; i < nb_threads; ++i) {
-
-                    for (const auto& p : v_out[i]) joins.insert(p.first, p.second);
-
-                    v_out[i].clear();
-                }
-            }*/
 
             {
                 vector<thread> workers; // need to keep track of threads so we can join them
@@ -3820,6 +3746,79 @@ void CompactedDBG<T>::writeFASTA(string graphfilename) {
     graphfile.close();
 }
 
+template<>
+inline void CompactedDBG<void>::writeGFA_sequence(GFA_Parser& graph, KmerHashTable<size_t>& idmap){
+
+    const size_t v_unitigs_sz = v_unitigs.size();
+    const size_t v_kmers_sz = v_kmers.size();
+
+    size_t i, labelA, labelB, id = v_unitigs_sz + v_kmers_sz + 1;
+
+    for (labelA = 1; labelA <= v_unitigs_sz; ++labelA) {
+
+        const Unitig<void>* unitig = v_unitigs[labelA - 1];
+        const string slabelA = std::to_string(labelA);
+
+        graph.write_sequence(slabelA, unitig->seq.size(), unitig->seq.toString());
+    }
+
+    for (labelA = 1; labelA <= v_kmers_sz; ++labelA) {
+
+        const pair<Kmer, CompressedCoverage_t<void>>& p = v_kmers[labelA - 1];
+        const string slabelA = std::to_string(labelA + v_unitigs_sz);
+
+        graph.write_sequence(slabelA, k_, p.first.toString());
+    }
+
+    for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it) {
+
+        const string slabelA = std::to_string(id);
+
+        idmap.insert(it.getKey(), id);
+        graph.write_sequence(slabelA, k_, it.getKey().toString());
+
+        ++id;
+    }
+}
+
+template<typename T>
+void CompactedDBG<T>::writeGFA_sequence(GFA_Parser& graph, KmerHashTable<size_t>& idmap){
+
+    const size_t v_unitigs_sz = v_unitigs.size();
+    const size_t v_kmers_sz = v_kmers.size();
+
+    size_t i, labelA, labelB, id = v_unitigs_sz + v_kmers_sz + 1;
+
+    for (labelA = 1; labelA <= v_unitigs_sz; ++labelA) {
+
+        const Unitig<T>* unitig = v_unitigs[labelA - 1];
+        const string slabelA = std::to_string(labelA);
+        const string data = unitig->getData()->serialize();
+
+        graph.write_sequence(slabelA, unitig->seq.size(), unitig->seq.toString(), data == "" ? data : string("DI:Z:" + data));
+    }
+
+    for (labelA = 1; labelA <= v_kmers_sz; ++labelA) {
+
+        const pair<Kmer, CompressedCoverage_t<T>>& p = v_kmers[labelA - 1];
+        const string slabelA = std::to_string(labelA + v_unitigs_sz);
+        const string data = p.second.getData()->serialize();
+
+        graph.write_sequence(slabelA, k_, p.first.toString(), data == "" ? data : string("DI:Z:" + data));
+    }
+
+    for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it) {
+
+        const string slabelA = std::to_string(id);
+        const string data = it->getData()->serialize();
+
+        idmap.insert(it.getKey(), id);
+
+        graph.write_sequence(slabelA, k_, it.getKey().toString(), data == "" ? data : string("DI:Z:" + data));
+
+        ++id;
+    }
+}
 
 template<typename T>
 void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
@@ -3835,37 +3834,7 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
 
     graph.open_write(1);
 
-    for (labelA = 1; labelA <= v_unitigs_sz; ++labelA) {
-
-        const Unitig<T>* unitig = v_unitigs[labelA - 1];
-
-        stringstream ss;
-        ss << labelA;
-
-        graph.write_sequence(ss.str(), unitig->seq.size(), unitig->seq.toString());
-    }
-
-    for (labelA = 1; labelA <= v_kmers_sz; ++labelA) {
-
-        const pair<Kmer, CompressedCoverage_t<T>>& p = v_kmers[labelA - 1];
-
-        stringstream ss;
-        ss << (labelA + v_unitigs_sz);
-
-        graph.write_sequence(ss.str(), k_, p.first.toString());
-    }
-
-    for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it) {
-
-        idmap.insert(it.getKey(), id);
-
-        stringstream ss;
-        ss << id;
-
-        graph.write_sequence(ss.str(), k_, it.getKey().toString());
-
-        ++id;
-    }
+    writeGFA_sequence(graph, idmap);
 
     if (nb_threads == 1){
 
@@ -3885,13 +3854,11 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
                     if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
                     else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
 
-                    stringstream ssa, ssb;
+                    const string slabelA = std::to_string(labelA);
+                    const string slabelB = std::to_string(labelB);
 
-                    ssa << labelA;
-                    ssb << labelB;
-
-                    graph.write_edge(ssa.str(), 0, k_-1, false,
-                                     ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, !cand.strand);
+                    graph.write_edge(slabelA, 0, k_-1, false,
+                                     slabelB, cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, !cand.strand);
                 }
             }
 
@@ -3907,13 +3874,11 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
                     if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
                     else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
 
-                    stringstream ssa, ssb;
+                    const string slabelA = std::to_string(labelA);
+                    const string slabelB = std::to_string(labelB);
 
-                    ssa << labelA;
-                    ssb << labelB;
-
-                    graph.write_edge(ssa.str(), unitig->seq.size() - k_ + 1, unitig->seq.size(), true,
-                                     ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                    graph.write_edge(slabelA, unitig->seq.size() - k_ + 1, unitig->seq.size(), true,
+                                     slabelB, cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
                 }
             }
         }
@@ -3932,13 +3897,11 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
                     if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
                     else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz : 0);
 
-                    stringstream ssa, ssb;
+                    const string slabelA = std::to_string(labelA);
+                    const string slabelB = std::to_string(labelB);
 
-                    ssa << labelA;
-                    ssb << labelB;
-
-                    graph.write_edge(ssa.str(), 0, k_-1, false,
-                                     ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, !cand.strand);
+                    graph.write_edge(slabelA, 0, k_-1, false,
+                                     slabelB, cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, !cand.strand);
                 }
             }
 
@@ -3952,13 +3915,11 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
                     if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
                     else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
 
-                    stringstream ssa, ssb;
+                    const string slabelA = std::to_string(labelA);
+                    const string slabelB = std::to_string(labelB);
 
-                    ssa << labelA;
-                    ssb << labelB;
-
-                    graph.write_edge(ssa.str(), 0, k_-1, true,
-                                     ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                    graph.write_edge(slabelA, 0, k_-1, true,
+                                     slabelB, cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
                 }
             }
         }
@@ -4070,12 +4031,10 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
 
                 for (const auto& p : v_out[i]){
 
-                    stringstream ssa, ssb;
+                    const string slabelA = std::to_string(p.first.first);
+                    const string slabelB = std::to_string(p.second.first);
 
-                    ssa << p.first.first;
-                    ssb << p.second.first;
-
-                    graph.write_edge(ssa.str(), 0, k_-1, p.first.second, ssb.str(), 0, k_-1, p.second.second);
+                    graph.write_edge(slabelA, 0, k_-1, p.first.second, slabelB, 0, k_-1, p.second.second);
                 }
 
                 v_out[i].clear();
@@ -4112,12 +4071,10 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
 
                 for (const auto& p : v_out[i]){
 
-                    stringstream ssa, ssb;
+                    const string slabelA = std::to_string(p.first.first);
+                    const string slabelB = std::to_string(p.second.first);
 
-                    ssa << p.first.first;
-                    ssb << p.second.first;
-
-                    graph.write_edge(ssa.str(), 0, k_-1, p.first.second, ssb.str(), 0, k_-1, p.second.second);
+                    graph.write_edge(slabelA, 0, k_-1, p.first.second, slabelB, 0, k_-1, p.second.second);
                 }
 
                 v_out[i].clear();
@@ -4139,13 +4096,11 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
                 if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
                 else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
 
-                stringstream ssa, ssb;
+                const string slabelA = std::to_string(labelA);
+                const string slabelB = std::to_string(labelB);
 
-                ssa << labelA;
-                ssb << labelB;
-
-                graph.write_edge(ssa.str(), 0, k_-1, false,
-                                 ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, !cand.strand);
+                graph.write_edge(slabelA, 0, k_-1, false,
+                                 slabelB, cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, !cand.strand);
             }
         }
 
@@ -4159,13 +4114,11 @@ void CompactedDBG<T>::writeGFA(string graphfilename, const size_t nb_threads) {
                 if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
                 else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
 
-                stringstream ssa, ssb;
+                const string slabelA = std::to_string(labelA);
+                const string slabelB = std::to_string(labelB);
 
-                ssa << labelA;
-                ssb << labelB;
-
-                graph.write_edge(ssa.str(), 0, k_-1, true,
-                                 ssb.str(), cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                graph.write_edge(slabelA, 0, k_-1, true,
+                                 slabelB, cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
             }
         }
     }

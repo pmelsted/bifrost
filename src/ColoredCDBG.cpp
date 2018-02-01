@@ -13,21 +13,38 @@ ColoredCDBG::ColoredCDBG(int kmer_length, int minimizer_length) :   CompactedDBG
 
 ColoredCDBG::~ColoredCDBG() {
 
+    empty();
+}
+
+void ColoredCDBG::clear(){
+
+    CompactedDBG::clear();
+
+    nb_color_sets = 0;
+    nb_seeds = 0;
+
+    empty();
+}
+
+void ColoredCDBG::empty(){
+
     if (color_sets != nullptr){
 
         delete[] color_sets;
         color_sets = nullptr;
     }
+
+    CompactedDBG::empty();
 }
 
-bool ColoredCDBG::build(CDBG_Build_opt& opt){
+bool ColoredCDBG::build(const CCDBG_Build_opt& opt){
 
-    CompactedDBG::build(opt);
+    CDBG_Build_opt opt_ = opt.getCDBG_Build_opt();
 
-    initColorSets(opt);
-    mapColors(opt);
+    CompactedDBG::build(opt_);
 
-    //checkColors(opt);
+    initColorSets(opt_);
+    mapColors(opt_);
 
     return true;
 }
@@ -144,7 +161,7 @@ void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
 
     bool next_file = true;
 
-    FileParser fp(opt.fastx_filename_in);
+    FileParser fp(opt.filename_in);
 
     mutex mutex_km_overflow;
 
@@ -564,6 +581,11 @@ bool ColoredCDBG::write(const string output_filename, const size_t nb_threads, c
     return false;
 }
 
+/*bool ColoredCDBG::read(const string& gfa_filename, const string& colorfilename){
+
+    return true;
+}*/
+
 void ColoredCDBG::checkColors(const CDBG_Build_opt& opt) {
 
     cout << "ColoredCDBG::checkColors(): Start" << endl;
@@ -574,7 +596,7 @@ void ColoredCDBG::checkColors(const CDBG_Build_opt& opt) {
 
     KmerHashTable<tiny_vector<size_t, 1>> km_h;
 
-    FastqFile FQ(opt.fastx_filename_in);
+    FastqFile FQ(opt.filename_in);
 
     while (FQ.read_next(s, file_id) >= 0){
 
@@ -596,7 +618,7 @@ void ColoredCDBG::checkColors(const CDBG_Build_opt& opt) {
 
     file_id = 0;
 
-    FastqFile FQ2(opt.fastx_filename_in);
+    FastqFile FQ2(opt.filename_in);
 
     while (FQ2.read_next(s, file_id) >= 0){
 
@@ -629,15 +651,15 @@ void ColoredCDBG::checkColors(const CDBG_Build_opt& opt) {
             const tiny_vector<size_t, 1>& tv = *it;
             const size_t tv_nb_max_elem = tv.size() * 64;
 
-            for (size_t i = 0; i < std::min(opt.fastx_filename_in.size(), tv_nb_max_elem); ++i){
+            for (size_t i = 0; i < std::min(opt.filename_in.size(), tv_nb_max_elem); ++i){
 
                 const bool color_pres_graph = cs->contains(um, i);
                 const bool color_pres_hasht = ((tv[i/64] >> (i%64)) & 0x1) == 0x1;
 
                 if (color_pres_graph != color_pres_hasht){
 
-                    cerr << "ColoredCDBG::checkColors(): Current color is " << file_id << ": " << opt.fastx_filename_in[file_id] << endl;
-                    cerr << "ColoredCDBG::checkColors(): K-mer " << it_km->first.toString() << " for color " << i << ": " << opt.fastx_filename_in[i] << endl;
+                    cerr << "ColoredCDBG::checkColors(): Current color is " << file_id << ": " << opt.filename_in[file_id] << endl;
+                    cerr << "ColoredCDBG::checkColors(): K-mer " << it_km->first.toString() << " for color " << i << ": " << opt.filename_in[i] << endl;
                     cerr << "ColoredCDBG::checkColors(): Full unitig: " << um.toString() << endl;
                     cerr << "ColoredCDBG::checkColors(): Present in graph: " << color_pres_graph << endl;
                     cerr << "ColoredCDBG::checkColors(): Present in hash table: " << color_pres_hasht << endl;
