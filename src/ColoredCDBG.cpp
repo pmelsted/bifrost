@@ -140,6 +140,10 @@ void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
     const int k_ = getK();
     const int chunk = 1000;
 
+    size_t prev_file_id = 0;
+
+    bool next_file = true;
+
     FileParser fp(opt.fastx_filename_in);
 
     mutex mutex_km_overflow;
@@ -193,7 +197,7 @@ void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
 
         string s;
 
-        size_t file_id = 0;
+        size_t file_id = prev_file_id;
         size_t reads_now = 0;
 
         while (reads_now < chunk) {
@@ -204,9 +208,22 @@ void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
 
                 ++reads_now;
             }
-            else return true;
+            else {
+
+                next_file = false;
+                return true;
+            }
         }
 
+        next_file = true;
+
+        if (file_id != prev_file_id){
+
+            prev_file_id = file_id;
+            return true;
+        }
+
+        prev_file_id = file_id;
         return false;
     };
 
@@ -218,32 +235,49 @@ void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
 
         mutex mutex_file;
 
-        for (size_t t = 0; t < opt.nb_threads; ++t){
+        while (next_file){
 
-            workers.emplace_back(
+            stop = false;
 
-                [&, t]{
+            for (size_t t = 0; t < opt.nb_threads; ++t){
 
-                    while (true) {
+                workers.emplace_back(
 
-                        {
-                            unique_lock<mutex> lock(mutex_file);
+                    [&, t]{
 
-                            if (stop) return;
+                        while (true) {
 
-                            stop = reading_function(reads_colors[t]);
+                            {
+                                unique_lock<mutex> lock(mutex_file);
+
+                                if (stop) return;
+
+                                stop = reading_function(reads_colors[t]);
+                            }
+
+                            worker_function(reads_colors[t]);
+
+                            reads_colors[t].clear();
                         }
-
-                        worker_function(reads_colors[t]);
-
-                        reads_colors[t].clear();
                     }
-                }
-            );
-        }
+                );
+            }
 
-        for (auto& t : workers) t.join();
+            for (auto& t : workers) t.join();
+
+            workers.clear();
+
+            for (size_t t = 0; t < opt.nb_threads; ++t) reads_colors[t].clear();
+
+            for (size_t i = 0; i < nb_color_sets; ++i) color_sets[i].optimize();
+
+            for (KmerHashTable<ColorSet>::iterator it = km_overflow.begin(), it_end = km_overflow.end(); it != it_end; ++it) it->optimize();
+        }
     }
+
+    for (size_t i = 0; i < nb_color_sets; ++i) color_sets[i].optimize();
+
+    for (KmerHashTable<ColorSet>::iterator it = km_overflow.begin(), it_end = km_overflow.end(); it != it_end; ++it) it->optimize();
 
     fp.close();
 

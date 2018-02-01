@@ -264,11 +264,13 @@ int main(int argc, char **argv){
 
         if (check_ProgramOptions(opt)){ //Program options are valid
 
+
             CompactedDBG<> cdbg(opt.k, opt.g);
 
             cdbg.build(opt);
             cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
             cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
+
 
             /*
             ColoredCDBG cdbg(opt.k, opt.g);
