@@ -71,6 +71,7 @@ class Kmer {
         std::string toString() const;
 
         bool write(std::ostream& stream_out) const;
+        bool read(std::istream& stream_in);
 
         // static functions
         static void set_k(unsigned int _k);

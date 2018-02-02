@@ -11,6 +11,7 @@
 
 struct CCDBG_Build_opt {
 
+    bool reference_mode;
     bool verbose;
 
     size_t nb_threads;
@@ -38,18 +39,20 @@ struct CCDBG_Build_opt {
     bool useMercyKmers;
 
     bool outputGFA;
+    bool outputColors;
 
     string prefixFilenameOut;
 
-    CCDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(DEFAULT_G), nb_unique_kmers(0), nb_non_unique_kmers(0), nb_bits_unique_kmers_bf(14),
-                         nb_bits_non_unique_kmers_bf(14), read_chunksize(10000), unitig_size(1000000), verbose(false), clipTips(false),
-                         deleteIsolated(false), useMercyKmers(false), outputGFA(true), inFilenameBBF(""), outFilenameBBF("") {}
+    CCDBG_Build_opt() : nb_threads(1), k(DEFAULT_K), g(DEFAULT_G), nb_unique_kmers(0), nb_non_unique_kmers(0),
+                        nb_bits_unique_kmers_bf(14), nb_bits_non_unique_kmers_bf(14), read_chunksize(10000),
+                        unitig_size(1000000), verbose(false), clipTips(false), deleteIsolated(false), useMercyKmers(false),
+                        outputGFA(true), outputColors(false), reference_mode(true), inFilenameBBF(""), outFilenameBBF("") {}
 
     CDBG_Build_opt getCDBG_Build_opt() const {
 
         CDBG_Build_opt cdbg_opt;
 
-        cdbg_opt.reference_mode = true;
+        cdbg_opt.reference_mode = reference_mode;
         cdbg_opt.filename_in = filename_seq_in;
 
         cdbg_opt.verbose = verbose;
@@ -91,6 +94,8 @@ class ColoredCDBG : public CompactedDBG<HashID> {
 
         bool build(const CCDBG_Build_opt& opt);
 
+        bool mapColors(const CCDBG_Build_opt& opt);
+
         bool setColor(const UnitigMap<HashID>& um, size_t color);
         bool joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src);
         ColorSet extractColors(const UnitigMap<HashID>& um) const;
@@ -99,12 +104,14 @@ class ColoredCDBG : public CompactedDBG<HashID> {
 
     private:
 
-        void initColorSets(const CDBG_Build_opt& opt, const size_t max_nb_hash = 31);
-        void mapColors(const CDBG_Build_opt& opt);
-        void checkColors(const CDBG_Build_opt& opt);
+        void initColorSets(const CCDBG_Build_opt& opt, const size_t max_nb_hash = 31);
+        void buildColorSets(const CCDBG_Build_opt& opt);
+        bool readColorSets(const CCDBG_Build_opt& opt);
 
         ColorSet* getColorSet(const UnitigMap<HashID>& um);
         const ColorSet* getColorSet(const UnitigMap<HashID>& um) const;
+
+        void checkColors(const CCDBG_Build_opt& opt);
 
         uint64_t getHash(const UnitigMap<HashID>& um) const;
 

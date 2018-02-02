@@ -322,3 +322,33 @@ bool ColorSet::write(ostream& stream_out) const {
 
     return false;
 }
+
+bool ColorSet::read(istream& stream_in) {
+
+    if (stream_in.good()){
+
+        stream_in.read(reinterpret_cast<char*>(&setBits), sizeof(uintptr_t));
+
+        const uintptr_t flag = setBits & flagMask;
+
+        if (flag == ptrCompressedBitmap){
+
+            const uint32_t expected_sz = static_cast<uint32_t>(setBits >> 32);
+
+            char* serialized = new char[expected_sz];
+            setPointer = new Bitmap;
+
+            stream_in.read(serialized, expected_sz);
+
+            *setPointer = std::move(Bitmap::read(serialized));
+
+            setBits &= pointerMask;
+
+            delete[] serialized;
+        }
+
+        return true;
+    }
+
+    return false;
+}

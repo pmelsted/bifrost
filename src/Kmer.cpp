@@ -398,6 +398,17 @@ bool Kmer::write(ostream& stream_out) const {
     return stream_out.good();
 }
 
+bool Kmer::read(istream& stream_in) {
+
+    const size_t nlongs = MAX_K/32;
+
+    for (size_t i = 0; (i < nlongs) && stream_in.good(); ++i){
+
+        stream_in.read(reinterpret_cast<char*>(&longs[i]), sizeof(uint64_t));
+    }
+
+    return stream_in.good();
+}
 
 unsigned int Kmer::k = 0;
 //unsigned int Kmer::k_bytes = 0;

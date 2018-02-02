@@ -41,15 +41,22 @@ bool ColoredCDBG::build(const CCDBG_Build_opt& opt){
 
     CDBG_Build_opt opt_ = opt.getCDBG_Build_opt();
 
-    CompactedDBG::build(opt_);
+    return CompactedDBG::build(opt_);
+}
 
-    initColorSets(opt_);
-    mapColors(opt_);
+bool ColoredCDBG::mapColors(const CCDBG_Build_opt& opt){
+
+    if (opt.filename_seq_in.size() == 0){
+
+        initColorSets(opt);
+        buildColorSets(opt);
+    }
+    else readColorSets(opt);
 
     return true;
 }
 
-void ColoredCDBG::initColorSets(const CDBG_Build_opt& opt, const size_t max_nb_hash){
+void ColoredCDBG::initColorSets(const CCDBG_Build_opt& opt, const size_t max_nb_hash){
 
     const size_t nb_locks = opt.nb_threads * 256;
 
@@ -150,7 +157,7 @@ void ColoredCDBG::initColorSets(const CDBG_Build_opt& opt, const size_t max_nb_h
     cout << "Number of unitigs not hashed is " << km_overflow.size() << " on " << nb_color_sets << " unitigs." << endl;
 }
 
-void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
+void ColoredCDBG::buildColorSets(const CCDBG_Build_opt& opt){
 
     const size_t nb_locks = opt.nb_threads * 256;
 
@@ -161,7 +168,7 @@ void ColoredCDBG::mapColors(const CDBG_Build_opt& opt){
 
     bool next_file = true;
 
-    FileParser fp(opt.filename_in);
+    FileParser fp(opt.filename_seq_in);
 
     mutex mutex_km_overflow;
 
@@ -513,12 +520,6 @@ bool ColoredCDBG::write(const string output_filename, const size_t nb_threads, c
 
         if (verbose) cout << endl << "ColoredCDBG::write(): Writing colors to disk" << endl;
 
-        if (nb_threads > std::thread::hardware_concurrency()){
-
-            cerr << "ColoredCDBG::write(): Number of threads cannot exceed " << std::thread::hardware_concurrency() << "threads" << endl;
-            return false;
-        }
-
         const string out = output_filename + ".bfg_colors";
 
         FILE* fp = fopen(out.c_str(), "wb");
@@ -581,12 +582,114 @@ bool ColoredCDBG::write(const string output_filename, const size_t nb_threads, c
     return false;
 }
 
-/*bool ColoredCDBG::read(const string& gfa_filename, const string& colorfilename){
+bool ColoredCDBG::readColorSets(const CCDBG_Build_opt& opt){
+
+    if (opt.verbose) cout << endl << "ColoredCDBG::readColorSets(): Reading color sets from disk" << endl;
+
+    if (opt.filename_colors_in.size() == 0){
+
+        cerr << "ColoredCDBG::readColorSets(): No color sets file given in input." << endl;
+        return false;
+    }
+
+    if (opt.filename_colors_in.size() > 1){
+
+        cerr << "ColoredCDBG::readColorSets(): Bifrost cannot use multiple color sets files in input at the moment." << endl;
+        return false;
+    }
+
+    FILE* fp = fopen(opt.filename_colors_in[0].c_str(), "rb");
+
+    if (fp == NULL) {
+
+        cerr << "ColoredCDBG::readColorSets(): Could not open file " << opt.filename_colors_in[0] << " for reading color sets" << endl;
+        return false;
+    }
+    else fclose(fp);
+
+    ifstream colorsfile_in;
+    istream colors_in(nullptr);
+
+    colorsfile_in.open(opt.filename_colors_in[0].c_str(), ios_base::in | ios_base::binary);
+    colors_in.rdbuf(colorsfile_in.rdbuf());
+
+    size_t format_version , k_, km_overflow_sz;
+
+    //Write the file format version number
+    if (colors_in.good()) colors_in.read(reinterpret_cast<char*>(&format_version), sizeof(size_t));
+    //Write k-mer length
+    if (colors_in.good()) colors_in.read(reinterpret_cast<char*>(&k_), sizeof(size_t));
+    //Write number of different seeds for hash function
+    if (colors_in.good()) colors_in.read(reinterpret_cast<char*>(&nb_seeds), sizeof(size_t));
+    //Write number of color sets in the graph
+    if (colors_in.good()) colors_in.read(reinterpret_cast<char*>(&nb_color_sets), sizeof(size_t));
+    //Write number of (kmer, color set) overflowing
+    if (colors_in.good()) colors_in.read(reinterpret_cast<char*>(&km_overflow_sz), sizeof(size_t));
+
+    if (k_ != Kmer::k){
+
+        cerr << "ColoredCDBG::readColorSets(): Length k is not the same as length of k-mers used to build the graph" << endl;
+        cerr << "ColoredCDBG::readColorSets(): It is possible the given color set file is not the one corresponding to the given graph file" << endl;
+        return false;
+    }
+
+    if (nb_seeds >= 256){
+
+        cerr << "ColoredCDBG::readColorSets(): Does not support more than 255 hash seeds" << endl;
+        return false;
+    }
+
+    if (nb_color_sets != size()){
+
+        cerr << "ColoredCDBG::readColorSets(): Number of color sets is not the same as the number of unitigs in the graph" << endl;
+        return false;
+    }
+
+    if (color_sets != nullptr) delete[] color_sets;
+
+    km_overflow = KmerHashTable<ColorSet>(km_overflow_sz);
+
+    color_sets = new ColorSet[nb_color_sets];
+
+    for (size_t i = 0; (i < nb_seeds) && colors_in.good(); ++i){
+        //Write the hash function seeds of the graph
+        colors_in.read(reinterpret_cast<char*>(&seeds[i]), sizeof(uint64_t));
+    }
+
+    for (size_t i = 0; (i < nb_color_sets) && colors_in.good(); ++i) color_sets[i].read(colors_in);
+
+    Kmer km;
+
+    for (size_t i = 0; (i < km_overflow_sz) && colors_in.good(); ++i){
+
+        km.read(colors_in);
+
+        std::pair<KmerHashTable<ColorSet>::iterator, bool> p = km_overflow.insert(km, ColorSet());
+
+        p.first->read(colors_in);
+    }
+
+    const bool ret = colors_in.good();
+
+    colorsfile_in.close();
 
     return true;
-}*/
+}
 
-void ColoredCDBG::checkColors(const CDBG_Build_opt& opt) {
+uint64_t ColoredCDBG::getHash(const UnitigMap<HashID>& um) const {
+
+    if (!um.isEmpty && (color_sets != nullptr)){
+
+        const Kmer head = um.getHead();
+        const uint8_t hash_id = um.getData()->get();
+
+        if (hash_id != 0) return head.hash(seeds[hash_id - 1]) % nb_color_sets;
+    }
+
+    return 0;
+}
+
+void ColoredCDBG::checkColors(const CCDBG_Build_opt& opt) {
 
     cout << "ColoredCDBG::checkColors(): Start" << endl;
 
@@ -596,7 +699,7 @@ void ColoredCDBG::checkColors(const CDBG_Build_opt& opt) {
 
     KmerHashTable<tiny_vector<size_t, 1>> km_h;
 
-    FastqFile FQ(opt.filename_in);
+    FastqFile FQ(opt.filename_seq_in);
 
     while (FQ.read_next(s, file_id) >= 0){
 
@@ -618,7 +721,7 @@ void ColoredCDBG::checkColors(const CDBG_Build_opt& opt) {
 
     file_id = 0;
 
-    FastqFile FQ2(opt.filename_in);
+    FastqFile FQ2(opt.filename_seq_in);
 
     while (FQ2.read_next(s, file_id) >= 0){
 
@@ -651,15 +754,15 @@ void ColoredCDBG::checkColors(const CDBG_Build_opt& opt) {
             const tiny_vector<size_t, 1>& tv = *it;
             const size_t tv_nb_max_elem = tv.size() * 64;
 
-            for (size_t i = 0; i < std::min(opt.filename_in.size(), tv_nb_max_elem); ++i){
+            for (size_t i = 0; i < std::min(opt.filename_seq_in.size(), tv_nb_max_elem); ++i){
 
                 const bool color_pres_graph = cs->contains(um, i);
                 const bool color_pres_hasht = ((tv[i/64] >> (i%64)) & 0x1) == 0x1;
 
                 if (color_pres_graph != color_pres_hasht){
 
-                    cerr << "ColoredCDBG::checkColors(): Current color is " << file_id << ": " << opt.filename_in[file_id] << endl;
-                    cerr << "ColoredCDBG::checkColors(): K-mer " << it_km->first.toString() << " for color " << i << ": " << opt.filename_in[i] << endl;
+                    cerr << "ColoredCDBG::checkColors(): Current color is " << file_id << ": " << opt.filename_seq_in[file_id] << endl;
+                    cerr << "ColoredCDBG::checkColors(): K-mer " << it_km->first.toString() << " for color " << i << ": " << opt.filename_seq_in[i] << endl;
                     cerr << "ColoredCDBG::checkColors(): Full unitig: " << um.toString() << endl;
                     cerr << "ColoredCDBG::checkColors(): Present in graph: " << color_pres_graph << endl;
                     cerr << "ColoredCDBG::checkColors(): Present in hash table: " << color_pres_hasht << endl;
@@ -674,17 +777,4 @@ void ColoredCDBG::checkColors(const CDBG_Build_opt& opt) {
 
     cout << "ColoredCDBG::checkColors(): Checked all colors of all k-mers: everything is fine" << endl;
     cout << "ColoredCDBG::checkColors(): Number of k-mers in the graph: " << km_h.size() << endl;
-}
-
-uint64_t ColoredCDBG::getHash(const UnitigMap<HashID>& um) const {
-
-    if (!um.isEmpty && (color_sets != nullptr)){
-
-        const Kmer head = um.getHead();
-        const uint8_t hash_id = um.getData()->get();
-
-        if (hash_id != 0) return head.hash(seeds[hash_id - 1]) % nb_color_sets;
-    }
-
-    return 0;
 }

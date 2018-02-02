@@ -153,6 +153,7 @@ class ColorSet {
         const_iterator end() const { return const_iterator(); }
 
         bool write(ostream& stream_out) const;
+        bool read(istream& stream_in);
 
         inline void optimize(){
 

@@ -18,24 +18,27 @@ void PrintCite() {
 void PrintUsage() {
 
     cout << endl << "Bifrost " << BFG_VERSION << endl << endl;
-    cout << "Highly Parallel and Memory Efficient Compacted de Bruijn Graph Construction" << endl << endl;
-    cout << "Usage: Bifrost [Parameters] file_1 ..." << endl << endl;
-    cout << "Mandatory parameters with required argument:" << endl <<
-    endl << "  -o, --output             Prefix for output file (default file format is GFA)" << endl << endl <<
+    cout << "Highly Parallel and Memory Efficient Colored and Compacted de Bruijn Graph Construction" << endl << endl;
+    cout << "Usage: Bifrost [Parameters] -o <output_prefix> -f <file_1> ..." << endl << endl;
+    cout << "Mandatory parameters with required argument:" << endl << endl <<
+    "  -f, --input-files        Input sequence files (FASTA or FASTQ, possibly gziped) and/or graph files (GFA)" << endl <<
+    "  -o, --output-file        Prefix for output file (GFA output by default)" << endl << endl <<
     "Optional parameters with required argument:" << endl << endl <<
     "  -t, --threads            Number of threads (default is 1)" << endl <<
     "  -k, --kmer-length        Length of k-mers (default is 31)" << endl <<
+    //"  -c, --load-colors        Input color sets file (default is no color)" << endl <<
     "  -g, --min-length         Length of minimizers (default is 23)" << endl <<
-    "  -n, --num-kmers          Estimated number (upper bound) of different k-mers in input files (default: estimated with KmerStream)" << endl <<
-    "  -N, --num-kmer2          Estimated number (upper bound) of different k-mers occurring twice or more in the input files (default: estimated with KmerStream)" << endl <<
+    "  -n, --num-kmers          Estimated number of different k-mers in input files (default: KmerStream estimation)" << endl <<
+    "  -N, --num-kmers2         Estimated number of different k-mers occurring twice or more in the input files (default: KmerStream estimation)" << endl <<
     "  -b, --bloom-bits         Number of Bloom filter bits per k-mer occurring at least once in the input files (default is 14)" << endl <<
     "  -B, --bloom-bits2        Number of Bloom filter bits per k-mer occurring at least twice in the input files (default is 14)" << endl <<
-    "  -l, --load               Filename for input Blocked Bloom Filter, skips filtering step (default is no input)" << endl <<
-    "  -f, --output2            Filename for output Blocked Bloom Filter (default is no output)" << endl <<
+    "  -l, --load-mbbf          Filename for input Blocked Bloom Filter, skips filtering step (default is no input)" << endl <<
+    "  -w, --write-mbbf         Filename for output Blocked Bloom Filter (default is no output)" << endl <<
     "  -s, --chunk-size         Read chunksize to split between threads (default is 10000)" << endl <<
     endl << "Optional parameters with no argument:" << endl << endl <<
-    "  -r, --ref                Reference mode, no filtering" << endl <<
-    "  -c, --clip-tips          Clip tips shorter than k k-mers in length" << endl <<
+    "  -p, --produce-colors     Produce a colored and compacted de Bruijn graph (default is without colors)" << endl <<
+    "  -r, --reference          Reference mode, no filtering" << endl <<
+    "  -i, --clip-tips          Clip tips shorter than k k-mers in length" << endl <<
     "  -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl <<
     "  -m, --keep-mercy         Keep low coverage k-mers connecting tips" << endl <<
     "  -a, --fasta              Output file is in FASTA format (only sequences) instead of GFA" << endl <<
@@ -43,25 +46,28 @@ void PrintUsage() {
     endl;
 }
 
-void parse_ProgramOptions(int argc, char **argv, CDBG_Build_opt& opt) {
+void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
 
-    const char* opt_string = "n:N:o:t:k:g:b:B:l:f:s:rcdmav";
+    const char* opt_string = "f:o:c:n:N:t:k:g:b:B:l:w:s:pridmav";
 
     static struct option long_options[] = {
 
+        {"input-files",     required_argument,  0, 'f'},
+        {"output-file",     required_argument,  0, 'o'},
+        {"load-colors",     required_argument,  0, 'c'},
         {"num-kmers",       required_argument,  0, 'n'},
         {"num-kmers2",      required_argument,  0, 'N'},
-        {"output",          required_argument,  0, 'o'},
         {"threads",         required_argument,  0, 't'},
         {"kmer-length",     required_argument,  0, 'k'},
         {"min-length",      required_argument,  0, 'g'},
         {"bloom-bits",      required_argument,  0, 'b'},
         {"bloom-bits2",     required_argument,  0, 'B'},
-        {"load",            required_argument,  0, 'l'},
-        {"output2",         required_argument,  0, 'f'},
+        {"load-mbbf",       required_argument,  0, 'l'},
+        {"write-mbbf",      required_argument,  0, 'w'},
         {"chunk-size",      required_argument,  0, 's'},
-        {"ref",             no_argument,        0, 'r'},
-        {"clip-tips",       no_argument,        0, 'c'},
+        {"produce-colors",  no_argument,        0, 'p'},
+        {"reference",       no_argument,        0, 'r'},
+        {"clip-tips",       no_argument,        0, 'i'},
         {"del-isolated",    no_argument,        0, 'd'},
         {"keep-mercy",      no_argument,        0, 'm'},
         {"fasta",           no_argument,        0, 'a'},
@@ -75,13 +81,16 @@ void parse_ProgramOptions(int argc, char **argv, CDBG_Build_opt& opt) {
 
         switch (c) {
 
+            case 'p':
+                opt.outputColors = true;
+                break;
             case 'r':
                 opt.reference_mode = true;
                 break;
             case 'v':
                 opt.verbose = true;
                 break;
-            case 'c':
+            case 'i':
                 opt.clipTips = true;
                 break;
             case 'd':
@@ -120,21 +129,36 @@ void parse_ProgramOptions(int argc, char **argv, CDBG_Build_opt& opt) {
             case 'o':
                 opt.prefixFilenameOut = optarg;
                 break;
-            case 'f':
+            case 'w':
                 opt.outFilenameBBF = optarg;
                 break;
             case 'l':
                 opt.inFilenameBBF = optarg;
                 break;
+            case 'f': {
+
+                for (optind--; (optind < argc) && (*argv[optind] != '-'); ++optind){
+
+                      opt.filename_seq_in.push_back(argv[optind]);
+                }
+
+                break;
+            }
+            case 'c': {
+
+                for (optind--; (optind < argc) && (*argv[optind] != '-'); ++optind){
+
+                      opt.filename_colors_in.push_back(argv[optind]);
+                }
+
+                break;
+            }
             default: break;
         }
     }
-
-    // all other arguments are fast[a/q] files to be read
-    while (optind < argc) opt.filename_in.push_back(argv[optind++]);
 }
 
-bool check_ProgramOptions(CDBG_Build_opt& opt) {
+bool check_ProgramOptions(const CCDBG_Build_opt& opt) {
 
     bool ret = true;
 
@@ -228,7 +252,7 @@ bool check_ProgramOptions(CDBG_Build_opt& opt) {
         if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << endl;
     }
 
-    if (opt.filename_in.size() == 0) {
+    if (opt.filename_seq_in.size() == 0) {
 
         cerr << "Error: Missing input files" << endl;
         ret = false;
@@ -239,7 +263,24 @@ bool check_ProgramOptions(CDBG_Build_opt& opt) {
         vector<string>::const_iterator it;
         int intStat;
 
-        for (it = opt.filename_in.begin(); it != opt.filename_in.end(); ++it) {
+        for (it = opt.filename_seq_in.begin(); it != opt.filename_seq_in.end(); ++it) {
+
+            intStat = stat(it->c_str(), &stFileInfo);
+
+            if (intStat != 0) {
+                cerr << "Error: File not found, " << *it << endl;
+                ret = false;
+            }
+        }
+    }
+
+    if (opt.filename_colors_in.size() != 0) {
+
+        struct stat stFileInfo;
+        vector<string>::const_iterator it;
+        int intStat;
+
+        for (it = opt.filename_colors_in.begin(); it != opt.filename_colors_in.end(); ++it) {
 
             intStat = stat(it->c_str(), &stFileInfo);
 
@@ -258,25 +299,35 @@ int main(int argc, char **argv){
     if (argc < 2) PrintUsage();
     else {
 
-        CDBG_Build_opt opt;
+        CCDBG_Build_opt opt;
 
-        parse_ProgramOptions(argc, argv, opt);
+        opt.reference_mode = false; // We dont know yet if we want colors or not
 
-        if (check_ProgramOptions(opt)){ //Program options are valid
+        parse_ProgramOptions(argc, argv, opt); // Parse input parameters
 
+        if (check_ProgramOptions(opt)){ // Check if input parameters are valid
 
-            CompactedDBG<> cdbg(opt.k, opt.g);
+            if (opt.outputColors || (opt.filename_colors_in.size() != 0)){ // If colors in or out
 
-            cdbg.build(opt);
-            cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-            cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
+                opt.reference_mode = true; //If the user wants a colored cdBG, it is reference mode
 
+                ColoredCDBG cdbg(opt.k, opt.g);
 
-            /*
-            ColoredCDBG cdbg(opt.k, opt.g);
-            cdbg.build(opt);
-            cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
-            */
+                cdbg.build(opt);
+                cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+                cdbg.mapColors(opt);
+                cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
+            }
+            else {
+
+                CDBG_Build_opt opt_ = opt.getCDBG_Build_opt();
+
+                CompactedDBG<> cdbg(opt_.k, opt_.g);
+
+                cdbg.build(opt_);
+                cdbg.simplify(opt_.deleteIsolated, opt_.clipTips, opt_.verbose);
+                cdbg.write(opt_.prefixFilenameOut, opt_.nb_threads, opt_.outputGFA, opt_.verbose);
+            }
         }
     }
 }
