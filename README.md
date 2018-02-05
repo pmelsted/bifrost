@@ -142,7 +142,7 @@ Colors are used to annotate k-mers with the set of genomes/samples in which they
    ```
    In this example, the colored (`-p`) and compacted de Bruijn graph is built using 31-mers (`-k 31`) and 4 threads (`-t 4`) from the files *AB_cdBG.fasta* and *C_cdBG.fasta* (`-f AB_cdBG.fasta C_cdBG.fasta`). The graph will be output to a GFA file *ABC_ccdBG.gfa* and colors will be output to file *ABC_ccdBG.bfg_colors* (`-o ABC_ccdBG`).
 
-<img src="pipeline_colored_cdbg.png" alt="pipeline_colors" style="width: 300px;"/>
+<img src="pipeline_colored_cdbg.png" alt="pipeline_colors" style="width: 200px;"/>
 
 02-02-2018: More color options coming soon
 
