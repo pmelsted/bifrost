@@ -11,7 +11,7 @@ In order to compile and use Bifrost, you need a machine running a 64 bits POSIX-
 In order to compile Bifrost, you will need:
 
 - Cmake (https://cmake.org/)
-- Jemalloc (http://www.canonware.com/jemalloc)
+- Jemalloc (https://github.com/jemalloc/jemalloc)
 - Roaring (https://github.com/RoaringBitmap/CRoaring)
 - zlib (https://zlib.net/)
 
@@ -143,7 +143,9 @@ Colors are used to annotate k-mers with the set of genomes/samples in which they
    In this example, the colored (`-p`) and compacted de Bruijn graph is built using 31-mers (`-k 31`) and 4 threads (`-t 4`) from the files *AB_cdBG.fasta* and *C_cdBG.fasta* (`-f AB_cdBG.fasta C_cdBG.fasta`). The graph will be output to a GFA file *ABC_ccdBG.gfa* and colors will be output to file *ABC_ccdBG.bfg_colors* (`-o ABC_ccdBG`).
 
 <center>
+      
 <img src="pipeline_colored_cdbg.png" alt="pipeline_colors" width="600" align="middle"/>
+
 </center>
 
 02-02-2018: More color options coming soon
