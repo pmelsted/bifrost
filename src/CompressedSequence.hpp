@@ -20,14 +20,13 @@ class CompressedSequence {
     public:
 
         CompressedSequence();
+        CompressedSequence(const CompressedSequence& o); // Copy constructor
+        CompressedSequence(CompressedSequence&& o); // Move constructor
+
         ~CompressedSequence();
 
-        CompressedSequence(const CompressedSequence& o);
-        CompressedSequence& operator=(const CompressedSequence& o);
-
-        // Move constructors
-        CompressedSequence(CompressedSequence&& o);
-        CompressedSequence& operator=(CompressedSequence&& o);
+        CompressedSequence& operator=(const CompressedSequence& o); // Copy assignment
+        CompressedSequence& operator=(CompressedSequence&& o); // Move assignment
 
         explicit CompressedSequence(const char *s);
         explicit CompressedSequence(const string& s);

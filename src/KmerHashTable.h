@@ -809,6 +809,16 @@ struct KmerHashTable {
         init_tables(std::max(static_cast<size_t>(1.2 * sz), static_cast<size_t>(2)));
     }
 
+    KmerHashTable(const KmerHashTable& o) : size_(o.size_), pop(o.pop), num_empty(o.num_empty),
+                                            empty_key(o.empty_key), deleted_key(o.deleted_key) {
+
+        table_keys = new Kmer[size_];
+        table_values = new T[size_];
+
+        std::copy(o.table_keys, o.table_keys + size_, table_keys);
+        std::copy(o.table_values, o.table_values + size_, table_values);
+    }
+
     KmerHashTable(KmerHashTable&& o){
 
         size_ = o.size_;
@@ -825,6 +835,26 @@ struct KmerHashTable {
         o.table_values = nullptr;
 
         o.clear_tables();
+    }
+
+    KmerHashTable& operator=(const KmerHashTable& o) {
+
+        clear_tables();
+
+        size_ = o.size_;
+        pop = o.pop;
+        num_empty = o.num_empty;
+
+        empty_key = o.empty_key;
+        deleted_key = o.deleted_key;
+
+        table_keys = new Kmer[size_];
+        table_values = new T[size_];
+
+        std::copy(o.table_keys, o.table_keys + size_, table_keys);
+        std::copy(o.table_values, o.table_values + size_, table_values);
+
+        return *this;
     }
 
     KmerHashTable& operator=(KmerHashTable&& o){
@@ -1143,6 +1173,16 @@ struct MinimizerHashTable {
         init_tables(std::max(static_cast<size_t>(1.2 * sz), static_cast<size_t>(2)));
     }
 
+    MinimizerHashTable(const MinimizerHashTable& o) :   size_(o.size_), pop(o.pop), num_empty(o.num_empty),
+                                                        empty_key(o.empty_key), deleted_key(o.deleted_key) {
+
+        table_keys = new Minimizer[size_];
+        table_values = new T[size_];
+
+        std::copy(o.table_keys, o.table_keys + size_, table_keys);
+        std::copy(o.table_values, o.table_values + size_, table_values);
+    }
+
     MinimizerHashTable(MinimizerHashTable&& o){
 
         size_ = o.size_;
@@ -1159,6 +1199,26 @@ struct MinimizerHashTable {
         o.table_values = nullptr;
 
         o.clear_tables();
+    }
+
+    MinimizerHashTable& operator=(const MinimizerHashTable& o) {
+
+        clear_tables();
+
+        size_ = o.size_;
+        pop = o.pop;
+        num_empty = o.num_empty;
+
+        empty_key = o.empty_key;
+        deleted_key = o.deleted_key;
+
+        table_keys = new Minimizer[size_];
+        table_values = new T[size_];
+
+        std::copy(o.table_keys, o.table_keys + size_, table_keys);
+        std::copy(o.table_values, o.table_values + size_, table_values);
+
+        return *this;
     }
 
     MinimizerHashTable& operator=(MinimizerHashTable&& o){

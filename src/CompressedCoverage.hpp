@@ -31,15 +31,12 @@ class CompressedCoverage {
     public:
 
         CompressedCoverage(size_t sz=0, bool full=false);
+        CompressedCoverage(const CompressedCoverage& o); // Copy constructors
+        CompressedCoverage(CompressedCoverage&& o); // move constructors
         ~CompressedCoverage();
 
-        // Copy constructors
-        CompressedCoverage(const CompressedCoverage& o);
-        CompressedCoverage& operator=(const CompressedCoverage& o);
-
-        // move constructors
-        CompressedCoverage(CompressedCoverage&& o);
-        CompressedCoverage& operator=(CompressedCoverage&& o);
+        CompressedCoverage& operator=(const CompressedCoverage& o); // Copy assignment
+        CompressedCoverage& operator=(CompressedCoverage&& o); // Move assignment
 
         void initialize(const size_t sz, const bool full);
 

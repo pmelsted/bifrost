@@ -58,9 +58,65 @@ class BlockedBloomFilter {
             init_table();
         }
 
+        BlockedBloomFilter(const BlockedBloomFilter& o) : table_(nullptr), blocks_(o.blocks_), k_(o.k_), mask_h(o.mask_h), fast_div_() {
+
+            init_table();
+
+            for (uint64_t i = 0; i != blocks_; ++i){
+
+                memcpy(&(table_[i].block), &(o.table_[i].block), NB_ELEM_BLOCK * sizeof(uint64_t));
+            }
+        }
+
+        BlockedBloomFilter(BlockedBloomFilter&& o) : table_(o.table_), blocks_(o.blocks_), k_(o.k_), mask_h(o.mask_h), fast_div_(o.fast_div_) {
+
+            o.table_ = nullptr;
+
+            o.clear();
+        }
+
         ~BlockedBloomFilter() {
 
             clear();
+        }
+
+        BlockedBloomFilter& operator=(const BlockedBloomFilter& o) {
+
+            clear();
+
+            table_ = nullptr;
+            blocks_ = o.blocks_;
+            mask_h = o.mask_h;
+            k_ = o.k_;
+
+            init_table();
+
+            for (uint64_t i = 0; i != blocks_; ++i){
+
+                memcpy(&(table_[i].block), &(o.table_[i].block), NB_ELEM_BLOCK * sizeof(uint64_t));
+            }
+
+            return *this;
+        }
+
+        BlockedBloomFilter& operator=(BlockedBloomFilter&& o) {
+
+            if (this != &o) {
+
+                clear();
+
+                table_ = o.table_;
+                blocks_ = o.blocks_;
+                k_ = o.k_;
+                mask_h = o.mask_h;
+                fast_div_ = o.fast_div_;
+
+                o.table_ = nullptr;
+
+                o.clear();
+            }
+
+            return *this;
         }
 
         inline BBF_Blocks getBlock(uint64_t min_hash) const{
@@ -454,19 +510,6 @@ class BlockedBloomFilter {
             mask_h = _mm256_setzero_si256();
         }
 
-        void get(BlockedBloomFilter& bf) {
-
-            clear();
-
-            table_ = bf.table_;
-            blocks_ = bf.blocks_;
-            k_ = bf.k_;
-            mask_h = bf.mask_h;
-            fast_div_ = bf.fast_div_;
-
-            bf.table_ = nullptr;
-        }
-
         inline uint64_t getNbBlocks() const { return blocks_; }
 
     private:
@@ -814,9 +857,62 @@ class BlockedBloomFilter {
             init_table();
         }
 
+        BlockedBloomFilter(const BlockedBloomFilter& o) : table_(nullptr), blocks_(o.blocks_), k_(o.k_), fast_div_() {
+
+            init_table();
+
+            for (uint64_t i = 0; i != blocks_; ++i){
+
+                memcpy(&(table_[i].block), &(o.table_[i].block), NB_ELEM_BLOCK * sizeof(uint64_t));
+            }
+        }
+
+        BlockedBloomFilter(BlockedBloomFilter&& o) : table_(o.table_), blocks_(o.blocks_), k_(o.k_), fast_div_(o.fast_div_) {
+
+            o.table_ = nullptr;
+
+            o.clear();
+        }
+
         ~BlockedBloomFilter() {
 
             clear();
+        }
+
+        BlockedBloomFilter& operator=(const BlockedBloomFilter& o) {
+
+            clear();
+
+            blocks_ = o.blocks_;
+            k_ = o.k_;
+
+            init_table();
+
+            for (uint64_t i = 0; i != blocks_; ++i){
+
+                memcpy(&(table_[i].block), &(o.table_[i].block), NB_ELEM_BLOCK * sizeof(uint64_t));
+            }
+
+            return *this;
+        }
+
+        BlockedBloomFilter& operator=(BlockedBloomFilter&& o) {
+
+            if (this != &o) {
+
+                clear();
+
+                table_ = o.table_;
+                blocks_ = o.blocks_;
+                k_ = o.k_;
+                fast_div_ = o.fast_div_;
+
+                o.table_ = nullptr;
+
+                o.clear();
+            }
+
+            return *this;
         }
 
         inline BBF_Blocks getBlock(uint64_t min_hash) const{
@@ -980,18 +1076,6 @@ class BlockedBloomFilter {
 
             blocks_ = 0;
             k_ = 0;
-        }
-
-        void get(BlockedBloomFilter& bf) {
-
-            clear();
-
-            table_ = bf.table_;
-            blocks_ = bf.blocks_;
-            k_ = bf.k_;
-            fast_div_ = bf.fast_div_;
-
-            bf.table_ = nullptr;
         }
 
         inline uint64_t getNbBlocks() const { return blocks_; }

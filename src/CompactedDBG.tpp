@@ -17,10 +17,9 @@ static const uint8_t bits[256] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-/** Compacted de Bruijn graph constructor (set up an empty Compacted dBG).
+/** Compacted de Bruijn graph constructor (set up an empty compacted dBG).
 * @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
 * @param minimizer_length is the length g of minimizers (g < k) used in the graph.
-* @return an empty Compacted de Bruijn graph.
 */
 template<typename T>
 CompactedDBG<T>::CompactedDBG(int kmer_length, int minimizer_length) :  k_(kmer_length), g_(minimizer_length), invalid(false),
@@ -57,6 +56,113 @@ CompactedDBG<T>::CompactedDBG(int kmer_length, int minimizer_length) :  k_(kmer_
     }
 }
 
+/** Compacted de Bruijn graph copy constructor (copy a compacted de Bruijn graph).
+* This function is expensive in terms of time and memory as the content of a compacted
+* de Bruijn graph is copied.  After the call to this function, the same graph exists twice in memory.
+* @param o is a constant reference to the compacted de Bruijn graph to copy.
+*/
+template<typename T>
+CompactedDBG<T>::CompactedDBG(const CompactedDBG& o) :  k_(o.k_), g_(o.g_), invalid(o.invalid), has_data(o.has_data), v_kmers(o.v_kmers),
+                                                        h_kmers_ccov(o.h_kmers_ccov), hmap_min_unitigs(o.hmap_min_unitigs), bf(o.bf){
+
+    v_unitigs.reserve(o.v_unitigs.size());
+
+    for (size_t i = 0; i < o.v_unitigs.size(); ++i){
+
+        v_unitigs[i] = new Unitig<T>;
+        *(v_unitigs[i]) = *(o.v_unitigs[i]);
+    }
+}
+
+/** Compacted de Bruijn graph move constructor (move a compacted de Bruijn graph).
+* The content of o is moved ("transfered") to a new compacted de Bruijn graph.
+* The compacted de Bruijn graph referenced by o will be empty after the call to this constructor.
+* @param o is a reference on a reference to the compacted de Bruijn graph to move.
+*/
+template<typename T>
+CompactedDBG<T>::CompactedDBG(CompactedDBG&& o) :   k_(o.k_), g_(o.g_), invalid(o.invalid), has_data(o.has_data), v_kmers(move(o.v_kmers)),
+                                                    bf(move(o.bf)), v_unitigs(move(o.v_unitigs)), h_kmers_ccov(move(o.h_kmers_ccov)),
+                                                    hmap_min_unitigs(move(o.hmap_min_unitigs)){
+
+    o.k_ = 0;
+    o.g_ = 0;
+
+    o.invalid = true;
+    o.has_data = false;
+}
+
+/** Compacted de Bruijn graph copy assignment operator (copy a compacted de Bruijn graph).
+* This function is expensive in terms of time and memory as the content of a compacted
+* de Bruijn graph is copied.  After the call to this function, the same graph exists twice in memory.
+* @param o is a constant reference to the compacted de Bruijn graph to copy.
+* @return a reference to the compacted de Bruijn which is the copy.
+*/
+template<typename T>
+CompactedDBG<T>& CompactedDBG<T>::operator=(const CompactedDBG& o){
+
+    empty();
+
+    k_ = o.k_;
+    g_ = o.g_;
+
+    invalid = o.invalid;
+    has_data = o.has_data;
+
+    v_kmers = o.v_kmers;
+
+    h_kmers_ccov = o.h_kmers_ccov;
+    hmap_min_unitigs = o.hmap_min_unitigs;
+
+    bf = o.bf;
+
+    v_unitigs.reserve(o.v_unitigs.size());
+
+    for (size_t i = 0; i < o.v_unitigs.size(); ++i){
+
+        v_unitigs[i] = new Unitig<T>;
+        *(v_unitigs[i]) = *(o.v_unitigs[i]);
+    }
+
+    return *this;
+}
+
+/** Compacted de Bruijn graph move assignment operator (move a compacted de Bruijn graph).
+* The content of o is moved ("transfered") to a new compacted de Bruijn graph.
+* The compacted de Bruijn graph referenced by o will be empty after the call to this operator.
+* @param o is a reference on a reference to the compacted de Bruijn graph to move.
+* @return a reference to the compacted de Bruijn which has (and owns) the content of o.
+*/
+template<typename T>
+CompactedDBG<T>& CompactedDBG<T>::operator=(CompactedDBG&& o){
+
+    if (this != &o) {
+
+        empty();
+
+        k_ = o.k_;
+        g_ = o.g_;
+
+        invalid = o.invalid;
+        has_data = o.has_data;
+
+        v_kmers = move(o.v_kmers);
+        v_unitigs = move(o.v_unitigs);
+
+        h_kmers_ccov = move(o.h_kmers_ccov);
+        hmap_min_unitigs = move(o.hmap_min_unitigs);
+
+        bf = move(o.bf);
+
+        o.k_ = 0;
+        o.g_ = 0;
+
+        o.invalid = true;
+        o.has_data = false;
+    }
+
+    return *this;
+}
+
 /** Compacted de Bruijn graph destructor.
 */
 template<typename T>
@@ -74,6 +180,7 @@ void CompactedDBG<T>::clear(){
     g_ = 0;
 
     invalid = true;
+    has_data = false;
 
     empty();
 }
@@ -1072,18 +1179,19 @@ bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
     if (opt.reference_mode){
 
         BlockedBloomFilter tmp(opt.nb_unique_kmers, opt.nb_bits_unique_kmers_bf);
-        bf.get(tmp);
-        tmp.clear();
+        bf = move(tmp);
     }
     else {
 
-        BlockedBloomFilter tmp(opt.nb_unique_kmers, opt.nb_bits_unique_kmers_bf);
-        bf_tmp.get(tmp);
-        tmp.clear();
+        {
+            BlockedBloomFilter tmp(opt.nb_unique_kmers, opt.nb_bits_unique_kmers_bf);
+            bf_tmp = move(tmp);
+        }
 
-        BlockedBloomFilter tmp2(opt.nb_non_unique_kmers, opt.nb_bits_non_unique_kmers_bf);
-        bf.get(tmp2);
-        tmp2.clear();
+        {
+            BlockedBloomFilter tmp(opt.nb_non_unique_kmers, opt.nb_bits_non_unique_kmers_bf);
+            bf = move(tmp);
+        }
     }
 
     const int chunk = 1000;

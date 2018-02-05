@@ -94,22 +94,6 @@ CompressedSequence::CompressedSequence(const CompressedSequence& o) {
     else setSequence(o,0,o.size()); // copy sequence and pointers etc.
 }
 
-
-// use:  _cs = cs;
-// pre:
-// post: the DNA string in _cs is the same as in cs
-CompressedSequence& CompressedSequence::operator=(const CompressedSequence& o) {
-
-    if (o.isShort()) {
-
-        asBits._size = o.asBits._size;
-        memcpy(asBits._arr, o.asBits._arr,31); // plain vanilla copy
-    }
-    else setSequence(o,0,o.size()); // copy sequence and pointers etc.
-
-    return *this;
-}
-
 CompressedSequence::CompressedSequence(CompressedSequence&& o) {
 
     if (o.isShort()) {
@@ -125,6 +109,21 @@ CompressedSequence::CompressedSequence(CompressedSequence&& o) {
 
         o.initShort();
     }
+}
+
+// use:  _cs = cs;
+// pre:
+// post: the DNA string in _cs is the same as in cs
+CompressedSequence& CompressedSequence::operator=(const CompressedSequence& o) {
+
+    if (o.isShort()) {
+
+        asBits._size = o.asBits._size;
+        memcpy(asBits._arr, o.asBits._arr,31); // plain vanilla copy
+    }
+    else setSequence(o,0,o.size()); // copy sequence and pointers etc.
+
+    return *this;
 }
 
 CompressedSequence& CompressedSequence::operator=(CompressedSequence&& o) {

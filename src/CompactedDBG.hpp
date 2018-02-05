@@ -186,7 +186,7 @@ class CDBG_Data_t {
 
         /** Serialize the data to a string. This function is used when the graph is written to disk in GFA format.
         * If the returned string is not empty, the string is appended to an optional field of the Segment line matching the unitig
-        * of this data. IF the returned string is empty, no optional field and string is appended to the Segment line matching the
+        * of this data. If the returned string is empty, no optional field and string are appended to the Segment line matching the
         * unitig of this data.
         */
         virtual string serialize() const = 0;
@@ -219,7 +219,7 @@ class CompactedDBG {
 
         bool invalid;
 
-        const bool has_data;
+        bool has_data;
 
         static const int tiny_vector_sz = 2;
         static const int min_abundance_lim = 15;
@@ -250,11 +250,22 @@ class CompactedDBG {
         typedef unitigIterator<T, false> iterator; /**< An iterator for the unitigs of the graph. No specific order is assumed. */
         typedef unitigIterator<T, true> const_iterator; /**< A constant iterator for the unitigs of the graph. No specific order is assumed. */
 
-        CompactedDBG(int kmer_length = DEFAULT_K, int minimizer_length = DEFAULT_G);
+        CompactedDBG(int kmer_length = DEFAULT_K, int minimizer_length = DEFAULT_G); // Constructor
+        CompactedDBG(const CompactedDBG& cdbg); // Copy constructor
+        CompactedDBG(CompactedDBG&& cdbg); // Move constructor
+
         virtual ~CompactedDBG();
+
+        CompactedDBG<T>& operator=(const CompactedDBG& o); // Copy assignment operator
+        CompactedDBG<T>& operator=(CompactedDBG&& o); //Move assignment operator
 
         void clear();
         void empty();
+
+        /** Return a boolean indicating if the graph is invalid (wrong input parameters/files, problem during an operation, etc.).
+        * @return A boolean indicating if the graph is invalid.
+        */
+        inline int isInvalid() const { return invalid; }
 
         /** Return the length of k-mers of the graph.
         * @return Length of k-mers of the graph.

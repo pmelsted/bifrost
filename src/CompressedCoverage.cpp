@@ -39,6 +39,12 @@ CompressedCoverage::CompressedCoverage(const CompressedCoverage& o) {
     }
 }
 
+CompressedCoverage::CompressedCoverage(CompressedCoverage&& o){
+
+    asBits = o.asBits;
+    o.asBits = o.isFull() ? fullMask : tagMask;
+}
+
 CompressedCoverage& CompressedCoverage::operator=(const CompressedCoverage& o){
 
     if (((o.asBits & fullMask) == fullMask) || ((o.asBits & tagMask) == tagMask)) asBits = o.asBits;
@@ -56,12 +62,6 @@ CompressedCoverage& CompressedCoverage::operator=(const CompressedCoverage& o){
     }
 
     return *this;
-}
-
-CompressedCoverage::CompressedCoverage(CompressedCoverage&& o){
-
-    asBits = o.asBits;
-    o.asBits = o.isFull() ? fullMask : tagMask;
 }
 
 CompressedCoverage& CompressedCoverage::operator=(CompressedCoverage&& o){

@@ -98,7 +98,9 @@ class ColoredCDBG : public CompactedDBG<HashID> {
 
         bool setColor(const UnitigMap<HashID>& um, size_t color);
         bool joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src);
-        ColorSet extractColors(const UnitigMap<HashID>& um) const;
+
+        ColorSet extractColors(const UnitigMap<HashID>& um) const; // Copy part of a color set
+        const ColorSet* getColorSet(const UnitigMap<HashID>& um) const; // Can be used to query a color set
 
         bool write(const string output_filename, const size_t nb_threads, const bool verbose);
 
@@ -109,7 +111,6 @@ class ColoredCDBG : public CompactedDBG<HashID> {
         bool readColorSets(const CCDBG_Build_opt& opt);
 
         ColorSet* getColorSet(const UnitigMap<HashID>& um);
-        const ColorSet* getColorSet(const UnitigMap<HashID>& um) const;
 
         void checkColors(const CCDBG_Build_opt& opt);
 
@@ -117,12 +118,16 @@ class ColoredCDBG : public CompactedDBG<HashID> {
 
         uint64_t seeds[256];
 
+        //bool invalid;
+
         size_t nb_seeds;
         size_t nb_color_sets;
 
         ColorSet* color_sets;
 
         KmerHashTable<ColorSet> km_overflow;
+
+        //vector<string> color_names;
 };
 
 #endif
