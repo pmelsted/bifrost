@@ -27,7 +27,7 @@
 #include "FASTX_Parser.hpp"
 #include "GFA_Parser.hpp"
 #include "Kmer.hpp"
-#include "KmerHashTable.h"
+#include "KmerHashTable.hpp"
 #include "KmerIterator.hpp"
 #include "KmerStream.hpp"
 #include "minHashIterator.hpp"

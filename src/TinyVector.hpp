@@ -68,6 +68,7 @@ class tiny_vector {
                 for (size_t i = 0; i < sz; i++) arr.data[i] = std::move(o.arr.data[i]);
 
                 o.arr.size = 0;
+
                 arr.size = sz;
                 short_ = true;
             }
@@ -76,9 +77,11 @@ class tiny_vector {
                 vec.data = o.vec.data;
                 vec.size = o.vec.size;
                 vec.cap  = o.vec.cap;
+
                 o.vec.data = nullptr;
                 o.arr.size = 0;
                 o.short_ = true;
+
                 short_ = false;
             }
         }

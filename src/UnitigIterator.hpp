@@ -2,7 +2,7 @@
 #define UNITIG_ITERATOR_HPP
 
 #include "UnitigMap.hpp"
-#include "KmerHashTable.h"
+#include "KmerHashTable.hpp"
 #include "CompressedCoverage.hpp"
 
 /** @file src/UnitigIterator.hpp

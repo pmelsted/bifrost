@@ -4,8 +4,7 @@
 #include <iostream>
 #include <random>
 
-#include "Color.hpp"
-#include "CompactedDBG.hpp"
+#include "ColorSet.hpp"
 
 #define BFG_COLOREDCDBG_FORMAT_VERSION 1
 
@@ -87,7 +86,13 @@ class ColoredCDBG : public CompactedDBG<HashID> {
     public:
 
         ColoredCDBG(int kmer_length = DEFAULT_K, int minimizer_length = DEFAULT_G);
+        ColoredCDBG(const ColoredCDBG& o); // Copy constructor
+        ColoredCDBG(ColoredCDBG&& o); // Move constructor
+
         ~ColoredCDBG();
+
+        ColoredCDBG& operator=(const ColoredCDBG& o); // Copy assignment
+        ColoredCDBG& operator=(ColoredCDBG&& o); // Move assignment
 
         void clear();
         void empty();
@@ -99,15 +104,17 @@ class ColoredCDBG : public CompactedDBG<HashID> {
         bool setColor(const UnitigMap<HashID>& um, size_t color);
         bool joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src);
 
-        ColorSet extractColors(const UnitigMap<HashID>& um) const; // Copy part of a color set
         const ColorSet* getColorSet(const UnitigMap<HashID>& um) const; // Can be used to query a color set
+
+        vector<string> extractColorNames(const UnitigMap<HashID>& um) const; // Return union of color names matching the UnitigMap
+        ColorSet extractColors(const UnitigMap<HashID>& um) const; // Return new color set matching the UnitigMap
 
         bool write(const string output_filename, const size_t nb_threads, const bool verbose);
 
     private:
 
         void initColorSets(const CCDBG_Build_opt& opt, const size_t max_nb_hash = 31);
-        void buildColorSets(const CCDBG_Build_opt& opt);
+        void buildColorSets(const size_t nb_threads);
         bool readColorSets(const CCDBG_Build_opt& opt);
 
         ColorSet* getColorSet(const UnitigMap<HashID>& um);
@@ -118,7 +125,7 @@ class ColoredCDBG : public CompactedDBG<HashID> {
 
         uint64_t seeds[256];
 
-        //bool invalid;
+        bool invalid;
 
         size_t nb_seeds;
         size_t nb_color_sets;
@@ -127,7 +134,7 @@ class ColoredCDBG : public CompactedDBG<HashID> {
 
         KmerHashTable<ColorSet> km_overflow;
 
-        //vector<string> color_names;
+        vector<string> color_names;
 };
 
 #endif

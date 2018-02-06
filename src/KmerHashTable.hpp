@@ -934,7 +934,7 @@ struct KmerHashTable {
         Kmer* old_table_keys = table_keys;
         T* old_table_values = table_values;
 
-        size_t old_size_ = size_;
+        const size_t old_size_ = size_;
 
         size_ = rndup(sz);
         pop = 0;
@@ -947,7 +947,10 @@ struct KmerHashTable {
 
         for (size_t i = 0; i < old_size_; ++i) {
 
-            if (old_table_keys[i] != empty_key && old_table_keys[i] != deleted_key) insert(old_table_keys[i], old_table_values[i]);
+            if (old_table_keys[i] != empty_key && old_table_keys[i] != deleted_key){
+
+                insert(std::move(old_table_keys[i]), std::move(old_table_values[i]));
+            }
         }
 
         delete[] old_table_keys;
@@ -1020,6 +1023,36 @@ struct KmerHashTable {
     }
 
     std::pair<iterator, bool> insert(const Kmer& key, const T& value) {
+
+        if ((5 * num_empty) < size_) reserve(2 * size_); // if more than 80% full, resize
+
+        bool is_deleted = false;
+
+        const size_t end_table = size_-1;
+
+        for (size_t h = key.hash() & (size_-1), h_tmp;; h = (h+1) & end_table) {
+
+            if (table_keys[h] == empty_key) {
+
+                is_deleted ? h = h_tmp : --num_empty;
+
+                table_keys[h] = key;
+                table_values[h] = value;
+
+                ++pop;
+
+                return {iterator(this, h), true};
+            }
+            else if (table_keys[h] == key) return {iterator(this, h), false};
+            else if (!is_deleted && (table_keys[h] == deleted_key)) {
+
+                is_deleted = true;
+                h_tmp = h;
+            }
+        }
+    }
+
+    std::pair<iterator, bool> insert(Kmer&& key, T&& value) {
 
         if ((5 * num_empty) < size_) reserve(2 * size_); // if more than 80% full, resize
 
@@ -1311,7 +1344,10 @@ struct MinimizerHashTable {
 
         for (size_t i = 0; i < old_size_; i++) {
 
-            if (old_table_keys[i] != empty_key && old_table_keys[i] != deleted_key) insert(old_table_keys[i], old_table_values[i]);
+            if (old_table_keys[i] != empty_key && old_table_keys[i] != deleted_key){
+
+                insert(std::move(old_table_keys[i]), std::move(old_table_values[i]));
+            }
         }
 
         delete[] old_table_keys;
@@ -1385,6 +1421,36 @@ struct MinimizerHashTable {
     }
 
     std::pair<iterator, bool> insert(const Minimizer& key, const T& value) {
+
+        if ((5 * num_empty) < size_) reserve(2 * size_); // if more than 80% full, resize
+
+        bool is_deleted = false;
+
+        const size_t end_table = size_-1;
+
+        for (size_t h = key.hash() & (size_-1), h_tmp;; h = (h+1) & end_table) {
+
+            if (table_keys[h] == empty_key) {
+
+                is_deleted ? h = h_tmp : --num_empty;
+
+                table_keys[h] = key;
+                table_values[h] = value;
+
+                ++pop;
+
+                return {iterator(this, h), true};
+            }
+            else if (table_keys[h] == key) return {iterator(this, h), false};
+            else if (!is_deleted && (table_keys[h] == deleted_key)) {
+
+                is_deleted = true;
+                h_tmp = h;
+            }
+        }
+    }
+
+    std::pair<iterator, bool> insert(Minimizer&& key, T&& value) {
 
         if ((5 * num_empty) < size_) reserve(2 * size_); // if more than 80% full, resize
 
