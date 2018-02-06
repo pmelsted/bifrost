@@ -119,11 +119,11 @@ bool ColoredCDBG::build(const CCDBG_Build_opt& opt){
 
         CDBG_Build_opt opt_ = opt.getCDBG_Build_opt();
 
-        invalid = CompactedDBG::build(opt_);
+        invalid = !CompactedDBG::build(opt_);
     }
     else cerr << "ColoredCDBG::build(): Graph is invalid and cannot be built." << endl;
 
-    return invalid;
+    return !invalid;
 }
 
 bool ColoredCDBG::mapColors(const CCDBG_Build_opt& opt){
@@ -135,11 +135,11 @@ bool ColoredCDBG::mapColors(const CCDBG_Build_opt& opt){
             initColorSets(opt);
             buildColorSets(opt.nb_threads);
         }
-        else invalid = readColorSets(opt);
+        else invalid = !readColorSets(opt);
     }
     else cerr << "ColoredCDBG::mapColors(): Graph is invalid (maybe not built yet?) and colors cannot be mapped." << endl;
 
-    return invalid;
+    return !invalid;
 }
 
 void ColoredCDBG::initColorSets(const CCDBG_Build_opt& opt, const size_t max_nb_hash){
