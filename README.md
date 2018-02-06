@@ -208,7 +208,7 @@ Yes, as long as they are FASTA, FASTQ and GFA.
 
 **If I input a GFA file, does it need to contain already a compacted de Bruijn graph?**
 
-No, it can contain any type of sequence graph (like an uncompacted de Bruijn graph). Bifrost will extract the sequences from the file and build the compacted de Bruijn graph out of them.
+No, it can contain any type of sequence graph (like an uncompacted de Bruijn graph). Bifrost will extract the sequences from the file and build the compacted de Bruijn graph out of them. Don't forget that if you input a GFA file, you probably want to run Bifrost in reference mode (`-r` parameter, build the graph from all k-mers of the sequences).
 
 **Can I build a compacted de Bruijn graph from assembled genomes and reads?**
 
