@@ -1,6 +1,6 @@
 # Bifrost
 
-Highly Parallel and Memory Efficient Colored and Compacted de Bruijn Graph Construction
+**Highly Parallel and Memory Efficient Colored and Compacted de Bruijn Graph Construction**
 
 This repository contains the source code for a new parallel and memory efficient algorithm enabling the direct construction of the compacted de Bruijn graph without producing the intermediate uncompacted de Bruijn graph. Despite making extensive use of a probabilistic data structure (the Bloom filter), our algorithm guarantees that the produced compacted de Bruijn graph is deterministic. Furthermore, the algorithm features de Bruijn graph simplification steps used by assemblers such as tip clipping and isolated unitig removal. In addition, as disk-based software performance is significantly affected by the discrepancy of speed among disk storage technologies, our method uses only main memory storage.
 
@@ -55,7 +55,7 @@ make
 make install
 ```
 
-`make install` might requires `sudo` (`sudo make install`) to proceed.
+`make install` might requires `sudo` (`sudo make install`) to proceed. Make sure that your environment variables (such as *LD_LIBRARY_PATH*) are set correctly. 
 
 By default, the installation creates a binary (*Bifrost*), a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS) and a static library (*libbifrost.a*).
 
@@ -64,7 +64,7 @@ The default maximum *k*-mer size supported is 31. To work with larger *k*, you m
 set( MAX_KMER_SIZE "64")
 ```
 
-In this case, the maximum *k* allowed is 63. Keep in mind that increasing MAX_KMER_SIZE increases Bifrost memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
+In this case, the maximum *k* allowed is 63. Keep in mind that increasing *MAX_KMER_SIZE* increases Bifrost memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
 
 ## Binary usage:
 
