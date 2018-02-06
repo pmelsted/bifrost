@@ -411,10 +411,6 @@ bool ColoredCDBG::setColor(const UnitigMap<HashID>& um, const size_t color_id) {
                 return true;
             }
         }
-        else if (color_sets == nullptr){
-
-            cerr << "ColoredCDBG::setColor(): Colors are not mapped to the unitigs yet (use ColoredCDBG::mapColors() first)" << endl;
-        }
     }
     else cerr << "ColoredCDBG::setColor(): Graph is invalid, it is not possible to set a color for a unitig." << endl;
 
@@ -531,10 +527,6 @@ bool ColoredCDBG::joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<H
                 return true;
             }
         }
-        else if (color_sets == nullptr){
-
-            cerr << "ColoredCDBG::joinColors(): Colors are not mapped to the unitigs yet (use ColoredCDBG::mapColors() first)" << endl;
-        }
     }
     else cerr << "ColoredCDBG::joinColors(): Graph is invalid, it is not possible to join color sets." << endl;
 
@@ -572,10 +564,6 @@ ColorSet ColoredCDBG::extractColors(const UnitigMap<HashID>& um) const {
                 }
             }
         }
-        else if (color_sets == nullptr){
-
-            cerr << "ColoredCDBG::extractColors(): Colors are not mapped to the unitigs yet (use ColoredCDBG::mapColors() first)" << endl;
-        }
     }
     else cerr << "ColoredCDBG::extractColors(): Graph is invalid, no colors can be extracted." << endl;
 
@@ -612,10 +600,6 @@ vector<string> ColoredCDBG::extractColorNames(const UnitigMap<HashID>& um) const
                     prev_color_id = color_id;
                 }
             }
-        }
-        else if (color_sets == nullptr){
-
-            cerr << "ColoredCDBG::extractColors(): Colors are not mapped to the unitigs yet (use ColoredCDBG::mapColors() first)" << endl;
         }
     }
     else cerr << "ColoredCDBG::extractColors(): Graph is invalid, no colors can be extracted." << endl;
