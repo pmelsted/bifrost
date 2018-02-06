@@ -130,7 +130,7 @@ bool ColoredCDBG::mapColors(const CCDBG_Build_opt& opt){
 
     if (!invalid){
 
-        if (opt.filename_seq_in.size() == 0){
+        if (opt.filename_seq_in.size() != 0){
 
             initColorSets(opt);
             buildColorSets(opt.nb_threads);
