@@ -159,6 +159,10 @@ struct CCDBG_Build_opt {
     }
 };
 
+/** @class ColoredCDBG
+* @brief Represent a Colored and Compacted de Bruijn graph. The class inherits from CompactedDBG
+* which means that all public functions available on CompactedDBG are also available on ColoredCDBG.
+*/
 class ColoredCDBG : public CompactedDBG<HashID> {
 
     friend class HashID;

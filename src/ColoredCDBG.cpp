@@ -1,5 +1,9 @@
 #include "ColoredCDBG.hpp"
 
+/** Colored and Compacted de Bruijn graph constructor (set up an empty colored cdBG).
+* @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
+* @param minimizer_length is the length g of minimizers (g < k) used in the graph.
+*/
 ColoredCDBG::ColoredCDBG(int kmer_length, int minimizer_length) :   CompactedDBG(kmer_length, minimizer_length),
                                                                     color_sets(nullptr), invalid(false), nb_seeds(0),
                                                                     nb_color_sets(0) {
@@ -14,6 +18,11 @@ ColoredCDBG::ColoredCDBG(int kmer_length, int minimizer_length) :   CompactedDBG
     invalid = CompactedDBG::isInvalid();
 }
 
+/** Colored and compacted de Bruijn graph copy constructor (copy a colored cdBG).
+* This function is expensive in terms of time and memory as the content of a colored and compacted
+* de Bruijn graph is copied. After the call to this function, the same graph exists twice in memory.
+* @param o is a constant reference to the colored and compacted de Bruijn graph to copy.
+*/
 ColoredCDBG::ColoredCDBG(const ColoredCDBG& o) :    CompactedDBG(o), invalid(o.invalid), nb_seeds(o.nb_seeds),
                                                     nb_color_sets(o.nb_color_sets), color_names(o.color_names),
                                                     color_sets(nullptr) {
@@ -28,6 +37,11 @@ ColoredCDBG::ColoredCDBG(const ColoredCDBG& o) :    CompactedDBG(o), invalid(o.i
     }
 }
 
+/** Colored and compacted de Bruijn graph move constructor (move a colored cdBG).
+* The content of o is moved ("transfered") to a new colored and compacted de Bruijn graph.
+* The colored and compacted de Bruijn graph referenced by o will be empty after the call to this constructor.
+* @param o is a reference on a reference to the colored and compacted de Bruijn graph to move.
+*/
 ColoredCDBG::ColoredCDBG(ColoredCDBG&& o) : CompactedDBG(o), invalid(o.invalid), nb_seeds(o.nb_seeds),
                                             nb_color_sets(o.nb_color_sets), color_names(move(o.color_names)),
                                             color_sets(o.color_sets) {
@@ -38,11 +52,15 @@ ColoredCDBG::ColoredCDBG(ColoredCDBG&& o) : CompactedDBG(o), invalid(o.invalid),
     o.clear();
 }
 
+/** Colored and compacted de Bruijn graph destructor.
+*/
 ColoredCDBG::~ColoredCDBG() {
 
     empty();
 }
 
+/** Clear the graph: empty the graph and reset its parameters.
+*/
 void ColoredCDBG::clear(){
 
     invalid = true;
@@ -55,6 +73,8 @@ void ColoredCDBG::clear(){
     empty();
 }
 
+/** Empty the graph (does not reset its parameters).
+*/
 void ColoredCDBG::empty(){
 
     if (color_sets != nullptr){
@@ -68,6 +88,12 @@ void ColoredCDBG::empty(){
     CompactedDBG::empty();
 }
 
+/** Colored and compacted de Bruijn graph copy assignment operator (copy a colored cdBG).
+* This function is expensive in terms of time and memory as the content of a colored and compacted
+* de Bruijn graph is copied.  After the call to this function, the same graph exists twice in memory.
+* @param o is a constant reference to the colored and compacted de Bruijn graph to copy.
+* @return a reference to the colored and compacted de Bruijn which is the copy.
+*/
 ColoredCDBG& ColoredCDBG::operator=(const ColoredCDBG& o) {
 
     CompactedDBG::operator=(o);
@@ -91,6 +117,12 @@ ColoredCDBG& ColoredCDBG::operator=(const ColoredCDBG& o) {
     return *this;
 }
 
+/** Colored and compacted de Bruijn graph move assignment operator (move a colored cdBG).
+* The content of o is moved ("transfered") to a new colored and compacted de Bruijn graph.
+* The colored and compacted de Bruijn graph referenced by o will be empty after the call to this operator.
+* @param o is a reference on a reference to the colored and compacted de Bruijn graph to move.
+* @return a reference to the colored and compacted de Bruijn which has (and owns) the content of o.
+*/
 ColoredCDBG& ColoredCDBG::operator=(ColoredCDBG&& o) {
 
     if (this != &o) {
@@ -113,6 +145,11 @@ ColoredCDBG& ColoredCDBG::operator=(ColoredCDBG&& o) {
     return *this;
 }
 
+/** Build the Colored and compacted de Bruijn graph (only the unitigs).
+* A call to ColoredCDBG::mapColors is required afterwards to map colors to unitigs.
+* @param opt is a structure from which the members are parameters of this function. See CCDBG_Build_opt.
+* @return boolean indicating if the graph has been built successfully.
+*/
 bool ColoredCDBG::build(const CCDBG_Build_opt& opt){
 
     if (!invalid){
@@ -126,11 +163,16 @@ bool ColoredCDBG::build(const CCDBG_Build_opt& opt){
     return !invalid;
 }
 
+/** Map the colors to the unitigs. This is done by reading (again) the input files and querying the graph.
+* If a color filename is provided in opt.filename_colors_in, colors are loaded from that file instead.
+* @param opt is a structure from which the members are parameters of this function. See CCDBG_Build_opt.
+* @return boolean indicating if the colors have been mapped successfully.
+*/
 bool ColoredCDBG::mapColors(const CCDBG_Build_opt& opt){
 
     if (!invalid){
 
-        if (opt.filename_seq_in.size() != 0){
+        if (opt.filename_colors_in.size() == 0){
 
             initColorSets(opt);
             buildColorSets(opt.nb_threads);

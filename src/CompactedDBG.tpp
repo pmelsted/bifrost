@@ -91,6 +91,14 @@ CompactedDBG<T>::CompactedDBG(CompactedDBG&& o) :   k_(o.k_), g_(o.g_), invalid(
     o.has_data = false;
 }
 
+/** Compacted de Bruijn graph destructor.
+*/
+template<typename T>
+CompactedDBG<T>::~CompactedDBG() {
+
+    empty();
+}
+
 /** Compacted de Bruijn graph copy assignment operator (copy a compacted de Bruijn graph).
 * This function is expensive in terms of time and memory as the content of a compacted
 * de Bruijn graph is copied.  After the call to this function, the same graph exists twice in memory.
@@ -161,14 +169,6 @@ CompactedDBG<T>& CompactedDBG<T>::operator=(CompactedDBG&& o){
     }
 
     return *this;
-}
-
-/** Compacted de Bruijn graph destructor.
-*/
-template<typename T>
-CompactedDBG<T>::~CompactedDBG() {
-
-    empty();
 }
 
 /** Clear the graph: empty the graph and reset its parameters.
