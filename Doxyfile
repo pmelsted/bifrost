@@ -759,6 +759,7 @@ WARN_LOGFILE           =
 # Note: If this tag is empty the current directory is searched.
 
 INPUT                  = 	src/CompactedDBG.hpp src/CompactedDBG.tpp \
+				src/ColoredCDBG.hpp src/ColoredCDBG.cpp \
 				src/UnitigMap.hpp src/UnitigMap.tpp \
 				src/NeighborIterator.hpp src/NeighborIterator.tpp \
 				src/UnitigIterator.hpp src/UnitigIterator.tpp \

@@ -302,6 +302,7 @@ int main(int argc, char **argv){
         CCDBG_Build_opt opt;
 
         opt.reference_mode = false; // We dont know yet if we want colors or not
+        opt.outputColors = false; // We dont know yet if we want colors or not
 
         parse_ProgramOptions(argc, argv, opt); // Parse input parameters
 
@@ -310,6 +311,7 @@ int main(int argc, char **argv){
             if (opt.outputColors || (opt.filename_colors_in.size() != 0)){ // If colors in or out
 
                 opt.reference_mode = true; //If the user wants a colored cdBG, it is reference mode
+                opt.outputColors = true; //If the user wants a colored cdBG, it is reference mode
 
                 ColoredCDBG cdbg(opt.k, opt.g);
 

@@ -55,9 +55,11 @@ make
 make install
 ```
 
-`make install` might requires `sudo` (`sudo make install`) to proceed. Make sure that your environment variables (such as *LD_LIBRARY_PATH*) are set correctly. 
+`make install` might requires `sudo` (`sudo make install`) to proceed. 
 
 By default, the installation creates a binary (*Bifrost*), a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS) and a static library (*libbifrost.a*).
+
+Make sure that your environment variables (such as *LD_LIBRARY_PATH*) are set correctly. A typical example of environment variables not set correctly is when *libbifrost.so* or *libbifrost.a* cannot be found when executing the binary of Bifrost.
 
 The default maximum *k*-mer size supported is 31. To work with larger *k*, you must replace *MAX_KMER_SIZE* in *CMakeLists.txt* with a larger (appropriate) number, such as:
 ```
@@ -154,7 +156,7 @@ Colors are used to annotate k-mers with the set of genomes/samples in which they
 
 ### Documentation
 
-Documentation for the Bifrost library is available in the */doc/doxygen* folder (HTML version, open *index.html*).
+Documentation for the Bifrost library is available in the */doc/doxygen* folder (HTML version, open *html/index.html*).
 
 The following command regenerates the documentation:
 ```

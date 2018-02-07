@@ -205,11 +205,10 @@ void UnitigMap<T>::mergeData(const UnitigMap<T>& um) {
 
 template<> inline void UnitigMap<void>::mergeData(const UnitigMap<void>& um) { /* Does nothing */ }
 
-/** Create new data to associate with a new unitig which is a subsequence of the current mapped unitig.
-* This function calls the function CDBG_Data_t<T>::split but it does not create anything
-* if there is no mapping (UnitigMap<T>::isEmpty = true) or no data associated with the unitigs (T = void).
-* @param pos is the start position of the new unitig within the current mapped unitig.
-* @param len is the length of the new unitig.
+/** Create new data to associate with a new unitig which is a sub-unitig of the current mapped unitig.
+* Does not do anything if no data are associated with the unitigs (T = void).
+* @param last_split is a boolean indicating this is the last call to UnitigMap<T>::splitData (true) on
+* the current unitig mapped (this) or not (false).
 * @return a Unitig object containing the new data. The unitig sequence and coverage are not set, only
 * the data (if there are some).
 */
