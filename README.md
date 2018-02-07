@@ -125,25 +125,25 @@ By default, Bifrost produces a compacted de Bruijn graph without colors.
 
 Colors are used to annotate k-mers with the set of genomes/samples in which they occur. Producing a colored and compacted de Bruijn graph using Bifrost is a two steps process:
 
-1. **Build the compacted de Bruijn graph for each color (sample(s) or genome(s)) and output the unitigs of each graph to a FASTA file (`-a` parameter)**
+1. **Build the compacted de Bruijn graph for each set of read files (not for assembled genomes) and output the unitigs to FASTA (`-a` parameter)**
 
-   Example: Three input files *A.fastq*, *B.fastq* and *C.fastq*: A and B are reads to group in one color, C is an assembled genome to associate with another color.
+   Example: Four input files *A.fastq*, *B.fastq*, *C.fastq* and *D.fastq*. A and B are paired-end reads from one genome, C is reads from another genome and D is an assembled genome.
    ```
-   Bifrost -k 31 -t 4 -i -d -a -o AB_cdBG -f A.fastq B.fastq
-   Bifrost -k 31 -t 4 -r -a -o C_cdBG -f C.fastq 
+   Bifrost -k 31 -t 4 -i -d -a -o AB_unitigs -f A.fastq B.fastq
+   Bifrost -k 31 -t 4 -i -d -a -o C_unitigs -f C.fastq 
    ```
-   In this example, each compacted de Bruijn graph is built using 31-mers (`-k 31`) and 4 threads (`-t 4`). For the read files A and B (`-f A.fastq B.fastq`), graph simplification steps are performed after construction (`-i -d`) and the unitigs are output to the FASTA file *AB_cdBG.fasta* (`-a -o AB_cdBG`). For the assembled genome C, the graph is built in reference mode (`-r`) and the unitigs are output to the FASTA file *C_cdBG.fasta* (`-a -o C_cdBG`). 
+   In this example, each compacted de Bruijn graph is built using 31-mers (`-k 31`) and 4 threads (`-t 4`). Graph simplification steps are performed after construction (`-i -d`) and the unitigs are output to FASTA files *AB_unitigs.fasta* (`-a -o AB_unitigs`) and *C_unitigs.fasta* (`-a -o C_unitigs`). It was not necessary to build the compacted de Bruijn graph for *D.fastq* as it is already an assembled genome.
 
-2. **Build the colored and compacted de Bruijn graph (`-p` parameter) using the previously produced FASTA files in input**
+2. **Build the colored and compacted de Bruijn graph (`-p` parameter) using in input the previously produced FASTA files and your assembled genomes (if you have some)**
 
-   Example: Two input FASTA files *AB_cdBG.fasta* and *C_cdBG.fasta*. Each file contains the unitigs of a compacted de Bruijn graph and is going to be represented by a color.
+   Example: Three input files *AB_unitigs.fasta*, *C_unitigs.fasta* and *D.fastq*. *AB_unitigs.fasta* and *C_unitigs.fasta* are unitigs. *D.fastq* is an assembled genome.
    ```
-   Bifrost -k 31 -t 4 -p -o ABC_ccdBG -f AB_cdBG.fasta C_cdBG.fasta
+   Bifrost -k 31 -t 4 -p -o ABCD -f AB_unitigs.fasta C_unitigs.fasta D.fastq
    ```
-   In this example, the colored (`-p`) and compacted de Bruijn graph is built using 31-mers (`-k 31`) and 4 threads (`-t 4`) from the files *AB_cdBG.fasta* and *C_cdBG.fasta* (`-f AB_cdBG.fasta C_cdBG.fasta`). The graph will be output to a GFA file *ABC_ccdBG.gfa* and colors will be output to file *ABC_ccdBG.bfg_colors* (`-o ABC_ccdBG`).
+   In this example, the colored (`-p`) and compacted de Bruijn graph is built using 31-mers (`-k 31`) and 4 threads (`-t 4`) from the files *AB_unitigs.fasta*, *C_unitigs.fasta* and *D.fastq* (`-f AB_unitigs.fasta C_unitigs.fasta D.fastq`). The graph will be output to a GFA file *ABCD.gfa* and colors will be output to file *ABCD.bfg_colors* (`-o ABCD`).
 
 <p align="center">
-<img src="pipeline_colored_cdbg.png" alt="pipeline_colors" width="600" align="middle"/>
+<img src="pipeline_colored_cdbg.png" alt="pipeline_colors" width="700" align="middle"/>
 </p>
 
 02-02-2018: More color options coming soon
