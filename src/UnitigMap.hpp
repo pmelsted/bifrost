@@ -110,11 +110,11 @@ struct NewUnitig {
 
     Kmer km;
 
-    string read, seq;
+    string seq;
 
-    size_t pos;
+    size_t len_match_km; // Match length in k-mers
 
-    NewUnitig(const Kmer km_, const string& read_, const size_t pos_, const string& seq_) : km(km_), read(read_), pos(pos_), seq(seq_) {}
+    NewUnitig(const Kmer km_, const string& seq_, const size_t len_match_km_) : km(km_), seq(seq_), len_match_km(len_match_km_) {}
 };
 ///@endcond
 

@@ -1445,14 +1445,21 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
                             }
 
                             if (i >= v.size()) v.push_back(km_rep);
-                            else smallv->push_back(make_pair(NewUnitig(km, *x, p_.second, selfLoop ? std::string() : newseq), &v));
+                            else {
+
+                                const size_t len_match_km = 1 + cstrMatch(&s_x[p_.second + k_], &newseq.c_str()[pos_match + k_]);
+                                smallv->push_back(make_pair(NewUnitig(km, selfLoop ? std::string() : newseq, len_match_km), &v));
+                            }
 
                             locks_fp[id_lock].clear(std::memory_order_release);
                         }
                         else {
 
-                            smallv->push_back(make_pair(NewUnitig(km, *x, p_.second, selfLoop ? std::string() : newseq), nullptr));
-                            it_kmer_h += cstrMatch(&s_x[p_.second + k_], &newseq.c_str()[pos_match + k_]);
+                            const size_t len_match_km = 1 + cstrMatch(&s_x[p_.second + k_], &newseq.c_str()[pos_match + k_]);
+
+                            smallv->push_back(make_pair(NewUnitig(km, selfLoop ? std::string() : newseq, len_match_km), nullptr));
+
+                            it_kmer_h += (len_match_km - 1);
                         }
                     }
                     else {
@@ -1516,7 +1523,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                 const NewUnitig& nu = p.first;
 
-                addUnitigSequenceBBF(nu.km, nu.read, nu.pos, nu.seq, v_ignored_km_tip_thread[0]); // add each unitig for this thread
+                addUnitigSequenceBBF(nu.km, nu.seq, nu.len_match_km, v_ignored_km_tip_thread[0]); // add each unitig for this thread
 
                 if (p.second != nullptr){ // Must remove false positive km from list of false positives
 
@@ -1628,7 +1635,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 //       NOT Threadsafe!
 //bool UnitigMap<T>per::addUnitigSequenceBBF(Kmer km, const string& read, size_t pos, const string& seq) {
 template<typename T>
-bool CompactedDBG<T>::addUnitigSequenceBBF(Kmer km, const string& read, size_t pos, const string& seq, vector<Kmer>& l_ignored_km_tip) {
+bool CompactedDBG<T>::addUnitigSequenceBBF(Kmer km, const string& seq, const size_t len_match_km, vector<Kmer>& l_ignored_km_tip) {
 
     string s;
     bool selfLoop = false;
@@ -1662,13 +1669,17 @@ bool CompactedDBG<T>::addUnitigSequenceBBF(Kmer km, const string& read, size_t p
         return true;
     }
 
-    UnitigMap<T> cm = findUnitig(km, read, pos);
+    UnitigMap<T> cm = find(km);
 
     if (cm.isEmpty){
 
         addUnitig(s, s.length() == k_ ? v_kmers.size() : v_unitigs.size());
-        cm = findUnitig(km, read, pos);
+        cm = find(km);
     }
+
+    cm.len = len_match_km;
+
+    if (!cm.isShort && !cm.isAbundant && !cm.strand) cm.dist -= cm.len - 1;
 
     mapRead(cm);
 
