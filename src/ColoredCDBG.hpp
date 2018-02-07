@@ -185,7 +185,7 @@ class ColoredCDBG : public CompactedDBG<HashID> {
 
         bool mapColors(const CCDBG_Build_opt& opt);
 
-        bool setColor(const UnitigMap<HashID>& um, size_t color);
+        bool setColor(const UnitigMap<HashID>& um, const size_t color_id);
         bool joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src);
 
         const ColorSet* getColorSet(const UnitigMap<HashID>& um) const; // Can be used to query a color set
@@ -193,7 +193,7 @@ class ColoredCDBG : public CompactedDBG<HashID> {
         vector<string> extractColorNames(const UnitigMap<HashID>& um) const; // Return union of color names matching the UnitigMap
         ColorSet extractColors(const UnitigMap<HashID>& um) const; // Return new color set matching the UnitigMap
 
-        bool write(const string output_filename, const size_t nb_threads, const bool verbose);
+        bool write(const string prefix_output_filename, const size_t nb_threads, const bool verbose = false);
 
     private:
 

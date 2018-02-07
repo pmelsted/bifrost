@@ -184,6 +184,353 @@ bool ColoredCDBG::mapColors(const CCDBG_Build_opt& opt){
     return !invalid;
 }
 
+/** Map the colors to the unitigs. This is done by reading (again) the input files and querying the graph.
+* If a color filename is provided in opt.filename_colors_in, colors are loaded from that file instead.
+* @param um is a UnitigMap representing the mapping of a unitig to which the color set will contain the color to add.
+* @param color_id is the ID of the color to add.
+* @return boolean indicating if the color was successfully added.
+*/
+bool ColoredCDBG::setColor(const UnitigMap<HashID>& um, const size_t color_id) {
+
+    if (!invalid){
+
+        if (color_id < color_names.size()){
+
+            if (!um.isEmpty && (color_sets != nullptr)){
+
+                ColorSet* color_set = getColorSet(um);
+
+                if (color_set != nullptr){
+
+                    color_set->add(um, color_id);
+
+                    return true;
+                }
+            }
+        }
+        else cerr << "ColoredCDBG::setColor(): Color ID does not match any color inserted." << endl;
+    }
+    else cerr << "ColoredCDBG::setColor(): Graph is invalid, it is not possible to set a color for a unitig." << endl;
+
+    return false;
+}
+
+/** Join two color sets (union). All colors of the color set matching um_src are added to the color set
+* matching um_dest. The reverse-complement of um_src and um_dest (UnitigMap<HashID>::strand) are considered.
+* @param um_dest is a UnitigMap representing a mapping to a unitig to which the color set will contain the
+* union of itself and the color set matching um_src.
+* @param um_src is a UnitigMap representing a mapping to a unitig from which the color set will be joined
+* with the color set matching um_dest.
+* @return boolean indicating if the color sets have been joined successfully.
+*/
+bool ColoredCDBG::joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src) {
+
+    if (!invalid){
+
+        if (!um_dest.isEmpty && !um_src.isEmpty && (color_sets != nullptr)){
+
+            ColorSet* color_set_dest = getColorSet(um_dest);
+            ColorSet* color_set_src = getColorSet(um_src);
+
+            if ((color_set_dest != nullptr) && (color_set_src != nullptr)){
+
+                ColorSet new_cs, csd_rev, css_rev;
+
+                size_t prev_color_id = 0xffffffffffffffff;
+                size_t prev_km_dist = 0xffffffffffffffff;
+
+                const size_t um_dest_km_sz = um_dest.size - getK() + 1;
+                const size_t um_src_km_sz = um_src.size - getK() + 1;
+
+                UnitigMap<HashID> new_um_dest(um_dest.pos_unitig, 0, 0, um_dest.size + um_src.size,
+                                              um_dest.isShort, um_dest.isAbundant, um_dest.strand, *(um_dest.cdbg));
+
+                if (!um_dest.strand){
+
+                    csd_rev = color_set_dest->reverse(um_dest.size);
+                    color_set_dest = &csd_rev;
+                }
+
+                ColorSet::const_iterator it = color_set_dest->begin(), it_end = color_set_dest->end();
+
+                if (it != it_end){
+
+                    prev_color_id = *it / um_dest_km_sz;
+                    prev_km_dist = *it - (prev_color_id * um_dest_km_sz);
+
+                    new_um_dest.dist = prev_km_dist;
+                    new_um_dest.len = 1;
+
+                    ++it;
+                }
+
+                // Insert colors layer by layer
+                for (; it != it_end; ++it){
+
+                    const size_t color_id = *it / um_dest_km_sz;
+                    const size_t km_dist = *it - (color_id * um_dest_km_sz);
+
+                    if ((color_id != prev_color_id) || (km_dist != prev_km_dist + 1)){
+
+                        new_cs.add(new_um_dest, color_id);
+
+                        new_um_dest.dist = km_dist;
+                        new_um_dest.len = 1;
+                    }
+                    else ++new_um_dest.len;
+
+                    prev_color_id = color_id;
+                    prev_km_dist = km_dist;
+                }
+
+                if (new_um_dest.dist + new_um_dest.len != 0) new_cs.add(new_um_dest, prev_color_id);
+
+                UnitigMap<HashID> new_um_src(um_src.pos_unitig, 0, 0, um_dest.size + um_src.size,
+                                             um_src.isShort, um_src.isAbundant, um_src.strand, *(um_src.cdbg));
+
+                if (!um_src.strand){
+
+                    css_rev = color_set_src->reverse(um_src.size);
+                    color_set_src = &css_rev;
+                }
+
+                it = color_set_src->begin(), it_end = color_set_src->end();
+
+                if (it != it_end){
+
+                    prev_color_id = *it / um_src_km_sz;
+                    prev_km_dist = *it - (prev_color_id * um_src_km_sz);
+
+                    new_um_src.dist = prev_km_dist + um_dest.size;
+                    new_um_src.len = 1;
+
+                    ++it;
+                }
+
+                // Insert colors layer by layer
+                for (; it != it_end; ++it){
+
+                    const size_t color_id = *it / um_src_km_sz;
+                    const size_t km_dist = *it - (color_id * um_src_km_sz);
+
+                    if ((color_id != prev_color_id) || (km_dist != prev_km_dist + 1)){
+
+                        new_cs.add(new_um_src, color_id);
+
+                        new_um_src.dist = km_dist + um_dest.size;
+                        new_um_src.len = 1;
+                    }
+                    else ++new_um_src.len;
+
+                    prev_color_id = color_id;
+                    prev_km_dist = km_dist;
+                }
+
+                if (new_um_src.dist + new_um_src.len != 0) new_cs.add(new_um_src, prev_color_id);
+
+                *color_set_dest = new_cs;
+
+                return true;
+            }
+        }
+    }
+    else cerr << "ColoredCDBG::joinColors(): Graph is invalid, it is not possible to join color sets." << endl;
+
+    return false;
+}
+
+/** Create a new color set from a UnitigMap. UnitigMap<HashID>::len, UnitigMap<HashID>::dist, UnitigMap<HashID>::size
+* and UnitigMap<HashID>::strand are used. This function can be used to create a color set matching a sub-unitig.
+* @param um is a UnitigMap representing a mapping to a unitig from the graph.
+* @return a new color set
+*/
+ColorSet ColoredCDBG::extractColors(const UnitigMap<HashID>& um) const {
+
+    ColorSet new_cs;
+
+    if (!invalid){
+
+        if (!um.isEmpty && (color_sets != nullptr)){
+
+            const ColorSet* cs = getColorSet(um);
+
+            if (cs != nullptr){
+
+                const size_t end = um.dist + um.len;
+                const size_t um_km_sz = um.size - getK() + 1;
+
+                UnitigMap<HashID> fake_um(0, 0, 1, um.len, false, false, um.strand, *(um.cdbg));
+
+                for (ColorSet::const_iterator it = cs->begin(), it_end = cs->end(); it != it_end; ++it){
+
+                    const size_t color_id = *it / um_km_sz;
+                    const size_t km_dist = *it - (color_id * um_km_sz);
+
+                    if ((km_dist >= um.dist) && (km_dist < end)){
+
+                        fake_um.dist = km_dist - um.dist;
+
+                        new_cs.add(fake_um, color_id);
+                    }
+                }
+            }
+        }
+    }
+    else cerr << "ColoredCDBG::extractColors(): Graph is invalid, no colors can be extracted." << endl;
+
+    return new_cs;
+}
+
+/** Same as ColoredCDBG::extractColors but extract the color names instead.
+* @param um is a UnitigMap representing a mapping to a unitig from the graph.
+* @return a vector a string. Each string is the name of a color.
+*/
+vector<string> ColoredCDBG::extractColorNames(const UnitigMap<HashID>& um) const {
+
+    vector<string> v_out;
+
+    if (!invalid){
+
+        if (!um.isEmpty && (color_sets != nullptr)){
+
+            const ColorSet* cs = getColorSet(um);
+
+            if (cs != nullptr){
+
+                size_t prev_color_id = 0xffffffffffffffff;
+
+                const size_t end = um.dist + um.len;
+                const size_t um_km_sz = um.size - getK() + 1;
+
+                for (ColorSet::const_iterator it = cs->begin(), it_end = cs->end(); it != it_end; ++it){
+
+                    const size_t color_id = *it / um_km_sz;
+                    const size_t km_dist = *it - (color_id * um_km_sz);
+
+                    if ((km_dist >= um.dist) && (km_dist < end) && (color_id != prev_color_id)){
+
+                        v_out.push_back(color_names[color_id]);
+                    }
+
+                    prev_color_id = color_id;
+                }
+            }
+        }
+    }
+    else cerr << "ColoredCDBG::extractColors(): Graph is invalid, no colors can be extracted." << endl;
+
+    return v_out;
+}
+
+/** Get the color set of a unitig.
+* @param um is a UnitigMap representing a mapping to a unitig from the graph.
+* @return a constant pointer to the color set matching um. If no such color set
+* is found, the pointer equals nullptr.
+*/
+const ColorSet* ColoredCDBG::getColorSet(const UnitigMap<HashID>& um) const {
+
+    if (!um.isEmpty && (color_sets != nullptr)){
+
+        const Kmer head = um.getHead();
+
+        const uint8_t hash_id = um.getData()->get();
+
+        if (hash_id == 0){
+
+            KmerHashTable<ColorSet>::const_iterator it = km_overflow.find(head);
+
+            if (it != km_overflow.end()) return &(*it);
+        }
+        else return &color_sets[head.hash(seeds[hash_id - 1]) % nb_color_sets];
+    }
+
+    return nullptr;
+}
+
+/** Write a colored and compacted de Bruijn graph to disk.
+* @param prefix_output_filename is a string which is the prefix of the filename for the two files that are
+* going to be written to disk. If this prefix is "XXX", two files "XXX.gfa" and "XXX.bfg_colors" will be
+* written to disk.
+* @param nb_threads is the number of threads that can be used to write the graph to disk.
+* @param verbose is a boolean indicating if information message are printed during writing (true) or not (false).
+* @return a boolean indicating if the graph was successfully written.
+*/
+bool ColoredCDBG::write(const string prefix_output_filename, const size_t nb_threads, const bool verbose){
+
+    if (CompactedDBG::write(prefix_output_filename, nb_threads, true, verbose)){
+
+        if (verbose) cout << endl << "ColoredCDBG::write(): Writing colors to disk" << endl;
+
+        const string out = prefix_output_filename + ".bfg_colors";
+
+        FILE* fp = fopen(out.c_str(), "wb");
+
+        if (fp == NULL) {
+
+            cerr << "ColoredCDBG::write(): Could not open file " << out << " for writing color sets" << endl;
+            return false;
+        }
+        else {
+
+            fclose(fp);
+
+            if (std::remove(out.c_str()) != 0) cerr << "ColoredCDBG::write(): Could not remove temporary file " << out << endl;
+        }
+
+        ofstream colorsfile_out;
+        ostream colors_out(nullptr);
+
+        colorsfile_out.open(out.c_str(), ios_base::out | ios_base::binary);
+        colors_out.rdbuf(colorsfile_out.rdbuf());
+
+        const size_t format_version = BFG_COLOREDCDBG_FORMAT_VERSION;
+        const size_t k_ = getK();
+        const size_t km_overflow_sz = km_overflow.size();
+        const size_t nb_colors = color_names.size();
+
+        //Write the file format version number
+        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&format_version), sizeof(size_t));
+        //Write k-mer length
+        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&k_), sizeof(size_t));
+        //Write number of different seeds for hash function
+        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&nb_seeds), sizeof(size_t));
+       //Write number of colors in the graph
+        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&nb_colors), sizeof(size_t));
+        //Write number of color sets in the graph
+        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&nb_color_sets), sizeof(size_t));
+        //Write number of (kmer, color set) overflowing
+        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&km_overflow_sz), sizeof(size_t));
+
+        for (size_t i = 0; (i < nb_seeds) && colors_out.good(); ++i){
+            //Write the hash function seeds of the graph
+            colors_out.write(reinterpret_cast<const char*>(&seeds[i]), sizeof(uint64_t));
+        }
+
+        for (size_t i = 0; (i < nb_colors) && colors_out.good(); ++i){
+            //Write the color names of the graph
+            colors_out.write(color_names[i].c_str(), color_names[i].length() + 1);
+        }
+
+        for (size_t i = 0; (i < nb_color_sets) && colors_out.good(); ++i) color_sets[i].write(colors_out); //Write the color sets
+
+        KmerHashTable<ColorSet>::const_iterator it = km_overflow.begin(), it_end = km_overflow.end();
+
+        for (; (it != it_end) && colors_out.good(); ++it){
+
+            it.getKey().write(colors_out);
+            it->write(colors_out);
+        }
+
+        const bool ret = colors_out.good();
+
+        colorsfile_out.close();
+
+        return ret;
+    }
+
+    return false;
+}
+
 void ColoredCDBG::initColorSets(const CCDBG_Build_opt& opt, const size_t max_nb_hash){
 
     const size_t nb_locks = opt.nb_threads * 256;
@@ -438,217 +785,6 @@ void ColoredCDBG::buildColorSets(const size_t nb_threads){
     delete[] cs_locks;
 }
 
-bool ColoredCDBG::setColor(const UnitigMap<HashID>& um, const size_t color_id) {
-
-    if (!invalid){
-
-        if (!um.isEmpty && (color_sets != nullptr)){
-
-            ColorSet* color_set = getColorSet(um);
-
-            if (color_set != nullptr){
-
-                color_set->add(um, color_id);
-
-                return true;
-            }
-        }
-    }
-    else cerr << "ColoredCDBG::setColor(): Graph is invalid, it is not possible to set a color for a unitig." << endl;
-
-    return false;
-}
-
-bool ColoredCDBG::joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src) {
-
-    if (!invalid){
-
-        if (!um_dest.isEmpty && !um_src.isEmpty && (color_sets != nullptr)){
-
-            ColorSet* color_set_dest = getColorSet(um_dest);
-            ColorSet* color_set_src = getColorSet(um_src);
-
-            if ((color_set_dest != nullptr) && (color_set_src != nullptr)){
-
-                ColorSet new_cs, csd_rev, css_rev;
-
-                size_t prev_color_id = 0xffffffffffffffff;
-                size_t prev_km_dist = 0xffffffffffffffff;
-
-                const size_t um_dest_km_sz = um_dest.size - getK() + 1;
-                const size_t um_src_km_sz = um_src.size - getK() + 1;
-
-                UnitigMap<HashID> new_um_dest(um_dest.pos_unitig, 0, 0, um_dest.size + um_src.size,
-                                              um_dest.isShort, um_dest.isAbundant, um_dest.strand, *(um_dest.cdbg));
-
-                if (!um_dest.strand){
-
-                    csd_rev = color_set_dest->reverse(um_dest.size);
-                    color_set_dest = &csd_rev;
-                }
-
-                ColorSet::const_iterator it = color_set_dest->begin(), it_end = color_set_dest->end();
-
-                if (it != it_end){
-
-                    prev_color_id = *it / um_dest_km_sz;
-                    prev_km_dist = *it - (prev_color_id * um_dest_km_sz);
-
-                    new_um_dest.dist = prev_km_dist;
-                    new_um_dest.len = 1;
-
-                    ++it;
-                }
-
-                // Insert colors layer by layer
-                for (; it != it_end; ++it){
-
-                    const size_t color_id = *it / um_dest_km_sz;
-                    const size_t km_dist = *it - (color_id * um_dest_km_sz);
-
-                    if ((color_id != prev_color_id) || (km_dist != prev_km_dist + 1)){
-
-                        new_cs.add(new_um_dest, color_id);
-
-                        new_um_dest.dist = km_dist;
-                        new_um_dest.len = 1;
-                    }
-                    else ++new_um_dest.len;
-
-                    prev_color_id = color_id;
-                    prev_km_dist = km_dist;
-                }
-
-                if (new_um_dest.dist + new_um_dest.len != 0) new_cs.add(new_um_dest, prev_color_id);
-
-                UnitigMap<HashID> new_um_src(um_src.pos_unitig, 0, 0, um_dest.size + um_src.size,
-                                             um_src.isShort, um_src.isAbundant, um_src.strand, *(um_src.cdbg));
-
-                if (!um_src.strand){
-
-                    css_rev = color_set_src->reverse(um_src.size);
-                    color_set_src = &css_rev;
-                }
-
-                it = color_set_src->begin(), it_end = color_set_src->end();
-
-                if (it != it_end){
-
-                    prev_color_id = *it / um_src_km_sz;
-                    prev_km_dist = *it - (prev_color_id * um_src_km_sz);
-
-                    new_um_src.dist = prev_km_dist + um_dest.size;
-                    new_um_src.len = 1;
-
-                    ++it;
-                }
-
-                // Insert colors layer by layer
-                for (; it != it_end; ++it){
-
-                    const size_t color_id = *it / um_src_km_sz;
-                    const size_t km_dist = *it - (color_id * um_src_km_sz);
-
-                    if ((color_id != prev_color_id) || (km_dist != prev_km_dist + 1)){
-
-                        new_cs.add(new_um_src, color_id);
-
-                        new_um_src.dist = km_dist + um_dest.size;
-                        new_um_src.len = 1;
-                    }
-                    else ++new_um_src.len;
-
-                    prev_color_id = color_id;
-                    prev_km_dist = km_dist;
-                }
-
-                if (new_um_src.dist + new_um_src.len != 0) new_cs.add(new_um_src, prev_color_id);
-
-                *color_set_dest = new_cs;
-
-                return true;
-            }
-        }
-    }
-    else cerr << "ColoredCDBG::joinColors(): Graph is invalid, it is not possible to join color sets." << endl;
-
-    return false;
-}
-
-ColorSet ColoredCDBG::extractColors(const UnitigMap<HashID>& um) const {
-
-    ColorSet new_cs;
-
-    if (!invalid){
-
-        if (!um.isEmpty && (color_sets != nullptr)){
-
-            const ColorSet* cs = getColorSet(um);
-
-            if (cs != nullptr){
-
-                const size_t end = um.dist + um.len;
-                const size_t um_km_sz = um.size - getK() + 1;
-
-                UnitigMap<HashID> fake_um(0, 0, 1, um.len, false, false, um.strand, *(um.cdbg));
-
-                for (ColorSet::const_iterator it = cs->begin(), it_end = cs->end(); it != it_end; ++it){
-
-                    const size_t color_id = *it / um_km_sz;
-                    const size_t km_dist = *it - (color_id * um_km_sz);
-
-                    if ((km_dist >= um.dist) && (km_dist < end)){
-
-                        fake_um.dist = km_dist - um.dist;
-
-                        new_cs.add(fake_um, color_id);
-                    }
-                }
-            }
-        }
-    }
-    else cerr << "ColoredCDBG::extractColors(): Graph is invalid, no colors can be extracted." << endl;
-
-    return new_cs;
-}
-
-vector<string> ColoredCDBG::extractColorNames(const UnitigMap<HashID>& um) const {
-
-    vector<string> v_out;
-
-    if (!invalid){
-
-        if (!um.isEmpty && (color_sets != nullptr)){
-
-            const ColorSet* cs = getColorSet(um);
-
-            if (cs != nullptr){
-
-                size_t prev_color_id = 0xffffffffffffffff;
-
-                const size_t end = um.dist + um.len;
-                const size_t um_km_sz = um.size - getK() + 1;
-
-                for (ColorSet::const_iterator it = cs->begin(), it_end = cs->end(); it != it_end; ++it){
-
-                    const size_t color_id = *it / um_km_sz;
-                    const size_t km_dist = *it - (color_id * um_km_sz);
-
-                    if ((km_dist >= um.dist) && (km_dist < end) && (color_id != prev_color_id)){
-
-                        v_out.push_back(color_names[color_id]);
-                    }
-
-                    prev_color_id = color_id;
-                }
-            }
-        }
-    }
-    else cerr << "ColoredCDBG::extractColors(): Graph is invalid, no colors can be extracted." << endl;
-
-    return v_out;
-}
-
 ColorSet* ColoredCDBG::getColorSet(const UnitigMap<HashID>& um) {
 
     ColorSet* color_set = nullptr;
@@ -669,102 +805,6 @@ ColorSet* ColoredCDBG::getColorSet(const UnitigMap<HashID>& um) {
     }
 
     return color_set;
-}
-
-const ColorSet* ColoredCDBG::getColorSet(const UnitigMap<HashID>& um) const {
-
-    if (!um.isEmpty && (color_sets != nullptr)){
-
-        const Kmer head = um.getHead();
-
-        const uint8_t hash_id = um.getData()->get();
-
-        if (hash_id == 0){
-
-            KmerHashTable<ColorSet>::const_iterator it = km_overflow.find(head);
-
-            if (it != km_overflow.end()) return &(*it);
-        }
-        else return &color_sets[head.hash(seeds[hash_id - 1]) % nb_color_sets];
-    }
-
-    return nullptr;
-}
-
-bool ColoredCDBG::write(const string output_filename, const size_t nb_threads, const bool verbose){
-
-    if (CompactedDBG::write(output_filename, nb_threads, true, verbose)){
-
-        if (verbose) cout << endl << "ColoredCDBG::write(): Writing colors to disk" << endl;
-
-        const string out = output_filename + ".bfg_colors";
-
-        FILE* fp = fopen(out.c_str(), "wb");
-
-        if (fp == NULL) {
-
-            cerr << "ColoredCDBG::write(): Could not open file " << out << " for writing color sets" << endl;
-            return false;
-        }
-        else {
-
-            fclose(fp);
-
-            if (std::remove(out.c_str()) != 0) cerr << "ColoredCDBG::write(): Could not remove temporary file " << out << endl;
-        }
-
-        ofstream colorsfile_out;
-        ostream colors_out(nullptr);
-
-        colorsfile_out.open(out.c_str(), ios_base::out | ios_base::binary);
-        colors_out.rdbuf(colorsfile_out.rdbuf());
-
-        const size_t format_version = BFG_COLOREDCDBG_FORMAT_VERSION;
-        const size_t k_ = getK();
-        const size_t km_overflow_sz = km_overflow.size();
-        const size_t nb_colors = color_names.size();
-
-        //Write the file format version number
-        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&format_version), sizeof(size_t));
-        //Write k-mer length
-        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&k_), sizeof(size_t));
-        //Write number of different seeds for hash function
-        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&nb_seeds), sizeof(size_t));
-       //Write number of colors in the graph
-        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&nb_colors), sizeof(size_t));
-        //Write number of color sets in the graph
-        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&nb_color_sets), sizeof(size_t));
-        //Write number of (kmer, color set) overflowing
-        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&km_overflow_sz), sizeof(size_t));
-
-        for (size_t i = 0; (i < nb_seeds) && colors_out.good(); ++i){
-            //Write the hash function seeds of the graph
-            colors_out.write(reinterpret_cast<const char*>(&seeds[i]), sizeof(uint64_t));
-        }
-
-        for (size_t i = 0; (i < nb_colors) && colors_out.good(); ++i){
-            //Write the color names of the graph
-            colors_out.write(color_names[i].c_str(), color_names[i].length() + 1);
-        }
-
-        for (size_t i = 0; (i < nb_color_sets) && colors_out.good(); ++i) color_sets[i].write(colors_out); //Write the color sets
-
-        KmerHashTable<ColorSet>::const_iterator it = km_overflow.begin(), it_end = km_overflow.end();
-
-        for (; (it != it_end) && colors_out.good(); ++it){
-
-            it.getKey().write(colors_out);
-            it->write(colors_out);
-        }
-
-        const bool ret = colors_out.good();
-
-        colorsfile_out.close();
-
-        return ret;
-    }
-
-    return false;
 }
 
 bool ColoredCDBG::readColorSets(const CCDBG_Build_opt& opt){

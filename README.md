@@ -214,7 +214,7 @@ No, it can contain any type of sequence graph (like an uncompacted de Bruijn gra
 
 **Can I build a compacted de Bruijn graph from assembled genomes and reads?**
 
-Yes. First, run Bifrost with your read files only and output the unitigs to a FASTA file (`-a` parameter). Then, run Bifrost a second time in reference mode (`-r` parameter) with the previously produced unitigs in FASTA files and your assembled genomes.
+Yes. First, run Bifrost with your read files only and output the unitigs to a FASTA file (`-a` parameter). Then, run Bifrost in reference mode (`-r` parameter) with the previously produced unitigs in FASTA files and your assembled genomes.
 
 ## Contact
 
