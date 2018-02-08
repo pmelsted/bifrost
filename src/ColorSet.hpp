@@ -5,6 +5,15 @@
 
 #include "HashID.hpp"
 
+/** @file src/ColorSet.hpp
+* Interface for the color sets used in ColoredCDBG.
+* Code snippets using this interface are provided in snippets.hpp.
+*/
+
+/** @class ColorSet
+* @brief Represent a color set for a unitig. The number of colors in such a set
+* , i.e number of k-mers in unitig * number of color per k-mer, can't exceed 2^32
+*/
 class ColorSet {
 
     public:
@@ -115,9 +124,19 @@ class ColorSet {
 
         void setUnoccupied();
 
+        /** Set the color set as "occupied": the color set is NOT "free" to be used,
+        * it is now associated with a unitig.
+        */
         inline void setOccupied(){ if (isUnoccupied()) setBits = localBitVectorColor; }
 
+        /** Get if the color set as "unoccupied" (NOT associated with a unitig).
+        * @return a boolean indicating if the color set is "unoccupied" (true) or not (false).
+        */
         inline bool isUnoccupied() const { return ((setBits & flagMask) == unoccupied); }
+
+        /** Get if the color set as "occupied" (associated with a unitig).
+        * @return a boolean indicating if the color set is "occupied" (true) or not (false).
+        */
         inline bool isOccupied() const { return ((setBits & flagMask) != unoccupied); }
 
         void add(const UnitigMap<HashID>& um, const size_t color_id);
@@ -127,17 +146,26 @@ class ColorSet {
 
         size_t size() const;
 
+        /** Create a constant iterator to the first color of the color set.
+        * @return a constant iterator to the first color of the color set.
+        */
         const_iterator begin() const {
 
             const_iterator it(this);
             return ++it;
         }
 
+        /** Create a constant iterator to the the "past-the-last" color of the color set.
+        * @return a constant iterator to the first the "past-the-last" of the color set.
+        */
         const_iterator end() const { return const_iterator(); }
 
         bool write(ostream& stream_out) const;
         bool read(istream& stream_in);
 
+        /** Optimize the memory of a color set. Useful in case one or more sub-unitig share
+        * the same color.
+        */
         inline void optimize(){
 
             if ((setBits & flagMask) == ptrCompressedBitmap) getPtrBitmap()->runOptimize();
