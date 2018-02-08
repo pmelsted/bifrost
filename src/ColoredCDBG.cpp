@@ -163,7 +163,7 @@ bool ColoredCDBG::build(const CCDBG_Build_opt& opt){
     return !invalid;
 }
 
-/** Map the colors to the unitigs. This is done by reading (again) the input files and querying the graph.
+/** Map the colors to the unitigs. This is done by reading the input files and querying the graph.
 * If a color filename is provided in opt.filename_colors_in, colors are loaded from that file instead.
 * @param opt is a structure from which the members are parameters of this function. See CCDBG_Build_opt.
 * @return boolean indicating if the colors have been mapped successfully.
@@ -184,11 +184,11 @@ bool ColoredCDBG::mapColors(const CCDBG_Build_opt& opt){
     return !invalid;
 }
 
-/** Map the colors to the unitigs. This is done by reading (again) the input files and querying the graph.
-* If a color filename is provided in opt.filename_colors_in, colors are loaded from that file instead.
-* @param um is a UnitigMap representing the mapping of a unitig to which the color set will contain the color to add.
+/** Set a color for a unitig or a sub-unitig.
+* @param um is a UnitigMap representing the mapping of a unitig for which the color must be added.
+* The color will be added only for the sub-unitig mapped, i.e, unitig[um.dist..um.dist+um.len+k-1]
 * @param color_id is the ID of the color to add.
-* @return boolean indicating if the color was successfully added.
+* @return boolean indicating if the color was successfully set.
 */
 bool ColoredCDBG::setColor(const UnitigMap<HashID>& um, const size_t color_id) {
 
@@ -215,12 +215,14 @@ bool ColoredCDBG::setColor(const UnitigMap<HashID>& um, const size_t color_id) {
     return false;
 }
 
-/** Join two color sets (union). All colors of the color set matching um_src are added to the color set
-* matching um_dest. The reverse-complement of um_src and um_dest (UnitigMap<HashID>::strand) are considered.
-* @param um_dest is a UnitigMap representing a mapping to a unitig to which the color set will contain the
-* union of itself and the color set matching um_src.
-* @param um_src is a UnitigMap representing a mapping to a unitig from which the color set will be joined
-* with the color set matching um_dest.
+/** Join two color sets (union). All colors of the color set matching the unitig mapped by um_src
+* are added to the color set matching the unitig mapped  by um_dest. The reverse-complements of
+* um_src and um_dest (UnitigMap<HashID>::strand) are considered. Any sub-unitig information such
+* as UnitigMap<HashID>::dist or UnitigMap<HashID>::len is discarded.
+* @param um_dest is a UnitigMap representing a mapping to a unitig. The unitig color set will
+* contain the union of itself and the color set matching um_src.
+* @param um_src is a UnitigMap representing a mapping to a unitig. The unitig color set will be
+* joined with the color set matching um_dest.
 * @return boolean indicating if the color sets have been joined successfully.
 */
 bool ColoredCDBG::joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src) {
@@ -339,8 +341,7 @@ bool ColoredCDBG::joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<H
     return false;
 }
 
-/** Create a new color set from a UnitigMap. UnitigMap<HashID>::len, UnitigMap<HashID>::dist, UnitigMap<HashID>::size
-* and UnitigMap<HashID>::strand are used. This function can be used to create a color set matching a sub-unitig.
+/** Extract the color set matching a sub-unitig (see UnitigMap).
 * @param um is a UnitigMap representing a mapping to a unitig from the graph.
 * @return a new color set
 */
@@ -425,7 +426,7 @@ vector<string> ColoredCDBG::extractColorNames(const UnitigMap<HashID>& um) const
 /** Get the color set of a unitig.
 * @param um is a UnitigMap representing a mapping to a unitig from the graph.
 * @return a constant pointer to the color set matching um. If no such color set
-* is found, the pointer equals nullptr.
+* is found, the pointer is nullptr.
 */
 const ColorSet* ColoredCDBG::getColorSet(const UnitigMap<HashID>& um) const {
 
