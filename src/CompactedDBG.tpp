@@ -1663,7 +1663,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
     KmerHashTable<bool> ignored_km_tips;
     KmerHashTable<uint8_t> smallv_common;
 
-    std::atomic_flag locks_smallv_common;
+    std::atomic_flag locks_smallv_common = ATOMIC_FLAG_INIT;
 
     const size_t nb_locks = opt.nb_threads * 256;
     std::atomic_flag* locks_fp;
@@ -1961,9 +1961,9 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
         if (!opt.reference_mode) cout << "CompactedDBG::construct(): After split (2/2): " << unitigsAfter2 << " unitigs" <<  endl;
         cout << "CompactedDBG::construct(): Unitigs split: " << unitigSplit.first << endl;
         cout << "CompactedDBG::construct(): Unitigs deleted: " << unitigSplit.second << endl;
-    }
 
-    if (opt.verbose) cout << endl << "CompactedDBG::construct(): Joining unitigs" << endl;
+        cout << endl << "CompactedDBG::construct(): Joining unitigs" << endl;
+    }
 
     const size_t joined = joinUnitigs(nullptr, opt.nb_threads);
 
