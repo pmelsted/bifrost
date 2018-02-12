@@ -1649,7 +1649,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
     size_t file_id = 0;
 
     vector<string> readv;
-    vector<vector<pair<NewUnitig, tiny_vector<Kmer, 2>*>>> parray(opt.nb_threads);
+    vector<vector<pair<NewUnitig, tiny_vector<Kmer, 2>*>>> new_unitigs(opt.nb_threads);
     vector<vector<Kmer>> v_ignored_km_tip_thread(opt.nb_threads);
 
     int round = 0;
@@ -1761,10 +1761,11 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
                                 locks_fp[id_lock].clear(std::memory_order_release);
 
                                 const size_t len_match_km = 1 + cstrMatch(&s_x[p_.second + k_], &newseq.c_str()[pos_match + k_]);
+                                const Kmer km_head = Kmer(newseq.c_str()).rep();
 
                                 locks_smallv_common.test_and_set(std::memory_order_acquire);
 
-                                if (smallv_common.insert(km.rep(), 0).second == false) newseq = string();
+                                if (smallv_common.insert(km_head, 0).second == false) newseq = string();
 
                                 locks_smallv_common.clear(std::memory_order_release);
 
@@ -1774,10 +1775,11 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
                         else {
 
                             const size_t len_match_km = 1 + cstrMatch(&s_x[p_.second + k_], &newseq.c_str()[pos_match + k_]);
+                            const Kmer km_head = Kmer(newseq.c_str()).rep();
 
                             locks_smallv_common.test_and_set(std::memory_order_acquire);
 
-                            if (smallv_common.insert(km.rep(), 0).second == false) newseq = string();
+                            if (smallv_common.insert(km_head, 0).second == false) newseq = string();
 
                             locks_smallv_common.clear(std::memory_order_release);
 
@@ -1833,7 +1835,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
             auto rit_end(rit);
 
             advance(rit_end, jump);
-            workers.push_back(thread(worker_function, rit, rit_end, &parray[i], &v_ignored_km_tip_thread[i]));
+            workers.push_back(thread(worker_function, rit, rit_end, &new_unitigs[i], &v_ignored_km_tip_thread[i]));
 
             rit = rit_end;
         }
@@ -1842,28 +1844,62 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
         for (auto& t : workers) t.join();
 
-        for (auto& v : parray) { // for each thread
+        for (auto& v : new_unitigs) { // for each thread
 
             for (const auto& p : v){
 
                 const NewUnitig& nu = p.first;
 
-                addUnitigSequenceBBF(nu.km, nu.seq, nu.len_match_km, v_ignored_km_tip_thread[0]); // add each unitig for this thread
+                if (!nu.seq.empty()) {
 
-                if (p.second != nullptr){ // Must remove false positive km from list of false positives
+                    addUnitigSequenceBBF(nu.km, nu.seq, nu.len_match_km, v_ignored_km_tip_thread[0]); // add each unitig for this thread
 
-                    mapRead(find(nu.km)); // Map k-mer a second time to make sure its coverage is 2
+                    if (p.second != nullptr){ // Must remove false positive km from list of false positives
 
-                    const Kmer km_rep = nu.km.rep();
+                        mapRead(find(nu.km)); // Map k-mer a second time to make sure its coverage is 2
 
-                    tiny_vector<Kmer, 2>& fp_block = *(p.second);
+                        const Kmer km_rep = nu.km.rep();
 
-                    for (size_t i = 0; i < fp_block.size(); ++i){ // Search list of fp candidate for k-mer
+                        tiny_vector<Kmer, 2>& fp_block = *(p.second);
 
-                        if (fp_block[i] == km_rep){
+                        for (size_t i = 0; i < fp_block.size(); ++i){ // Search list of fp candidate for k-mer
 
-                            fp_block.remove(i);
-                            break;
+                            if (fp_block[i] == km_rep){
+
+                                fp_block.remove(i);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for (auto& v : new_unitigs) { // for each thread
+
+            for (const auto& p : v){
+
+                const NewUnitig& nu = p.first;
+
+                if (nu.seq.empty()) {
+
+                    addUnitigSequenceBBF(nu.km, nu.seq, nu.len_match_km, v_ignored_km_tip_thread[0]); // add each unitig for this thread
+
+                    if (p.second != nullptr){ // Must remove false positive km from list of false positives
+
+                        mapRead(find(nu.km)); // Map k-mer a second time to make sure its coverage is 2
+
+                        const Kmer km_rep = nu.km.rep();
+
+                        tiny_vector<Kmer, 2>& fp_block = *(p.second);
+
+                        for (size_t i = 0; i < fp_block.size(); ++i){ // Search list of fp candidate for k-mer
+
+                            if (fp_block[i] == km_rep){
+
+                                fp_block.remove(i);
+                                break;
+                            }
                         }
                     }
                 }
