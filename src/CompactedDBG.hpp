@@ -233,7 +233,7 @@ class CompactedDBG {
         static const int max_abundance_lim = 15;
 
         typedef KmerHashTable<CompressedCoverage_t<T>> h_kmers_ccov_t;
-        typedef MinimizerHashTable<tiny_vector<size_t,tiny_vector_sz>> hmap_min_unitigs_t;
+        typedef MinimizerHashTable_2Val hmap_min_unitigs_t;
 
         typedef typename hmap_min_unitigs_t::iterator hmap_min_unitigs_iterator;
         typedef typename hmap_min_unitigs_t::const_iterator hmap_min_unitigs_const_iterator;
@@ -242,6 +242,7 @@ class CompactedDBG {
         vector<pair<Kmer, CompressedCoverage_t<T>>> v_kmers;
 
         hmap_min_unitigs_t hmap_min_unitigs;
+
         h_kmers_ccov_t h_kmers_ccov;
 
         BlockedBloomFilter bf;

@@ -640,7 +640,8 @@ void ColoredCDBG::buildColorSets(const size_t nb_threads){
     const size_t nb_locks = nb_threads * 256;
 
     const int k_ = getK();
-    const int chunk = 1000;
+
+    const size_t chunk_size = 1000;
 
     size_t prev_file_id = 0;
 
@@ -699,8 +700,10 @@ void ColoredCDBG::buildColorSets(const size_t nb_threads){
 
         string s;
 
-        size_t file_id = prev_file_id;
         size_t reads_now = 0;
+        size_t file_id = prev_file_id;
+
+        const size_t chunk = chunk_size * 100;
 
         while (reads_now < chunk) {
 
@@ -708,7 +711,7 @@ void ColoredCDBG::buildColorSets(const size_t nb_threads){
 
                 v_read_color.emplace_back(make_pair(s, file_id));
 
-                ++reads_now;
+                reads_now += s.length();
             }
             else {
 

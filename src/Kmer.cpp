@@ -166,7 +166,7 @@ void Kmer::set_kmer(const char* s)  {
         const size_t x = ((*s) & 4) >> 1;
         longs[l] |= ((x + ((x ^ (*s & 2)) >> 1)) << j);
 
-        s++;
+        ++s;
     }
 }
 

@@ -470,6 +470,8 @@ class KmerStream {
 
             size_t file_id = 0;
 
+            const size_t chunk_size = 1000;
+
             const size_t qsize = q_cutoff.size();
             const size_t ksize = klist.size();
             const size_t nb_k_q = qsize * ksize;
@@ -496,13 +498,15 @@ class KmerStream {
 
                 size_t readCount = 0;
 
-                while (readCount < 1000) {
+                const size_t chunk = chunk_size * 100;
+
+                while (readCount < chunk) {
 
                     if (fp.read(seq, file_id)){
 
                         readv.push_back(make_pair(seq, string(fp.getQualityScoreString())));
 
-                        ++readCount;
+                        readCount += seq.length();
                     }
                     else return true;
                 }
@@ -608,6 +612,8 @@ class KmerStream {
 
             size_t file_id;
 
+            const size_t chunk_size = 1000;
+
             const size_t qsize = q_cutoff.size();
             const size_t ksize = klist.size();
             const size_t nb_k_q = qsize * ksize;
@@ -630,13 +636,15 @@ class KmerStream {
 
                 size_t readCount = 0;
 
-                while (readCount < 1000) {
+                const size_t chunk = chunk_size * 100;
+
+                while (readCount < chunk) {
 
                     if (fp.read(seq, file_id)){
 
                         readv.push_back(seq);
 
-                        ++readCount;
+                        readCount += seq.length();
                     }
                     else {
 
