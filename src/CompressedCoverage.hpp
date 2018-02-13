@@ -4,6 +4,7 @@
 #include <cstring>
 #include <stdint.h>
 #include <vector>
+#include <iostream>
 
 using std::vector;
 using std::pair;

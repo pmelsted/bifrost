@@ -14,6 +14,10 @@ set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-std=c++11 -march=native -DXXH_NAMESPACE
 set_property(SOURCE xxhash.c APPEND_STRING PROPERTY COMPILE_FLAGS " -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef")
 set_property(SOURCE BlockedBloomFilter.hpp APPEND_STRING PROPERTY COMPILE_FLAGS " -funroll-loops")
 
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release")
+endif(NOT CMAKE_BUILD_TYPE)
+
 if(CMAKE_BUILD_TYPE MATCHES Debug)
 	message("Debug mode")
 	add_compile_options(-g)
