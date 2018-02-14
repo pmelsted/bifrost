@@ -669,7 +669,7 @@ void ColoredCDBG::buildColorSets(const size_t nb_threads){
 
                     if (um.strand || (um.dist != 0)){
 
-                        um.len += um.lcp(read_color.first.c_str(), it_km->second + k_, um.strand ? um.dist + k_ : um.dist - 1, um.strand);
+                        um.len += um.lcp(read_color.first.c_str(), it_km->second + k_, um.strand ? um.dist + k_ : um.dist - 1, !um.strand);
                         it_km += um.len - 1;
                     }
 
@@ -743,6 +743,8 @@ void ColoredCDBG::buildColorSets(const size_t nb_threads){
         while (next_file){
 
             stop = false;
+
+            //cout << "prev_file_id = " << prev_file_id << endl;
 
             for (size_t t = 0; t < nb_threads; ++t){
 

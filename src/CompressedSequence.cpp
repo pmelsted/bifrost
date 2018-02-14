@@ -621,7 +621,7 @@ size_t CompressedSequence::jump(const char *s, const size_t i, int pos, const bo
         for (; (s[i_cpy] != '\0') && (pos != -1); --pos, ++i_cpy, idx_mod -= 2) {
 
             if (idx_mod == -2){
-                idx_div--;
+                --idx_div;
                 idx_mod = 6;
             }
 

@@ -1735,8 +1735,6 @@ bool CompactedDBG<T>::addUnitigSequenceBBF(Kmer km, const string& seq, const siz
 
         if (!foundAny) {
 
-
-
             addUnitig(s, s.length() == k_ ? v_kmers.size() : v_unitigs.size());
 
             for (KmerIterator it(s.c_str()), it_end; it != it_end; ++it) mapRead(find(it->first));
