@@ -308,9 +308,8 @@ class CompactedDBG {
         bool filter(const CDBG_Build_opt& opt);
         bool construct(const CDBG_Build_opt& opt);
 
-        //bool addUnitigSequenceBBF(Kmer km, const string& seq, const size_t len_match_km, vector<Kmer>& l_ignored_km_tip);
-        bool addUnitigSequenceBBF(Kmer km, const string& seq, const size_t len_match_km, const bool selfLoop);
-        size_t findUnitigSequenceBBF(Kmer km, string& s, bool& selfLoop, bool& isIsolated, vector<Kmer>& l_ignored_km_tip);
+        bool addUnitigSequenceBBF(Kmer km, const string& seq, const size_t len_match_km);
+        size_t findUnitigSequenceBBF(Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip);
         bool bwStepBBF(Kmer km, Kmer& front, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;
         bool fwStepBBF(Kmer km, Kmer& end, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;
 

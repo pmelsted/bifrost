@@ -1426,12 +1426,11 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                     if (um.isEmpty) { // kmer did not map, push into queue for next unitig generation round
 
-                        bool selfLoop = false;
                         bool isIsolated = false;
 
                         string newseq;
 
-                        const size_t pos_match = findUnitigSequenceBBF(km, newseq, selfLoop, isIsolated, *l_ignored_km_tip); //Build unitig from Bloom filter
+                        const size_t pos_match = findUnitigSequenceBBF(km, newseq, isIsolated, *l_ignored_km_tip); //Build unitig from Bloom filter
 
                         if (!opt.reference_mode && isIsolated){ // According to the BF, k-mer is isolated in the graph and is a potential false positive
 
@@ -1469,8 +1468,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                                 locks_smallv_common.clear(std::memory_order_release);
 
-                                //smallv->push_back(make_pair(NewUnitig(km, selfLoop ? string() : newseq, len_match_km), &v));
-                                smallv->push_back(make_pair(NewUnitig(km, newseq, len_match_km, selfLoop), &v));
+                                smallv->push_back(make_pair(NewUnitig(km, newseq, len_match_km), &v));
                             }
                         }
                         else {
@@ -1484,8 +1482,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                             locks_smallv_common.clear(std::memory_order_release);
 
-                            //smallv->push_back(make_pair(NewUnitig(km, selfLoop ? string() : newseq, len_match_km), nullptr));
-                            smallv->push_back(make_pair(NewUnitig(km, newseq, len_match_km, selfLoop), nullptr));
+                            smallv->push_back(make_pair(NewUnitig(km, newseq, len_match_km), nullptr));
 
                             it_kmer_h += (len_match_km - 1);
                         }
@@ -1554,8 +1551,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                 if (!nu.seq.empty()) {
 
-                    //addUnitigSequenceBBF(nu.km, nu.seq, nu.len_match_km, v_ignored_km_tip_thread[0]); // add each unitig for this thread
-                    addUnitigSequenceBBF(nu.km, nu.seq, nu.len_match_km, nu.selfLoop);
+                    addUnitigSequenceBBF(nu.km, nu.seq, nu.len_match_km);
 
                     if (p.second != nullptr){ // Must remove false positive km from list of false positives
 
@@ -1586,8 +1582,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                 if (nu.seq.empty()) {
 
-                    //addUnitigSequenceBBF(nu.km, nu.seq, nu.len_match_km, v_ignored_km_tip_thread[0]); // add each unitig for this thread
-                    addUnitigSequenceBBF(nu.km, nu.seq, nu.len_match_km, nu.selfLoop);
+                    addUnitigSequenceBBF(nu.km, nu.seq, nu.len_match_km);
 
                     if (p.second != nullptr){ // Must remove false positive km from list of false positives
 
@@ -1701,49 +1696,23 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 // post: either unitig string containsin has been added and b == true
 //       or it was present and the coverage information was updated, b == false
 //       NOT Threadsafe!
-//bool UnitigMap<T>per::addUnitigSequenceBBF(Kmer km, const string& read, size_t pos, const string& seq) {
 template<typename T>
-bool CompactedDBG<T>::addUnitigSequenceBBF(Kmer km, const string& seq, const size_t len_match_km, const bool selfLoop) {
+bool CompactedDBG<T>::addUnitigSequenceBBF(Kmer km, const string& seq, const size_t len_match_km) {
 
     string s;
 
-    bool isIsolated = false;
-
     UnitigMap<T> um;
 
-    if (!seq.empty()) s = seq;
-    else {
+    if (seq.empty()){
 
         um = find(km);
         s = um.toString();
     }
+    else {
 
-    if (selfLoop) {
-
-        bool foundAny = false;
-
-        for (KmerIterator it(s.c_str()), it_end; it != it_end; ++it) {
-
-            const UnitigMap<T> um_s = find(it->first);
-
-            if (!um_s.isEmpty) {
-
-                mapRead(um_s);
-                foundAny = true;
-            }
-        }
-
-        if (!foundAny) {
-
-            addUnitig(s, s.length() == k_ ? v_kmers.size() : v_unitigs.size());
-
-            for (KmerIterator it(s.c_str()), it_end; it != it_end; ++it) mapRead(find(it->first));
-        }
-
-        return true;
+        s = seq;
+        um = find(km);
     }
-
-    if (um.isEmpty) um = find(km);
 
     if (um.isEmpty){
 
@@ -1768,7 +1737,7 @@ bool CompactedDBG<T>::addUnitigSequenceBBF(Kmer km, const string& seq, const siz
 //       than the last kmer
 //       selfLoop is true of the unitig is a loop or hairpin
 template<typename T>
-size_t CompactedDBG<T>::findUnitigSequenceBBF(Kmer km, string& s, bool& selfLoop, bool& isIsolated, vector<Kmer>& l_ignored_km_tip) {
+size_t CompactedDBG<T>::findUnitigSequenceBBF(Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip) {
 
     string fw_s;
 
@@ -1780,9 +1749,8 @@ size_t CompactedDBG<T>::findUnitigSequenceBBF(Kmer km, string& s, bool& selfLoop
 
     size_t j = 0;
 
-    bool has_no_neighbor;
+    bool has_no_neighbor, selfLoop = false;
 
-    selfLoop = false;
     isIsolated = false;
 
     while (fwStepBBF(end, end, c, has_no_neighbor, l_ignored_km_tip)) {
@@ -1793,8 +1761,7 @@ size_t CompactedDBG<T>::findUnitigSequenceBBF(Kmer km, string& s, bool& selfLoop
             selfLoop = true;
             break;
         }
-        else if (end == twin) break;
-        else if (end == last.twin()) break;
+        else if ((end == twin) || (end == last.twin())) break;
 
         fw_s.push_back(c);
         last = end;
@@ -1813,12 +1780,7 @@ size_t CompactedDBG<T>::findUnitigSequenceBBF(Kmer km, string& s, bool& selfLoop
 
             ++j;
 
-            if (front == km) {
-                selfLoop = true;
-                break;
-            }
-            else if (front == twin) break;
-            else if (front == first.twin()) break;
+            if ((front == km) || (front == twin) || (front == first.twin())) break;
 
             bw_s.push_back(c);
             first = front;
