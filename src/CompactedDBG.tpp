@@ -1459,7 +1459,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                                 locks_fp[id_lock].clear(std::memory_order_release);
 
-                                const size_t len_match_km = 1 + cstrMatch(&s_x[p_.second + k_], &newseq.c_str()[pos_match + k_]);
+                                const size_t len_match_km = 1 + cstrMatch(&s_x[p_.second + k_], &(newseq.c_str()[pos_match + k_]));
                                 const Kmer km_head = Kmer(newseq.c_str()).rep();
 
                                 locks_smallv_common.test_and_set(std::memory_order_acquire);
@@ -1468,12 +1468,12 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                                 locks_smallv_common.clear(std::memory_order_release);
 
-                                smallv->push_back(make_pair(NewUnitig(km, newseq, len_match_km), &v));
+                                smallv->push_back(make_pair(NewUnitig(km, newseq, pos_match, len_match_km), &v));
                             }
                         }
                         else {
 
-                            const size_t len_match_km = 1 + cstrMatch(&s_x[p_.second + k_], &newseq.c_str()[pos_match + k_]);
+                            const size_t len_match_km = 1 + cstrMatch(&s_x[p_.second + k_], &(newseq.c_str()[pos_match + k_]));
                             const Kmer km_head = Kmer(newseq.c_str()).rep();
 
                             locks_smallv_common.test_and_set(std::memory_order_acquire);
@@ -1482,7 +1482,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                             locks_smallv_common.clear(std::memory_order_release);
 
-                            smallv->push_back(make_pair(NewUnitig(km, newseq, len_match_km), nullptr));
+                            smallv->push_back(make_pair(NewUnitig(km, newseq, pos_match, len_match_km), nullptr));
 
                             it_kmer_h += (len_match_km - 1);
                         }
@@ -1551,7 +1551,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                 if (!nu.seq.empty()) {
 
-                    addUnitigSequenceBBF(nu.km, nu.seq, nu.len_match_km);
+                    addUnitigSequenceBBF(nu.km, nu.seq, nu.pos_match_km, nu.len_match_km);
 
                     if (p.second != nullptr){ // Must remove false positive km from list of false positives
 
@@ -1582,7 +1582,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                 if (nu.seq.empty()) {
 
-                    addUnitigSequenceBBF(nu.km, nu.seq, nu.len_match_km);
+                    addUnitigSequenceBBF(nu.km, nu.seq, nu.pos_match_km, nu.len_match_km);
 
                     if (p.second != nullptr){ // Must remove false positive km from list of false positives
 
@@ -1697,7 +1697,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 //       or it was present and the coverage information was updated, b == false
 //       NOT Threadsafe!
 template<typename T>
-bool CompactedDBG<T>::addUnitigSequenceBBF(Kmer km, const string& seq, const size_t len_match_km) {
+bool CompactedDBG<T>::addUnitigSequenceBBF(Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km) {
 
     string s;
 
@@ -1725,7 +1725,13 @@ bool CompactedDBG<T>::addUnitigSequenceBBF(Kmer km, const string& seq, const siz
 
     if (!um.isShort && !um.isAbundant && !um.strand) um.dist -= um.len - 1;
 
-    mapRead(um);
+    if (um.dist + um.len > um.size - k_){ // This is a self loop
+
+        KmerIterator it(&(s.c_str()[pos_match_km]));
+
+        for (size_t i = 0; i != len_match_km; ++it, ++i) mapRead(find(it->first));
+    }
+    else mapRead(um);
 
     return !um.isEmpty;
 }
@@ -1791,13 +1797,14 @@ size_t CompactedDBG<T>::findUnitigSequenceBBF(Kmer km, string& s, bool& isIsolat
         reverse(bw_s.begin(), bw_s.end());
     }
 
-    s.reserve(k_ + fw_s.size() + bw_s.size());
-    s.append(bw_s);
-
     char tmp[Kmer::MAX_K];
-    km.toString(tmp);
-    s.append(tmp);
 
+    km.toString(tmp);
+
+    s.reserve(k_ + fw_s.size() + bw_s.size());
+
+    s.append(bw_s);
+    s.append(tmp);
     s.append(fw_s);
 
     return bw_s.size();

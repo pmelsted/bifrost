@@ -112,9 +112,9 @@ struct NewUnitig {
 
     string seq;
 
-    size_t len_match_km; // Match length in k-mers
+    size_t pos_match_km, len_match_km; // Match length in k-mers
 
-    NewUnitig(const Kmer km_, const string& seq_, const size_t len_match_km_) : km(km_), seq(seq_), len_match_km(len_match_km_) {}
+    NewUnitig(const Kmer km_, const string& seq_, const size_t pos_match_km_, const size_t len_match_km_) : km(km_), seq(seq_), pos_match_km(pos_match_km_), len_match_km(len_match_km_) {}
 };
 ///@endcond
 
