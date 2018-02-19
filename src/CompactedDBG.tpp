@@ -1442,7 +1442,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                             size_t i = 0;
 
-                            locks_fp[id_lock].test_and_set(std::memory_order_acquire);
+                            while (locks_fp[id_lock].test_and_set(std::memory_order_acquire));
 
                             for (; i < v.size(); ++i){ // Search list of fp candidate for k-mer
 
@@ -1462,7 +1462,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
                                 const size_t len_match_km = 1 + cstrMatch(&s_x[p_.second + k_], &(newseq.c_str()[pos_match + k_]));
                                 const Kmer km_head = Kmer(newseq.c_str()).rep();
 
-                                locks_smallv_common.test_and_set(std::memory_order_acquire);
+                                while (locks_smallv_common.test_and_set(std::memory_order_acquire));
 
                                 if (smallv_common.insert(km_head, 0).second == false) newseq = string();
 
@@ -1476,7 +1476,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
                             const size_t len_match_km = 1 + cstrMatch(&s_x[p_.second + k_], &(newseq.c_str()[pos_match + k_]));
                             const Kmer km_head = Kmer(newseq.c_str()).rep();
 
-                            locks_smallv_common.test_and_set(std::memory_order_acquire);
+                            while (locks_smallv_common.test_and_set(std::memory_order_acquire));
 
                             if (smallv_common.insert(km_head, 0).second == false) newseq = string();
 
@@ -1484,7 +1484,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                             smallv->push_back(make_pair(NewUnitig(km, newseq, pos_match, len_match_km), nullptr));
 
-                            it_kmer_h += (len_match_km - 1);
+                            it_kmer_h += len_match_km - 1;
                         }
                     }
                     else {
@@ -1497,12 +1497,65 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
         }
     };
 
+    /*size_t pos_read = k_ - 1;
+    size_t len_read = 0;
+
+    while (!done) {
+
+        size_t reads_now = 0;
+
+        while ((pos_read < len_read) && (reads_now < opt.read_chunksize)){
+
+            pos_read -= k_ - 1;
+
+            readv.emplace_back(s.substr(pos_read, 1000));
+
+            pos_read += 1000;
+
+            ++reads_now;
+        }
+
+        while (reads_now < opt.read_chunksize) {
+
+            if (fp.read(s, file_id)) {
+
+                len_read = s.length();
+                pos_read = len_read;
+
+                if (len_read > 1000){
+
+                    pos_read = k_ - 1;
+
+                    while ((pos_read < len_read) && (reads_now < opt.read_chunksize)){
+
+                        pos_read -= k_ - 1;
+
+                        readv.emplace_back(s.substr(pos_read, 1000));
+
+                        pos_read += 1000;
+
+                        ++reads_now;
+                    }
+                }
+                else {
+
+                    readv.emplace_back(s);
+                    ++reads_now;
+                }
+            }
+            else {
+
+                done = true;
+                break;
+            }
+        }*/
+
     while (!done) {
 
         size_t reads_now = 0;
         const size_t chunk_size = opt.read_chunksize * 100;
 
-        while (reads_now < opt.read_chunksize * 100) {
+        while (reads_now < chunk_size) {
 
             if (fp.read(s, file_id)){
 
@@ -1542,6 +1595,9 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
         assert(rit == readv.end());
 
         for (auto& t : workers) t.join();
+
+        smallv_common.clear();
+        readv.clear();
 
         for (auto& v : new_unitigs) { // for each thread
 
@@ -1607,15 +1663,12 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
             v.clear(); //clear the map
         }
 
-        for (auto &v : v_ignored_km_tip_thread) { // for each thread
+        for (auto& v : v_ignored_km_tip_thread) { // for each thread
 
             for (const auto x : v) ignored_km_tips.insert(x, false);
 
             v.clear();
         }
-
-        smallv_common.clear();
-        readv.clear();
 
         if (opt.read_chunksize > 1 && opt.verbose) {
 

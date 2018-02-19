@@ -564,7 +564,7 @@ void ColoredCDBG::initColorSets(const CCDBG_Build_opt& opt, const size_t max_nb_
                 h_v = head.hash(seeds[i]) % nb_color_sets; // Hash to which we can possibly put our colorset for current kmer
                 id_lock = h_v % nb_locks; // Lock ID for this hash
 
-                cs_locks[id_lock].test_and_set(std::memory_order_acquire); // Set the corresponding lock
+                while (cs_locks[id_lock].test_and_set(std::memory_order_acquire)); // Set the corresponding lock
 
                 if (color_sets[h_v].isUnoccupied()) break; // If color set is unoccupied, we want to use it, maintain lock
 
@@ -669,7 +669,10 @@ void ColoredCDBG::buildColorSets(const size_t nb_threads){
 
                     if (um.strand || (um.dist != 0)){
 
-                        um.len += um.lcp(read_color.first.c_str(), it_km->second + k_, um.strand ? um.dist + k_ : um.dist - 1, !um.strand);
+                        um.len = 1 + um.lcp(read_color.first.c_str(), it_km->second + k_, um.strand ? um.dist + k_ : um.dist - 1, !um.strand);
+
+                        if (!um.isShort && !um.isAbundant && !um.strand) um.dist -= um.len - 1;
+
                         it_km += um.len - 1;
                     }
 
@@ -685,7 +688,7 @@ void ColoredCDBG::buildColorSets(const size_t nb_threads){
 
                         const uint64_t id_lock = getHash(um) % nb_locks;
 
-                        cs_locks[id_lock].test_and_set(std::memory_order_acquire); // Set the corresponding lock
+                        while (cs_locks[id_lock].test_and_set(std::memory_order_acquire)); // Set the corresponding lock
 
                         setColor(um, read_color.second);
 
@@ -696,7 +699,7 @@ void ColoredCDBG::buildColorSets(const size_t nb_threads){
         }
     };
 
-    auto reading_function = [&](vector<pair<string, size_t>>& v_read_color) {
+    /*auto reading_function = [&](vector<pair<string, size_t>>& v_read_color) {
 
         string s;
 
@@ -712,6 +715,74 @@ void ColoredCDBG::buildColorSets(const size_t nb_threads){
                 v_read_color.emplace_back(make_pair(s, file_id));
 
                 reads_now += s.length();
+            }
+            else {
+
+                next_file = false;
+                return true;
+            }
+        }
+
+        next_file = true;
+
+        if (file_id != prev_file_id){
+
+            prev_file_id = file_id;
+            return true;
+        }
+
+        prev_file_id = file_id;
+        return false;
+    };*/
+
+    size_t pos_read = k_ - 1;
+    size_t len_read = 0;
+
+    string s;
+
+    auto reading_function = [&](vector<pair<string, size_t>>& v_read_color) {
+
+        size_t reads_now = 0;
+        size_t file_id = prev_file_id;
+
+        while ((pos_read < len_read) && (reads_now < chunk_size)){
+
+            pos_read -= k_ - 1;
+
+            v_read_color.emplace_back(make_pair(s.substr(pos_read, 1000), file_id));
+
+            pos_read += 1000;
+
+            ++reads_now;
+        }
+
+        while (reads_now < chunk_size) {
+
+            if (fp.read(s, file_id)) {
+
+                len_read = s.length();
+                pos_read = len_read;
+
+                if (len_read > 1000){
+
+                    pos_read = k_ - 1;
+
+                    while ((pos_read < len_read) && (reads_now < chunk_size)){
+
+                        pos_read -= k_ - 1;
+
+                        v_read_color.emplace_back(make_pair(s.substr(pos_read, 1000), file_id));
+
+                        pos_read += 1000;
+
+                        ++reads_now;
+                    }
+                }
+                else {
+
+                    v_read_color.emplace_back(make_pair(s, file_id));
+                    ++reads_now;
+                }
             }
             else {
 

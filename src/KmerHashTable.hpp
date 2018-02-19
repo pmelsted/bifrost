@@ -1030,7 +1030,7 @@ struct KmerHashTable {
 
         const size_t end_table = size_-1;
 
-        for (size_t h = key.hash() & (size_-1), h_tmp;; h = (h+1) & end_table) {
+        for (size_t h = key.hash() & end_table, h_tmp;; h = (h+1) & end_table) {
 
             if (table_keys[h] == empty_key) {
 
