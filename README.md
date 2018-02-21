@@ -11,20 +11,19 @@ In order to compile and use Bifrost, you need a machine running a 64 bits POSIX-
 In order to compile Bifrost, you will need:
 
 - Cmake (https://cmake.org/)
-- Jemalloc (https://github.com/jemalloc/jemalloc)
 - Roaring (https://github.com/RoaringBitmap/CRoaring)
 - zlib (https://zlib.net/)
 
 All can be downloaded and installed by following the instructions on their respective websites. It is however most likely that at least few of them are available via a package manager for your operating system.
 
-If you operating system is Ubuntu/Debian, you can install Cmake-Jemalloc-Zlib as follows:
+If you operating system is Ubuntu/Debian, you can install Cmake-Zlib as follows:
 ```
-sudo apt-get install cmake libjemalloc1 libjemalloc-dev zlib1g
+sudo apt-get install cmake zlib1g
 ```
 
-If you operating system is MacOS, Cmake-Jemalloc-Zlib can be easily downloaded and installed via Homebrew:
+If you operating system is MacOS, Cmake-Zlib can be easily downloaded and installed via Homebrew:
 ```
-brew install cmake jemalloc zlib
+brew install cmake zlib
 ```
 
 ## Compilation and Installation

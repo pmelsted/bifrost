@@ -19,7 +19,7 @@
 #include <atomic>
 #include <mutex>
 
-#include <jemalloc/jemalloc.h>
+//#include <jemalloc/jemalloc.h>
 
 #include "BlockedBloomFilter.hpp"
 #include "Common.hpp"
@@ -308,7 +308,9 @@ class CompactedDBG {
         bool filter(const CDBG_Build_opt& opt);
         bool construct(const CDBG_Build_opt& opt);
 
-        bool addUnitigSequenceBBF(Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km);
+        bool addUnitigSequenceBBF(Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km,
+                                  std::atomic_flag* locks_unitig, const size_t thread_id, const size_t nb_threads);
+        //bool addUnitigSequenceBBF(Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km);
         size_t findUnitigSequenceBBF(Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip);
         bool bwStepBBF(Kmer km, Kmer& front, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;
         bool fwStepBBF(Kmer km, Kmer& end, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;

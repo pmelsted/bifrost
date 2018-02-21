@@ -1347,6 +1347,370 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
     string s;
 
     size_t file_id = 0;
+    size_t len_read = 0;
+    size_t pos_read = k_ - 1;
+
+    tiny_vector<Kmer, 2>* fp_candidate = nullptr;
+
+    KmerHashTable<bool> ignored_km_tips;
+
+    const size_t nb_locks = opt.nb_threads * 256;
+
+    std::atomic_flag lock_ignored_km_tips = ATOMIC_FLAG_INIT;
+
+    std::atomic_flag* locks_fp = nullptr;
+    std::atomic_flag* locks_unitig = new std::atomic_flag[opt.nb_threads];
+
+    if (!opt.reference_mode){
+
+        fp_candidate = new tiny_vector<Kmer, 2>[bf.getNbBlocks()];
+        locks_fp = new std::atomic_flag[nb_locks];
+
+        for (size_t i = 0; i < nb_locks; ++i) locks_fp[i].clear();
+    }
+
+    for (size_t i = 0; i < opt.nb_threads; ++i) locks_unitig[i].clear();
+
+    auto worker_function = [&](const vector<string>& readv, const size_t thread_id) {
+
+        vector<Kmer> l_ignored_km_tips;
+
+        uint64_t it_min_h, last_it_min_h;
+
+        BlockedBloomFilter::BBF_Blocks block_bf;
+
+        Kmer km;
+        RepHash rep;
+
+        for (const auto& x : readv) {
+
+            const char* s_x = x.c_str();
+
+            KmerHashIterator<RepHash> it_kmer_h(s_x, x.length(), k_), it_kmer_h_end;
+            minHashIterator<RepHash> it_min(s_x, x.length(), k_, g_, rep, true);
+
+            for (int last_pos_km = -2; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min) {
+
+                std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
+
+                if (p_.second != last_pos_km + 1){ // If one or more k-mer were jumped because contained non-ACGT char.
+
+                    km = Kmer(&s_x[p_.second]);
+
+                    it_min += (last_pos_km == -2 ? p_.second : (p_.second - last_pos_km) - 1);
+                    it_min_h = it_min.getHash();
+
+                    block_bf = bf.getBlock(it_min_h);
+                }
+                else {
+
+                    km.selfForwardBase(s_x[p_.second + k_ - 1]);
+
+                    it_min_h = it_min.getHash();
+                    if (it_min_h != last_it_min_h) block_bf = bf.getBlock(it_min_h);
+                }
+
+                last_pos_km = p_.second;
+                last_it_min_h = it_min_h;
+
+                const size_t r = bf.contains_block(p_.first, it_min_h, block_bf);
+
+                if (r != 0){
+
+                    while (locks_unitig[thread_id].test_and_set(std::memory_order_acquire));
+
+                    const UnitigMap<T> um = findUnitig(km, x, p_.second);
+
+                    if (um.isEmpty) { // kmer did not map, push into queue for next unitig generation round
+
+                        locks_unitig[thread_id].clear(std::memory_order_release);
+
+                        bool isIsolated = false;
+
+                        string newseq;
+
+                        const size_t pos_match = findUnitigSequenceBBF(km, newseq, isIsolated, l_ignored_km_tips); //Build unitig from Bloom filter
+
+                        if (!opt.reference_mode && isIsolated){ // According to the BF, k-mer is isolated in the graph and is a potential false positive
+
+                            const uint64_t block = (r == 1 ? block_bf.first : block_bf.second);
+                            const uint64_t id_lock = block % nb_locks;
+                            const Kmer km_rep = km.rep();
+
+                            tiny_vector<Kmer, 2>& v = fp_candidate[block];
+
+                            size_t i = 0;
+
+                            while (locks_fp[id_lock].test_and_set(std::memory_order_acquire));
+
+                            for (; i < v.size(); ++i){ // Search list of fp candidate for k-mer
+
+                                if (v[i] == km_rep) break;
+                            }
+
+                            if (i >= v.size()) v.push_back(km_rep);
+                            else {
+
+                                v.remove(i);
+
+                                addUnitigSequenceBBF(km, newseq, pos_match, 1, locks_unitig, thread_id, opt.nb_threads);
+                                addUnitigSequenceBBF(km, newseq, pos_match, 1, locks_unitig, thread_id, opt.nb_threads);
+                            }
+
+                            locks_fp[id_lock].clear(std::memory_order_release);
+                        }
+                        else {
+
+                            const size_t len_match_km = 1 + cstrMatch(&s_x[p_.second + k_], &(newseq.c_str()[pos_match + k_]));
+
+                            addUnitigSequenceBBF(km, newseq, pos_match, len_match_km, locks_unitig, thread_id, opt.nb_threads);
+
+                            it_kmer_h += len_match_km - 1;
+                        }
+                    }
+                    else {
+
+                        mapRead(um);
+
+                        locks_unitig[thread_id].clear(std::memory_order_release);
+
+                        it_kmer_h += um.len - 1;
+                    }
+                }
+            }
+        }
+
+        while (lock_ignored_km_tips.test_and_set(std::memory_order_acquire));
+
+        for (const auto& km_tip : l_ignored_km_tips) ignored_km_tips.insert(km_tip, false);
+
+        lock_ignored_km_tips.clear(std::memory_order_release);
+    };
+
+    auto reading_function = [&](vector<string>& readv) {
+
+        size_t reads_now = 0;
+
+        while ((pos_read < len_read) && (reads_now < opt.read_chunksize)){
+
+            pos_read -= k_ - 1;
+
+            readv.emplace_back(s.substr(pos_read, 1000));
+
+            pos_read += 1000;
+
+            ++reads_now;
+        }
+
+        while (reads_now < opt.read_chunksize) {
+
+            if (fp.read(s, file_id)) {
+
+                len_read = s.length();
+                pos_read = len_read;
+
+                if (len_read > 1000){
+
+                    pos_read = k_ - 1;
+
+                    while ((pos_read < len_read) && (reads_now < opt.read_chunksize)){
+
+                        pos_read -= k_ - 1;
+
+                        readv.emplace_back(s.substr(pos_read, 1000));
+
+                        pos_read += 1000;
+
+                        ++reads_now;
+                    }
+                }
+                else {
+
+                    readv.emplace_back(s);
+
+                    ++reads_now;
+                }
+            }
+            else {
+
+                for (auto& s : readv) std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+
+                return true;
+            }
+        }
+
+        for (auto& s : readv) std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+
+        return false;
+    };
+
+    {
+        bool stop = false;
+
+        size_t round = 0;
+
+        vector<thread> workers; // need to keep track of threads so we can join them
+        vector<vector<string>> reads(opt.nb_threads);
+
+        mutex mutex_file;
+
+        if (opt.verbose) cout << "CompactedDBG::construct(): Extract approximate unitigs" << endl;
+
+        for (size_t i = 0; i < opt.nb_threads; ++i){
+
+            workers.emplace_back(
+
+                [&, i]{
+
+                    while (true) {
+
+                        {
+                            unique_lock<mutex> lock(mutex_file);
+
+                            if (stop) return;
+
+                            ++round;
+
+                            if (opt.verbose) cout << "CompactedDBG::construct(): Reading round " << round << endl;
+
+                            stop = reading_function(reads[i]);
+                        }
+
+                        worker_function(reads[i], i);
+
+                        reads[i].clear();
+                    }
+                }
+            );
+        }
+
+        for (auto& t : workers) t.join();
+    }
+
+    fp.close();
+
+    bf.clear();
+
+    delete[] locks_unitig;
+
+    if (fp_candidate != nullptr) delete[] fp_candidate;
+    if (locks_fp != nullptr) delete[] locks_fp;
+
+    if (opt.verbose) cout << "CompactedDBG::construct(): Closed all input files" << endl;
+
+    const size_t unitigsBefore = size();
+
+    if (opt.verbose) cout << endl << "CompactedDBG::construct(): Splitting unitigs (1/2)" << endl;
+
+    pair<size_t, size_t> unitigSplit = splitAllUnitigs();
+
+    const int unitigsAfter1 = size();
+
+    if (opt.verbose) cout << endl << "CompactedDBG::construct(): Splitting unitigs (2/2)" << endl;
+
+    check_fp_tips(ignored_km_tips);
+    ignored_km_tips.clear_tables();
+
+    const int unitigsAfter2 = size();
+
+    if (opt.verbose) {
+
+        cout << "CompactedDBG::construct(): Before split: " << unitigsBefore << " unitigs" << endl;
+        cout << "CompactedDBG::construct(): After split (1/" << (opt.reference_mode ? "1" : "2" ) << "): " << unitigsAfter1 << " unitigs" <<  endl;
+        if (!opt.reference_mode) cout << "CompactedDBG::construct(): After split (2/2): " << unitigsAfter2 << " unitigs" <<  endl;
+        cout << "CompactedDBG::construct(): Unitigs split: " << unitigSplit.first << endl;
+        cout << "CompactedDBG::construct(): Unitigs deleted: " << unitigSplit.second << endl;
+
+        cout << endl << "CompactedDBG::construct(): Joining unitigs" << endl;
+    }
+
+    const size_t joined = joinUnitigs(nullptr, opt.nb_threads);
+
+    const int unitigsAfter3 = size();
+
+    if (opt.verbose) {
+
+        cout << "CompactedDBG::construct(): After join: " << unitigsAfter3 << " unitigs" << endl;
+        cout << "CompactedDBG::construct(): Joined " << joined << " unitigs" << endl;
+    }
+
+    if (opt.useMercyKmers && !opt.reference_mode){
+
+        string filename_mbbf_uniq_km = opt.prefixFilenameOut + "_uniq";
+
+        joinTips(filename_mbbf_uniq_km, opt.nb_threads, opt.verbose);
+
+        if (opt.verbose) cout << "CompactedDBG::construct(): After join tips using mercy k-mers: " << size() << " unitigs" << endl;
+
+        if (std::remove(filename_mbbf_uniq_km.c_str()) != 0) {
+
+            cerr << "CompactedDBG::construct(): Minimizer Blocked Bloom filter file of unique k-mers cannot be removed from disk" << endl;
+        }
+    }
+
+    return true;
+}
+
+// use: b = cm.addUnitig(km,read)
+// pre:
+// post: either unitig string containsin has been added and b == true
+//       or it was present and the coverage information was updated, b == false
+//       NOT Threadsafe!
+template<typename T>
+bool CompactedDBG<T>::addUnitigSequenceBBF(Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km,
+                                           std::atomic_flag* locks_unitig, const size_t thread_id, const size_t nb_threads) {
+
+    for (size_t t = 0; t != nb_threads; ++t){ //Acquire all the locks for insertion
+
+        while (locks_unitig[t].test_and_set(std::memory_order_acquire));
+    }
+
+    UnitigMap<T> um = find(km); // Look if unitig was already inserted
+
+    if (um.isEmpty){ // If it wasn't already inserted
+
+        addUnitig(seq, seq.length() == k_ ? v_kmers.size() : v_unitigs.size()); // Add the unitig
+
+        um = find(km); // Get location of the inserted unitig
+    }
+
+    for (size_t t = 0; t != nb_threads; ++t){ //Release all the locks except for current thread
+
+        if (t != thread_id) locks_unitig[t].clear(std::memory_order_release);
+    }
+
+    // Prepare read mapping
+    um.len = len_match_km;
+
+    if (!um.isShort && !um.isAbundant && !um.strand) um.dist -= um.len - 1;
+
+    if (um.dist + um.len > um.size - k_){ // This is a self loop
+
+        KmerIterator it(&(seq.c_str()[pos_match_km]));
+
+        for (size_t i = 0; i != len_match_km; ++it, ++i) mapRead(find(it->first)); // Map k-mers one by one
+    }
+    else mapRead(um); // Map read
+
+    locks_unitig[thread_id].clear(std::memory_order_release); // Release lock for current thread
+
+    return !um.isEmpty;
+}
+
+/*template<typename T>
+bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
+
+    if (invalid){
+
+        cerr << "CompactedDBG::construct(): Graph is invalid and cannot be built" << endl;
+        return false;
+    }
+
+    FileParser fp(opt.filename_in);
+
+    string s;
+
+    size_t file_id = 0;
 
     vector<string> readv;
     vector<vector<pair<NewUnitig, tiny_vector<Kmer, 2>*>>> new_unitigs(opt.nb_threads);
@@ -1363,9 +1727,10 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
     KmerHashTable<bool> ignored_km_tips;
     KmerHashTable<uint8_t> smallv_common;
 
+    const size_t nb_locks = opt.nb_threads * 256;
+
     std::atomic_flag locks_smallv_common = ATOMIC_FLAG_INIT;
 
-    const size_t nb_locks = opt.nb_threads * 256;
     std::atomic_flag* locks_fp;
 
     if (opt.reference_mode) locks_fp = nullptr;
@@ -1497,7 +1862,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
         }
     };
 
-    /*size_t pos_read = k_ - 1;
+    size_t pos_read = k_ - 1;
     size_t len_read = 0;
 
     while (!done) {
@@ -1540,6 +1905,7 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
                 else {
 
                     readv.emplace_back(s);
+
                     ++reads_now;
                 }
             }
@@ -1548,33 +1914,32 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
                 done = true;
                 break;
             }
-        }*/
-
-    while (!done) {
-
-        size_t reads_now = 0;
-        const size_t chunk_size = opt.read_chunksize * 100;
-
-        while (reads_now < chunk_size) {
-
-            if (fp.read(s, file_id)){
-
-                readv.emplace_back(s);
-
-                reads_now += s.length();
-            }
-            else {
-
-                done = true;
-                break;
-            }
         }
+
+    //while (!done) {
+    //
+    //    size_t reads_now = 0;
+    //    const size_t chunk_size = opt.read_chunksize * 100;
+    //
+    //    while (reads_now < chunk_size) {
+    //
+    //        if (fp.read(s, file_id)){
+    //
+    //            readv.emplace_back(s);
+    //
+    //            reads_now += s.length();
+    //        }
+    //        else {
+    //
+    //            done = true;
+    //            break;
+    //        }
+    //    }
 
         ++round;
 
         if (opt.verbose) cout << "CompactedDBG::construct(): Starting round " << round << endl;
 
-        // run parallel code
         vector<thread> workers;
 
         auto rit = readv.begin();
@@ -1690,19 +2055,16 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
     const size_t unitigsBefore = size();
 
-    if (opt.verbose) cout << endl << "CompactedDBG::construct(): Splitting unitigs (1/" << (opt.reference_mode ? "1" : "2" ) << ")" << endl;
+    if (opt.verbose) cout << endl << "CompactedDBG::construct(): Splitting unitigs (1/2)" << endl;
 
     pair<size_t, size_t> unitigSplit = splitAllUnitigs();
 
     const int unitigsAfter1 = size();
 
-    //if (!opt.reference_mode){
+    if (opt.verbose) cout << endl << "CompactedDBG::construct(): Splitting unitigs (2/2)" << endl;
 
-        if (opt.verbose) cout << endl << "CompactedDBG::construct(): Splitting unitigs (2/2)" << endl;
-
-        check_fp_tips(ignored_km_tips);
-        ignored_km_tips.clear();
-    //}
+    check_fp_tips(ignored_km_tips);
+    ignored_km_tips.clear();
 
     const int unitigsAfter2 = size();
 
@@ -1744,11 +2106,6 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
     return true;
 }
 
-// use: b = cm.addUnitig(km,read)
-// pre:
-// post: either unitig string containsin has been added and b == true
-//       or it was present and the coverage information was updated, b == false
-//       NOT Threadsafe!
 template<typename T>
 bool CompactedDBG<T>::addUnitigSequenceBBF(Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km) {
 
@@ -1787,7 +2144,7 @@ bool CompactedDBG<T>::addUnitigSequenceBBF(Kmer km, const string& seq, const siz
     else mapRead(um);
 
     return !um.isEmpty;
-}
+}*/
 
 // use:  cm.findUnitigSequenceBBF(km, s, selfLoop)
 // pre:  km is in the bloom filter

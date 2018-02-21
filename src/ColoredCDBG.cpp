@@ -787,19 +787,19 @@ void ColoredCDBG::buildColorSets(const size_t nb_threads){
             else {
 
                 next_file = false;
+
+                for (auto& p : v_read_color) std::transform(p.first.begin(), p.first.end(), p.first.begin(), ::toupper);
+
                 return true;
             }
         }
 
         next_file = true;
-
-        if (file_id != prev_file_id){
-
-            prev_file_id = file_id;
-            return true;
-        }
-
         prev_file_id = file_id;
+
+        for (auto& p : v_read_color) std::transform(p.first.begin(), p.first.end(), p.first.begin(), ::toupper);
+
+        if (file_id != prev_file_id) return true;
         return false;
     };
 
