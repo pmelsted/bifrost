@@ -353,6 +353,6 @@ class CompactedDBG {
         void print() const;
 };
 
-#include "CompactedDBG.tpp"
+#include "CompactedDBG.tcc"
 
 #endif

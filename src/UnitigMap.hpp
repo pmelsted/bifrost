@@ -105,19 +105,6 @@ struct UnitigMap {
     const_neighbor_iterator fw_end() const;
 };
 
-///@cond NO_DOC
-struct NewUnitig {
-
-    Kmer km;
-
-    string seq;
-
-    size_t pos_match_km, len_match_km; // Match length in k-mers
-
-    NewUnitig(const Kmer km_, const string& seq_, const size_t pos_match_km_, const size_t len_match_km_) : km(km_), seq(seq_), pos_match_km(pos_match_km_), len_match_km(len_match_km_) {}
-};
-///@endcond
-
-#include "UnitigMap.tpp"
+#include "UnitigMap.tcc"
 
 #endif

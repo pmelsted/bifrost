@@ -1,5 +1,5 @@
 file(GLOB sources *.cpp *.c)
-file(GLOB headers *.h *.hpp *.tpp)
+file(GLOB headers *.h *.hpp *.tcc)
 
 list(REMOVE_ITEM sources Bifrost.cpp)
 

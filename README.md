@@ -175,13 +175,12 @@ Once Bifrost is installed on your operating system, just use
 ```
 in your C++ code. Then, use the following flags for linking:
 ```
--lbifrost -pthread
-```
-
-`-lbifrost` refers to the Bifrost dynamic library which is multi-threaded and hence, requires a threading library, usually the POSIX Threads library `-pthread`. It is possible while compiling your program with the Bifrost library that your compiler complains about missing dependencies. In that case, use the following flags for linking:
-
-```
 -lbifrost -lroaring -pthread -lz
+```
+
+and the following flags for compiling:
+```
+-std=c++11 -march=native
 ```
 
 You can also link to the Bifrost static library (*libbifrost.a*) for better performance:

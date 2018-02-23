@@ -108,6 +108,6 @@ class ForwardCDBG {
         UnitigMap_ref_t um;
 };
 
-#include "NeighborIterator.tpp"
+#include "NeighborIterator.tcc"
 
 #endif

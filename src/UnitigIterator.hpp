@@ -58,6 +58,6 @@ class unitigIterator : public std::iterator<std::input_iterator_tag, UnitigMap<T
         CompactedDBG<T>* cdbg;
 };
 
-#include "UnitigIterator.tpp"
+#include "UnitigIterator.tcc"
 
 #endif

@@ -4,7 +4,7 @@
 * @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
 * @param minimizer_length is the length g of minimizers (g < k) used in the graph.
 */
-ColoredCDBG::ColoredCDBG(int kmer_length, int minimizer_length) :   CompactedDBG(kmer_length, minimizer_length),
+ColoredCDBG::ColoredCDBG(int kmer_length, int minimizer_length) :   CompactedDBG<HashID>(kmer_length, minimizer_length),
                                                                     color_sets(nullptr), invalid(false), nb_seeds(0),
                                                                     nb_color_sets(0) {
 
@@ -15,7 +15,7 @@ ColoredCDBG::ColoredCDBG(int kmer_length, int minimizer_length) :   CompactedDBG
     //Initialize the hash function seeds for
     for (int i = 0; i < 256; ++i) seeds[i] = distribution(generator);
 
-    invalid = CompactedDBG::isInvalid();
+    invalid = CompactedDBG<HashID>::isInvalid();
 }
 
 /** Colored and compacted de Bruijn graph copy constructor (copy a colored cdBG).
@@ -23,7 +23,7 @@ ColoredCDBG::ColoredCDBG(int kmer_length, int minimizer_length) :   CompactedDBG
 * de Bruijn graph is copied. After the call to this function, the same graph exists twice in memory.
 * @param o is a constant reference to the colored and compacted de Bruijn graph to copy.
 */
-ColoredCDBG::ColoredCDBG(const ColoredCDBG& o) :    CompactedDBG(o), invalid(o.invalid), nb_seeds(o.nb_seeds),
+ColoredCDBG::ColoredCDBG(const ColoredCDBG& o) :    CompactedDBG<HashID>(o), invalid(o.invalid), nb_seeds(o.nb_seeds),
                                                     nb_color_sets(o.nb_color_sets), color_names(o.color_names),
                                                     color_sets(nullptr) {
 
@@ -42,7 +42,7 @@ ColoredCDBG::ColoredCDBG(const ColoredCDBG& o) :    CompactedDBG(o), invalid(o.i
 * The colored and compacted de Bruijn graph referenced by o will be empty after the call to this constructor.
 * @param o is a reference on a reference to the colored and compacted de Bruijn graph to move.
 */
-ColoredCDBG::ColoredCDBG(ColoredCDBG&& o) : CompactedDBG(o), invalid(o.invalid), nb_seeds(o.nb_seeds),
+ColoredCDBG::ColoredCDBG(ColoredCDBG&& o) : CompactedDBG<HashID>(o), invalid(o.invalid), nb_seeds(o.nb_seeds),
                                             nb_color_sets(o.nb_color_sets), color_names(move(o.color_names)),
                                             color_sets(o.color_sets) {
 
@@ -68,7 +68,7 @@ void ColoredCDBG::clear(){
     nb_color_sets = 0;
     nb_seeds = 0;
 
-    CompactedDBG::clear();
+    CompactedDBG<HashID>::clear();
 
     empty();
 }
@@ -85,7 +85,7 @@ void ColoredCDBG::empty(){
 
     color_names.clear();
 
-    CompactedDBG::empty();
+    CompactedDBG<HashID>::empty();
 }
 
 /** Colored and compacted de Bruijn graph copy assignment operator (copy a colored cdBG).
@@ -96,7 +96,7 @@ void ColoredCDBG::empty(){
 */
 ColoredCDBG& ColoredCDBG::operator=(const ColoredCDBG& o) {
 
-    CompactedDBG::operator=(o);
+    CompactedDBG<HashID>::operator=(o);
 
     invalid = o.invalid;
     nb_seeds = o.nb_seeds;
@@ -127,7 +127,7 @@ ColoredCDBG& ColoredCDBG::operator=(ColoredCDBG&& o) {
 
     if (this != &o) {
 
-        CompactedDBG::operator=(o);
+        CompactedDBG<HashID>::operator=(o);
 
         invalid = o.invalid;
         nb_seeds = o.nb_seeds;
@@ -156,7 +156,7 @@ bool ColoredCDBG::build(const CCDBG_Build_opt& opt){
 
         CDBG_Build_opt opt_ = opt.getCDBG_Build_opt();
 
-        invalid = !CompactedDBG::build(opt_);
+        invalid = !CompactedDBG<HashID>::build(opt_);
     }
     else cerr << "ColoredCDBG::build(): Graph is invalid and cannot be built." << endl;
 
@@ -458,7 +458,7 @@ const ColorSet* ColoredCDBG::getColorSet(const UnitigMap<HashID>& um) const {
 */
 bool ColoredCDBG::write(const string prefix_output_filename, const size_t nb_threads, const bool verbose){
 
-    if (CompactedDBG::write(prefix_output_filename, nb_threads, true, verbose)){
+    if (CompactedDBG<HashID>::write(prefix_output_filename, nb_threads, true, verbose)){
 
         if (verbose) cout << endl << "ColoredCDBG::write(): Writing colors to disk" << endl;
 
@@ -698,42 +698,6 @@ void ColoredCDBG::buildColorSets(const size_t nb_threads){
             }
         }
     };
-
-    /*auto reading_function = [&](vector<pair<string, size_t>>& v_read_color) {
-
-        string s;
-
-        size_t reads_now = 0;
-        size_t file_id = prev_file_id;
-
-        const size_t chunk = chunk_size * 100;
-
-        while (reads_now < chunk) {
-
-            if (fp.read(s, file_id)) {
-
-                v_read_color.emplace_back(make_pair(s, file_id));
-
-                reads_now += s.length();
-            }
-            else {
-
-                next_file = false;
-                return true;
-            }
-        }
-
-        next_file = true;
-
-        if (file_id != prev_file_id){
-
-            prev_file_id = file_id;
-            return true;
-        }
-
-        prev_file_id = file_id;
-        return false;
-    };*/
 
     size_t pos_read = k_ - 1;
     size_t len_read = 0;

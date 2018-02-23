@@ -281,7 +281,7 @@ OPTIMIZE_OUTPUT_VHDL   = NO
 # Note that for custom extensions you also need to set FILE_PATTERNS otherwise
 # the files are not read by doxygen.
 
-EXTENSION_MAPPING      = tpp=C++
+EXTENSION_MAPPING      = tcc=C++
 
 # If the MARKDOWN_SUPPORT tag is enabled then doxygen pre-processes all comments
 # according to the Markdown format, which allows for more readable
@@ -758,12 +758,12 @@ WARN_LOGFILE           =
 # spaces.
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  = 	src/CompactedDBG.hpp src/CompactedDBG.tpp \
+INPUT                  = 	src/CompactedDBG.hpp src/CompactedDBG.tcc \
 				src/ColorSet.hpp src/ColorSet.cpp \
 				src/ColoredCDBG.hpp src/ColoredCDBG.cpp \
-				src/UnitigMap.hpp src/UnitigMap.tpp \
-				src/NeighborIterator.hpp src/NeighborIterator.tpp \
-				src/UnitigIterator.hpp src/UnitigIterator.tpp \
+				src/UnitigMap.hpp src/UnitigMap.tcc \
+				src/NeighborIterator.hpp src/NeighborIterator.tcc \
+				src/UnitigIterator.hpp src/UnitigIterator.tcc \
 				src/Unitig.hpp
 
 # This tag can be used to specify the character encoding of the source files
