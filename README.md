@@ -16,12 +16,12 @@ In order to compile Bifrost, you will need:
 
 All can be downloaded and installed by following the instructions on their respective websites. It is however most likely that at least few of them are available via a package manager for your operating system.
 
-If you operating system is Ubuntu/Debian, you can install Cmake-Zlib as follows:
+If you operating system is Ubuntu/Debian, you can install Cmake and Zlib as follows:
 ```
 sudo apt-get install cmake zlib1g
 ```
 
-If you operating system is MacOS, Cmake-Zlib can be easily downloaded and installed via Homebrew:
+If you operating system is MacOS, Cmake and Zlib can be easily downloaded and installed via Homebrew:
 ```
 brew install cmake zlib
 ```
@@ -173,14 +173,14 @@ Once Bifrost is installed on your operating system, just use
 ```
 #include <bifrost/CompactedDBG.hpp>
 ```
-in your C++ code. Then, use the following flags for linking:
-```
--lbifrost -lroaring -pthread -lz
-```
-
-and the following flags for compiling:
+in your C++ code. Then, use the following flags for compiling:
 ```
 -std=c++11 -march=native
+```
+
+and the following flags for linking:
+```
+-lbifrost -lroaring -pthread -lz
 ```
 
 You can also link to the Bifrost static library (*libbifrost.a*) for better performance:
