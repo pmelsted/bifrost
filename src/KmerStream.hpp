@@ -64,9 +64,9 @@ class ReadHasher {
 
             while (j < l) { // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
 
-                const char c = s[j];
+                const char c = s[j] & 0xDF;
 
-                if (c != 'N' && c != 'n') {
+                if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) {
 
                     if (last_valid) {
                         // s[i..j-1] was a valid k-mer k-mer, update
@@ -148,9 +148,9 @@ class ReadQualityHasher {
 
             while (j < l) {
                 // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
-                const char c = s[j];
+                const char c = s[j] & 0xDF;
 
-                if (c != 'N' && c != 'n' && (q[j] >= (char) (q_base+q_cutoff))) {
+                if (((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) && (q[j] >= (char) (q_base+q_cutoff))) {
 
                     if (last_valid) {
                         // s[i..j-1] was a valid k-mer k-mer, update
@@ -427,8 +427,6 @@ class KmerStream {
 
         vector<ReadQualityHasher> RunFastqStream() {
 
-            //std::ios_base::sync_with_stdio(false);
-
             FileParser fp(files_with_quality);
 
             size_t nreads = 0;
@@ -465,8 +463,6 @@ class KmerStream {
         }
 
         vector<ReadQualityHasher> RunThreadedFastqStream() {
-
-            //std::ios_base::sync_with_stdio(false);
 
             size_t file_id = 0;
 
@@ -598,6 +594,8 @@ class KmerStream {
 
                 ++nreads;
 
+                std::transform(seq.begin(), seq.end(), seq.begin(), ::toupper);
+
                 for (size_t i = 0; i < qsize * ksize; ++i) sps[i](seq.c_str(), seq.length(), nullptr, 0);
             }
 
@@ -648,9 +646,13 @@ class KmerStream {
                     }
                     else {
 
+                        for (auto& s : readv) std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+
                         return true;
                     }
                 }
+
+                for (auto& s : readv) std::transform(s.begin(), s.end(), s.begin(), ::toupper);
 
                 return false;
             };

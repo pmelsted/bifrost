@@ -586,8 +586,6 @@ struct minHashKmer {
 
         int getPosition() const { return p; }
 
-        //int getNbMin() const { return nb; }
-
     private:
 
         void compute_min(){
@@ -600,22 +598,10 @@ struct minHashKmer {
 
             h = hf.hash();
             p = shift;
-            //nb = 1;
 
             for (int j = shift; j < k-g-shift; j++) {
 
                 hf.update(s[j], s[j+g]);
-
-                /*if (hf.hash() <= h){
-
-                    if (hf.hash() == h) nb++;
-                    else {
-
-                        h = hf.hash();
-                        p = j + 1;
-                        nb = 1;
-                    }
-                }*/
 
                 if (hf.hash() < h){
 
@@ -632,7 +618,6 @@ struct minHashKmer {
         int k;
         int g;
         int p;
-        //int nb;
         bool invalid;
         bool nh;
 };

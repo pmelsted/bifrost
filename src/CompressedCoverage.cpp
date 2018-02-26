@@ -107,20 +107,9 @@ void CompressedCoverage::releasePointer() {
         // release pointer
         uint8_t* ptr = get8Pointer();
 
-        uintptr_t* change = &asBits;
+        asBits = fullMask | (size() << 32);
 
-        uintptr_t oldval = asBits;
-        uintptr_t newval = fullMask | (size() << 32);
-
-        bool replaced = false;
-
-        while (oldval != newval){
-
-            replaced = __sync_bool_compare_and_swap(change, oldval, newval);
-            oldval = *change;
-        }
-
-        if (replaced) delete[] ptr;
+        delete[] ptr;
     }
 }
 
@@ -234,18 +223,7 @@ void CompressedCoverage::cover(size_t start, size_t end) {
             if (val_tmp < cov_full) {
 
                 val_tmp = (val_tmp + 1) << start;
-
-                uintptr_t* change = &asBits;
-                uintptr_t oldval = asBits;
-                uintptr_t newval = (oldval & ~s) | val_tmp;
-
-                while (!__sync_bool_compare_and_swap(change, oldval, newval)) {
-
-                    oldval = *change;
-                    val_tmp = (oldval >> start) & 0x3;
-                    val_tmp = (val_tmp < cov_full ? val_tmp + 1 : val_tmp) << start;
-                    newval = (oldval & ~s) | val_tmp;
-                }
+                asBits = (asBits & ~s) | val_tmp;
             }
         }
 
@@ -256,11 +234,11 @@ void CompressedCoverage::cover(size_t start, size_t end) {
         const uint8_t s = 0x3;
         uint8_t* ptr = get8Pointer() + 8;
         size_t fillednow = 0;
-        size_t /*val,*/ index, pos;
+        size_t index, pos;
 
         uint8_t val;
 
-        for (; start <= end; ++start) {
+        for (; (start <= end) && ((asBits & fullMask) != fullMask); ++start) {
 
             index = start >> 2; // start / 4
             pos = 2 * (start & 0x3); // 2 * (start % 4)
@@ -272,54 +250,12 @@ void CompressedCoverage::cover(size_t start, size_t end) {
                 if (val == cov_full) ++fillednow;
                 val <<= pos;
 
-                uint8_t* change = &ptr[index];
-                uint8_t oldval = ptr[index];
-                uint8_t newval = (oldval & ~(s << pos)) | val;
-
-                while (!__sync_bool_compare_and_swap(change, oldval, newval)) {
-
-                    oldval = *change;
-                    val = (oldval >> pos) & 0x3;
-
-                    if (val < cov_full) val = (val + 1) << pos;
-                    else {
-
-                        val <<= pos;
-                        --fillednow;
-                    }
-
-                    newval = (oldval & ~(s << pos)) | val;
-                }
+                ptr[index] = (ptr[index] & ~(s << pos)) | val;
             }
-
-            /*if (val < cov_full) {
-
-                ++val;
-
-                uint8_t* change = &ptr[index];
-
-                while (1) {
-
-                    uintptr_t oldval = *change;
-
-                    if ((oldval & (s << pos)) >> pos == 2) break;
-
-                    uintptr_t newval = oldval & ~(s << pos);
-
-                    newval |= ( val << pos);
-
-                    if (__sync_bool_compare_and_swap(change, oldval, newval)) {
-
-                        if (((newval & (s << pos)) >> pos)  == 2) ++fillednow;
-
-                        break;
-                    }
-                }
-            }*/
         }
 
         // Decrease filledcounter
-        if (fillednow > 0) __sync_add_and_fetch(get32Pointer() + 1, -fillednow);
+        if (fillednow > 0) *(get32Pointer() + 1) -= fillednow;
         if (isFull()) releasePointer();
     }
 }

@@ -1195,11 +1195,14 @@ bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
         }
     }
 
-    const size_t chunk_size = 1000;
+    string s;
+
+    size_t file_id = 0;
+    size_t len_read = 0;
+    size_t pos_read = k_ - 1;
+    size_t nb_seq = 0;
 
     const bool multi_threaded = (opt.nb_threads != 1);
-
-    uint64_t n_read = 0;
 
     atomic<uint64_t> num_kmers(0), num_ins(0);
 
@@ -1246,24 +1249,59 @@ bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
 
     auto reading_function = [&](vector<string>& readv) {
 
-        string s;
-
-        size_t file_id = 0;
         size_t reads_now = 0;
 
-        const size_t chunk = chunk_size * 100;
+        while ((pos_read < len_read) && (reads_now < opt.read_chunksize)){
 
-        while (reads_now < chunk) {
+            pos_read -= k_ - 1;
+
+            readv.emplace_back(s.substr(pos_read, 1000));
+
+            pos_read += 1000;
+
+            ++reads_now;
+        }
+
+        while (reads_now < opt.read_chunksize) {
 
             if (fp.read(s, file_id)) {
 
-                readv.emplace_back(s);
+                ++nb_seq;
 
-                ++n_read;
-                reads_now += s.length();
+                len_read = s.length();
+                pos_read = len_read;
+
+                if (len_read > 1000){
+
+                    pos_read = k_ - 1;
+
+                    while ((pos_read < len_read) && (reads_now < opt.read_chunksize)){
+
+                        pos_read -= k_ - 1;
+
+                        readv.emplace_back(s.substr(pos_read, 1000));
+
+                        pos_read += 1000;
+
+                        ++reads_now;
+                    }
+                }
+                else {
+
+                    readv.emplace_back(s);
+
+                    ++reads_now;
+                }
             }
-            else return true;
+            else {
+
+                for (auto& s : readv) std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+
+                return true;
+            }
         }
+
+        for (auto& s : readv) std::transform(s.begin(), s.end(), s.begin(), ::toupper);
 
         return false;
     };
@@ -1308,7 +1346,7 @@ bool CompactedDBG<T>::filter(const CDBG_Build_opt& opt) {
     if (opt.verbose) {
 
         cout << "CompactedDBG::filter(): Closed all fasta/fastq files" << endl;
-        cout << "CompactedDBG::filter(): Processed " << num_kmers << " k-mers in " << n_read  << " reads" << endl;
+        cout << "CompactedDBG::filter(): Processed " << num_kmers << " k-mers in " << nb_seq  << " reads" << endl;
         cout << "CompactedDBG::filter(): Found " << num_ins << " unique k-mers" << endl;
         cout << "CompactedDBG::filter(): Number of blocks in Bloom filter is " << bf.getNbBlocks() << endl;
     }
@@ -1354,22 +1392,24 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
     KmerHashTable<bool> ignored_km_tips;
 
-    const size_t nb_locks = opt.nb_threads * 256;
+    const size_t nb_locks = opt.nb_threads * 1024;
 
     std::atomic_flag lock_ignored_km_tips = ATOMIC_FLAG_INIT;
 
-    std::atomic_flag* locks_fp = nullptr;
-    std::atomic_flag* locks_unitig = new std::atomic_flag[opt.nb_threads];
+    vector<std::atomic_flag> locks_fp;
+    vector<std::atomic_flag> locks_mapping(nb_locks);
+    vector<std::atomic_flag> locks_unitig(opt.nb_threads);
+
+    for (auto& lck : locks_mapping) lck.clear();
+    for (auto& lck : locks_unitig) lck.clear();
 
     if (!opt.reference_mode){
 
         fp_candidate = new tiny_vector<Kmer, 2>[bf.getNbBlocks()];
-        locks_fp = new std::atomic_flag[nb_locks];
+        locks_fp = vector<std::atomic_flag>(nb_locks);
 
-        for (size_t i = 0; i < nb_locks; ++i) locks_fp[i].clear();
+        for (auto& lck : locks_fp) lck.clear();
     }
-
-    for (size_t i = 0; i < opt.nb_threads; ++i) locks_unitig[i].clear();
 
     auto worker_function = [&](const vector<string>& readv, const size_t thread_id) {
 
@@ -1453,8 +1493,8 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                                 v.remove(i);
 
-                                addUnitigSequenceBBF(km, newseq, pos_match, 1, locks_unitig, thread_id, opt.nb_threads);
-                                addUnitigSequenceBBF(km, newseq, pos_match, 1, locks_unitig, thread_id, opt.nb_threads);
+                                addUnitigSequenceBBF(km, newseq, pos_match, 1, locks_mapping, locks_unitig, thread_id);
+                                addUnitigSequenceBBF(km, newseq, pos_match, 1, locks_mapping, locks_unitig, thread_id);
                             }
 
                             locks_fp[id_lock].clear(std::memory_order_release);
@@ -1463,15 +1503,20 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 
                             const size_t len_match_km = 1 + cstrMatch(&s_x[p_.second + k_], &(newseq.c_str()[pos_match + k_]));
 
-                            addUnitigSequenceBBF(km, newseq, pos_match, len_match_km, locks_unitig, thread_id, opt.nb_threads);
+                            addUnitigSequenceBBF(km, newseq, pos_match, len_match_km, locks_mapping, locks_unitig, thread_id);
 
                             it_kmer_h += len_match_km - 1;
                         }
                     }
                     else {
 
+                        const uint64_t id_lock = um.pos_unitig % nb_locks;
+
+                        while (locks_mapping[id_lock].test_and_set(std::memory_order_acquire));
+
                         mapRead(um);
 
+                        locks_mapping[id_lock].clear(std::memory_order_release);
                         locks_unitig[thread_id].clear(std::memory_order_release);
 
                         it_kmer_h += um.len - 1;
@@ -1590,11 +1635,11 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
     fp.close();
 
     bf.clear();
-
-    delete[] locks_unitig;
+    locks_unitig.clear();
+    locks_mapping.clear();
+    locks_fp.clear();
 
     if (fp_candidate != nullptr) delete[] fp_candidate;
-    if (locks_fp != nullptr) delete[] locks_fp;
 
     if (opt.verbose) cout << "CompactedDBG::construct(): Closed all input files" << endl;
 
@@ -1658,11 +1703,12 @@ bool CompactedDBG<T>::construct(const CDBG_Build_opt& opt){
 //       NOT Threadsafe!
 template<typename T>
 bool CompactedDBG<T>::addUnitigSequenceBBF(Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km,
-                                           std::atomic_flag* locks_unitig, const size_t thread_id, const size_t nb_threads) {
+                                           vector<std::atomic_flag>& locks_mapping, vector<std::atomic_flag>& locks_unitig,
+                                           const size_t thread_id) {
 
-    for (size_t t = 0; t != nb_threads; ++t){ //Acquire all the locks for insertion
+    for (auto& lck : locks_unitig){ //Acquire all the locks for insertion
 
-        while (locks_unitig[t].test_and_set(std::memory_order_acquire));
+        while (lck.test_and_set(std::memory_order_acquire));
     }
 
     UnitigMap<T> um = find(km); // Look if unitig was already inserted
@@ -1671,12 +1717,19 @@ bool CompactedDBG<T>::addUnitigSequenceBBF(Kmer km, const string& seq, const siz
 
         addUnitig(seq, seq.length() == k_ ? v_kmers.size() : v_unitigs.size()); // Add the unitig
 
+        for (size_t t = 0; t < locks_unitig.size(); ++t){
+            // Release all locks except one
+            if (t != thread_id) locks_unitig[t].clear(std::memory_order_release);
+        }
+
         um = find(km); // Get location of the inserted unitig
     }
+    else {
 
-    for (size_t t = 0; t != nb_threads; ++t){ //Release all the locks except for current thread
-
-        if (t != thread_id) locks_unitig[t].clear(std::memory_order_release);
+        for (size_t t = 0; t < locks_unitig.size(); ++t){
+            // Release all locks except one
+            if (t != thread_id) locks_unitig[t].clear(std::memory_order_release);
+        }
     }
 
     // Prepare read mapping
@@ -1688,11 +1741,31 @@ bool CompactedDBG<T>::addUnitigSequenceBBF(Kmer km, const string& seq, const siz
 
         KmerIterator it(&(seq.c_str()[pos_match_km]));
 
-        for (size_t i = 0; i != len_match_km; ++it, ++i) mapRead(find(it->first)); // Map k-mers one by one
-    }
-    else mapRead(um); // Map read
+        for (size_t i = 0; i != len_match_km; ++it, ++i){
 
-    locks_unitig[thread_id].clear(std::memory_order_release); // Release lock for current thread
+            um = find(it->first);
+
+            const uint64_t id_lock = um.pos_unitig % locks_mapping.size();
+
+            while (locks_mapping[id_lock].test_and_set(std::memory_order_acquire));
+
+            mapRead(find(it->first)); // Map k-mers one by one
+
+            locks_mapping[id_lock].clear(std::memory_order_release);
+        }
+    }
+    else {
+
+        const uint64_t id_lock = um.pos_unitig % locks_mapping.size();
+
+        while (locks_mapping[id_lock].test_and_set(std::memory_order_acquire));
+
+        mapRead(um); // Map read
+
+        locks_mapping[id_lock].clear(std::memory_order_release);
+    }
+
+    locks_unitig[thread_id].clear(std::memory_order_release);
 
     return !um.isEmpty;
 }
