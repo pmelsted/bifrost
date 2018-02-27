@@ -63,10 +63,8 @@ CompactedDBG<T>::CompactedDBG(int kmer_length, int minimizer_length) :  k_(kmer_
 */
 template<typename T>
 CompactedDBG<T>::CompactedDBG(const CompactedDBG& o) :  k_(o.k_), g_(o.g_), invalid(o.invalid), has_data(o.has_data),
-                                                        bf(o.bf), v_kmers(o.v_kmers), h_kmers_ccov(o.h_kmers_ccov),
-                                                        hmap_min_unitigs(o.hmap_min_unitigs){
-
-    v_unitigs.reserve(o.v_unitigs.size());
+                                                        bf(o.bf), v_kmers(o.v_kmers), v_unitigs(o.v_unitigs.size()),
+                                                        h_kmers_ccov(o.h_kmers_ccov), hmap_min_unitigs(o.hmap_min_unitigs){
 
     for (size_t i = 0; i < o.v_unitigs.size(); ++i){
 
