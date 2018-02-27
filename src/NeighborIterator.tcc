@@ -5,7 +5,7 @@
 * @return an empty neighborIterator.
 */
 template<typename T, bool is_const>
-neighborIterator<T, is_const>::neighborIterator() : i(7), is_fw(true), is_km(false), cdbg(nullptr) {}
+neighborIterator<T, is_const>::neighborIterator() : i(4), is_fw(true), cdbg(nullptr) {}
 
 /** Constructor.
 * @param um_ is a mapped unitig from which the neighbors are to be iterated
@@ -13,18 +13,13 @@ neighborIterator<T, is_const>::neighborIterator() : i(7), is_fw(true), is_km(fal
 * @return a neighborIterator.
 */
 template<typename T, bool is_const>
-neighborIterator<T, is_const>::neighborIterator(const UnitigMap<T>& um_, const bool is_forward_) : i(-1), is_fw(is_forward_), is_km(um_.isShort || um_.isAbundant), cdbg(um_.cdbg) {
+neighborIterator<T, is_const>::neighborIterator(const UnitigMap<T>& um_, const bool is_forward_) : i(-1), is_fw(is_forward_), cdbg(um_.cdbg) {
 
-    if (um_.isEmpty || (um_.cdbg == nullptr) || cdbg->invalid) i = 7;
-    else if (is_fw){
-
-        km_tail = um_.getTail();
-        km_head = um_.getHead().twin();
-    }
+    if (um_.isEmpty || (um_.cdbg == nullptr) || cdbg->invalid) i = 4;
     else {
 
         km_head = um_.getHead();
-        km_tail = um_.getTail().twin();
+        km_tail = um_.getTail();
     }
 }
 
@@ -32,7 +27,7 @@ neighborIterator<T, is_const>::neighborIterator(const UnitigMap<T>& um_, const b
 * @return a copy of a neighborIterator.
 */
 template<typename T, bool is_const>
-neighborIterator<T, is_const>::neighborIterator(const neighborIterator& o) : i(o.i), is_fw(o.is_fw), is_km(o.is_km), um(o.um), km_head(o.km_head), km_tail(o.km_tail), cdbg(o.cdbg) {}
+neighborIterator<T, is_const>::neighborIterator(const neighborIterator& o) : i(o.i), is_fw(o.is_fw), um(o.um), km_head(o.km_head), km_tail(o.km_tail), cdbg(o.cdbg) {}
 
 /** Prefix increment, iterate over the next neighbor (predecessor or successor).
 * This iterator considers the forward and reverse-complement strand of the mapped unitig so the mapped
@@ -42,21 +37,17 @@ neighborIterator<T, is_const>::neighborIterator(const neighborIterator& o) : i(o
 template<typename T, bool is_const>
 neighborIterator<T, is_const>& neighborIterator<T, is_const>::operator++() {
 
-    if ((cdbg == NULL) || cdbg->invalid || (i >= 7)) return *this;
+    if ((cdbg == NULL) || cdbg->invalid || (i >= 4)) return *this;
 
-    while (i < 7){
+    ++i;
 
-        i++;
+    while (i < 4){
 
-        if (i <= 3) um = cdbg->find(is_fw ? km_tail.forwardBase(alpha[i]) : km_head.backwardBase(alpha[i]));
-        else if (is_km){
-
-            i = 7;
-            um = UnitigMap<T>();
-        }
-        else um = cdbg->find(is_fw ? km_head.forwardBase(alpha[i-4]) : km_tail.backwardBase(alpha[i-4]));
+        um = cdbg->find(is_fw ? km_tail.forwardBase(alpha[i]) : km_head.backwardBase(alpha[i]), true);
 
         if (!um.isEmpty) break;
+
+        ++i;
     }
 
     return *this;
@@ -83,7 +74,7 @@ neighborIterator<T, is_const> neighborIterator<T, is_const>::operator++(int) {
 template<typename T, bool is_const>
 bool neighborIterator<T, is_const>::operator==(const neighborIterator& o) {
 
-    if ((i >= 7) || (o.i >= 7)) return (i >= 7) && (o.i >= 7);
+    if ((i >= 4) || (o.i >= 4)) return (i >= 4) && (o.i >= 4);
     return (is_fw == o.is_fw) && (km_head == o.km_head) && (km_tail == o.km_tail) && (cdbg == o.cdbg) && (um == o.um);
 }
 

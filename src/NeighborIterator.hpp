@@ -46,7 +46,6 @@ class neighborIterator : public std::iterator<std::input_iterator_tag, UnitigMap
         int i;
 
         bool is_fw;
-        bool is_km;
 
         UnitigMap<T> um;
 
