@@ -9,37 +9,45 @@ BlockedBloomFilter::BlockedBloomFilter() : table_(nullptr), blocks_(0), k_(0), f
 
 BlockedBloomFilter::BlockedBloomFilter(size_t nb_elem, size_t bits_per_elem) : table_(nullptr), blocks_(0), k_(0), fast_div_() {
 
-    blocks_ = (bits_per_elem * nb_elem + MASK_BITS_BLOCK) / NB_BITS_BLOCK;
-    k_ = (int) (bits_per_elem * log(2));
+    if ((nb_elem != 0) && (bits_per_elem != 0)){
 
-    if (fpp(bits_per_elem, k_) >= fpp(bits_per_elem, k_+1)) ++k_;
+        blocks_ = (bits_per_elem * nb_elem + MASK_BITS_BLOCK) / NB_BITS_BLOCK;
+        k_ = (int) (bits_per_elem * log(2));
 
-    if (k_ > 16){
+        mask_h = _mm256_setzero_si256();
 
-        std::cerr << "BlockedBloomFilter(): The AVX2 Blocked Bloom filter does not support more than 16 hash functions." << std::endl;
-        std::cerr << "Either use less bits per element to insert or recompile code of Bifrost with AVX2 deactivated." << std::endl;
+        if (fpp(bits_per_elem, k_) >= fpp(bits_per_elem, k_+1)) ++k_;
 
-        clear();
+        if (k_ > 16){
+
+            std::cerr << "BlockedBloomFilter(): The AVX2 Blocked Bloom filter does not support more than 16 hash functions." << std::endl;
+            std::cerr << "Either use less bits per element to insert or recompile code of Bifrost with AVX2 deactivated." << std::endl;
+
+            clear();
+        }
+        else {
+
+            uint64_t hashes_mask[4] __attribute__((aligned(32))) = {0, 0, 0, 0};
+
+            for (int k = 0; k != k_; ++k) hashes_mask[k/4] = (hashes_mask[k/4] << 16) | 0xffff;
+
+            mask_h = _mm256_set_epi64x(hashes_mask[3], hashes_mask[2], hashes_mask[1], hashes_mask[0]);
+        }
+
+        init_table();
     }
-    else {
-
-        uint64_t hashes_mask[4] __attribute__((aligned(32))) = {0, 0, 0, 0};
-
-        for (int k = 0; k != k_; ++k) hashes_mask[k/4] = (hashes_mask[k/4] << 16) | 0xffff;
-
-        mask_h = _mm256_set_epi64x(hashes_mask[3], hashes_mask[2], hashes_mask[1], hashes_mask[0]);
-    }
-
-    init_table();
 }
 
 BlockedBloomFilter::BlockedBloomFilter(const BlockedBloomFilter& o) : table_(nullptr), blocks_(o.blocks_), k_(o.k_), mask_h(o.mask_h), fast_div_() {
 
-    init_table();
+    if (blocks_ != 0){
 
-    for (uint64_t i = 0; i != blocks_; ++i){
+        init_table();
 
-        memcpy(&(table_[i].block), &(o.table_[i].block), NB_ELEM_BLOCK * sizeof(uint64_t));
+        for (uint64_t i = 0; i != blocks_; ++i){
+
+            memcpy(&(table_[i].block), &(o.table_[i].block), NB_ELEM_BLOCK * sizeof(uint64_t));
+        }
     }
 }
 
@@ -767,21 +775,27 @@ BlockedBloomFilter::BlockedBloomFilter() : table_(nullptr), blocks_(0), k_(0), f
 
 BlockedBloomFilter::BlockedBloomFilter(size_t nb_elem, size_t bits_per_elem) : table_(nullptr), blocks_(0), k_(0), fast_div_() {
 
-    blocks_ = (bits_per_elem * nb_elem + MASK_BITS_BLOCK) / NB_BITS_BLOCK;
-    k_ = (int) (bits_per_elem * log(2));
+    if ((nb_elem != 0) && (bits_per_elem != 0)){
 
-    if (fpp(bits_per_elem, k_) >= fpp(bits_per_elem, k_+1)) ++k_;
+        blocks_ = (bits_per_elem * nb_elem + MASK_BITS_BLOCK) / NB_BITS_BLOCK;
+        k_ = (int) (bits_per_elem * log(2));
 
-    init_table();
+        if (fpp(bits_per_elem, k_) >= fpp(bits_per_elem, k_+1)) ++k_;
+
+        init_table();
+    }
 }
 
 BlockedBloomFilter::BlockedBloomFilter(const BlockedBloomFilter& o) : table_(nullptr), blocks_(o.blocks_), k_(o.k_), fast_div_() {
 
-    init_table();
+    if (blocks_ != 0){
 
-    for (uint64_t i = 0; i != blocks_; ++i){
+        init_table();
 
-        memcpy(&(table_[i].block), &(o.table_[i].block), NB_ELEM_BLOCK * sizeof(uint64_t));
+        for (uint64_t i = 0; i != blocks_; ++i){
+
+            memcpy(&(table_[i].block), &(o.table_[i].block), NB_ELEM_BLOCK * sizeof(uint64_t));
+        }
     }
 }
 

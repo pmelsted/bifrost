@@ -238,7 +238,7 @@ void CompressedCoverage::cover(size_t start, size_t end) {
 
         uint8_t val;
 
-        for (; (start <= end) && ((asBits & fullMask) != fullMask); ++start) {
+        for (; start <= end; ++start) {
 
             index = start >> 2; // start / 4
             pos = 2 * (start & 0x3); // 2 * (start % 4)

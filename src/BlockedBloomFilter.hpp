@@ -33,7 +33,6 @@ class BlockedBloomFilter {
         BlockedBloomFilter();
         BlockedBloomFilter(size_t nb_elem, size_t bits_per_elem);
         BlockedBloomFilter(const BlockedBloomFilter& o);
-
         BlockedBloomFilter(BlockedBloomFilter&& o);
 
         ~BlockedBloomFilter();
