@@ -313,7 +313,7 @@ int main(int argc, char **argv){
                 opt.reference_mode = true; //If the user wants a colored cdBG, it is reference mode
                 opt.outputColors = true; //If the user wants a colored cdBG, it is reference mode
 
-                ColoredCDBG cdbg(opt.k, opt.g);
+                ColoredCDBG<> cdbg(opt.k, opt.g);
 
                 cdbg.build(opt);
                 cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);

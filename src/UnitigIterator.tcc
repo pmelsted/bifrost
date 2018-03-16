@@ -3,19 +3,19 @@
 /** Constructor.
 * @return an empty unitigIterator.
 */
-template<typename T, bool is_const>
-unitigIterator<T,is_const>::unitigIterator() :  i(0), v_unitigs_sz(0), v_kmers_sz(0), h_kmers_ccov_sz(0), sz(0), invalid(true), cdbg(NULL) {}
+template<typename U, typename G, bool is_const>
+unitigIterator<U, G, is_const>::unitigIterator() :  i(0), v_unitigs_sz(0), v_kmers_sz(0), h_kmers_ccov_sz(0), sz(0), invalid(true), cdbg(nullptr) {}
 
 /** Constructor.
 * @param cdbg_ is a Compacted de Bruijn graph from which the unitigs are iterated over.
 * @return a unitigIterator.
 */
-template<typename T, bool is_const>
-unitigIterator<T,is_const>::unitigIterator(CompactedDBG<T>* cdbg_) :
+template<typename U, typename G, bool is_const>
+unitigIterator<U, G, is_const>::unitigIterator(CompactedDBG_ptr_t cdbg_) :
                 i(0), v_unitigs_sz(0), v_kmers_sz(0), h_kmers_ccov_sz(0), sz(0), invalid(true), cdbg(cdbg_),
-                it_h_kmers_ccov((cdbg_ == NULL) || cdbg_->invalid ? typename KmerHashTable<CompressedCoverage_t<T>>::const_iterator() : cdbg_->h_kmers_ccov.begin()){
+                it_h_kmers_ccov((cdbg_ == nullptr) || cdbg_->invalid ? typename KmerHashTable<CompressedCoverage_t<U>>::const_iterator() : cdbg_->h_kmers_ccov.begin()){
 
-    if ((cdbg != NULL) && !cdbg->invalid && (cdbg->size() != 0)){
+    if ((cdbg != nullptr) && !cdbg->invalid && (cdbg->size() != 0)){
 
         invalid = false;
 
@@ -30,33 +30,37 @@ unitigIterator<T,is_const>::unitigIterator(CompactedDBG<T>* cdbg_) :
 /** Copy constructor.
 * @return a copy of a unitigIterator.
 */
-template<typename T, bool is_const>
-unitigIterator<T,is_const>::unitigIterator(const unitigIterator& o) :   i(o.i), v_unitigs_sz(o.v_unitigs_sz), v_kmers_sz(o.v_kmers_sz),
-                                                                        it_h_kmers_ccov(o.it_h_kmers_ccov), h_kmers_ccov_sz(o.h_kmers_ccov_sz),
-                                                                        sz(o.sz), invalid(o.invalid), um(o.um), cdbg(o.cdbg) {}
+template<typename U, typename G, bool is_const>
+unitigIterator<U, G, is_const>::unitigIterator(const unitigIterator& o) :   i(o.i), v_unitigs_sz(o.v_unitigs_sz), v_kmers_sz(o.v_kmers_sz),
+                                                                            it_h_kmers_ccov(o.it_h_kmers_ccov), h_kmers_ccov_sz(o.h_kmers_ccov_sz),
+                                                                            sz(o.sz), invalid(o.invalid), um(o.um), cdbg(o.cdbg) {}
 
 /** Prefix increment, iterate over the next unitig.
 * Note that no specific order (such as a lexicographic one) is assumed during iteration.
 */
-template<typename T, bool is_const>
-unitigIterator<T,is_const>& unitigIterator<T,is_const>::operator++() {
+template<typename U, typename G, bool is_const>
+unitigIterator<U, G, is_const>& unitigIterator<U, G, is_const>::operator++() {
 
     if (invalid) return *this;
 
-    if ((cdbg == NULL) || cdbg->invalid || (i >= sz)){
+    if ((cdbg == nullptr) || cdbg->invalid || (i >= sz)){
 
         invalid = true;
         return *this;
     }
 
-    if (i < v_unitigs_sz) um = UnitigMap<T>(i, 0, 1, cdbg->v_unitigs[i]->seq.size(), false, false, true, *cdbg);
+    if (i < v_unitigs_sz){
+
+        um = UnitigMap<U, G, is_const>(i, 0, cdbg->v_unitigs[i]->seq.size() - cdbg->getK() + 1,
+                                       cdbg->v_unitigs[i]->seq.size(), false, false, true, cdbg);
+    }
     else if (i < (v_unitigs_sz + v_kmers_sz)){
 
-        um = UnitigMap<T>(i - v_unitigs_sz, 0, 1, cdbg->getK(), true, false, true, *cdbg);
+        um = UnitigMap<U, G, is_const>(i - v_unitigs_sz, 0, 1, cdbg->getK(), true, false, true, cdbg);
     }
     else {
 
-        um = UnitigMap<T>(it_h_kmers_ccov.getHash(), 0, 1, cdbg->getK(), false, true, true, *cdbg);
+        um = UnitigMap<U, G, is_const>(it_h_kmers_ccov.getHash(), 0, 1, cdbg->getK(), false, true, true, cdbg);
 
         ++it_h_kmers_ccov;
     }
@@ -69,10 +73,10 @@ unitigIterator<T,is_const>& unitigIterator<T,is_const>::operator++() {
 /** Postfix increment, iterate over the next unitig.
 * Note that no specific order (such as a lexicographic one) is assumed during iteration.
 */
-template<typename T, bool is_const>
-unitigIterator<T,is_const> unitigIterator<T,is_const>::operator++(int) {
+template<typename U, typename G, bool is_const>
+unitigIterator<U, G, is_const> unitigIterator<U, G, is_const>::operator++(int) {
 
-    unitigIterator<T,is_const> tmp(*this);
+    unitigIterator<U, G, is_const> tmp(*this);
     operator++();
 
     return tmp;
@@ -82,8 +86,8 @@ unitigIterator<T,is_const> unitigIterator<T,is_const>::operator++(int) {
 * @param o is another unitigIterator.
 * @return a boolean indicating whether the two unitigIterators are the same.
 */
-template<typename T, bool is_const>
-bool unitigIterator<T,is_const>::operator==(const unitigIterator& o) {
+template<typename U, typename G, bool is_const>
+bool unitigIterator<U, G, is_const>::operator==(const unitigIterator& o) const {
 
     if (invalid || o.invalid) return invalid && o.invalid;
     return  (i == o.i) && (v_unitigs_sz == o.v_unitigs_sz) && (v_kmers_sz == o.v_kmers_sz) &&
@@ -95,17 +99,17 @@ bool unitigIterator<T,is_const>::operator==(const unitigIterator& o) {
 * @param o is another unitigIterator.
 * @return a boolean indicating whether the two unitigIterators are different.
 */
-template<typename T, bool is_const>
-bool unitigIterator<T,is_const>::operator!=(const unitigIterator& o) { return !operator==(o); }
+template<typename U, typename G, bool is_const>
+bool unitigIterator<U, G, is_const>::operator!=(const unitigIterator& o) const { return !operator==(o); }
 
 /** Return a UnitigMap object reference which contains information about the mapped unitig.
 * @return a UnitigMap object reference which contains information about the mapped unitig.
 */
-template<typename T, bool is_const>
-typename unitigIterator<T,is_const>::UnitigMap_ref_t unitigIterator<T,is_const>::operator*() { return um; }
+template<typename U, typename G, bool is_const>
+const UnitigMap<U, G, is_const>& unitigIterator<U, G, is_const>::operator*() const { return um; }
 
 /** Return a UnitigMap object pointer which contains information about the mapped unitig.
 * @return a UnitigMap object pointer which contains information about the mapped unitig.
 */
-template<typename T, bool is_const>
-typename unitigIterator<T,is_const>::UnitigMap_ptr_t unitigIterator<T,is_const>::operator->() { return &um; }
+template<typename U, typename G, bool is_const>
+const UnitigMap<U, G, is_const>* unitigIterator<U, G, is_const>::operator->() const { return &um; }

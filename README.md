@@ -155,6 +155,8 @@ Colors are used to annotate k-mers with the set of genomes/samples in which they
 
 ### Documentation
 
+16-03-2018: Documentation is broken because of the new API. New doc coming soon.
+
 Documentation for the Bifrost library is available in the */doc/doxygen* folder (HTML version, open *html/index.html*).
 
 The following command regenerates the documentation:
@@ -190,11 +192,11 @@ You can also link to the Bifrost static library (*libbifrost.a*) for better perf
 
 ### With colors (pre-alpha)
 
+As a pre-alpha version, the API might be changing in the future and it might still contain some bugs.
+
 ```
 #include <bifrost/ColoredCDBG.hpp>
 ```
-
-02-02-2018: No documentation available yet. As a pre-alpha version, the API might be changing in the future and it might still contain some bugs.
 
 ## FAQ
 

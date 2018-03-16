@@ -4,9 +4,8 @@
 #include <iostream>
 #include <random>
 
-#include "ColorSet.hpp"
-
-#define BFG_COLOREDCDBG_FORMAT_VERSION 1
+#include "CompactedDBG.hpp"
+#include "DataManager.hpp"
 
 /** @file src/ColoredCDBG.hpp
 * Interface for the Colored and Compacted de Bruijn graph API.
@@ -158,13 +157,36 @@ struct CCDBG_Build_opt {
     }
 };
 
+template<typename U> using UnitigColorMap = UnitigMap<DataAccessor<U>, DataStorage<U>>;
+template<typename U> using const_UnitigColorMap = const_UnitigMap<DataAccessor<U>, DataStorage<U>>;
+
+template<typename Unitig_data_t> //Curiously Recurring Template Pattern (CRTP)
+class CCDBG_Data_t {
+
+    typedef Unitig_data_t U;
+
+    public:
+
+        static void join(const UnitigColorMap<U>& um_dest, const UnitigColorMap<U>& um_src){}
+
+        static void sub(const UnitigColorMap<U>& um_src, U* new_data, bool last_extraction){}
+
+        string serialize() const { return string(); }
+};
+
 /** @class ColoredCDBG
 * @brief Represent a Colored and Compacted de Bruijn graph. The class inherits from CompactedDBG
 * which means that all public functions available on CompactedDBG are also available on ColoredCDBG.
 */
-class ColoredCDBG : public CompactedDBG<HashID> {
+template<typename Unitig_data_t = void>
+class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage<Unitig_data_t>> {
 
-    friend class HashID;
+    static_assert(is_void<Unitig_data_t>::value || is_base_of<CCDBG_Data_t<Unitig_data_t>, Unitig_data_t>::value,
+                  "Type Unitig_data_t of data associated with vertices of class ColoredCDBG<Unitig_data_t> must be void (no data) or a class extending class CCDBG_Data_t");
+
+    typedef Unitig_data_t U;
+
+    template<typename U> friend class DataAccessor;
 
     public:
 
@@ -172,52 +194,33 @@ class ColoredCDBG : public CompactedDBG<HashID> {
         ColoredCDBG(const ColoredCDBG& o); // Copy constructor
         ColoredCDBG(ColoredCDBG&& o); // Move constructor
 
-        ~ColoredCDBG();
-
         ColoredCDBG& operator=(const ColoredCDBG& o); // Copy assignment
         ColoredCDBG& operator=(ColoredCDBG&& o); // Move assignment
 
         void clear();
-        void empty();
 
         bool build(const CCDBG_Build_opt& opt);
-
         bool mapColors(const CCDBG_Build_opt& opt);
 
-        bool setColor(const UnitigMap<HashID>& um, const size_t color_id);
-        bool joinColors(const UnitigMap<HashID>& um_dest, const UnitigMap<HashID>& um_src);
+        bool write(const string prefix_output_filename, const size_t nb_threads = 1, const bool verbose = false);
 
-        const ColorSet* getColorSet(const UnitigMap<HashID>& um) const; // Can be used to query a color set
-
-        vector<string> extractColorNames(const UnitigMap<HashID>& um) const; // Return union of color names matching the UnitigMap
-        ColorSet extractColors(const UnitigMap<HashID>& um) const; // Return new color set matching the UnitigMap
-
-        bool write(const string prefix_output_filename, const size_t nb_threads, const bool verbose = false);
+        inline size_t getNbColors() const { return this->getData()->getNbColors(); }
 
     private:
 
-        void initColorSets(const CCDBG_Build_opt& opt, const size_t max_nb_hash = 31);
-        void buildColorSets(const size_t nb_threads);
-        bool readColorSets(const CCDBG_Build_opt& opt);
-
-        ColorSet* getColorSet(const UnitigMap<HashID>& um);
-
         void checkColors(const CCDBG_Build_opt& opt);
 
-        uint64_t getHash(const UnitigMap<HashID>& um) const;
+        void initColorSets(const CCDBG_Build_opt& opt, const size_t max_nb_hash = 31);
+        void buildColorSets(const size_t nb_threads);
 
-        uint64_t seeds[256];
+        inline bool readColorSets(const CCDBG_Build_opt& opt){
+
+            return this->getData()->read(opt.filename_colors_in[0], opt.verbose);
+        }
 
         bool invalid;
-
-        size_t nb_seeds;
-        size_t nb_color_sets;
-
-        ColorSet* color_sets;
-
-        KmerHashTable<ColorSet> km_overflow;
-
-        vector<string> color_names;
 };
+
+#include "ColoredCDBG.tcc"
 
 #endif

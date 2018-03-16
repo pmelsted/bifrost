@@ -57,14 +57,7 @@ class Unitig {
         * @return a constant pointer to the data associated with the unitig.
         */
         inline const T* getData() const { return &data; }
-
         inline T* getData() { return &data; }
-
-        /** Set the data associated with the unitig.
-        * @param data_ is a constant pointer to data that must be copied to the data
-        * associated with the current unitig
-        */
-        inline void setData(const T* const data_){ data = *data_; }
 
         uint64_t coveragesum;
 
@@ -107,7 +100,6 @@ class Unitig<void> {
 
         inline const void* getData() const { return nullptr; }
         inline void* getData() { return nullptr; }
-        inline void setData(const void* const data_){ return; }
 
         uint64_t coveragesum;
 

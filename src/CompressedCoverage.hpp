@@ -100,7 +100,6 @@ template<typename T> struct CompressedCoverage_t {
 
     inline const T* getData() const { return &data; }
     inline T* getData() { return &data; }
-    inline void setData(const T* const data_){ data = *data_; }
 
     CompressedCoverage ccov;
     T data;
@@ -112,7 +111,6 @@ template<> struct CompressedCoverage_t<void> {
 
     inline const void* getData() const { return nullptr; }
     inline void* getData() { return nullptr; }
-    inline void setData(const void* const data_){ return; }
 
     CompressedCoverage ccov;
 };

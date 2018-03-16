@@ -10,7 +10,7 @@
 * Code snippets using this interface are provided in snippets.hpp.
 */
 
-template<typename T> class CompactedDBG;
+template<typename U, typename G> class CompactedDBG;
 
 /** @class unitigIterator
 * @brief Iterator for the unitigs of a Compacted de Bruijn graph.
@@ -19,26 +19,28 @@ template<typename T> class CompactedDBG;
 * Note that no specific order (such as a lexicographic one) is assumed during iteration.
 * An example of using such a class is shown in src/snippets.hpp.
 */
-template<typename T = void, bool is_const = true>
-class unitigIterator : public std::iterator<std::input_iterator_tag, UnitigMap<T>, int> {
+template<typename Unitig_data_t = void, typename Graph_data_t = void, bool is_const = false>
+class unitigIterator : public std::iterator<std::input_iterator_tag, UnitigMap<Unitig_data_t, Graph_data_t, is_const>, int> {
+
+    typedef Unitig_data_t U;
+    typedef Graph_data_t G;
 
     public:
 
-        typedef typename std::conditional<is_const, const UnitigMap<T>&, UnitigMap<T>&>::type UnitigMap_ref_t;
-        typedef typename std::conditional<is_const, const UnitigMap<T>*, UnitigMap<T>*>::type UnitigMap_ptr_t;
+        typedef typename std::conditional<is_const, const CompactedDBG<U, G>*, CompactedDBG<U, G>*>::type CompactedDBG_ptr_t;
 
         unitigIterator();
-        unitigIterator(CompactedDBG<T>* cdbg_);
+        unitigIterator(CompactedDBG_ptr_t cdbg_);
         unitigIterator(const unitigIterator& o);
 
         unitigIterator& operator++();
         unitigIterator operator++(int);
 
-        bool operator==(const unitigIterator& o);
-        bool operator!=(const unitigIterator& o);
+        bool operator==(const unitigIterator& o) const;
+        bool operator!=(const unitigIterator& o) const;
 
-        UnitigMap_ref_t operator*();
-        UnitigMap_ptr_t operator->();
+        const UnitigMap<U, G, is_const>& operator*() const;
+        const UnitigMap<U, G, is_const>* operator->() const;
 
     private:
 
@@ -51,11 +53,11 @@ class unitigIterator : public std::iterator<std::input_iterator_tag, UnitigMap<T
 
         bool invalid;
 
-        typename KmerHashTable<CompressedCoverage_t<T>>::const_iterator it_h_kmers_ccov;
+        typename KmerHashTable<CompressedCoverage_t<U>>::const_iterator it_h_kmers_ccov;
 
-        UnitigMap<T> um;
+        UnitigMap<U, G, is_const> um;
 
-        CompactedDBG<T>* cdbg;
+        CompactedDBG_ptr_t cdbg;
 };
 
 #include "UnitigIterator.tcc"

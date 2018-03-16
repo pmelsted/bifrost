@@ -3,28 +3,42 @@
 
 #include <roaring/roaring.hh>
 
-#include "HashID.hpp"
+#include "CompactedDBG.hpp"
 
 /** @file src/ColorSet.hpp
 * Interface for the color sets used in ColoredCDBG.
 * Code snippets using this interface are provided in snippets.hpp.
 */
 
-/** @class ColorSet
+template<typename Unitig_data_t> class ColoredCDBG;
+template<typename Unitig_data_t> class DataAccessor;
+template<typename Unitig_data_t> class DataStorage;
+
+template<typename U> using UnitigColorMap = UnitigMap<DataAccessor<U>, DataStorage<U>>;
+template<typename U> using const_UnitigColorMap = const_UnitigMap<DataAccessor<U>, DataStorage<U>>;
+
+/** @class UnitigColors
 * @brief Represent a color set for a unitig. The number of colors in such a set
 * , i.e number of k-mers in unitig * number of color per k-mer, can't exceed 2^32
 */
-class ColorSet {
+template<typename Unitig_data_t = void>
+class UnitigColors {
+
+        typedef Roaring Bitmap;
+        typedef Unitig_data_t U;
+
+        template<typename U> friend class ColoredCDBG;
+        template<typename U> friend class DataAccessor;
+        template<typename U> friend class DataStorage;
 
     public:
 
-        typedef Roaring Bitmap;
-
-        class ColorSet_const_iterator : public std::iterator<std::forward_iterator_tag, size_t> {
+        template<typename U>
+        class UnitigColors_const_iterator : public std::iterator<std::forward_iterator_tag, size_t> {
 
             private:
 
-                const ColorSet* cs;
+                const UnitigColors<U>* cs;
                 size_t color_id;
 
                 size_t flag;
@@ -35,9 +49,9 @@ class ColorSet {
 
             public:
 
-                ColorSet_const_iterator() : cs(nullptr), flag(localBitVectorColor), it_setBits(maxBitVectorIDs), color_id(0), it_roar(empty_roar.end()) {}
+                UnitigColors_const_iterator() : cs(nullptr), flag(localBitVectorColor), it_setBits(maxBitVectorIDs), color_id(0), it_roar(empty_roar.end()) {}
 
-                ColorSet_const_iterator(const ColorSet* cs_) : cs(cs_), it_setBits(0), color_id(0), it_roar(empty_roar.end()) {
+                UnitigColors_const_iterator(const UnitigColors<U>* cs_) : cs(cs_), it_setBits(0), color_id(0), it_roar(empty_roar.end()) {
 
                     flag = cs->setBits & flagMask;
                     if (flag == ptrCompressedBitmap) it_roar = cs->getConstPtrBitmap()->begin();
@@ -48,7 +62,7 @@ class ColorSet {
                     }
                 }
 
-                ColorSet_const_iterator& operator=(const ColorSet_const_iterator& o) {
+                UnitigColors_const_iterator<U>& operator=(const UnitigColors_const_iterator& o) {
 
                     cs = o.cs;
                     color_id = o.color_id;
@@ -61,14 +75,14 @@ class ColorSet {
 
                 size_t operator*() const { return color_id; }
 
-                ColorSet_const_iterator operator++(int) {
+                UnitigColors_const_iterator<U> operator++(int) {
 
-                    ColorSet_const_iterator tmp(*this);
+                    UnitigColors_const_iterator<U> tmp(*this);
                     operator++();
                     return tmp;
                 }
 
-                ColorSet_const_iterator& operator++() {
+                UnitigColors_const_iterator<U>& operator++() {
 
                     if (flag == ptrCompressedBitmap) {
 
@@ -96,55 +110,47 @@ class ColorSet {
                     return *this;
                 }
 
-                bool operator==(const ColorSet_const_iterator& o) {
+                bool operator==(const UnitigColors_const_iterator& o) {
 
                     return  (cs == o.cs) && (color_id == o.color_id) && (flag == o.flag) &&
                             ((flag == ptrCompressedBitmap) ? (it_roar == o.it_roar) : (it_setBits == o.it_setBits));
                 }
 
-                bool operator!=(const ColorSet_const_iterator& o) {
+                bool operator!=(const UnitigColors_const_iterator& o) {
 
                     return  (cs != o.cs) || (color_id != o.color_id) || (flag != o.flag) ||
                             ((flag == ptrCompressedBitmap) ? (it_roar != o.it_roar) : (it_setBits != o.it_setBits));
                 }
         };
 
-        typedef ColorSet_const_iterator const_iterator;
+        typedef UnitigColors_const_iterator<U> const_iterator;
 
-        ColorSet();
-        ~ColorSet();
+        UnitigColors();
+        UnitigColors(const UnitigColors& o); // Copy constructor
+        UnitigColors(UnitigColors&& o); // Move  constructor
 
-        ColorSet(const ColorSet& o); // Copy constructor
-        ColorSet(ColorSet&& o); // Move  constructor
+        ~UnitigColors();
 
-        ColorSet& operator=(const ColorSet& o); // Copy assignment
-        ColorSet& operator=(ColorSet&& o); // Move assignment
+        UnitigColors& operator=(const UnitigColors& o); // Copy assignment
+        UnitigColors& operator=(UnitigColors&& o); // Move assignment
 
         void empty();
 
-        void setUnoccupied();
-
-        /** Set the color set as "occupied": the color set is NOT "free" to be used,
-        * it is now associated with a unitig.
-        */
-        inline void setOccupied(){ if (isUnoccupied()) setBits = localBitVectorColor; }
-
-        /** Get if the color set as "unoccupied" (NOT associated with a unitig).
-        * @return a boolean indicating if the color set is "unoccupied" (true) or not (false).
-        */
-        inline bool isUnoccupied() const { return ((setBits & flagMask) == unoccupied); }
-
-        /** Get if the color set as "occupied" (associated with a unitig).
-        * @return a boolean indicating if the color set is "occupied" (true) or not (false).
-        */
-        inline bool isOccupied() const { return ((setBits & flagMask) != unoccupied); }
-
-        void add(const UnitigMap<HashID>& um, const size_t color_id);
-        bool contains(const UnitigMap<HashID>& um, const size_t color_id) const;
-
-        ColorSet reverse(const size_t len_unitig) const;
+        void add(const const_UnitigColorMap<U>& um, const size_t color_id);
+        bool contains(const const_UnitigColorMap<U>& um, const size_t color_id) const;
 
         size_t size() const;
+
+        bool write(ostream& stream_out) const;
+        bool read(istream& stream_in);
+
+        /** Optimize the memory of a color set. Useful if multiple overlapping k-mers
+        * of a unitig share the same color.
+        */
+        inline void optimize(){
+
+            if ((setBits & flagMask) == ptrCompressedBitmap) getPtrBitmap()->runOptimize();
+        }
 
         /** Create a constant iterator to the first color of the color set.
         * @return a constant iterator to the first color of the color set.
@@ -160,17 +166,6 @@ class ColorSet {
         */
         const_iterator end() const { return const_iterator(); }
 
-        bool write(ostream& stream_out) const;
-        bool read(istream& stream_in);
-
-        /** Optimize the memory of a color set. Useful in case one or more sub-unitig share
-        * the same color.
-        */
-        inline void optimize(){
-
-            if ((setBits & flagMask) == ptrCompressedBitmap) getPtrBitmap()->runOptimize();
-        }
-
     private:
 
         inline void releasePointer(){
@@ -178,7 +173,15 @@ class ColorSet {
             if ((setBits & flagMask) == ptrCompressedBitmap) delete getPtrBitmap();
         }
 
+        inline void setOccupied(){ if (isUnoccupied()) setBits = localBitVectorColor; }
+        inline void setUnoccupied(){ releasePointer(); setBits = unoccupied; }
+
+        inline bool isUnoccupied() const { return ((setBits & flagMask) == unoccupied); }
+        inline bool isOccupied() const { return ((setBits & flagMask) != unoccupied); }
+
         void add(const size_t color_id);
+
+        UnitigColors<U> reverse(const const_UnitigColorMap<U>& um) const;
 
         inline Bitmap* getPtrBitmap() const { return reinterpret_cast<Bitmap*>(setBits & pointerMask); }
         inline const Bitmap* getConstPtrBitmap() const { return reinterpret_cast<const Bitmap*>(setBits & pointerMask); }
@@ -205,5 +208,7 @@ class ColorSet {
             Bitmap* setPointer;
         };
 };
+
+#include "ColorSet.tcc"
 
 #endif

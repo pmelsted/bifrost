@@ -1,16 +1,16 @@
-#include "ColorSet.hpp"
-
 /** Color set constructor (set up an empty color set). The color set is
 * initialized as "unoccupied": the color set is "free" to be used,
 * it is not associated with any unitig.
 */
-ColorSet::ColorSet() : setBits(unoccupied) {}
+template<typename U>
+UnitigColors<U>::UnitigColors() : setBits(unoccupied) {}
 
 /** Color set copy constructor. After the call to this constructor,
 * the same color set exists twice in memory.
 * @param o is the color set to copy.
 */
-ColorSet::ColorSet(const ColorSet& o){
+template<typename U>
+UnitigColors<U>::UnitigColors(const UnitigColors& o){
 
     const uintptr_t flag = o.setBits & flagMask;
 
@@ -28,7 +28,8 @@ ColorSet::ColorSet(const ColorSet& o){
 * to the new color set.
 * @param o is the color set to move.
 */
-ColorSet::ColorSet(ColorSet&& o){
+template<typename U>
+UnitigColors<U>::UnitigColors(UnitigColors&& o){
 
     setBits = o.setBits;
     o.setBits = unoccupied;
@@ -36,7 +37,8 @@ ColorSet::ColorSet(ColorSet&& o){
 
 /** Color set destructor.
 */
-ColorSet::~ColorSet() {
+template<typename U>
+UnitigColors<U>::~UnitigColors() {
 
     releasePointer();
 }
@@ -46,7 +48,8 @@ ColorSet::~ColorSet() {
 * @param o is the color set to copy.
 * @return a reference to the current color set being a copy of o.
 */
-ColorSet& ColorSet::operator=(const ColorSet& o){
+template<typename U>
+UnitigColors<U>& UnitigColors<U>::operator=(const UnitigColors& o){
 
     const uintptr_t flag = o.setBits & flagMask;
 
@@ -69,7 +72,8 @@ ColorSet& ColorSet::operator=(const ColorSet& o){
 * @param o is the color set to move.
 * @return a reference to the current color set having (owning) the content of o.
 */
-ColorSet& ColorSet::operator=(ColorSet&& o){
+template<typename U>
+UnitigColors<U>& UnitigColors<U>::operator=(UnitigColors&& o){
 
     if (this != &o) {
 
@@ -84,19 +88,11 @@ ColorSet& ColorSet::operator=(ColorSet&& o){
 
 /** Empty a color set
 */
-void ColorSet::empty(){
+template<typename U>
+void UnitigColors<U>::empty(){
 
     releasePointer();
     setBits = localBitVectorColor;
-}
-
-/** Empty a color set and set it as "unoccupied": the color set is "free" to be used,
-* it is not associated with any unitig.
-*/
-void ColorSet::setUnoccupied(){
-
-    releasePointer();
-    setBits = unoccupied;
 }
 
 /** Add a color in the current color set for a unitig or a sub-unitig.
@@ -104,7 +100,8 @@ void ColorSet::setUnoccupied(){
 * The color will be added only for the sub-unitig mapped, i.e, unitig[um.dist..um.dist+um.len+k-1]
 * @param color_id is the ID of the color to add.
 */
-void ColorSet::add(const UnitigMap<HashID>& um, const size_t color_id) {
+template<typename U>
+void UnitigColors<U>::add(const const_UnitigColorMap<U>& um, const size_t color_id) {
 
     const size_t um_km_sz = um.size - Kmer::k + 1;
     size_t color_id_start = um_km_sz * color_id + um.dist;
@@ -172,7 +169,8 @@ void ColorSet::add(const UnitigMap<HashID>& um, const size_t color_id) {
 * unitig[um.dist..um.dist+um.len+k-1]
 * @param color_id is the ID of the color to check.
 */
-bool ColorSet::contains(const UnitigMap<HashID>& um, const size_t color_id) const {
+template<typename U>
+bool UnitigColors<U>::contains(const const_UnitigColorMap<U>& um, const size_t color_id) const {
 
     const uintptr_t flag = setBits & flagMask;
     const size_t um_km_sz = um.size - Kmer::k + 1;
@@ -213,12 +211,13 @@ bool ColorSet::contains(const UnitigMap<HashID>& um, const size_t color_id) cons
 * @param len_unitig is the length of the unitig to which this color set is associated.
 * @return a new color set which is the reverse of the current one.
 */
-ColorSet ColorSet::reverse(const size_t len_unitig) const {
+template<typename U>
+UnitigColors<U> UnitigColors<U>::reverse(const const_UnitigColorMap<U>& um) const {
 
-    const size_t len_unitig_km = len_unitig - Kmer::k + 1;
+    const size_t len_unitig_km = um.size - Kmer::k + 1;
 
-    ColorSet new_cs;
-    ColorSet::const_iterator it = begin(), it_end = end();
+    UnitigColors<U> new_cs;
+    UnitigColors<U>::const_iterator it = begin(), it_end = end();
 
     for (; it != it_end; ++it){
 
@@ -236,7 +235,8 @@ ColorSet ColorSet::reverse(const size_t len_unitig) const {
 * @return number of colors (total number of colors associated with a unitig) in
 * this color set.
 */
-size_t ColorSet::size() const {
+template<typename U>
+size_t UnitigColors<U>::size() const {
 
     const uintptr_t flag = setBits & flagMask;
 
@@ -252,7 +252,8 @@ size_t ColorSet::size() const {
 * opened prior to the call of this function and it won't be closed by this function.
 * @return a boolean indicating if the write was successful.
 */
-bool ColorSet::write(ostream& stream_out) const {
+template<typename U>
+bool UnitigColors<U>::write(ostream& stream_out) const {
 
     if (stream_out.good()){
 
@@ -281,7 +282,8 @@ bool ColorSet::write(ostream& stream_out) const {
     return false;
 }
 
-bool ColorSet::read(istream& stream_in) {
+template<typename U>
+bool UnitigColors<U>::read(istream& stream_in) {
 
     if (stream_in.good()){
 
@@ -312,7 +314,8 @@ bool ColorSet::read(istream& stream_in) {
 }
 
 // PRIVATE
-void ColorSet::add(const size_t color_id) {
+template<typename U>
+void UnitigColors<U>::add(const size_t color_id) {
 
     if ((setBits & flagMask) == unoccupied) setBits = localBitVectorColor;
 
