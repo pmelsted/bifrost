@@ -7,17 +7,30 @@
 
 /** @file src/UnitigIterator.hpp
 * The unitigIterator type interface.
-* Code snippets using this interface are provided in snippets.hpp.
+* Code snippets using this interface are provided in snippets/test.cpp.
 */
 
 template<typename U, typename G> class CompactedDBG;
 
 /** @class unitigIterator
 * @brief Iterator for the unitigs of a Compacted de Bruijn graph.
-* The first template argument, type T, is the type of data associated with the unitigs in the
-* Compacted de Bruijn graph. Second template argument indicates whether the iterator is a constant.
-* Note that no specific order (such as a lexicographic one) is assumed during iteration.
-* An example of using such a class is shown in src/snippets.hpp.
+* A unitigIterator object has 3 template parameters: the type of data associated with the unitigs
+* of the graph, the type of data associated with the graph and a boolean indicating if this is a
+* constant iterator or not. Note that you are supposed to use this class as the iterator of the
+* class CompactedDBG (CompactedDBG::iterator and CompactedDBG::const_iterator) so you shouldn't
+* have to instantiate an object unitigIterator and its template parameters yourself.
+* The unitig data and graph data types should be the same as the ones used for the CompactedDBG
+* the iterator is from. No specific order (such as a lexicographic one) is assumed during iteration.
+* \code{.cpp}
+* CompactedDBG<> cdbg;
+* ... // Some more code, cdbg construction
+* for (const auto& unitig : cdbg){
+*   cout << unitig.toString() << endl; // unitig is of type UnitigMap
+* }
+* for (CompactedDBG<>::const_iterator it = cdbg.begin(); it != cdbg.end(); ++it){
+*   cout << it.toString() << endl;
+* }
+* \endcode
 */
 template<typename Unitig_data_t = void, typename Graph_data_t = void, bool is_const = false>
 class unitigIterator : public std::iterator<std::input_iterator_tag, UnitigMap<Unitig_data_t, Graph_data_t, is_const>, int> {
