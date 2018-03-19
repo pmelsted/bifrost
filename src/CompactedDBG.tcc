@@ -166,7 +166,6 @@ CompactedDBG<U, G>& CompactedDBG<U, G>::operator=(CompactedDBG&& o){
         o.g_ = 0;
 
         o.invalid = true;
-        o.has_data = false;
     }
 
     return *this;
@@ -377,10 +376,10 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
     return construct_finished;
 }
 
-/** Simplify the Compacted de Bruijn graph: clip short (less than 2k length) tips and/or delete short (less than 2k length) isolated unitigs.
+/** Simplify the Compacted de Bruijn graph: clip short (< 2k length) tips and/or delete short (< 2k length) isolated unitigs.
 * @param delete_short_isolated_unitigs is a boolean indicating short isolated unitigs must be removed.
 * @param clip_short_tips is a boolean indicating short tips must be clipped.
-* @param verbose is a boolean indicating if information messages must be printed during the execution of the function.
+* @param verbose is a boolean indicating if information messages must be printed during the function execution.
 * @return boolean indicating if the graph has been simplified successfully.
 */
 template<typename U, typename G>
@@ -422,7 +421,7 @@ bool CompactedDBG<U, G>::simplify(const bool delete_short_isolated_unitigs, cons
 * @param output_filename is a string containing the name of the file in which the graph will be written.
 * @param nb_threads is a number indicating how many threads can be used to write the graph to disk.
 * @param GFA_output indicates if the graph will be output in GFA format (true) or FASTA format (false).
-* @param verbose is a boolean indicating if information messages must be printed during the execution of the function.
+* @param verbose is a boolean indicating if information messages must be printed during the function execution.
 * @return boolean indicating if the graph has been written successfully.
 */
 template<typename U, typename G>
@@ -462,6 +461,13 @@ bool CompactedDBG<U, G>::write(const string output_filename, const size_t nb_thr
     return true;
 }
 
+/** Find the unitig containing the queried k-mer in the Compacted de Bruijn graph.
+* @param km is the queried k-mer (see Kmer class). It does not need to be a canonical k-mer.
+* @param extremities_only is a boolean indicating if the k-mer must be searched only in the unitig heads and tails (extremities_only = true).
+* By default, the k-mer is searched everywhere (extremities_only = false) but is is slightly slower than looking only in the unitig heads and tails.
+* @return const_UnitigMap<U, G> object containing the k-mer mapping information to the unitig having the queried k-mer (if present).
+* If the k-mer is not found, const_UnitigMap::isEmpty = true (see UnitigMap class).
+*/
 template<typename U, typename G>
 const_UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extremities_only) const {
 
@@ -587,10 +593,11 @@ const_UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extrem
 }
 
 /** Find the unitig containing the queried k-mer in the Compacted de Bruijn graph.
-* @param km is the queried k-mer (see Kmer class).
+* @param km is the queried k-mer (see Kmer class). It does not need to be a canonical k-mer.
 * @param extremities_only is a boolean indicating if the k-mer must be searched only in the unitig heads and tails (extremities_only = true).
 * By default, the k-mer is searched everywhere (extremities_only = false) but is is slightly slower than looking only in the unitig heads and tails.
-* @return UnitigMap<U, G> object containing the information of the unitig containg the queried k-mer (if present).
+* @return UnitigMap<U, G> object containing the k-mer mapping information to the unitig containing the queried k-mer (if present).
+* If the queried k-mer is not found, UnitigMap::isEmpty = true (see UnitigMap class).
 */
 template<typename U, typename G>
 UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extremities_only) {
@@ -1040,9 +1047,11 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
     return v_um;
 }
 
-/** Add a sequence to the Compacted de Bruijn graph. Non-{A,C,G,T} characters such as Ns are discarded. The function automatically breaks the sequence into unitigs if required.
+/** Add a sequence to the Compacted de Bruijn graph. Non-{A,C,G,T} characters such as Ns are discarded.
+* The function automatically breaks the sequence into unitig(s). Those unitigs can be stored as the reverse-complement
+* of the input sequence.
 * @param seq is a string containing the sequence to insert.
-* @param verbose is a boolean indicating if information messages must be printed during the execution of the function.
+* @param verbose is a boolean indicating if information messages must be printed during the function execution.
 * @return a boolean indicating if the sequence was successfully inserted in the graph.
 */
 template<typename U, typename G>
@@ -1153,7 +1162,7 @@ bool CompactedDBG<U, G>::add(const string& seq, const bool verbose){
 * @return a boolean indicating if the unitig was successfully removed from the graph.
 */
 template<typename U, typename G>
-bool CompactedDBG<U, G>::remove(const UnitigMap<U, G>& um, const bool verbose){
+bool CompactedDBG<U, G>::remove(const const_UnitigMap<U, G>& um, const bool verbose){
 
     if (invalid){
 
@@ -1163,25 +1172,8 @@ bool CompactedDBG<U, G>::remove(const UnitigMap<U, G>& um, const bool verbose){
 
     vector<Kmer> v_km;
 
-    Kmer head, tail;
-
-    if (um.isShort){
-
-        head = v_kmers[um.pos_unitig].first;
-        tail = head;
-    }
-    else if (um.isAbundant){
-
-        head = h_kmers_ccov.find(um.pos_unitig)->first;
-        tail = head;
-    }
-    else {
-
-        const Unitig<U>* unitig = v_unitigs[um.pos_unitig];
-
-        head = unitig->seq.getKmer(0);
-        tail = unitig->seq.getKmer(unitig->numKmers() - 1);
-    }
+    const Kmer head = um.getUnitigHead();
+    const Kmer tail = um.getUnitigTail();
 
     for (size_t i = 0; i != 4; ++i){
 
