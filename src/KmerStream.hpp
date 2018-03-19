@@ -380,6 +380,7 @@ class KmerStream {
 
                                 cerr << "KmerStream::KmerStream(): Input files must be in FASTA (*.fasta, *.fa, *.fasta.gz, *.fa.gz) or " <<
                                 "FASTQ (*.fastq, *.fq, *.fastq.gz, *.fq.gz) or GFA (*.gfa) format" << endl;
+                                cerr << "KmerStream::KmerStream(): Erroneous file is " << s << endl;
 
                                 invalid = true;
                             }
@@ -392,6 +393,7 @@ class KmerStream {
 
                                 cerr << "KmerStream::KmerStream(): Input files must be in FASTA (*.fasta, *.fa, *.fasta.gz, *.fa.gz) or " <<
                                 "FASTQ (*.fastq, *.fq, *.fastq.gz, *.fq.gz) or GFA (*.gfa) format" << endl;
+                                cerr << "KmerStream::KmerStream(): Erroneous file is " << s << endl;
 
                                 invalid = true;
                             }

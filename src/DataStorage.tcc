@@ -372,7 +372,8 @@ bool DataStorage<U>::joinUnitigColors(const UnitigColorMap<U>& um_dest, const Un
             const size_t um_dest_km_sz = um_dest.size - um_dest.getCompactedDBG()->getK() + 1;
             const size_t um_src_km_sz = um_src.size - um_src.getCompactedDBG()->getK() + 1;
 
-            UnitigColorMap<U> new_um_dest(um_dest.pos_unitig, 0, 0, um_dest.size + um_src.size, false, false, um_dest.strand, nullptr);
+            //UnitigColorMap<U> new_um_dest(um_dest.pos_unitig, 0, 0, um_dest.size + um_src.size, false, false, um_dest.strand, nullptr);
+            UnitigColorMap<U> new_um_dest(0, 0, um_dest.size + um_src.size, um_dest.strand);
 
             if (!um_dest.strand){
 
@@ -414,7 +415,8 @@ bool DataStorage<U>::joinUnitigColors(const UnitigColorMap<U>& um_dest, const Un
 
             if (new_um_dest.dist + new_um_dest.len != 0) new_cs.add(new_um_dest, prev_color_id);
 
-            UnitigColorMap<U> new_um_src(um_src.pos_unitig, 0, 0, um_dest.size + um_src.size, false, false, um_src.strand, nullptr);
+            //UnitigColorMap<U> new_um_src(um_src.pos_unitig, 0, 0, um_dest.size + um_src.size, false, false, um_src.strand, nullptr);
+            UnitigColorMap<U> new_um_src(0, 0, um_dest.size + um_src.size, um_src.strand);
 
             if (!um_src.strand){
 
@@ -483,7 +485,8 @@ UnitigColors<U> DataStorage<U>::getSubUnitigColors(const UnitigColorMap<U>& um) 
             const size_t end = um.dist + um.len;
             const size_t um_km_sz = um.size - um.getCompactedDBG()->getK() + 1;
 
-            UnitigColorMap<U> fake_um(0, 0, 1, um.len, false, false, um.strand, nullptr);
+            //UnitigColorMap<U> fake_um(0, 0, 1, um.len, false, false, um.strand, nullptr);
+            UnitigColorMap<U> um_tmp(0, 1, um.len, um.strand);
 
             for (typename UnitigColors<U>::const_iterator it = cs->begin(), it_end = cs->end(); it != it_end; ++it){
 
@@ -492,9 +495,9 @@ UnitigColors<U> DataStorage<U>::getSubUnitigColors(const UnitigColorMap<U>& um) 
 
                 if ((km_dist >= um.dist) && (km_dist < end)){
 
-                    fake_um.dist = km_dist - um.dist;
+                    um_tmp.dist = km_dist - um.dist;
 
-                    new_cs.add(fake_um, color_id);
+                    new_cs.add(um_tmp, color_id);
                 }
             }
         }

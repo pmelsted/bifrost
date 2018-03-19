@@ -1,20 +1,30 @@
 #include "CompactedDBG.hpp"
 #include "NeighborIterator.hpp"
 
-template<typename U, typename G, bool is_const>
-UnitigMap<U, G, is_const>::UnitigMap(size_t p_unitig, size_t i, size_t l, size_t sz, bool short_, bool abundance, bool strd, CompactedDBG_ptr_t cdbg_) :
-                                    pos_unitig(p_unitig), dist(i), len(l), size(sz), cdbg(cdbg_), strand(strd), isShort(short_), isAbundant(abundance),
-                                    isEmpty(false) {}
-
 /** UnitigMap constructor.
+* @param length is the length of the mapping in k-mers (default is 1 k-mer).
+* @param cdbg_ is a pointer to the CompactedDBG containing the reference unitig used for the mapping (default is nullptr).
 * @return an empty UnitigMap.
 */
 template<typename U, typename G, bool is_const>
-UnitigMap<U, G, is_const>::UnitigMap(size_t l, CompactedDBG_ptr_t cdbg_) :  len(l), pos_unitig(0), dist(0), size(0), isShort(false), isAbundant(false),
-                                                                            isEmpty(true), strand(true), cdbg(cdbg_) {}
+UnitigMap<U, G, is_const>::UnitigMap(const size_t length, CompactedDBG_ptr_t cdbg_) :   len(length), pos_unitig(0), dist(0), size(0), isShort(false),
+                                                                                        isAbundant(false), isEmpty(true), strand(true), cdbg(cdbg_) {}
 
-/** Check if two UnitigMaps are the same.
-* @return a boolean indicating if the two UnitigMaps are the same.
+/** UnitigMap constructor.
+* This constructor is used to create temporary mappings and must not be used to extract information from the graph.
+* @param start is the start position of the mapping (0-based distance) from the start of the reference unitig.
+* @param length is the length of the mapping in k-mers.
+* @param unitig_sz is the length of the reference unitig used for the mapping.
+* @param strand indicates if the mapped k-mer or sequence matches the forward strand (true) or the reverse-complement (false).
+* @return a UnitigMap.
+*/
+template<typename U, typename G, bool is_const>
+UnitigMap<U, G, is_const>::UnitigMap(const size_t start, const size_t length, const size_t unitig_sz, const bool strand) :
+                                    pos_unitig(0), dist(start), len(length), size(unitig_sz), cdbg(nullptr), strand(strand), isShort(false),
+                                    isAbundant(false), isEmpty(false) {}
+
+/** Check if two UnitigMap are the same.
+* @return a boolean indicating if two UnitigMap are the same.
 */
 template<typename U, typename G, bool is_const>
 bool UnitigMap<U, G, is_const>::operator==(const UnitigMap& o) const {
@@ -23,15 +33,19 @@ bool UnitigMap<U, G, is_const>::operator==(const UnitigMap& o) const {
             (isEmpty == o.isEmpty) && (isShort == o.isShort) && (isAbundant == o.isAbundant) && (cdbg == o.cdbg);
 }
 
-/** Check if two UnitigMaps are different.
-* @return a boolean indicating if the two UnitigMaps are different.
+/** Check if two UnitigMap are different.
+* @return a boolean indicating if the two UnitigMap are different.
 */
 template<typename U, typename G, bool is_const>
-bool UnitigMap<U, G, is_const>::operator!=(const UnitigMap& o) const { return !operator==(o); }
+bool UnitigMap<U, G, is_const>::operator!=(const UnitigMap& o) const {
 
-/** Return a string containing the sequence of the mapped unitig.
+    return  (pos_unitig != o.pos_unitig) || (dist != o.dist) || (len != o.len) || (size != o.size) || (strand != o.strand) ||
+            (isEmpty != o.isEmpty) || (isShort != o.isShort) || (isAbundant != o.isAbundant) || (cdbg != o.cdbg);
+}
+
+/** Create a string containing the sequence of the mapped unitig.
 * @return a string containing the sequence of the mapped unitig or
-* an empty string if there is no mapping (UnitigMap<U, G, is_const>::isEmpty = true).
+* an empty string if there is no mapping (UnitigMap::isEmpty = true).
 */
 template<typename U, typename G, bool is_const>
 string UnitigMap<U, G, is_const>::toString() const {
@@ -54,6 +68,18 @@ string UnitigMap<U, G, is_const>::toString() const {
     }
 }
 
+/** Compute the length of the longest common prefix between a given sequence and
+* the reference unitig used in the mapping.
+* @param s is a pointer to an array of characters representing the sequence from
+* which the length of the longest common prefix must be computed.
+* @param pos_s is the start position in s from which the longest common prefix must
+* be computed.
+* @param pos_um is the start position in the reference unitig of the mapping from
+* which the longest common prefix must be computed.
+* @param um_reversed indicates if the longest common prefix must be computed from
+* the reverse-complement of the reference unitig used in the mapping (true) or not (false).
+* @return the length of the longest common prefix
+*/
 template<typename U, typename G, bool is_const>
 size_t UnitigMap<U, G, is_const>::lcp(const char* s, const size_t pos_s, const size_t pos_um_seq, const bool um_reversed) const {
 
@@ -77,9 +103,9 @@ size_t UnitigMap<U, G, is_const>::lcp(const char* s, const size_t pos_s, const s
     return cdbg->v_unitigs[pos_unitig]->seq.jump(s, pos_s, pos_um_seq, um_reversed);
 }
 
-/** Return the head k-mer of the reference unitig used for the mapping.
+/** Get the head k-mer of the reference unitig used for the mapping.
 * @return a Kmer object which is either the head k-mer of the mapped unitig or
-* an empty k-mer if there is no mapping (UnitigMap<U, G>::isEmpty = true).
+* an empty k-mer if there is no mapping (UnitigMap::isEmpty = true).
 */
 template<typename U, typename G, bool is_const>
 Kmer UnitigMap<U, G, is_const>::getUnitigHead() const {
@@ -99,9 +125,9 @@ Kmer UnitigMap<U, G, is_const>::getUnitigHead() const {
     return km;
 }
 
-/** Return the tail k-mer of the reference unitig used for the mapping.
+/** Get the tail k-mer of the reference unitig used for the mapping.
 * @return a Kmer object which is either the tail k-mer of the mapped unitig or
-* an empty k-mer if there is no mapping (UnitigMap<U, G>::isEmpty = true).
+* an empty k-mer if there is no mapping (UnitigMap::isEmpty = true).
 */
 template<typename U, typename G, bool is_const>
 Kmer UnitigMap<U, G, is_const>::getUnitigTail() const {
@@ -121,10 +147,10 @@ Kmer UnitigMap<U, G, is_const>::getUnitigTail() const {
     return km;
 }
 
-/** Return the k-mer starting at position pos in the reference unitig used for the mapping.
+/** Get the k-mer starting at position pos in the reference unitig used for the mapping.
 * @param pos is the start position of the k-mer to extract.
 * @return a Kmer object which is either the k-mer starting at position pos in the mapped unitig or
-* an empty k-mer if there is either no mapping (UnitigMap<U, G>::isEmpty = true) or the position is
+* an empty k-mer if there is either no mapping (UnitigMap::isEmpty = true) or the position is
 * greater than length(unitig)-k.
 */
 template<typename U, typename G, bool is_const>
@@ -148,9 +174,9 @@ Kmer UnitigMap<U, G, is_const>::getUnitigKmer(const size_t pos) const {
     return km;
 }
 
-/** Return the head k-mer of the mapped sequence.
-* @return a Kmer object which is either the head k-mer of the mapped unitig or
-* an empty k-mer if there is no mapping (UnitigMap<U, G, is_const>::isEmpty = true).
+/** Get the head k-mer of the mapped sequence.
+* @return a Kmer object which is either the head k-mer of the mapped sequence or
+* an empty k-mer if there is no mapping (UnitigMap::isEmpty = true).
 */
 template<typename U, typename G, bool is_const>
 Kmer UnitigMap<U, G, is_const>::getMappedHead() const {
@@ -180,9 +206,9 @@ Kmer UnitigMap<U, G, is_const>::getMappedHead() const {
     return km;
 }
 
-/** Return the tail k-mer of the mapped sequence.
+/** Get the tail k-mer of the mapped sequence.
 * @return a Kmer object which is either the tail k-mer of the mapped sequence or
-* an empty k-mer if there is no mapping (UnitigMap<U, G, is_const>::isEmpty = true).
+* an empty k-mer if there is no mapping (UnitigMap::isEmpty = true).
 */
 template<typename U, typename G, bool is_const>
 Kmer UnitigMap<U, G, is_const>::getMappedTail() const {
@@ -212,10 +238,10 @@ Kmer UnitigMap<U, G, is_const>::getMappedTail() const {
     return km;
 }
 
-/** Return the k-mer starting at position pos in the mapped sequence.
-* @param pos is the start position of the k-mer to extract.
+/** Get the k-mer starting at position pos in the mapped sequence.
+* @param pos is the start position of the k-mer to extract within the mapped sequence.
 * @return a Kmer object which is either the k-mer starting at position pos in the mapped sequence or
-* an empty k-mer if there is either no mapping (UnitigMap<U, G, is_const>::isEmpty = true) or the position is
+* an empty k-mer if there is either no mapping (UnitigMap::isEmpty = true) or the position is
 * greater than length(unitig)-k.
 */
 template<typename U, typename G, bool is_const>
@@ -252,6 +278,10 @@ Kmer UnitigMap<U, G, is_const>::getMappedKmer(const size_t pos) const {
     return km;
 }
 
+/** Create a new UnitigMap object which is the mapping of a k-mer on a reference unitig
+* @param pos is the start position of the k-mer to map in the reference unitig used for the current mapping.
+* @return a UnitigMap object which is the mapping.
+*/
 template<typename U, typename G, bool is_const>
 UnitigMap<U, G, is_const> UnitigMap<U, G, is_const>::getKmerMapping(const size_t pos) const {
 
@@ -260,18 +290,44 @@ UnitigMap<U, G, is_const> UnitigMap<U, G, is_const>::getKmerMapping(const size_t
     um.dist = pos;
     um.len = 1;
 
+    if (pos >= um.size) um.isEmpty = true;
+
     return um;
 }
 
-/** Return a pointer to the data associated with the mapped unitig.
-* @return a constant pointer to the data associated with the mapped unitig or
-* a constant null pointer if there is no mapping (UnitigMap<U, G, is_const>::isEmpty = true) or no data
-* associated with the unitigs (T = void).
+/** Get a pointer to the data associated with the reference unitig used in the mapping.
+* @return a pointer to the data associated with the reference unitig used in the mapping
+* or a nullptr pointer if:
+* - there is no mapping (UnitigMap::isEmpty = true)
+* - there is no data associated with the unitigs (U = void).
+* The returned pointer is constant if the UnitigMap is constant (UnitigMap<U, G, true>).
 */
 template<typename U, typename G, bool is_const>
 typename UnitigMap<U, G, is_const>::Unitig_data_ptr_t UnitigMap<U, G, is_const>::getData() const {
 
     return getData_<is_void<U>::value>();
+}
+
+/** Create a UnitigMap_BW object that can create iterators (through UnitigMap_BW::begin() and
+* UnitigMap_BW::end()) over the predecessors of the reference unitig used in the mapping.
+* @return a UnitigMap_BW object that can create iterators (through UnitigMap_BW::begin() and
+* UnitigMap_BW::end()) over the predecessors of the reference unitig used in the mapping.
+*/
+template<typename U, typename G, bool is_const>
+typename UnitigMap<U, G, is_const>::UnitigMap_BW UnitigMap<U, G, is_const>::getPredecessors() const {
+
+    return BackwardCDBG<U, G, is_const>(*this);
+}
+
+/** Create a UnitigMap_FW object that can create iterators (through UnitigMap_FW::begin() and
+* UnitigMap_FW::end()) over the successors of the reference unitig used in the mapping.
+* @return a UnitigMap_FW object that can create iterators (through UnitigMap_FW::begin() and
+* UnitigMap_FW::end()) over the successors of the reference unitig used in the mapping.
+*/
+template<typename U, typename G, bool is_const>
+typename UnitigMap<U, G, is_const>::UnitigMap_FW UnitigMap<U, G, is_const>::getSuccessors() const {
+
+    return ForwardCDBG<U, G, is_const>(*this);
 }
 
 template<typename U, typename G, bool is_const>
@@ -334,22 +390,6 @@ Unitig<U> UnitigMap<U, G, is_const>::splitData(const bool last_split) const {
     return splitData_<is_void<U>::value>(last_split);
 }
 
-/** Return a constant BackwardCDBG object that can create iterators (through BackwardCDBG::begin() and
-* BackwardCDBG::end()) over the predecessors of the current mapped unitig.
-* @return a constant BackwardCDBG object that can create iterators (through BackwardCDBG::begin() and
-* BackwardCDBG::end()) over the predecessors of the current mapped unitig.
-*/
-template<typename U, typename G, bool is_const>
-BackwardCDBG<U, G, is_const> UnitigMap<U, G, is_const>::getPredecessors() const { return BackwardCDBG<U, G, is_const>(*this); }
-
-/** Return a constant BackwardCDBG object that can create iterators (through BackwardCDBG::begin() and
-* BackwardCDBG::end()) over the successors of the current mapped unitig.
-* @return a constant BackwardCDBG object that can create iterators (through BackwardCDBG::begin() and
-* BackwardCDBG::end()) over the successors of the current mapped unitig.
-*/
-template<typename U, typename G, bool is_const>
-ForwardCDBG<U, G, is_const> UnitigMap<U, G, is_const>::getSuccessors() const { return ForwardCDBG<U, G, is_const>(*this); }
-
 template<typename U, typename G, bool is_const>
 neighborIterator<U, G, is_const> UnitigMap<U, G, is_const>::bw_begin() const {
 
@@ -386,3 +426,8 @@ void UnitigMap<U, G, is_const>::partialCopy(const UnitigMap<U, G, is_const>& o) 
     isShort = o.isShort;
     isAbundant = o.isAbundant;
 }
+
+template<typename U, typename G, bool is_const>
+UnitigMap<U, G, is_const>::UnitigMap(size_t p_unitig, size_t i, size_t l, size_t sz, bool short_, bool abundance, bool strd, CompactedDBG_ptr_t cdbg_) :
+                                    pos_unitig(p_unitig), dist(i), len(l), size(sz), cdbg(cdbg_), strand(strd), isShort(short_), isAbundant(abundance),
+                                    isEmpty(false) {}
