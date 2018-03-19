@@ -5,20 +5,30 @@
 
 /** @file src/NeighborIterator.hpp
 * The neighborIterator, BackwardCDBG and ForwardCDBG type interfaces.
-* Code snippets using these interfaces are provided in snippets.hpp.
+* Code snippets using these interfaces are provided in snippets/test.cpp.
 */
 
 template<typename U, typename G> class CompactedDBG;
 template<typename U, typename G, bool is_const> class UnitigMap;
 
 /** @class neighborIterator
-* @brief Iterator for the neighbors (predecessors or successors) of a mapped unitig object UnitigMap.
-* The first template argument, type T, is the type of data associated with the unitigs in the
-* Compacted de Bruijn graph. Second template argument indicates whether the iterator is a constant.
-* This iterator considers the forward and reverse-complement strand of the mapped unitig so the mapped
-* unitig can have more than 4 predecessors/successors (up to 4 in one direction and 4 in the other
-* direction). Also, note that no specific order (such as a lexicographic one) is assumed during iteration.
-* An example of using such a class is shown in src/snippets.hpp.
+* @brief Iterator for the neighbors (predecessors or successors) of a reference unitig used in a UnitigMap object.
+* A neighborIterator object has 3 template parameters: the type of data associated with the unitigs of the graph,
+* the type of data associated with the graph and a boolean indicating if this is a constant iterator or not.
+* Note that you are supposed to use this class as the iterator of a BackwardCDBG or ForwardCDBG object, which can
+* be obtained respectively from UnitigMap::getPredecessors() and UnitigMap::getSuccessors(), so you shouldn't
+* have to instantiate an object neighborIterator and its template parameters yourself. The unitig data and graph
+* data types should be the same as the ones used for the CompactedDBG the iterator is from. No specific order
+* (such as a lexicographic one) is assumed during iteration.
+* \code{.cpp}
+* CompactedDBG<> cdbg;
+* ... // Some more code, cdbg construction
+* for (const auto& unitig : cdbg){
+*   cout << unitig.toString() << endl; // unitig is of type UnitigMap
+*   for (const auto& pred : unitig.getPredecessors()) cout << pred.toString() << endl;
+*   for (const auto& succ : unitig.getSuccessors()) cout << succ.toString() << endl;
+* }
+* \endcode
 */
 template<typename Unitig_data_t = void, typename Graph_data_t = void, bool is_const = false>
 class neighborIterator : public std::iterator<std::input_iterator_tag, UnitigMap<Unitig_data_t, Graph_data_t, is_const>, int> {
@@ -58,10 +68,13 @@ class neighborIterator : public std::iterator<std::input_iterator_tag, UnitigMap
 };
 
 /** @class BackwardCDBG
-* @brief Wrapper for class neighborIterator to iterate over the predecessors of a mapped unitig object UnitigMap.
-* An example of using such a class is shown in src/snippets.hpp. The first template argument, type T, is the type
-* of data associated with the unitigs in the Compacted de Bruijn graph. Second template argument indicates whether
-* the iterator accessible through this wrapper is a constant.
+* @brief Wrapper for class neighborIterator to iterate over the predecessors of a reference unitig used in a UnitigMap object.
+* A BackwardCDBG object has 3 template parameters: the type of data associated with the unitigs of the graph,
+* the type of data associated with the graph and a boolean indicating if this is a constant neighborIterator or not.
+* Note that you are supposed to obtain an instance of this class from UnitigMap::getPredecessors() so you shouldn't
+* have to instantiate an object BackwardCDBG and its template parameters yourself. The unitig data and graph
+* data types should be the same as the ones used for the CompactedDBG the iterator is from. No specific order
+* (such as a lexicographic one) is assumed during iteration.
 */
 template<typename Unitig_data_t = void, typename Graph_data_t = void, bool is_const = false>
 class BackwardCDBG {
@@ -82,10 +95,13 @@ class BackwardCDBG {
 };
 
 /** @class ForwardCDBG
-* @brief Wrapper for class neighborIterator to iterate over the successors of a mapped unitig object UnitigMap.
-* An example of using such a class is shown in src/snippets.hpp. The first template argument, type T, is the type
-* of data associated with the unitigs in the Compacted de Bruijn graph. Second template argument indicates whether
-* the iterator accessible through this wrapper is a constant.
+* @brief Wrapper for class neighborIterator to iterate over the predecessors of a reference unitig used in a UnitigMap object.
+* A ForwardCDBG object has 3 template parameters: the type of data associated with the unitigs of the graph,
+* the type of data associated with the graph and a boolean indicating if this is a constant neighborIterator or not.
+* Note that you are supposed to obtain an instance of this class from UnitigMap::getSuccessors() so you shouldn't
+* have to instantiate an object ForwardCDBG and its template parameters yourself. The unitig data and graph
+* data types should be the same as the ones used for the CompactedDBG the iterator is from. No specific order
+* (such as a lexicographic one) is assumed during iteration.
 */
 template<typename Unitig_data_t = void, typename Graph_data_t = void, bool is_const = false>
 class ForwardCDBG {

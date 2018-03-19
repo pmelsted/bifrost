@@ -11,7 +11,7 @@ template<typename U, typename G, bool is_const>
 neighborIterator<U, G, is_const>::neighborIterator() : i(4), is_fw(true), cdbg(nullptr) {}
 
 /** Constructor.
-* @param um_ is a mapped unitig from which the neighbors are to be iterated
+* @param um_ is a UnitigMap object: the constructed neighborIterator will iterate over the neighbors of the UnitigMap reference unitig
 * @param is_forward_ indicates if the iterator must iterate over the successors (true) or the predecessors (false)
 * @return a neighborIterator.
 */
@@ -33,9 +33,7 @@ template<typename U, typename G, bool is_const>
 neighborIterator<U, G, is_const>::neighborIterator(const neighborIterator& o) : i(o.i), is_fw(o.is_fw), um(o.um), km_head(o.km_head), km_tail(o.km_tail), cdbg(o.cdbg) {}
 
 /** Prefix increment, iterate over the next neighbor (predecessor or successor).
-* This iterator considers the forward and reverse-complement strand of the mapped unitig so the mapped
-* unitig can have more than 4 predecessors/successors (up to 4 in one direction and 4 in the other
-* direction). Also, note that no specific order (such as a lexicographic one) is assumed during iteration.
+* Note that no specific order (such as a lexicographic one) is assumed during iteration.
 */
 template<typename U, typename G, bool is_const>
 neighborIterator<U, G, is_const>& neighborIterator<U, G, is_const>::operator++() {
@@ -63,9 +61,7 @@ neighborIterator<U, G, is_const>& neighborIterator<U, G, is_const>::operator++()
 }
 
 /** Postfix increment, iterate over the next neighbor (predecessor or successor).
-* This iterator considers the forward and reverse-complement strand of the mapped unitig so the mapped
-* unitig can have more than 4 predecessors/successors (up to 4 in one direction and 4 in the other
-* direction). Also, note that no specific order (such as a lexicographic one) is assumed during iteration.
+* Note that no specific order (such as a lexicographic one) is assumed during iteration.
 */
 template<typename U, typename G, bool is_const>
 neighborIterator<U, G, is_const> neighborIterator<U, G, is_const>::operator++(int) {
@@ -76,9 +72,9 @@ neighborIterator<U, G, is_const> neighborIterator<U, G, is_const>::operator++(in
     return tmp;
 }
 
-/** Check if two neighborIterators are the same.
+/** Check if two neighborIterator are the same.
 * @param o is another neighborIterator.
-* @return a boolean indicating whether the two neighborIterators are the same.
+* @return a boolean indicating whether the two neighborIterator are the same.
 */
 template<typename U, typename G, bool is_const>
 bool neighborIterator<U, G, is_const>::operator==(const neighborIterator& o) const {
@@ -87,21 +83,21 @@ bool neighborIterator<U, G, is_const>::operator==(const neighborIterator& o) con
     return (is_fw == o.is_fw) && (km_head == o.km_head) && (km_tail == o.km_tail) && (cdbg == o.cdbg) && (um == o.um);
 }
 
-/** Check if two neighborIterators are different.
+/** Check if two neighborIterator are different.
 * @param o is another neighborIterator.
-* @return a boolean indicating whether the two neighborIterators are different.
+* @return a boolean indicating whether the two neighborIterator are different.
 */
 template<typename U, typename G, bool is_const>
 bool neighborIterator<U, G, is_const>::operator!=(const neighborIterator& o) const { return !operator==(o); }
 
-/** Return a UnitigMap object reference which contains information about the mapped neighbor.
-* @return a UnitigMap object reference which contains information about the mapped neighbor.
+/** Return a UnitigMap reference which contains information about the mapped neighbor.
+* @return a UnitigMap reference which contains information about the mapped neighbor.
 */
 template<typename U, typename G, bool is_const>
 const UnitigMap<U, G, is_const>& neighborIterator<U, G, is_const>::operator*() const { return um; }
 
-/** Return a UnitigMap object pointer which contains information about the mapped neighbor.
-* @return a UnitigMap object pointer which contains information about the mapped neighbor.
+/** Return a UnitigMap pointer which contains information about the mapped neighbor.
+* @return a UnitigMap pointer which contains information about the mapped neighbor.
 */
 template<typename U, typename G, bool is_const>
 const UnitigMap<U, G, is_const>* neighborIterator<U, G, is_const>::operator->() const { return &um; }
@@ -110,21 +106,21 @@ const UnitigMap<U, G, is_const>* neighborIterator<U, G, is_const>::operator->() 
 
 
 /** Constructor.
-* @param um_ is a reference to a mapped unitig object UnitigMap.
+* @param um_ is a UnitigMap object: the wrapper will provide an iterator over the predecessors of the UnitigMap reference unitig
 */
 template<typename U, typename G, bool is_const>
 BackwardCDBG<U, G, is_const>::BackwardCDBG(const UnitigMap<U, G, is_const>& um_) : um(um_) {}
 
-/** Return a constant iterator over the predecessors of a mapped unitig. The returned iterator is initiated
+/** Return aniterator over the predecessors of a reference unitig. The returned iterator is initialized
 * over the first such predecessor, if there is one.
-* @return a constant  iterator over the predecessors of a mapped unitig. It is initiated over the first such
+* @return an iterator over the predecessors of a reference unitig. It is initialized over the first such
 * predecessor, if there is one.
 */
 template<typename U, typename G, bool is_const>
 neighborIterator<U, G, is_const> BackwardCDBG<U, G, is_const>::begin() const { return um.bw_begin(); }
 
-/** Return a constant iterator over the past-the-last predecessor of a mapped unitig.
-* @return a constant iterator over the past-the-last predecessor of a mapped unitig.
+/** Return an iterator over the past-the-last predecessor of a reference unitig.
+* @return an iterator over the past-the-last predecessor of a reference unitig.
 */
 template<typename U, typename G, bool is_const>
 neighborIterator<U, G, is_const> BackwardCDBG<U, G, is_const>::end() const { return um.bw_end(); }
@@ -133,21 +129,21 @@ neighborIterator<U, G, is_const> BackwardCDBG<U, G, is_const>::end() const { ret
 
 
 /** Constructor.
-* @param um_ is a reference to a mapped unitig object UnitigMap.
+* @param um_ is a UnitigMap object: the wrapper will provide an iterator over the successors of the UnitigMap reference unitig
 */
 template<typename U, typename G, bool is_const>
 ForwardCDBG<U, G, is_const>::ForwardCDBG(const UnitigMap<U, G, is_const>& um_) : um(um_) {}
 
-/** Return a constant iterator over the successors of a mapped unitig. The returned iterator is initiated
+/** Return an iterator over the successors of a reference unitig. The returned iterator is initialized
 * over the first such successor, if there is one.
-* @return a constant  iterator over the successors of a mapped unitig. It is initiated over the first such
+* @return an iterator over the successors of a reference unitig. It is initialized over the first such
 * successor, if there is one.
 */
 template<typename U, typename G, bool is_const>
 neighborIterator<U, G, is_const> ForwardCDBG<U, G, is_const>::begin() const { return um.fw_begin(); }
 
-/** Return a constant iterator over the past-the-last successor of a mapped unitig.
-* @return a constant iterator over the past-the-last successor of a mapped unitig.
+/** Return an iterator over the past-the-last successor of a reference unitig.
+* @return an iterator over the past-the-last successor of a reference unitig.
 */
 template<typename U, typename G, bool is_const>
 neighborIterator<U, G, is_const> ForwardCDBG<U, G, is_const>::end() const { return um.fw_end(); }
