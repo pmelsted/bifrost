@@ -47,7 +47,7 @@
 
 /** @file src/CompactedDBG.hpp
 * Interface for the Compacted de Bruijn graph API.
-* Code snippets using this interface are provided in snippets.hpp.
+* Code snippets using this interface are provided in snippets/test.cpp.
 */
 
 using namespace std;
