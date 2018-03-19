@@ -1,3 +1,6 @@
+#ifndef BFG_HASHID_TCC
+#define BFG_HASHID_TCC
+
 template<typename U>
 DataAccessor<U>::DataAccessor(const uint8_t id) : da_id(id) {}
 
@@ -14,7 +17,7 @@ const U* DataAccessor<U>::getData(const const_UnitigColorMap<U>& um) const {
     return nullptr;
 }
 
-template<> const void* DataAccessor<void>::getData(const const_UnitigColorMap<void>& um) const { return nullptr; }
+template<> inline const void* DataAccessor<void>::getData(const const_UnitigColorMap<void>& um) const { return nullptr; }
 
 template<typename U>
 U* DataAccessor<U>::getData(const UnitigColorMap<U>& um) const {
@@ -29,7 +32,7 @@ U* DataAccessor<U>::getData(const UnitigColorMap<U>& um) const {
     return nullptr;
 }
 
-template<> void* DataAccessor<void>::getData(const UnitigColorMap<void>& um) const { return nullptr; }
+template<> inline void* DataAccessor<void>::getData(const UnitigColorMap<void>& um) const { return nullptr; }
 
 /** Get the color set of a unitig.
 * @param um is a UnitigMap representing a mapping to a unitig from the graph.
@@ -142,7 +145,7 @@ void DataAccessor<U>::join(const UnitigColorMap<U>& um_dest, const UnitigColorMa
 }
 
 template<>
-void DataAccessor<void>::join(const UnitigColorMap<void>& um_dest, const UnitigColorMap<void>& um_src){
+inline void DataAccessor<void>::join(const UnitigColorMap<void>& um_dest, const UnitigColorMap<void>& um_src){
 
     DataAccessor<void>* da_dest = um_dest.getData();
     UnitigColors<void>* cs_dest = da_dest->getUnitigColors(um_dest);
@@ -174,7 +177,7 @@ void DataAccessor<void>::join(const UnitigColorMap<void>& um_dest, const UnitigC
 }
 
 template<typename U>
-void DataAccessor<U>::sub(const UnitigColorMap<U>& um, DataAccessor<U>* data_dest, const bool last_extraction) {
+inline void DataAccessor<U>::sub(const UnitigColorMap<U>& um, DataAccessor<U>* data_dest, const bool last_extraction) {
 
     DataStorage<U>* ds = um.getCompactedDBG()->getData();
     UnitigColors<U> cs = ds->getSubUnitigColors(um);
@@ -197,7 +200,7 @@ void DataAccessor<U>::sub(const UnitigColorMap<U>& um, DataAccessor<U>* data_des
 }
 
 template<>
-void DataAccessor<void>::sub(const UnitigColorMap<void>& um, DataAccessor<void>* data_dest, const bool last_extraction) {
+inline void DataAccessor<void>::sub(const UnitigColorMap<void>& um, DataAccessor<void>* data_dest, const bool last_extraction) {
 
     DataStorage<void>* ds = um.getCompactedDBG()->getData();
     UnitigColors<void> cs = ds->getSubUnitigColors(um);
@@ -217,3 +220,5 @@ void DataAccessor<void>::sub(const UnitigColorMap<void>& um, DataAccessor<void>*
 
 template<typename U>
 string DataAccessor<U>::serialize() const { return std::to_string(da_id); }
+
+#endif

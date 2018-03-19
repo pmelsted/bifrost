@@ -1,3 +1,6 @@
+#ifndef UNITIG_ITERATOR_TCC
+#define UNITIG_ITERATOR_TCC
+
 #include "CompactedDBG.hpp"
 
 /** Constructor.
@@ -114,3 +117,5 @@ const UnitigMap<U, G, is_const>& unitigIterator<U, G, is_const>::operator*() con
 */
 template<typename U, typename G, bool is_const>
 const UnitigMap<U, G, is_const>* unitigIterator<U, G, is_const>::operator->() const { return &um; }
+
+#endif

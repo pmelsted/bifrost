@@ -1,3 +1,6 @@
+#ifndef BFG_DATASTORAGE_TCC
+#define BFG_DATASTORAGE_TCC
+
 template<typename U>
 DataStorage<U>::DataStorage() : color_sets(nullptr), data(nullptr), nb_seeds(0), nb_color_sets(0), nb_elem(0), nb_free_elem(0) {
 
@@ -26,7 +29,7 @@ DataStorage<U>::DataStorage(const size_t nb_seeds_, const size_t nb_elem_, const
 }
 
 template<>
-DataStorage<void>::DataStorage(const size_t nb_seeds_, const size_t nb_elem_, const vector<string>& color_names_) :
+inline DataStorage<void>::DataStorage(const size_t nb_seeds_, const size_t nb_elem_, const vector<string>& color_names_) :
                                 color_sets(nullptr), data(nullptr), nb_seeds(nb_seeds_), nb_elem(nb_elem_),
                                 nb_free_elem(0), nb_color_sets(nb_elem_), color_names(color_names_) {
 
@@ -63,7 +66,7 @@ DataStorage<U>::DataStorage(const DataStorage& o) : nb_seeds(o.nb_seeds), nb_col
 }
 
 template<>
-DataStorage<void>::DataStorage(const DataStorage& o) :  nb_seeds(o.nb_seeds), nb_color_sets(o.nb_color_sets), nb_elem(o.nb_elem),
+inline DataStorage<void>::DataStorage(const DataStorage& o) :  nb_seeds(o.nb_seeds), nb_color_sets(o.nb_color_sets), nb_elem(o.nb_elem),
                                                         nb_free_elem(o.nb_free_elem), color_names(o.color_names), data(nullptr),
                                                         color_sets(nullptr), overflow(o.overflow) {
 
@@ -127,7 +130,7 @@ void DataStorage<U>::empty() {
 }
 
 template<>
-void DataStorage<void>::empty() {
+inline void DataStorage<void>::empty() {
 
     if (color_sets != nullptr){
 
@@ -178,7 +181,7 @@ DataStorage<U>& DataStorage<U>::operator=(const DataStorage& o) {
 }
 
 template<>
-DataStorage<void>& DataStorage<void>::operator=(const DataStorage& o) {
+inline DataStorage<void>& DataStorage<void>::operator=(const DataStorage& o) {
 
     empty();
 
@@ -237,7 +240,7 @@ DataStorage<U>& DataStorage<U>::operator=(DataStorage&& o) {
 }
 
 template<>
-DataStorage<void>& DataStorage<void>::operator=(DataStorage&& o) {
+inline DataStorage<void>& DataStorage<void>::operator=(DataStorage&& o) {
 
     if (this != &o) {
 
@@ -324,7 +327,7 @@ const U* DataStorage<U>::getData(const const_UnitigColorMap<U>& um) const {
     return nullptr;
 }
 
-template<> const void* DataStorage<void>::getData(const const_UnitigColorMap<void>& um) const {
+template<> inline const void* DataStorage<void>::getData(const const_UnitigColorMap<void>& um) const {
 
     return nullptr;
 }
@@ -349,7 +352,7 @@ U* DataStorage<U>::getData(const UnitigColorMap<U>& um) {
     return nullptr;
 }
 
-template<> void* DataStorage<void>::getData(const UnitigColorMap<void>& um) {
+template<> inline void* DataStorage<void>::getData(const UnitigColorMap<void>& um) {
 
     return nullptr;
 }
@@ -572,7 +575,7 @@ UnitigColors<U>* DataStorage<U>::insert() {
 }
 
 template<>
-UnitigColors<void>* DataStorage<void>::insert() {
+inline UnitigColors<void>* DataStorage<void>::insert() {
 
     if (nb_free_elem == 0){
 
@@ -753,7 +756,7 @@ bool DataStorage<U>::read(const string& filename_colors, bool verbose) {
 }
 
 template<>
-bool DataStorage<void>::read(const string& filename_colors, bool verbose) {
+inline bool DataStorage<void>::read(const string& filename_colors, bool verbose) {
 
     if (verbose) cout << endl << "DataStorage::read(): Reading color sets from disk" << endl;
 
@@ -856,3 +859,5 @@ uint64_t DataStorage<U>::getHash(const UnitigColorMap<U>& um) const {
 
     return 0;
 }
+
+#endif

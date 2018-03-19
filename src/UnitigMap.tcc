@@ -1,3 +1,6 @@
+#ifndef BFG_UNITIGMAP_TCC
+#define BFG_UNITIGMAP_TCC
+
 #include "CompactedDBG.hpp"
 #include "NeighborIterator.hpp"
 
@@ -431,3 +434,5 @@ template<typename U, typename G, bool is_const>
 UnitigMap<U, G, is_const>::UnitigMap(size_t p_unitig, size_t i, size_t l, size_t sz, bool short_, bool abundance, bool strd, CompactedDBG_ptr_t cdbg_) :
                                     pos_unitig(p_unitig), dist(i), len(l), size(sz), cdbg(cdbg_), strand(strd), isShort(short_), isAbundant(abundance),
                                     isEmpty(false) {}
+
+#endif

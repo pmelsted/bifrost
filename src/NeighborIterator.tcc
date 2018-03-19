@@ -1,3 +1,6 @@
+#ifndef NEIGHBOR_ITERATOR_TCC
+#define NEIGHBOR_ITERATOR_TCC
+
 #include "CompactedDBG.hpp"
 #include "UnitigMap.hpp"
 
@@ -148,3 +151,5 @@ neighborIterator<U, G, is_const> ForwardCDBG<U, G, is_const>::begin() const { re
 */
 template<typename U, typename G, bool is_const>
 neighborIterator<U, G, is_const> ForwardCDBG<U, G, is_const>::end() const { return um.fw_end(); }
+
+#endif

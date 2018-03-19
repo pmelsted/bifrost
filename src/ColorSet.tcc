@@ -1,3 +1,6 @@
+#ifndef BFG_COLOR_TCC
+#define BFG_COLOR_TCC
+
 /** Color set constructor (set up an empty color set). The color set is
 * initialized as "unoccupied": the color set is "free" to be used,
 * it is not associated with any unitig.
@@ -361,3 +364,5 @@ void UnitigColors<U>::add(const size_t color_id) {
     }
     else getPtrBitmap()->add(color_id); // flag == ptrCompressedBitmap
 }
+
+#endif

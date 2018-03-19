@@ -1,3 +1,6 @@
+#ifndef BFG_COLOREDCDBG_TCC
+#define BFG_COLOREDCDBG_TCC
+
 /** Colored and Compacted de Bruijn graph constructor (set up an empty colored cdBG).
 * @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
 * @param minimizer_length is the length g of minimizers (g < k) used in the graph.
@@ -495,3 +498,5 @@ void ColoredCDBG<U>::checkColors(const CCDBG_Build_opt& opt) {
     cout << "ColoredCDBG::checkColors(): Checked all colors of all k-mers: everything is fine" << endl;
     cout << "ColoredCDBG::checkColors(): Number of k-mers in the graph: " << km_h.size() << endl;
 }
+
+#endif
