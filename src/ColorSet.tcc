@@ -244,7 +244,7 @@ size_t UnitigColors<U>::size() const {
     const uintptr_t flag = setBits & flagMask;
 
     if (flag == ptrCompressedBitmap) return getConstPtrBitmap()->cardinality();
-    else if (flag == localBitVectorColor) return __builtin_popcount(setBits & pointerMask);
+    else if (flag == localBitVectorColor) return __builtin_popcountll(setBits & pointerMask);
     else if (flag == localSingleColor) return 1;
 
     return 0; //flag == unoccupied
@@ -364,5 +364,82 @@ void UnitigColors<U>::add(const size_t color_id) {
     }
     else getPtrBitmap()->add(color_id); // flag == ptrCompressedBitmap
 }
+
+template<typename U>
+size_t UnitigColors<U>::getSizeInBytes() const {
+
+    if ((setBits & flagMask) == ptrCompressedBitmap) return sizeof(UnitigColors<U>) + getPtrBitmap()->getSizeInBytes();
+    return sizeof(UnitigColors);
+}
+
+/*template<typename U>
+void UnitigColors<U>::test(const const_UnitigColorMap<U>& um) {
+
+    UnitigColors<U> new_cs;
+    UnitigColors<U>::const_iterator it = begin(), it_end = end(), prev_it = begin(), it_tmp;
+
+    const size_t len_unitig_km = um.size - Kmer::k + 1;
+    const size_t newlen_unitig_km = len_unitig_km + 1;
+
+    size_t prev_color_id = 0;
+    size_t count_km_per_color = 0;
+
+    while (it != it_end){ // Iterate over colors
+
+        const size_t color_id = *it / len_unitig_km; // Current color
+
+        it_tmp = it;
+        ++it_tmp;
+
+        // If the current color is not the same as the previous one
+        // or we have reached  the end of the UnitigColors
+        if ((it_tmp == it_end) || (color_id != prev_color_id)){
+
+            // For the current color, if only half of the k-mers in the unitigs have it
+            if (count_km_per_color >= (len_unitig_km/2)){
+
+                new_cs.add(newlen_unitig_km * prev_color_id);
+
+                size_t prev_km_dist = 0xffffffffffffffff;
+
+                while (prev_it != it){
+
+                    const size_t km_dist = *prev_it - (prev_color_id * len_unitig_km);
+
+                    it_tmp = prev_it;
+                    ++it_tmp;
+
+                    if ((it_tmp == it) || (km_dist != (prev_km_dist + 1))){
+
+                        for (++prev_km_dist; prev_km_dist != km_dist; ++prev_km_dist){
+
+                            new_cs.add(newlen_unitig_km * prev_color_id + (prev_km_dist + 1));
+                        }
+                    }
+                    else ++prev_km_dist;
+
+                    ++prev_it;
+                }
+            }
+            else {
+
+                for (; prev_it != it; ++prev_it){
+
+                    const size_t new_km_dist = *prev_it - (prev_color_id * len_unitig_km);
+
+                    new_cs.add(newlen_unitig_km * prev_color_id + (new_km_dist + 1));
+                }
+            }
+
+            prev_color_id = color_id;
+            count_km_per_color = 1;
+        }
+        else ++count_km_per_color;
+
+        ++it;
+    }
+
+    *this = new_cs;
+}*/
 
 #endif

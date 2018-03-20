@@ -39,35 +39,42 @@ class UnitigColors {
             private:
 
                 const UnitigColors<U>* cs;
-                size_t color_id;
 
                 size_t flag;
                 size_t it_setBits;
+                size_t color_id;
+                size_t cs_sz;
 
                 const Roaring empty_roar;
                 Roaring::const_iterator it_roar;
 
             public:
 
-                UnitigColors_const_iterator() : cs(nullptr), flag(localBitVectorColor), it_setBits(maxBitVectorIDs), color_id(0), it_roar(empty_roar.end()) {}
+                UnitigColors_const_iterator() : cs(nullptr), flag(unoccupied), it_setBits(0xffffffffffffffff),
+                                                color_id(0), cs_sz(0), it_roar(empty_roar.end()) {}
 
-                UnitigColors_const_iterator(const UnitigColors<U>* cs_) : cs(cs_), it_setBits(0), color_id(0), it_roar(empty_roar.end()) {
+                UnitigColors_const_iterator(const UnitigColors<U>* cs_, const bool beg) :   cs(cs_), it_setBits(0xffffffffffffffff),
+                                                                                            color_id(0), it_roar(empty_roar.end()) {
 
                     flag = cs->setBits & flagMask;
-                    if (flag == ptrCompressedBitmap) it_roar = cs->getConstPtrBitmap()->begin();
-                    else if (flag == unoccupied){
 
-                        flag = localBitVectorColor;
-                        it_setBits = maxBitVectorIDs;
+                    if (flag == ptrCompressedBitmap){
+
+                        it_roar = beg ? cs->getConstPtrBitmap()->begin() : cs->getConstPtrBitmap()->end();
+                        cs_sz = cs->size();
                     }
+                    else cs_sz = (flag == localSingleColor) ? 1 : maxBitVectorIDs;
+
+                    if (!beg) it_setBits = cs_sz;
                 }
 
                 UnitigColors_const_iterator<U>& operator=(const UnitigColors_const_iterator& o) {
 
                     cs = o.cs;
-                    color_id = o.color_id;
                     flag = o.flag;
                     it_setBits = o.it_setBits;
+                    color_id = o.color_id;
+                    cs_sz = o.cs_sz;
                     it_roar = o.it_roar;
 
                     return *this;
@@ -84,9 +91,14 @@ class UnitigColors {
 
                 UnitigColors_const_iterator<U>& operator++() {
 
+                    if (it_setBits == cs_sz) return *this;
+
+                    ++it_setBits;
+
                     if (flag == ptrCompressedBitmap) {
 
-                        if (it_roar != cs->getConstPtrBitmap()->end()) color_id = *(++it_roar);
+                        if (it_setBits != 0) ++it_roar;
+                        if (it_roar != cs->getConstPtrBitmap()->end()) color_id = *it_roar;
                     }
                     else if (flag == localBitVectorColor){
 
@@ -101,26 +113,18 @@ class UnitigColors {
                             ++it_setBits;
                         }
                     }
-                    else if ((flag == localSingleColor) && (it_setBits < 1)){
-
-                        color_id = cs->setBits >> 2;
-                        ++it_setBits;
-                    }
+                    else if (flag == localSingleColor) color_id = cs->setBits >> 2;
 
                     return *this;
                 }
 
-                bool operator==(const UnitigColors_const_iterator& o) {
+                bool operator==(const UnitigColors_const_iterator& o) const {
 
-                    return  (cs == o.cs) && (color_id == o.color_id) && (flag == o.flag) &&
+                    return  (cs == o.cs) && (flag == o.flag) && (cs_sz == o.cs_sz) &&
                             ((flag == ptrCompressedBitmap) ? (it_roar == o.it_roar) : (it_setBits == o.it_setBits));
                 }
 
-                bool operator!=(const UnitigColors_const_iterator& o) {
-
-                    return  (cs != o.cs) || (color_id != o.color_id) || (flag != o.flag) ||
-                            ((flag == ptrCompressedBitmap) ? (it_roar != o.it_roar) : (it_setBits != o.it_setBits));
-                }
+                bool operator!=(const UnitigColors_const_iterator& o) const { return !operator==(o); }
         };
 
         typedef UnitigColors_const_iterator<U> const_iterator;
@@ -144,6 +148,8 @@ class UnitigColors {
         bool write(ostream& stream_out) const;
         bool read(istream& stream_in);
 
+        size_t getSizeInBytes() const;
+
         /** Optimize the memory of a color set. Useful if multiple overlapping k-mers
         * of a unitig share the same color.
         */
@@ -157,14 +163,16 @@ class UnitigColors {
         */
         const_iterator begin() const {
 
-            const_iterator it(this);
+            const_iterator it(this, true);
             return ++it;
         }
 
         /** Create a constant iterator to the the "past-the-last" color of the color set.
         * @return a constant iterator to the first the "past-the-last" of the color set.
         */
-        const_iterator end() const { return const_iterator(); }
+        const_iterator end() const { return const_iterator(this, false); }
+
+        //void test(const const_UnitigColorMap<U>& um);
 
     private:
 
