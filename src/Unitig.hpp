@@ -8,16 +8,11 @@
 
 /** @file src/Unitig.hpp
 * The Unitig interface.
-* Code snippets using these interface are provided in snippets.hpp.
+* Code snippets using these interface are provided in snippets/test.cpp.
 */
 
-/* Short description:
- *  - Use the CompressedSequence class for storing the DNA string
- *  - Use the CompressedCoverage class for storing the kmer coverage
- *  */
-
  /** @class Unitig
-* @brief Represent a unitig which is a vertex of the compacted de Bruijn graph.
+* @brief Represent a unitig which is a vertex of the Compacted de Bruijn graph.
 * The first template argument T is the type of data associated with the unitigs
 * of the graph.
 * @var Unitig::data

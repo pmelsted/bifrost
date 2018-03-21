@@ -372,6 +372,38 @@ size_t UnitigColors<U>::getSizeInBytes() const {
     return sizeof(UnitigColors);
 }
 
+template<typename U>
+void UnitigColors<U>::merge(const UnitigColors<U>& cs){
+
+    const uintptr_t flag = setBits & flagMask;
+    const uintptr_t flag_cs = cs.setBits & flagMask;
+
+    if (flag_cs == unoccupied) return;
+
+    if (flag == flag_cs){
+
+        if (flag == localBitVectorColor) setBits |= cs.setBits;
+        else if (flag == ptrCompressedBitmap) *getPtrBitmap() |= *(cs.getConstPtrBitmap());
+        else add(cs.setBits >> 2);
+    }
+    else if (flag_cs == ptrCompressedBitmap) {
+
+        const Bitmap* bmp = cs.getConstPtrBitmap();
+
+        for (Bitmap::const_iterator it = bmp->begin(), it_end = bmp->end(); it != it_end; ++it) add(*it);
+    }
+    else if (flag_cs == localBitVectorColor){
+
+        uintptr_t setBits_tmp = cs.setBits >> 2;
+
+        for (size_t it = 0; setBits_tmp != 0; ++it, setBits_tmp >>= 1){
+
+            if ((setBits_tmp & 0x1) == 1) add(it);
+        }
+    }
+    else add(cs.setBits >> 2); // flag_cs = localSingleColor
+}
+
 /*template<typename U>
 void UnitigColors<U>::test(const const_UnitigColorMap<U>& um) {
 
@@ -396,9 +428,7 @@ void UnitigColors<U>::test(const const_UnitigColorMap<U>& um) {
         if ((it_tmp == it_end) || (color_id != prev_color_id)){
 
             // For the current color, if only half of the k-mers in the unitigs have it
-            if (count_km_per_color >= (len_unitig_km/2)){
-
-                new_cs.add(newlen_unitig_km * prev_color_id);
+            if ((len_unitig_km - count_km_per_color) < count_km_per_color){
 
                 size_t prev_km_dist = 0xffffffffffffffff;
 
@@ -406,28 +436,34 @@ void UnitigColors<U>::test(const const_UnitigColorMap<U>& um) {
 
                     const size_t km_dist = *prev_it - (prev_color_id * len_unitig_km);
 
-                    it_tmp = prev_it;
-                    ++it_tmp;
-
-                    if ((it_tmp == it) || (km_dist != (prev_km_dist + 1))){
-
-                        for (++prev_km_dist; prev_km_dist != km_dist; ++prev_km_dist){
-
-                            new_cs.add(newlen_unitig_km * prev_color_id + (prev_km_dist + 1));
-                        }
-                    }
-                    else ++prev_km_dist;
-
+                    ++prev_km_dist;
                     ++prev_it;
+
+                    while (prev_km_dist != km_dist){
+
+                        new_cs.add(newlen_unitig_km * prev_color_id + (prev_km_dist + 1));
+                        ++prev_km_dist;
+                    }
+                }
+
+                if (prev_km_dist != 0xffffffffffffffff){
+
+                    ++prev_km_dist;
+
+                    while (prev_km_dist != len_unitig_km){
+
+                        new_cs.add(newlen_unitig_km * prev_color_id + (prev_km_dist + 1));
+                        ++prev_km_dist;
+                    }
                 }
             }
             else {
 
+                new_cs.add(newlen_unitig_km * prev_color_id);
+
                 for (; prev_it != it; ++prev_it){
 
-                    const size_t new_km_dist = *prev_it - (prev_color_id * len_unitig_km);
-
-                    new_cs.add(newlen_unitig_km * prev_color_id + (new_km_dist + 1));
+                    new_cs.add(newlen_unitig_km * prev_color_id + (*prev_it - (prev_color_id * len_unitig_km) + 1));
                 }
             }
 

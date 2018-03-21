@@ -158,7 +158,7 @@ void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
     }
 }
 
-bool check_ProgramOptions(const CCDBG_Build_opt& opt) {
+bool check_ProgramOptions(CCDBG_Build_opt& opt) {
 
     bool ret = true;
 
@@ -260,18 +260,63 @@ bool check_ProgramOptions(const CCDBG_Build_opt& opt) {
     else {
 
         struct stat stFileInfo;
-        vector<string>::const_iterator it;
-        int intStat;
+        vector<string> filename_seq_in_tmp;
 
-        for (it = opt.filename_seq_in.begin(); it != opt.filename_seq_in.end(); ++it) {
+        char* buffer = new char[4096]();
 
-            intStat = stat(it->c_str(), &stFileInfo);
+        for (vector<string>::const_iterator it = opt.filename_seq_in.begin(); it != opt.filename_seq_in.end(); ++it) {
 
-            if (intStat != 0) {
+            const int iStat = stat(it->c_str(), &stFileInfo);
+
+            if (iStat != 0) {
+
                 cerr << "Error: File not found, " << *it << endl;
                 ret = false;
             }
+
+            const string s_ext = it->substr(it->find_last_of(".") + 1);
+
+            if ((s_ext == "txt")){
+
+                FILE* fp = fopen(it->c_str(), "r");
+
+                if (fp != NULL){
+
+                    fclose(fp);
+
+                    ifstream ifs_file_txt(*it);
+                    istream i_file_txt(ifs_file_txt.rdbuf());
+
+                    while (i_file_txt.getline(buffer, 4096)){
+
+                        fp = fopen(buffer, "r");
+
+                        if (fp == NULL) {
+
+                            cerr << "Error: Could not open file " << buffer << " for reading" << endl;
+                            ret = false;
+                        }
+                        else {
+
+                            fclose(fp);
+                            filename_seq_in_tmp.push_back(string(buffer));
+                        }
+                    }
+
+                    ifs_file_txt.close();
+                }
+                else {
+
+                    cerr << "Error: Could not open file " << *it << " for reading" << endl;
+                    ret = false;
+                }
+            }
+            else filename_seq_in_tmp.push_back(*it);
         }
+
+        opt.filename_seq_in = move(filename_seq_in_tmp);
+
+        delete[] buffer;
     }
 
     if (opt.filename_colors_in.size() != 0) {

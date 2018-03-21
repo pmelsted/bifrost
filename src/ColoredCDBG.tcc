@@ -134,7 +134,7 @@ bool ColoredCDBG<U>::write(const string prefix_output_filename, const size_t nb_
 template<typename U>
 void ColoredCDBG<U>::initColorSets(const CCDBG_Build_opt& opt, const size_t max_nb_hash){
 
-    const size_t nb_locks = opt.nb_threads * 256;
+    const size_t nb_locks = opt.nb_threads * 1024;
 
     size_t last_empty_pos = 0;
 
@@ -252,10 +252,10 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
 
     DataStorage<U>* ds = this->getData();
 
-    const size_t nb_locks = nb_threads * 256;
-
     const int k_ = this->getK();
 
+    const size_t nb_locks = nb_threads * 1024;
+    const size_t nb_read_optimize = 50000 / nb_threads;
     const size_t chunk_size = 1000;
 
     size_t prev_file_id = 0;
@@ -264,12 +264,14 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
 
     FileParser fp(ds->color_names);
 
+    unordered_set<uint64_t>* cs_to_optimize = new unordered_set<uint64_t>[nb_threads];
+
     std::atomic_flag* cs_locks = new std::atomic_flag[nb_locks];
 
     for (size_t i = 0; i < nb_locks; ++i) cs_locks[i].clear();
 
     // Main worker thread
-    auto worker_function = [&](const vector<pair<string, size_t>>& v_read_color) {
+    auto worker_function = [&](const vector<pair<string, size_t>>& v_read_color, unordered_set<uint64_t>& cs_set) {
 
         // for each input
         for (const auto& read_color : v_read_color) {
@@ -289,13 +291,32 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
                         it_km += um.len - 1;
                     }
 
-                    const uint64_t id_lock = ds->getHash(um) % nb_locks;
+                    const uint64_t pos_cs = ds->getHash(um);
+                    const uint64_t id_lock = pos_cs % nb_locks;
+
+                    cs_set.insert(pos_cs);
 
                     while (cs_locks[id_lock].test_and_set(std::memory_order_acquire)); // Set the corresponding lock
 
                     ds->getUnitigColors(um)->add(um, read_color.second);
 
                     cs_locks[id_lock].clear(std::memory_order_release);
+
+                    if (cs_set.size() > nb_read_optimize){ // Number of non-optimized color sets for this thread is too large
+
+                        for (const auto pos_cs_tmp : cs_set){ //Iterate over previously modified color sets
+
+                            const uint64_t id_lock_tmp = pos_cs_tmp % nb_locks;
+
+                            while (cs_locks[id_lock_tmp].test_and_set(std::memory_order_acquire));
+
+                            ds->color_sets[pos_cs_tmp].optimize(); //Optimize the color set
+
+                            cs_locks[id_lock_tmp].clear(std::memory_order_release);
+                        }
+
+                        cs_set.clear(); //Clear the set of color sets to optimize
+                    }
                 }
             }
         }
@@ -381,8 +402,6 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
 
             stop = false;
 
-            //cout << "prev_file_id = " << prev_file_id << endl;
-
             for (size_t t = 0; t < nb_threads; ++t){
 
                 workers.emplace_back(
@@ -399,7 +418,7 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
                                 stop = reading_function(reads_colors[t]);
                             }
 
-                            worker_function(reads_colors[t]);
+                            worker_function(reads_colors[t], cs_to_optimize[t]);
 
                             reads_colors[t].clear();
                         }
@@ -412,16 +431,50 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
             workers.clear();
 
             for (size_t t = 0; t < nb_threads; ++t) reads_colors[t].clear();
-
-            for (size_t i = 0; i < ds->nb_color_sets; ++i) ds->color_sets[i].optimize();
         }
     }
 
-    for (size_t i = 0; i < ds->nb_color_sets; ++i) ds->color_sets[i].optimize();
+    for (size_t t = 0; t < nb_threads; ++t){
+
+        for (const auto pos_cs_tmp : cs_to_optimize[t]) ds->color_sets[pos_cs_tmp].optimize();
+    }
 
     fp.close();
 
     delete[] cs_locks;
+    delete[] cs_to_optimize;
+
+    /*cout << "=== Raw color sets before optimization ===" << endl;
+
+    size_t sz = 0;
+
+    for (size_t i = 0; i < ds->nb_color_sets; ++i) sz += ds->color_sets[i].getSizeInBytes();
+
+    cout << "Size in bytes: " << sz << " bytes" << endl;
+    cout << "=== Raw color sets after optimization ===" << endl;
+
+    sz = 0;
+
+    for (size_t i = 0; i < ds->nb_color_sets; ++i) ds->color_sets[i].optimize();
+    for (size_t i = 0; i < ds->nb_color_sets; ++i) sz += ds->color_sets[i].getSizeInBytes();
+
+    cout << "Size in bytes: " << sz << " bytes" << endl;
+    cout << "=== Test color sets before optimization ===" << endl;
+
+    sz = 0;
+
+    for (auto& unitig : *this) ds->getUnitigColors(unitig)->test(unitig);
+    for (size_t i = 0; i < ds->nb_color_sets; ++i) sz += ds->color_sets[i].getSizeInBytes();
+
+    cout << "Size in bytes: " << sz << " bytes" << endl;
+    cout << "=== Test color sets after optimization ===" << endl;
+
+    sz = 0;
+
+    for (size_t i = 0; i < ds->nb_color_sets; ++i) ds->color_sets[i].optimize();
+    for (size_t i = 0; i < ds->nb_color_sets; ++i) sz += ds->color_sets[i].getSizeInBytes();
+
+    cout << "Size in bytes: " << sz << " bytes" << endl;*/
 }
 
 template<typename U>

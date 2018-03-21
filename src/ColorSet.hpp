@@ -190,6 +190,7 @@ class UnitigColors {
         void add(const size_t color_id);
 
         UnitigColors<U> reverse(const const_UnitigColorMap<U>& um) const;
+        void merge(const UnitigColors<U>& cs);
 
         inline Bitmap* getPtrBitmap() const { return reinterpret_cast<Bitmap*>(setBits & pointerMask); }
         inline const Bitmap* getConstPtrBitmap() const { return reinterpret_cast<const Bitmap*>(setBits & pointerMask); }
