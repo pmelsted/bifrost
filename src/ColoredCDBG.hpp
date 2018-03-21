@@ -191,18 +191,68 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
 
     public:
 
+        /** Constructor (set up an empty colored cdBG).
+        * @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
+        * @param minimizer_length is the length g of minimizers (g < k) used in the graph.
+        */
         ColoredCDBG(int kmer_length = DEFAULT_K, int minimizer_length = DEFAULT_G);
-        ColoredCDBG(const ColoredCDBG& o); // Copy constructor
-        ColoredCDBG(ColoredCDBG&& o); // Move constructor
 
-        ColoredCDBG& operator=(const ColoredCDBG& o); // Copy assignment
-        ColoredCDBG& operator=(ColoredCDBG&& o); // Move assignment
+        /** Copy constructor (copy a colored cdBG).
+        * This function is expensive in terms of time and memory as the content of a colored and compacted
+        * de Bruijn graph is copied. After the call to this function, the same graph exists twice in memory.
+        * @param o is a constant reference to the colored and compacted de Bruijn graph to copy.
+        */
+        ColoredCDBG(const ColoredCDBG& o);
 
+        /** Move constructor (move a colored cdBG).
+        * The content of o is moved ("transfered") to a new colored and compacted de Bruijn graph.
+        * The colored and compacted de Bruijn graph referenced by o will be empty after the call to this constructor.
+        * @param o is a reference on a reference to the colored and compacted de Bruijn graph to move.
+        */
+        ColoredCDBG(ColoredCDBG&& o);
+
+        /** Copy assignment operator (copy a colored cdBG).
+        * This function is expensive in terms of time and memory as the content of a colored and compacted
+        * de Bruijn graph is copied.  After the call to this function, the same graph exists twice in memory.
+        * @param o is a constant reference to the colored and compacted de Bruijn graph to copy.
+        * @return a reference to the colored and compacted de Bruijn which is the copy.
+        */
+        ColoredCDBG& operator=(const ColoredCDBG& o);
+
+        /** Move assignment operator (move a colored cdBG).
+        * The content of o is moved ("transfered") to a new colored and compacted de Bruijn graph.
+        * The colored and compacted de Bruijn graph referenced by o will be empty after the call to this operator.
+        * @param o is a reference on a reference to the colored and compacted de Bruijn graph to move.
+        * @return a reference to the colored and compacted de Bruijn which has (and owns) the content of o.
+        */
+        ColoredCDBG& operator=(ColoredCDBG&& o);
+
+        /** Clear the graph: empty the graph and reset its parameters.
+        */
         void clear();
 
+        /** Build the Colored and compacted de Bruijn graph (only the unitigs).
+        * A call to ColoredCDBG::mapColors is required afterwards to map colors to unitigs.
+        * @param opt is a structure from which the members are parameters of this function. See CCDBG_Build_opt.
+        * @return boolean indicating if the graph has been built successfully.
+        */
         bool build(const CCDBG_Build_opt& opt);
+
+        /** Map the colors to the unitigs. This is done by reading the input files and querying the graph.
+        * If a color filename is provided in opt.filename_colors_in, colors are loaded from that file instead.
+        * @param opt is a structure from which the members are parameters of this function. See CCDBG_Build_opt.
+        * @return boolean indicating if the colors have been mapped successfully.
+        */
         bool mapColors(const CCDBG_Build_opt& opt);
 
+        /** Write a colored and compacted de Bruijn graph to disk.
+        * @param prefix_output_filename is a string which is the prefix of the filename for the two files that are
+        * going to be written to disk. If this prefix is "XXX", two files "XXX.gfa" and "XXX.bfg_colors" will be
+        * written to disk.
+        * @param nb_threads is the number of threads that can be used to write the graph to disk.
+        * @param verbose is a boolean indicating if information message are printed during writing (true) or not (false).
+        * @return a boolean indicating if the graph was successfully written.
+        */
         bool write(const string prefix_output_filename, const size_t nb_threads = 1, const bool verbose = false);
 
         inline size_t getNbColors() const { return this->getData()->getNbColors(); }

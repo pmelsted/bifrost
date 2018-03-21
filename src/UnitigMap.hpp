@@ -69,8 +69,128 @@ class UnitigMap {
         typedef BackwardCDBG<U, G, is_const> UnitigMap_BW;
         typedef ForwardCDBG<U, G, is_const> UnitigMap_FW;
 
+        /** UnitigMap constructor.
+        * @param length is the length of the mapping in k-mers (default is 1 k-mer).
+        * @param cdbg_ is a pointer to the CompactedDBG containing the reference unitig used for the mapping (default is nullptr).
+        * @return an empty UnitigMap.
+        */
         UnitigMap(size_t length = 1, CompactedDBG_ptr_t cdbg_ = nullptr);
+
+        /** UnitigMap constructor.
+        * This constructor is used to create temporary mappings and must not be used to extract information from the graph.
+        * @param start is the start position of the mapping (0-based distance) from the start of the reference unitig.
+        * @param length is the length of the mapping in k-mers.
+        * @param unitig_sz is the length of the reference unitig used for the mapping.
+        * @param strand indicates if the mapped k-mer or sequence matches the forward strand (true) or the reverse-complement (false).
+        * @return a UnitigMap.
+        */
         UnitigMap(const size_t start, const size_t length, const size_t unitig_sz, const bool strand);
+
+        /** Equality operator: check if two UnitigMap are the same.
+        * @return a boolean indicating if two UnitigMap are the same.
+        */
+        bool operator==(const UnitigMap& o) const;
+
+        /** Inequality operator: check if two UnitigMap are different.
+        * @return a boolean indicating if the two UnitigMap are different.
+        */
+        bool operator!=(const UnitigMap& o) const;
+
+        /** Create a string containing the sequence of the mapped unitig.
+        * @return a string containing the sequence of the mapped unitig or
+        * an empty string if there is no mapping (UnitigMap::isEmpty = true).
+        */
+        string toString() const;
+
+        /** Compute the length of the longest common prefix between a given sequence and
+        * the reference unitig used in the mapping.
+        * @param s is a pointer to an array of characters representing the sequence from
+        * which the length of the longest common prefix must be computed.
+        * @param pos_s is the start position in s from which the longest common prefix must
+        * be computed.
+        * @param pos_um_seq is the start position in the reference unitig of the mapping from
+        * which the longest common prefix must be computed.
+        * @param um_reversed indicates if the longest common prefix must be computed from
+        * the reverse-complement of the reference unitig used in the mapping (true) or not (false).
+        * @return the length of the longest common prefix
+        */
+        size_t lcp(const char* s, const size_t pos_s = 0, const size_t pos_um_seq = 0, const bool um_reversed = false) const;
+
+        /** Get the head k-mer of the reference unitig used for the mapping.
+        * @return a Kmer object which is either the head k-mer of the mapped unitig or
+        * an empty k-mer if there is no mapping (UnitigMap::isEmpty = true).
+        */
+        Kmer getUnitigHead() const;
+
+        /** Get the tail k-mer of the reference unitig used for the mapping.
+        * @return a Kmer object which is either the tail k-mer of the mapped unitig or
+        * an empty k-mer if there is no mapping (UnitigMap::isEmpty = true).
+        */
+        Kmer getUnitigTail() const;
+
+        /** Get the k-mer starting at position pos in the reference unitig used for the mapping.
+        * @param pos is the start position of the k-mer to extract.
+        * @return a Kmer object which is either the k-mer starting at position pos in the mapped unitig or
+        * an empty k-mer if there is either no mapping (UnitigMap::isEmpty = true) or the position is
+        * greater than length(unitig)-k.
+        */
+        Kmer getUnitigKmer(const size_t pos) const;
+
+        /** Get the head k-mer of the mapped sequence.
+        * @return a Kmer object which is either the head k-mer of the mapped sequence or
+        * an empty k-mer if there is no mapping (UnitigMap::isEmpty = true).
+        */
+        Kmer getMappedHead() const;
+
+        /** Get the tail k-mer of the mapped sequence.
+        * @return a Kmer object which is either the tail k-mer of the mapped sequence or
+        * an empty k-mer if there is no mapping (UnitigMap::isEmpty = true).
+        */
+        Kmer getMappedTail() const;
+
+        /** Get the k-mer starting at position pos in the mapped sequence.
+        * @param pos is the start position of the k-mer to extract within the mapped sequence.
+        * @return a Kmer object which is either the k-mer starting at position pos in the mapped sequence or
+        * an empty k-mer if there is either no mapping (UnitigMap::isEmpty = true) or the position is
+        * greater than length(unitig)-k.
+        */
+        Kmer getMappedKmer(const size_t pos) const;
+
+        /** Create a new UnitigMap object which is the mapping of a k-mer on a reference unitig
+        * @param pos is the start position of the k-mer to map in the reference unitig used for the current mapping.
+        * @return a UnitigMap object which is the mapping.
+        */
+        UnitigMap<U, G, is_const> getKmerMapping(const size_t pos) const;
+
+        /** Get a pointer to the data associated with the reference unitig used in the mapping.
+        * @return a pointer to the data associated with the reference unitig used in the mapping
+        * or a nullptr pointer if:
+        * - there is no mapping (UnitigMap::isEmpty = true)
+        * - there is no data associated with the unitigs (U = void).
+        * The returned pointer is constant if the UnitigMap is constant (UnitigMap<U, G, true>).
+        */
+        Unitig_data_ptr_t getData() const;
+
+        /** Create a UnitigMap_BW object that can create iterators (through UnitigMap_BW::begin() and
+        * UnitigMap_BW::end()) over the predecessors of the reference unitig used in the mapping.
+        * @return a UnitigMap_BW object that can create iterators (through UnitigMap_BW::begin() and
+        * UnitigMap_BW::end()) over the predecessors of the reference unitig used in the mapping.
+        */
+        UnitigMap_BW getPredecessors() const;
+
+        /** Create a UnitigMap_FW object that can create iterators (through UnitigMap_FW::begin() and
+        * UnitigMap_FW::end()) over the successors of the reference unitig used in the mapping.
+        * @return a UnitigMap_FW object that can create iterators (through UnitigMap_FW::begin() and
+        * UnitigMap_FW::end()) over the successors of the reference unitig used in the mapping.
+        */
+        UnitigMap_FW getSuccessors() const;
+
+        /** Get a pointer to the CompactedDBG containing the reference unitig used in the mapping.
+        * @return a pointer to the CompactedDBG containing the reference unitig used in the mapping.
+        * If the mapping is empty, a nullptr pointer is returned. The pointer is a constant pointer
+        * if the UnitigMap is constant (UnitigMap<U, G, true>).
+        */
+        inline CompactedDBG_ptr_t getCompactedDBG() const { return cdbg; }
 
         operator UnitigMap<U, G, true>() const {
 
@@ -80,35 +200,6 @@ class UnitigMap {
 
             return um;
         }
-
-        bool operator==(const UnitigMap& o) const;
-        bool operator!=(const UnitigMap& o) const;
-
-        string toString() const;
-
-        size_t lcp(const char* s, const size_t pos_s = 0, const size_t pos_um_seq = 0, const bool um_reversed = false) const;
-
-        Kmer getUnitigHead() const;
-        Kmer getUnitigTail() const;
-        Kmer getUnitigKmer(const size_t pos) const;
-
-        Kmer getMappedHead() const;
-        Kmer getMappedTail() const;
-        Kmer getMappedKmer(const size_t pos) const;
-
-        UnitigMap<U, G, is_const> getKmerMapping(const size_t pos) const;
-
-        Unitig_data_ptr_t getData() const;
-
-        UnitigMap_BW getPredecessors() const;
-        UnitigMap_FW getSuccessors() const;
-
-        /** Get a pointer to the CompactedDBG containing the reference unitig used in the mapping.
-        * @return a pointer to the CompactedDBG containing the reference unitig used in the mapping.
-        * If the mapping is empty, a nullptr pointer is returned. The pointer is a constant pointer
-        * if the UnitigMap is constant (UnitigMap<U, G, true>).
-        */
-        inline CompactedDBG_ptr_t getCompactedDBG() const { return cdbg; }
 
         size_t dist;
         size_t len;

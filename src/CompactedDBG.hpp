@@ -249,34 +249,6 @@ class CompactedDBG {
     typedef Unitig_data_t U;
     typedef Graph_data_t G;
 
-    private:
-
-        int k_;
-        int g_;
-
-        bool invalid;
-
-        static const int tiny_vector_sz = 2;
-        static const int min_abundance_lim = 15;
-        static const int max_abundance_lim = 15;
-
-        typedef KmerHashTable<CompressedCoverage_t<U>> h_kmers_ccov_t;
-        typedef MinimizerHashTable_2Val hmap_min_unitigs_t;
-
-        typedef typename hmap_min_unitigs_t::iterator hmap_min_unitigs_iterator;
-        typedef typename hmap_min_unitigs_t::const_iterator hmap_min_unitigs_const_iterator;
-
-        vector<Unitig<U>*> v_unitigs;
-        vector<pair<Kmer, CompressedCoverage_t<U>>> v_kmers;
-
-        hmap_min_unitigs_t hmap_min_unitigs;
-
-        h_kmers_ccov_t h_kmers_ccov;
-
-        BlockedBloomFilter bf;
-
-        wrapperData<G> data;
-
     public:
 
         template<typename U, typename G, bool is_const> friend class UnitigMap;
@@ -286,32 +258,129 @@ class CompactedDBG {
         typedef unitigIterator<U, G, false> iterator; /**< An iterator for the unitigs of the graph. No specific order is assumed. */
         typedef unitigIterator<U, G, true> const_iterator; /**< A constant iterator for the unitigs of the graph. No specific order is assumed. */
 
-        CompactedDBG(int kmer_length = DEFAULT_K, int minimizer_length = DEFAULT_G); // Constructor
-        CompactedDBG(const CompactedDBG& cdbg); // Copy constructor
-        CompactedDBG(CompactedDBG&& cdbg); // Move constructor
+        /** Constructor (set up an empty compacted dBG).
+        * @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
+        * @param minimizer_length is the length g of minimizers (g < k) used in the graph.
+        */
+        CompactedDBG(int kmer_length = DEFAULT_K, int minimizer_length = DEFAULT_G);
 
+        /** Copy constructor (copy a compacted de Bruijn graph).
+        * This function is expensive in terms of time and memory as the content of a compacted
+        * de Bruijn graph is copied.  After the call to this function, the same graph exists twice in memory.
+        * @param o is a constant reference to the compacted de Bruijn graph to copy.
+        */
+        CompactedDBG(const CompactedDBG& o); // Copy constructor
+
+        /** Move constructor (move a compacted de Bruijn graph).
+        * The content of o is moved ("transfered") to a new compacted de Bruijn graph.
+        * The compacted de Bruijn graph referenced by o will be empty after the call to this constructor.
+        * @param o is a reference on a reference to the compacted de Bruijn graph to move.
+        */
+        CompactedDBG(CompactedDBG&& o); // Move constructor
+
+        /** Destructor.
+        */
         virtual ~CompactedDBG();
 
-        CompactedDBG<U, G>& operator=(const CompactedDBG& o); // Copy assignment operator
-        CompactedDBG<U, G>& operator=(CompactedDBG&& o); //Move assignment operator
+        /** Copy assignment operator (copy a compacted de Bruijn graph).
+        * This function is expensive in terms of time and memory as the content of a compacted
+        * de Bruijn graph is copied.  After the call to this function, the same graph exists twice in memory.
+        * @param o is a constant reference to the compacted de Bruijn graph to copy.
+        * @return a reference to the compacted de Bruijn which is the copy.
+        */
+        CompactedDBG<U, G>& operator=(const CompactedDBG& o);
 
+        /** Move assignment operator (move a compacted de Bruijn graph).
+        * The content of o is moved ("transfered") to a new compacted de Bruijn graph.
+        * The compacted de Bruijn graph referenced by o will be empty after the call to this operator.
+        * @param o is a reference on a reference to the compacted de Bruijn graph to move.
+        * @return a reference to the compacted de Bruijn which has (and owns) the content of o.
+        */
+        CompactedDBG<U, G>& operator=(CompactedDBG&& o);
+
+        /** Clear the graph: empty the graph and reset its parameters.
+        */
         void clear();
+
+        /** Empty the graph (does not reset its parameters).
+        */
         void empty();
 
+        /** Build the Compacted de Bruijn graph.
+        * @param opt is a structure from which the members are parameters of this function. See CDBG_Build_opt.
+        * @return boolean indicating if the graph has been built successfully.
+        */
         bool build(CDBG_Build_opt& opt);
+
+        /** Simplify the Compacted de Bruijn graph: clip short (< 2k length) tips and/or delete short (< 2k length) isolated unitigs.
+        * @param delete_short_isolated_unitigs is a boolean indicating short isolated unitigs must be removed.
+        * @param clip_short_tips is a boolean indicating short tips must be clipped.
+        * @param verbose is a boolean indicating if information messages must be printed during the function execution.
+        * @return boolean indicating if the graph has been simplified successfully.
+        */
         bool simplify(const bool delete_short_isolated_unitigs = true, const bool clip_short_tips = true, const bool verbose = false);
+
+        /** Write the Compacted de Bruijn graph to disk (GFA1 format).
+        * @param output_filename is a string containing the name of the file in which the graph will be written.
+        * @param nb_threads is a number indicating how many threads can be used to write the graph to disk.
+        * @param GFA_output indicates if the graph will be output in GFA format (true) or FASTA format (false).
+        * @param verbose is a boolean indicating if information messages must be printed during the function execution.
+        * @return boolean indicating if the graph has been written successfully.
+        */
         bool write(const string output_filename, const size_t nb_threads = 1, const bool GFA_output = true, const bool verbose = false);
 
+        /** Find the unitig containing the queried k-mer in the Compacted de Bruijn graph.
+        * @param km is the queried k-mer (see Kmer class). It does not need to be a canonical k-mer.
+        * @param extremities_only is a boolean indicating if the k-mer must be searched only in the unitig heads and tails (extremities_only = true).
+        * By default, the k-mer is searched everywhere (extremities_only = false) but is is slightly slower than looking only in the unitig heads and tails.
+        * @return UnitigMap<U, G> object containing the k-mer mapping information to the unitig containing the queried k-mer (if present).
+        * If the queried k-mer is not found, UnitigMap::isEmpty = true (see UnitigMap class).
+        */
         UnitigMap<U, G> find(const Kmer& km, const bool extremities_only = false);
+
+        /** Find the unitig containing the queried k-mer in the Compacted de Bruijn graph.
+        * @param km is the queried k-mer (see Kmer class). It does not need to be a canonical k-mer.
+        * @param extremities_only is a boolean indicating if the k-mer must be searched only in the unitig heads and tails (extremities_only = true).
+        * By default, the k-mer is searched everywhere (extremities_only = false) but is is slightly slower than looking only in the unitig heads and tails.
+        * @return const_UnitigMap<U, G> object containing the k-mer mapping information to the unitig having the queried k-mer (if present).
+        * If the k-mer is not found, const_UnitigMap::isEmpty = true (see UnitigMap class).
+        */
         const_UnitigMap<U, G> find(const Kmer& km, const bool extremities_only = false) const;
 
+        /** Add a sequence to the Compacted de Bruijn graph. Non-{A,C,G,T} characters such as Ns are discarded.
+        * The function automatically breaks the sequence into unitig(s). Those unitigs can be stored as the reverse-complement
+        * of the input sequence.
+        * @param seq is a string containing the sequence to insert.
+        * @param verbose is a boolean indicating if information messages must be printed during the function execution.
+        * @return a boolean indicating if the sequence was successfully inserted in the graph.
+        */
         bool add(const string& seq, const bool verbose = false);
+
+        /** Remove a unitig from the Compacted de Bruijn graph.
+        * @param um is a UnitigMap object containing the information of the unitig to remove from the graph.
+        * @param verbose is a boolean indicating if information messages must be printed during the execution of the function.
+        * @return a boolean indicating if the unitig was successfully removed from the graph.
+        */
         bool remove(const const_UnitigMap<U, G>& um, const bool verbose = false);
 
+        /** Create an iterator to the first unitig of the Compacted de Bruijn graph (unitigs are NOT sorted lexicographically).
+        * @return an iterator to the first unitig of the graph.
+        */
         iterator begin();
+
+        /** Create an constant iterator to the first unitig of the Compacted de Bruijn graph (unitigs are NOT sorted lexicographically).
+        * @return a constant iterator to the first unitig of the graph.
+        */
         const_iterator begin() const;
 
+        /** Create an iterator to the "past-the-last" unitig of the Compacted de Bruijn graph (unitigs are NOT sorted lexicographically).
+        * @return an iterator to the "past-the-last" unitig of the graph.
+        */
         iterator end();
+
+        /** Create a constant iterator to the "past-the-last" unitig of the Compacted de Bruijn graph (unitigs are NOT sorted lexicographically).
+        * @return a constant iterator to the "past-the-last" unitig of the graph.
+        */
         const_iterator end() const;
 
         /** Return a boolean indicating if the graph is invalid (wrong input parameters/files, error occurring during a method, etc.).
@@ -397,6 +466,33 @@ class CompactedDBG {
         void mapRead(const UnitigMap<U, G>& cc);
 
         void print() const;
+
+
+        int k_;
+        int g_;
+
+        bool invalid;
+
+        static const int tiny_vector_sz = 2;
+        static const int min_abundance_lim = 15;
+        static const int max_abundance_lim = 15;
+
+        typedef KmerHashTable<CompressedCoverage_t<U>> h_kmers_ccov_t;
+        typedef MinimizerHashTable_2Val hmap_min_unitigs_t;
+
+        typedef typename hmap_min_unitigs_t::iterator hmap_min_unitigs_iterator;
+        typedef typename hmap_min_unitigs_t::const_iterator hmap_min_unitigs_const_iterator;
+
+        vector<Unitig<U>*> v_unitigs;
+        vector<pair<Kmer, CompressedCoverage_t<U>>> v_kmers;
+
+        hmap_min_unitigs_t hmap_min_unitigs;
+
+        h_kmers_ccov_t h_kmers_ccov;
+
+        BlockedBloomFilter bf;
+
+        wrapperData<G> data;
 };
 
 #include "CompactedDBG.tcc"

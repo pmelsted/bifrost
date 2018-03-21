@@ -1,34 +1,18 @@
 #ifndef BFG_COLOREDCDBG_TCC
 #define BFG_COLOREDCDBG_TCC
 
-/** Colored and Compacted de Bruijn graph constructor (set up an empty colored cdBG).
-* @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
-* @param minimizer_length is the length g of minimizers (g < k) used in the graph.
-*/
 template<typename U>
 ColoredCDBG<U>::ColoredCDBG(int kmer_length, int minimizer_length) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(kmer_length, minimizer_length){
 
     invalid = this->isInvalid();
 }
 
-/** Colored and compacted de Bruijn graph copy constructor (copy a colored cdBG).
-* This function is expensive in terms of time and memory as the content of a colored and compacted
-* de Bruijn graph is copied. After the call to this function, the same graph exists twice in memory.
-* @param o is a constant reference to the colored and compacted de Bruijn graph to copy.
-*/
 template<typename U>
 ColoredCDBG<U>::ColoredCDBG(const ColoredCDBG& o) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(o), invalid(o.invalid) {}
 
-/** Colored and compacted de Bruijn graph move constructor (move a colored cdBG).
-* The content of o is moved ("transfered") to a new colored and compacted de Bruijn graph.
-* The colored and compacted de Bruijn graph referenced by o will be empty after the call to this constructor.
-* @param o is a reference on a reference to the colored and compacted de Bruijn graph to move.
-*/
 template<typename U>
 ColoredCDBG<U>::ColoredCDBG(ColoredCDBG&& o) :  CompactedDBG<DataAccessor<U>, DataStorage<U>>(o), invalid(o.invalid) {}
 
-/** Clear the graph: empty the graph and reset its parameters.
-*/
 template<typename U>
 void ColoredCDBG<U>::clear(){
 
@@ -37,12 +21,6 @@ void ColoredCDBG<U>::clear(){
     CompactedDBG<DataAccessor<U>, DataStorage<U>>::clear();
 }
 
-/** Colored and compacted de Bruijn graph copy assignment operator (copy a colored cdBG).
-* This function is expensive in terms of time and memory as the content of a colored and compacted
-* de Bruijn graph is copied.  After the call to this function, the same graph exists twice in memory.
-* @param o is a constant reference to the colored and compacted de Bruijn graph to copy.
-* @return a reference to the colored and compacted de Bruijn which is the copy.
-*/
 template<typename U>
 ColoredCDBG<U>& ColoredCDBG<U>::operator=(const ColoredCDBG& o) {
 
@@ -53,12 +31,6 @@ ColoredCDBG<U>& ColoredCDBG<U>::operator=(const ColoredCDBG& o) {
     return *this;
 }
 
-/** Colored and compacted de Bruijn graph move assignment operator (move a colored cdBG).
-* The content of o is moved ("transfered") to a new colored and compacted de Bruijn graph.
-* The colored and compacted de Bruijn graph referenced by o will be empty after the call to this operator.
-* @param o is a reference on a reference to the colored and compacted de Bruijn graph to move.
-* @return a reference to the colored and compacted de Bruijn which has (and owns) the content of o.
-*/
 template<typename U>
 ColoredCDBG<U>& ColoredCDBG<U>::operator=(ColoredCDBG&& o) {
 
@@ -74,11 +46,6 @@ ColoredCDBG<U>& ColoredCDBG<U>::operator=(ColoredCDBG&& o) {
     return *this;
 }
 
-/** Build the Colored and compacted de Bruijn graph (only the unitigs).
-* A call to ColoredCDBG::mapColors is required afterwards to map colors to unitigs.
-* @param opt is a structure from which the members are parameters of this function. See CCDBG_Build_opt.
-* @return boolean indicating if the graph has been built successfully.
-*/
 template<typename U>
 bool ColoredCDBG<U>::build(const CCDBG_Build_opt& opt){
 
@@ -93,11 +60,6 @@ bool ColoredCDBG<U>::build(const CCDBG_Build_opt& opt){
     return !invalid;
 }
 
-/** Map the colors to the unitigs. This is done by reading the input files and querying the graph.
-* If a color filename is provided in opt.filename_colors_in, colors are loaded from that file instead.
-* @param opt is a structure from which the members are parameters of this function. See CCDBG_Build_opt.
-* @return boolean indicating if the colors have been mapped successfully.
-*/
 template<typename U>
 bool ColoredCDBG<U>::mapColors(const CCDBG_Build_opt& opt){
 
@@ -115,14 +77,6 @@ bool ColoredCDBG<U>::mapColors(const CCDBG_Build_opt& opt){
     return !invalid;
 }
 
-/** Write a colored and compacted de Bruijn graph to disk.
-* @param prefix_output_filename is a string which is the prefix of the filename for the two files that are
-* going to be written to disk. If this prefix is "XXX", two files "XXX.gfa" and "XXX.bfg_colors" will be
-* written to disk.
-* @param nb_threads is the number of threads that can be used to write the graph to disk.
-* @param verbose is a boolean indicating if information message are printed during writing (true) or not (false).
-* @return a boolean indicating if the graph was successfully written.
-*/
 template<typename U>
 bool ColoredCDBG<U>::write(const string prefix_output_filename, const size_t nb_threads, const bool verbose){
 

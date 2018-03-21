@@ -475,7 +475,7 @@ HIDE_UNDOC_CLASSES     = NO
 # included in the documentation.
 # The default value is: NO.
 
-HIDE_FRIEND_COMPOUNDS  = NO
+HIDE_FRIEND_COMPOUNDS  = YES
 
 # If the HIDE_IN_BODY_DOCS tag is set to YES, doxygen will hide any
 # documentation blocks found inside the body of a function. If set to NO, these
@@ -758,12 +758,12 @@ WARN_LOGFILE           =
 # spaces.
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  = 	src/CompactedDBG.hpp src/CompactedDBG.tcc \
-				src/ColoredCDBG.hpp src/ColoredCDBG.cpp \
-				src/ColorSet.hpp src/ColorSet.tcc \
-				src/UnitigMap.hpp src/UnitigMap.tcc \
-				src/NeighborIterator.hpp src/NeighborIterator.tcc \
-				src/UnitigIterator.hpp src/UnitigIterator.tcc \
+INPUT                  = 	src/CompactedDBG.hpp \
+				src/ColoredCDBG.hpp \
+				src/ColorSet.hpp \
+				src/UnitigMap.hpp \
+				src/NeighborIterator.hpp \
+				src/UnitigIterator.hpp \
 				src/Unitig.hpp
 
 # This tag can be used to specify the character encoding of the source files

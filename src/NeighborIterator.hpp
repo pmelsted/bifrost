@@ -40,17 +40,53 @@ class neighborIterator : public std::iterator<std::input_iterator_tag, UnitigMap
 
         typedef typename std::conditional<is_const, const CompactedDBG<U, G>*, CompactedDBG<U, G>*>::type CompactedDBG_ptr_t;
 
+        /** Constructor.
+        * @return an empty neighborIterator.
+        */
         neighborIterator();
+
+        /** Constructor.
+        * @param um_ is a UnitigMap object: the constructed neighborIterator will iterate over the neighbors of the UnitigMap reference unitig
+        * @param is_forward_ indicates if the iterator must iterate over the successors (true) or the predecessors (false)
+        * @return a neighborIterator.
+        */
         neighborIterator(const UnitigMap<U, G, is_const>& um_, const bool is_forward_);
+
+        /** Copy constructor.
+        * @return a copy of a neighborIterator.
+        */
         neighborIterator(const neighborIterator& o);
 
+        /** Prefix increment, iterate over the next neighbor (predecessor or successor).
+        * Note that no specific order (such as a lexicographic one) is assumed during iteration.
+        */
         neighborIterator& operator++();
+
+        /** Postfix increment, iterate over the next neighbor (predecessor or successor).
+        * Note that no specific order (such as a lexicographic one) is assumed during iteration.
+        */
         neighborIterator operator++(int);
 
+        /** Equality operator: check if two neighborIterator are the same.
+        * @param o is another neighborIterator.
+        * @return a boolean indicating whether the two neighborIterator are the same.
+        */
         bool operator==(const neighborIterator& o) const;
+
+        /** Inequality operator: check if two neighborIterator are different.
+        * @param o is another neighborIterator.
+        * @return a boolean indicating whether the two neighborIterator are different.
+        */
         bool operator!=(const neighborIterator& o) const;
 
+        /** Indirection operator
+        * @return a UnitigMap reference which contains information about the mapped neighbor.
+        */
         const UnitigMap<U, G, is_const>& operator*() const;
+
+        /** Dereference operator.
+        * @return a UnitigMap pointer which contains information about the mapped neighbor.
+        */
         const UnitigMap<U, G, is_const>* operator->() const;
 
     private:
@@ -84,9 +120,21 @@ class BackwardCDBG {
 
     public:
 
+        /** Constructor.
+        * @param um_ is a UnitigMap object: the wrapper will provide an iterator over the predecessors of the UnitigMap reference unitig
+        */
         explicit BackwardCDBG(const UnitigMap<U, G, is_const>& um_);
 
+        /** Return an iterator over the predecessors of a reference unitig. The returned iterator is initialized
+        * over the first such predecessor, if there is one.
+        * @return an iterator over the predecessors of a reference unitig. It is initialized over the first such
+        * predecessor, if there is one.
+        */
         neighborIterator<U, G, is_const> begin() const;
+
+        /** Return an iterator over the past-the-last predecessor of a reference unitig.
+        * @return an iterator over the past-the-last predecessor of a reference unitig.
+        */
         neighborIterator<U, G, is_const> end() const;
 
     private:
@@ -111,9 +159,21 @@ class ForwardCDBG {
 
     public:
 
+        /** Constructor.
+        * @param um_ is a UnitigMap object: the wrapper will provide an iterator over the successors of the UnitigMap reference unitig
+        */
         explicit ForwardCDBG(const UnitigMap<U, G, is_const>& um_);
 
+        /** Return an iterator over the successors of a reference unitig. The returned iterator is initialized
+        * over the first such successor, if there is one.
+        * @return an iterator over the successors of a reference unitig. It is initialized over the first such
+        * successor, if there is one.
+        */
         neighborIterator<U, G, is_const> begin() const;
+
+        /** Return an iterator over the past-the-last successor of a reference unitig.
+        * @return an iterator over the past-the-last successor of a reference unitig.
+        */
         neighborIterator<U, G, is_const> end() const;
 
     private:

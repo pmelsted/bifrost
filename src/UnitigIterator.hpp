@@ -42,17 +42,53 @@ class unitigIterator : public std::iterator<std::input_iterator_tag, UnitigMap<U
 
         typedef typename std::conditional<is_const, const CompactedDBG<U, G>*, CompactedDBG<U, G>*>::type CompactedDBG_ptr_t;
 
+        /** Constructor.
+        * @return an empty unitigIterator.
+        */
         unitigIterator();
+
+        /** Constructor.
+        * @param cdbg_ is a pointer to a Compacted de Bruijn graph. The unitigIterator will iterate over the unitigs of this graph.
+        * If the unitigIterator is a constant, the CompactedDBG pointer is a constant pointer and the accessed unitigs can't be modified.
+        * @return a unitigIterator.
+        */
         unitigIterator(CompactedDBG_ptr_t cdbg_);
+
+        /** Copy constructor.
+        * @return a copy of a unitigIterator.
+        */
         unitigIterator(const unitigIterator& o);
 
+        /** Prefix increment, iterate over the next unitig.
+        * Note that no specific order (such as a lexicographic one) is assumed during iteration.
+        */
         unitigIterator& operator++();
+
+        /** Postfix increment, iterate over the next unitig.
+        * Note that no specific order (such as a lexicographic one) is assumed during iteration.
+        */
         unitigIterator operator++(int);
 
+        /** Equality operator: check if two unitigIterator are the same.
+        * @param o is another unitigIterator.
+        * @return a boolean indicating whether the two unitigIterator are the same.
+        */
         bool operator==(const unitigIterator& o) const;
+
+        /** Inequality operator: check if two unitigIterator are different.
+        * @param o is another unitigIterator.
+        * @return a boolean indicating whether the two unitigIterator are different.
+        */
         bool operator!=(const unitigIterator& o) const;
 
+        /** Indirection operator.
+        * @return a UnitigMap object reference which contains information about the mapped unitig.
+        */
         const UnitigMap<U, G, is_const>& operator*() const;
+
+        /** Dereference operator.
+        * @return a UnitigMap object pointer which contains information about the mapped unitig.
+        */
         const UnitigMap<U, G, is_const>* operator->() const;
 
     private:
