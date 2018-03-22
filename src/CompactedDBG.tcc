@@ -1818,7 +1818,7 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(Kmer km, string& s, bool& isIso
         reverse(bw_s.begin(), bw_s.end());
     }
 
-    char tmp[Kmer::MAX_K];
+    char tmp[Kmer::k + 1];
 
     km.toString(tmp);
 

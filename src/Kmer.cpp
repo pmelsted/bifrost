@@ -79,27 +79,6 @@ Kmer& Kmer::operator=(const Kmer& o) {
     return *this;
 }
 
-// use:  km = Kmer();
-// pre:
-// post: The last 2 bits in the bit array which stores the DNA string have been set to 11
-//       which indicates that the km is deleted
-void Kmer::set_deleted() {
-
-    //memset(bytes,0xff,MAX_K/4);
-    for (size_t i = 0; i < MAX_K/32; ++i) longs[i] = 0xffffffffffffffff;
-}
-
-// use:  km = Kmer();
-// pre:
-// post: The last 2 bits in the bit array which stores the DNA string hav been set to 01
-//       which indicates that the km is invalid
-void Kmer::set_empty() {
-
-    //memset(bytes,0xff,MAX_K/4);
-    for (size_t i = 0; i < MAX_K/32; ++i) longs[i] = 0xffffffffffffffff;
-    bytes[0] ^= 1;
-}
-
 
 // use:  b = (km1 < km2);
 // pre:
@@ -372,18 +351,14 @@ std::string Kmer::toString() const {
 // use:  set_k(k);
 // pre:  this method has not been called before and 0 < k < MAX_K
 // post: The Kmer size has been set to k
-void Kmer::set_k(unsigned int _k) {
+void Kmer::set_k(const unsigned int _k) {
 
     if(_k == k) return; // ok to call more than once
 
     assert(_k < MAX_K);
     assert(_k > 0);
-    //assert(k_bytes == 0); // we can only call this once
 
     k = _k;
-    //k_bytes = (_k+3)/4;
-    //  k_longs = (_k+15)/16;
-    //k_modmask = (1 << (2*((k%4)?k%4:4)) )-1;
 }
 
 bool Kmer::write(ostream& stream_out) const {
