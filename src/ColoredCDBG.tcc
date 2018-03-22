@@ -432,6 +432,28 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
 }
 
 template<typename U>
+string ColoredCDBG<U>::getColorName(const size_t color_id) const {
+
+    if (invalid){
+
+        cerr << "ColoredCDBG::getColorName(): Graph is invalid or colors are not yet mapped to unitigs." << endl;
+        return string("ColoredCDBG::getColorName(): Graph is invalid or colors are not yet mapped to unitigs.");
+    }
+
+    const DataStorage<U>* ds = this->getData();
+
+    if (color_id >= ds->color_names.size()){
+
+        cerr << "ColoredCDBG::getColorName(): Color ID " << color_id << " is invalid, graph only has " <<
+        ds->color_names.size() << " colors." << endl;
+
+        return string("ColoredCDBG::getColorName(): Given color ID is invalid.");
+    }
+
+    return ds->color_names[color_id];
+}
+
+template<typename U>
 void ColoredCDBG<U>::checkColors(const CCDBG_Build_opt& opt) {
 
     cout << "ColoredCDBG::checkColors(): Start" << endl;

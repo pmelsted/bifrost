@@ -193,21 +193,24 @@ class CDBG_Data_t {
         * then, after the call to this function, A will become the concatenation of itself with B (A = AB) and B will be removed.
         * Be careful that if um_dest.strand = false, then the reverse-complement of A is going to be used in the concatenation.
         * Reciprocally, if um_src.strand = false, then the reverse-complement of B is going to be used in the concatenation.
-        * The data of each unitig can be accessed and modified through the methods UnitigMap::getData() and UnitigMap::setData().
+        * The data of each unitig can be accessed through the method UnitigMap::getData(). Note that this method is static.
         * @param um_dest is a UnitigMap object representing a unitig (and its data) to which another unitig is going to be appended.
         * @param um_src is a UnitigMap object representing a unitig (and its data) that will be appended at the end of the unitig
         * represented by parameter um_dest.
         */
         static void join(const UnitigMap<Unitig_data_t, Graph_data_t>& um_dest, const UnitigMap<Unitig_data_t, Graph_data_t>& um_src){}
 
-        /** Extract data from a unitig A (represented by the UnitigMap object um_src given in parameter) to be associated with a
-        * sub-unitig B such that B = A[um_src.dist, um_src.dist + um_src.len]. Be careful that if um_src.strand = false, then B
-        * will be extracted from the reverse-complement of A.
-        * @param um_src is a UnitigMap object representing a unitig A (and its data) from which a new sub-unitig B will be extracted.
-        * um_src.dist corresponds to the start position of sub-unitig B into A, um_src.len corresponds to the length of sub-unitig B.
-        * @param new_data is a pointer to newly constructed object that you can fill in with the new data of B.
-        * @param last_extraction is a boolean indicating if this is the last call to this function on the unitig represented by um_src.
-        * If last_extraction is true, the unitig represented by um_src will be removed from the graph right after the call to sub().
+        /** Extract data from a unitig A to be associated with a unitig B which is the unitig mapping given by the UnitigMap object
+        * um_src. Hence, B = A[um_src.dist, um_src.dist + um_src.len + k - 1]. Be careful that if um_src.strand = false, then B will
+        * be extracted from the reverse-complement of A, i.e, B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1]). Note that
+        * this method is static.
+        * @param um_src is a UnitigMap object representing the mapping to a unitig A from which a new unitig B will be created, i.e,
+        * B = A[um_src.dist, um_src.dist + um_src.len + k - 1] or B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1]) if
+        * um_src.strand == false.
+        * @param new_data is a pointer to a newly constructed object that you can fill in with new data to associate with unitig B.
+        * @param last_extraction is a boolean indicating if this is the last call to this function on the reference unitig used for the
+        * mapping given by um_src. If last_extraction is true, the reference unitig of um_src will be removed from the graph right after
+        * this function returns.
         */
         static void sub(const UnitigMap<Unitig_data_t, Graph_data_t>& um_src, Unitig_data_t* new_data, bool last_extraction){}
 
