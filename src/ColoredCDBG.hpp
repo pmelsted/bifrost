@@ -220,6 +220,16 @@ class CCDBG_Data_t {
 /** @class ColoredCDBG
 * @brief Represent a Colored and Compacted de Bruijn graph. The class inherits from CompactedDBG
 * which means that all public functions available with CompactedDBG are also available with ColoredCDBG.
+* ColoredCDBG<> ccdbg_1; // No unitig data
+* ColoredCDBG<void> ccdbg_2; // Equivalent to previous notation
+* ColoredCDBG<myUnitigData> ccdbg_3; // An object of type myUnitigData will be associated with each unitig (along the colors)
+* \endcode
+* If data are to be associated with the unitigs, these data must be wrapped into a class that inherits from the abstract class
+* CCDBG_Data_t, such as in:
+* \code{.cpp}
+* class myUnitigData : public CCDBG_Data_t<myUnitigData> { ... };
+* CompactedDBG<myUnitigData> cdbg;
+* \endcode
 */
 template<typename Unitig_data_t = void>
 class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage<Unitig_data_t>> {

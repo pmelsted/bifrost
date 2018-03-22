@@ -387,8 +387,8 @@ bool DataStorage<U>::joinUnitigColors(const UnitigColorMap<U>& um_dest, const Un
 
             if (it != it_end){
 
-                prev_color_id = *it / um_dest_km_sz;
-                prev_km_dist = *it - (prev_color_id * um_dest_km_sz);
+                prev_color_id = it->getColorID(um_dest_km_sz);
+                prev_km_dist = it->getKmerPosition(um_dest_km_sz);
 
                 new_um_dest.dist = prev_km_dist;
                 new_um_dest.len = 1;
@@ -399,8 +399,8 @@ bool DataStorage<U>::joinUnitigColors(const UnitigColorMap<U>& um_dest, const Un
             // Insert colors layer by layer
             for (; it != it_end; ++it){
 
-                const size_t color_id = *it / um_dest_km_sz;
-                const size_t km_dist = *it - (color_id * um_dest_km_sz);
+                const size_t color_id = it->getColorID(um_dest_km_sz);
+                const size_t km_dist = it->getKmerPosition(um_dest_km_sz);
 
                 if ((color_id != prev_color_id) || (km_dist != prev_km_dist + 1)){
 
@@ -429,8 +429,8 @@ bool DataStorage<U>::joinUnitigColors(const UnitigColorMap<U>& um_dest, const Un
 
             if (it != it_end){
 
-                prev_color_id = *it / um_src_km_sz;
-                prev_km_dist = *it - (prev_color_id * um_src_km_sz);
+                prev_color_id = it->getColorID(um_src_km_sz);
+                prev_km_dist = it->getKmerPosition(um_src_km_sz);
 
                 new_um_src.dist = prev_km_dist + um_dest.size;
                 new_um_src.len = 1;
@@ -441,8 +441,8 @@ bool DataStorage<U>::joinUnitigColors(const UnitigColorMap<U>& um_dest, const Un
             // Insert colors layer by layer
             for (; it != it_end; ++it){
 
-                const size_t color_id = *it / um_src_km_sz;
-                const size_t km_dist = *it - (color_id * um_src_km_sz);
+                const size_t color_id = it->getColorID(um_src_km_sz);
+                const size_t km_dist = it->getKmerPosition(um_src_km_sz);
 
                 if ((color_id != prev_color_id) || (km_dist != prev_km_dist + 1)){
 
@@ -491,8 +491,8 @@ UnitigColors<U> DataStorage<U>::getSubUnitigColors(const UnitigColorMap<U>& um) 
 
             for (typename UnitigColors<U>::const_iterator it = cs->begin(), it_end = cs->end(); it != it_end; ++it){
 
-                const size_t color_id = *it / um_km_sz;
-                const size_t km_dist = *it - (color_id * um_km_sz);
+                const size_t color_id = it->getColorID(um_km_sz);
+                const size_t km_dist = it->getKmerPosition(um_km_sz);
 
                 if ((km_dist >= um.dist) && (km_dist < end)){
 

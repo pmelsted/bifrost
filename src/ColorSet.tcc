@@ -309,8 +309,8 @@ UnitigColors<U> UnitigColors<U>::reverse(const const_UnitigColorMap<U>& um) cons
 
     for (; it != it_end; ++it){
 
-        const size_t color_id = *it / len_unitig_km;
-        const size_t km_dist = *it - (color_id * len_unitig_km);
+        const size_t color_id = it->getColorID(len_unitig_km);
+        const size_t km_dist = it->getKmerPosition(len_unitig_km);
         const size_t new_km_dist = len_unitig_km - km_dist - 1;
 
         new_cs.add(len_unitig_km * color_id + new_km_dist);
@@ -365,7 +365,7 @@ void UnitigColors<U>::test(const const_UnitigColorMap<U>& um) {
 
     while (it != it_end){ // Iterate over colors
 
-        const size_t color_id = *it / len_unitig_km; // Current color
+        const size_t color_id = it->getColorID(len_unitig_km); // Current color
 
         it_tmp = it;
         ++it_tmp;
@@ -381,7 +381,7 @@ void UnitigColors<U>::test(const const_UnitigColorMap<U>& um) {
 
                 while (prev_it != it){
 
-                    const size_t km_dist = *prev_it - (prev_color_id * len_unitig_km);
+                    const size_t km_dist = prev_it->getKmerPosition(len_unitig_km);
 
                     ++prev_km_dist;
                     ++prev_it;
@@ -410,7 +410,7 @@ void UnitigColors<U>::test(const const_UnitigColorMap<U>& um) {
 
                 for (; prev_it != it; ++prev_it){
 
-                    new_cs.add(newlen_unitig_km * prev_color_id + (*prev_it - (prev_color_id * len_unitig_km) + 1));
+                    new_cs.add(newlen_unitig_km * prev_color_id + prev_it->getKmerPosition(len_unitig_km) + 1);
                 }
             }
 
