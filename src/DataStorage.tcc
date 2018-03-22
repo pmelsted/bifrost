@@ -468,10 +468,6 @@ bool DataStorage<U>::joinUnitigColors(const UnitigColorMap<U>& um_dest, const Un
     return false;
 }
 
-/** Extract the color set matching a sub-unitig (see UnitigMap).
-* @param um is a UnitigMap representing a mapping to a unitig from the graph.
-* @return a new color set
-*/
 template<typename U>
 UnitigColors<U> DataStorage<U>::getSubUnitigColors(const UnitigColorMap<U>& um) const {
 
@@ -507,10 +503,6 @@ UnitigColors<U> DataStorage<U>::getSubUnitigColors(const UnitigColorMap<U>& um) 
     return new_cs;
 }
 
-/** Same as ColoredCDBG::extractColors but extract the color names instead.
-* @param um is a UnitigMap representing a mapping to a unitig from the graph.
-* @return a vector a string. Each string is the name of a color.
-*/
 template<typename U>
 vector<string> DataStorage<U>::getSubUnitigColorNames(const UnitigColorMap<U>& um) const {
 

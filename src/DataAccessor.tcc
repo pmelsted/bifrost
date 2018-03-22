@@ -34,11 +34,6 @@ U* DataAccessor<U>::getData(const UnitigColorMap<U>& um) const {
 
 template<> inline void* DataAccessor<void>::getData(const UnitigColorMap<void>& um) const { return nullptr; }
 
-/** Get the color set of a unitig.
-* @param um is a UnitigMap representing a mapping to a unitig from the graph.
-* @return a constant pointer to the color set matching um. If no such color set
-* is found, the pointer is nullptr.
-*/
 template<typename U>
 const UnitigColors<U>* DataAccessor<U>::getUnitigColors(const const_UnitigColorMap<U>& um) const {
 
@@ -52,11 +47,6 @@ const UnitigColors<U>* DataAccessor<U>::getUnitigColors(const const_UnitigColorM
     return nullptr;
 }
 
-/** Get the color set of a unitig.
-* @param um is a UnitigMap representing a mapping to a unitig from the graph.
-* @return a constant pointer to the color set matching um. If no such color set
-* is found, the pointer is nullptr.
-*/
 template<typename U>
 UnitigColors<U>* DataAccessor<U>::getUnitigColors(const UnitigColorMap<U>& um) const {
 
@@ -70,10 +60,6 @@ UnitigColors<U>* DataAccessor<U>::getUnitigColors(const UnitigColorMap<U>& um) c
     return nullptr;
 }
 
-/** Extract the color set matching a sub-unitig (see UnitigMap).
-* @param um is a UnitigMap representing a mapping to a unitig from the graph.
-* @return a new color set
-*/
 template<typename U>
 UnitigColors<U> DataAccessor<U>::getSubUnitigColors(const const_UnitigColorMap<U>& um) const {
 
@@ -87,10 +73,6 @@ UnitigColors<U> DataAccessor<U>::getSubUnitigColors(const const_UnitigColorMap<U
     return UnitigColors<U>();
 }
 
-/** Same as ColoredCDBG::extractColors but extract the color names instead.
-* @param um is a UnitigMap representing a mapping to a unitig from the graph.
-* @return a vector a string. Each string is the name of a color.
-*/
 template<typename U>
 vector<string> DataAccessor<U>::getSubUnitigColorNames(const const_UnitigColorMap<U>& um) const {
 
