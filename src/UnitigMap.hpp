@@ -16,7 +16,56 @@ template<typename U, typename G, bool is_const> class BackwardCDBG;
 template<typename U, typename G, bool is_const> class ForwardCDBG;
 template<typename U, typename G, bool is_const> class neighborIterator;
 
-/** @struct UnitigMap
+/** @class UnitigMapBase
+* @brief Structure containing the basic information of a unitig mapping. This structure is independent
+* from the graph. It is the base class for the class UnitigMap.
+* @var UnitigMapBase::isEmpty
+* True if there is no mapping.
+* @var UnitigMapBase::dist
+* Start position of the mapping (0-based distance) from the start of the reference unitig.
+* @var UnitigMapBase::len
+* Length of the mapping on the reference unitig, in k-mers.
+* @var UnitigMapBase::size
+* Length of the reference unitig.
+* @var UnitigMapBase::strand
+* True if the mapped k-mer or sequence matches the forward strand, false if it matches its reverse-complement.
+*/
+struct UnitigMapBase {
+
+    /** UnitigMapBase constructor (isEmpty = true).
+    * @param length is the length of the mapping in k-mers (default is 1 k-mer).
+    * @return an empty UnitigMapBase.
+    */
+    UnitigMapBase(size_t length = 1);
+
+    /** UnitigMapBase constructor (isEmpty = false).
+    * @param start is the start position of the mapping (0-based distance) from the start of the reference unitig.
+    * @param length is the length of the mapping in k-mers.
+    * @param unitig_sz is the length of the reference unitig used for the mapping.
+    * @param strand indicates if the mapped k-mer or sequence matches the forward strand (true) or the reverse-complement (false).
+    * @return a UnitigMapBase.
+    */
+    UnitigMapBase(const size_t start, const size_t length, const size_t unitig_sz, const bool strand);
+
+    /** Equality operator: check if two UnitigMapBase are the same.
+    * @return a boolean indicating if two UnitigMapBase are the same.
+    */
+    bool operator==(const UnitigMapBase& o) const;
+
+    /** Inequality operator: check if two UnitigMapBase are different.
+    * @return a boolean indicating if the two UnitigMapBase are different.
+    */
+    bool operator!=(const UnitigMapBase& o) const;
+
+    size_t dist;
+    size_t len;
+    size_t size;
+
+    bool strand;
+    bool isEmpty;
+};
+
+/** @class UnitigMap
 * @brief Contain all the information for the mapping of a k-mer or a sequence to a unitig
 * of a Compacted de Bruijn graph. A UnitigMap object has 3 template parameters: the type of data
 * associated with the unitigs of the graph, the type of data associated with the graph and a boolean
@@ -38,19 +87,9 @@ template<typename U, typename G, bool is_const> class neighborIterator;
 * const CompactedDBG<>* cdbg_ptr_5 = um_5.getCompactedDBG(); // Associated CompactedDBG cannot be modified from the UnitigMap
 * CompactedDBG<myUnitigData, myGraphData>* cdbg_ptr_6 = um_6.getCompactedDBG(); // Associated CompactedDBG can be modified from the UnitigMap
 * \endcode
-* @var UnitigMap<T>::isEmpty
-* True if there is no mapping.
-* @var UnitigMap<T>::dist
-* Start position of the mapping (0-based distance) from the start of the reference unitig.
-* @var UnitigMap<T>::len
-* Length of the mapping on the reference unitig, in k-mers.
-* @var UnitigMap<T>::size
-* Length of the reference unitig.
-* @var UnitigMap<T>::strand
-* True if the mapped k-mer or sequence matches the forward strand, false if it matches its reverse-complement.
 */
 template<typename Unitig_data_t = void, typename Graph_data_t = void, bool is_const = false>
-class UnitigMap {
+class UnitigMap : public UnitigMapBase {
 
     typedef Unitig_data_t U;
     typedef Graph_data_t G;
@@ -200,13 +239,6 @@ class UnitigMap {
 
             return um;
         }
-
-        size_t dist;
-        size_t len;
-        size_t size;
-
-        bool strand;
-        bool isEmpty;
 
     private:
 

@@ -87,7 +87,7 @@ class Unitig<void> {
 
             if (end < start) swap(start, end);
 
-            __sync_add_and_fetch(&coveragesum,end - start + 1);
+            __sync_add_and_fetch(&coveragesum, end - start + 1);
         }
 
         inline size_t numKmers() const { return seq.size( ) - Kmer::k + 1; }

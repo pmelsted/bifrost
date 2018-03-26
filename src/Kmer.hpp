@@ -12,6 +12,10 @@
 #include <string>
 #include <iostream>
 
+#include <bitset>
+#include <string>
+#include <iostream>
+
 #ifndef XXH_NAMESPACE
 #define XXH_NAMESPACE BIFROST_HASH_
 #endif

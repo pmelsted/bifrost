@@ -2776,7 +2776,7 @@ void CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, cons
     }
 }
 
-template<typename U, typename G>
+/*template<typename U, typename G>
 template<bool is_void>
 typename std::enable_if<!is_void, bool>::type CompactedDBG<U, G>::splitUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
                                                                                size_t& v_unitigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp){
@@ -2838,6 +2838,104 @@ typename std::enable_if<!is_void, bool>::type CompactedDBG<U, G>::splitUnitig_(s
                 v_unitigs[nxt_pos_insert_v_unitigs]->coveragesum = cov_tmp;
 
                 std::copy(data_tmp.getData(), data_tmp.getData() + 1, v_unitigs[nxt_pos_insert_v_unitigs]->getData());
+
+                ++nxt_pos_insert_v_unitigs;
+
+                long_unitig = true;
+            }
+        }
+    }
+
+    --nxt_pos_insert_v_unitigs; //Position of the last unitig in the vector which is not NULL
+
+    if (pos_v_unitigs != nxt_pos_insert_v_unitigs){ // Do not proceed to swap if swap positions are the same
+
+        swapUnitigs(false, pos_v_unitigs, nxt_pos_insert_v_unitigs); // Swap unitigs
+
+        // If the swapped unitig, previously in position nxt_pos_insert, was a split unitig
+        // created in this method, do not try to split it again
+        if (nxt_pos_insert_v_unitigs >= v_unitigs_sz) ++pos_v_unitigs;
+        else --v_unitigs_sz;
+    }
+    else --v_unitigs_sz;
+
+    deleteUnitig(false, false, nxt_pos_insert_v_unitigs);
+
+    return deleted;
+}*/
+
+template<typename U, typename G>
+template<bool is_void>
+typename std::enable_if<!is_void, bool>::type CompactedDBG<U, G>::splitUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
+                                                                               size_t& v_unitigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp){
+
+    bool long_unitig = false;
+    bool deleted = true;
+
+    if (!sp.empty()){
+
+        const Unitig<U>* unitig = v_unitigs[pos_v_unitigs];
+
+        UnitigMap<U, G> um(pos_v_unitigs, 0, 0, unitig->length(), false, false, true, this);
+
+        const pair<size_t, size_t> lowpair = unitig->ccov.lowCoverageInfo();
+
+        const size_t totalcoverage = unitig->coveragesum - lowpair.second;
+        const size_t ccov_size = unitig->ccov.size();
+
+        const string str = unitig->seq.toString();
+
+        size_t i = 0;
+
+        vector<Unitig<U>> v_data(sp.size());
+
+        deleted = false;
+
+        for (vector<pair<int,int>>::const_iterator sit = sp.begin(); sit != sp.end(); ++sit, ++i) { //Iterate over created split unitigs
+
+            um.dist = sit->first;
+            um.len = sit->second - um.dist;
+
+            v_data[i] = std::move(um.splitData(sit+1 == sp.end()));
+        }
+
+        i = 0;
+
+        for (vector<pair<int,int>>::const_iterator sit = sp.begin(); sit != sp.end(); ++sit, ++i) { //Iterate over created split unitigs
+
+            um.dist = sit->first;
+            um.len = sit->second - um.dist;
+
+            const string split_str = str.substr(um.dist, um.len + k_ - 1); // Split unitig sequence
+            const uint64_t cov_tmp = (totalcoverage * um.len) / (ccov_size - lowpair.first); // Split unitig coverage
+
+            if (split_str.length() == k_){
+
+                if (addUnitig(split_str, v_kmers_sz)){
+
+                    CompressedCoverage_t<U>& cc_t = *h_kmers_ccov.find(Kmer(split_str.c_str()).rep());
+
+                    cc_t.ccov.setFull();
+
+                    std::move(v_data[i].getData(), v_data[i].getData() + 1, cc_t.getData());
+                }
+                else {
+
+                    v_kmers[v_kmers_sz].second.ccov.setFull(); // We don't care about the coverage per k-mer anymore
+
+                    std::move(v_data[i].getData(), v_data[i].getData() + 1, v_kmers[v_kmers_sz].second.getData());
+
+                    ++v_kmers_sz;
+                }
+            }
+            else {
+
+                addUnitig(split_str, nxt_pos_insert_v_unitigs);
+
+                v_unitigs[nxt_pos_insert_v_unitigs]->initializeCoverage(true); //We don't care about the coverage per k-mer anymore
+                v_unitigs[nxt_pos_insert_v_unitigs]->coveragesum = cov_tmp;
+
+                std::move(v_data[i].getData(), v_data[i].getData() + 1, v_unitigs[nxt_pos_insert_v_unitigs]->getData());
 
                 ++nxt_pos_insert_v_unitigs;
 

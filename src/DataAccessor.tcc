@@ -35,7 +35,7 @@ U* DataAccessor<U>::getData(const UnitigColorMap<U>& um) const {
 template<> inline void* DataAccessor<void>::getData(const UnitigColorMap<void>& um) const { return nullptr; }
 
 template<typename U>
-const UnitigColors<U>* DataAccessor<U>::getUnitigColors(const const_UnitigColorMap<U>& um) const {
+const UnitigColors* DataAccessor<U>::getUnitigColors(const const_UnitigColorMap<U>& um) const {
 
     if (!um.isEmpty && (um.getCompactedDBG() != nullptr)){
 
@@ -48,7 +48,7 @@ const UnitigColors<U>* DataAccessor<U>::getUnitigColors(const const_UnitigColorM
 }
 
 template<typename U>
-UnitigColors<U>* DataAccessor<U>::getUnitigColors(const UnitigColorMap<U>& um) const {
+UnitigColors* DataAccessor<U>::getUnitigColors(const UnitigColorMap<U>& um) const {
 
     if (!um.isEmpty && (um.getCompactedDBG() != nullptr)){
 
@@ -61,7 +61,7 @@ UnitigColors<U>* DataAccessor<U>::getUnitigColors(const UnitigColorMap<U>& um) c
 }
 
 template<typename U>
-UnitigColors<U> DataAccessor<U>::getSubUnitigColors(const const_UnitigColorMap<U>& um) const {
+UnitigColors DataAccessor<U>::getSubUnitigColors(const const_UnitigColorMap<U>& um) const {
 
     if (!um.isEmpty && (um.getCompactedDBG() != nullptr)){
 
@@ -70,7 +70,7 @@ UnitigColors<U> DataAccessor<U>::getSubUnitigColors(const const_UnitigColorMap<U
         if (ds != nullptr) return ds->getSubUnitigColors(um);
     }
 
-    return UnitigColors<U>();
+    return UnitigColors();
 }
 
 template<typename U>
@@ -92,10 +92,10 @@ void DataAccessor<U>::join(const UnitigColorMap<U>& um_dest, const UnitigColorMa
     DataStorage<U>* ds = um_dest.getCompactedDBG()->getData();
 
     DataAccessor<U>* da_dest = um_dest.getData();
-    UnitigColors<U>* cs_dest = da_dest->getUnitigColors(um_dest);
+    UnitigColors* cs_dest = da_dest->getUnitigColors(um_dest);
 
     const DataAccessor<U>* da_src = um_src.getData();
-    UnitigColors<U>* cs_src = da_src->getUnitigColors(um_src);
+    UnitigColors* cs_src = da_src->getUnitigColors(um_src);
 
     U* data_unitig_dest = da_dest->getData(um_dest);
     U* data_unitig_src = da_src->getData(um_src);
@@ -130,10 +130,10 @@ template<>
 inline void DataAccessor<void>::join(const UnitigColorMap<void>& um_dest, const UnitigColorMap<void>& um_src){
 
     DataAccessor<void>* da_dest = um_dest.getData();
-    UnitigColors<void>* cs_dest = da_dest->getUnitigColors(um_dest);
+    UnitigColors* cs_dest = da_dest->getUnitigColors(um_dest);
 
     const DataAccessor<void>* da_src = um_src.getData();
-    UnitigColors<void>* cs_src = da_src->getUnitigColors(um_src);
+    UnitigColors* cs_src = da_src->getUnitigColors(um_src);
 
     if (cs_dest != nullptr){ // If a colorset exists for um_dest
 
@@ -159,44 +159,47 @@ inline void DataAccessor<void>::join(const UnitigColorMap<void>& um_dest, const 
 }
 
 template<typename U>
-inline void DataAccessor<U>::sub(const UnitigColorMap<U>& um, DataAccessor<U>* data_dest, const bool last_extraction) {
+void DataAccessor<U>::sub(DataAccessor<U>* data_dest, const UnitigColorMap<U>& um_src, const bool last_extraction) {
 
-    DataStorage<U>* ds = um.getCompactedDBG()->getData();
-    UnitigColors<U> cs = ds->getSubUnitigColors(um);
+    DataStorage<U>* ds = um_src.getCompactedDBG()->getData();
+    UnitigColors cs = ds->getSubUnitigColors(um_src);
 
     if (cs.size() != 0){
 
-        //const Kmer km = um.getKmer(um.dist);
-        const Kmer km = um.getMappedHead();
+        const Kmer km = um_src.getMappedHead();
 
-        UnitigColors<U>* cs_um = (last_extraction ? ds->getUnitigColors(um) : ds->insert());
+        UnitigColors* cs_um_src = (last_extraction ? ds->getUnitigColors(um_src) : ds->insert());
 
-        *cs_um = move(cs);
+        *cs_um_src = move(cs);
 
-        ds->overflow.insert(km, cs_um - ds->color_sets);
+        ds->overflow.insert(km, cs_um_src - ds->color_sets);
     }
 
-    U* data_unitig = ds->getData(um);
+    U* data_unitig = ds->getData(um_src);
 
-    if (data_unitig != nullptr) U::sub(um, data_unitig, last_extraction);
+    if (data_unitig != nullptr){
+
+        const UnitigMapBase umb(0, um_src.len, um_src.len + Kmer::k - 1, true);
+
+        U::sub(data_unitig, cs, umb, um_src, last_extraction);
+    }
 }
 
 template<>
-inline void DataAccessor<void>::sub(const UnitigColorMap<void>& um, DataAccessor<void>* data_dest, const bool last_extraction) {
+inline void DataAccessor<void>::sub(DataAccessor<void>* data_dest, const UnitigColorMap<void>& um_src, const bool last_extraction) {
 
-    DataStorage<void>* ds = um.getCompactedDBG()->getData();
-    UnitigColors<void> cs = ds->getSubUnitigColors(um);
+    DataStorage<void>* ds = um_src.getCompactedDBG()->getData();
+    UnitigColors cs = ds->getSubUnitigColors(um_src);
 
     if (cs.size() != 0){
 
-        //const Kmer km = um.getKmer(um.dist);
-        const Kmer km = um.getMappedHead();
+        const Kmer km = um_src.getMappedHead();
 
-        UnitigColors<void>* cs_um = (last_extraction ? ds->getUnitigColors(um) : ds->insert());
+        UnitigColors* cs_um_src = (last_extraction ? ds->getUnitigColors(um_src) : ds->insert());
 
-        *cs_um = move(cs);
+        *cs_um_src = move(cs);
 
-        ds->overflow.insert(km, cs_um - ds->color_sets);
+        ds->overflow.insert(km, cs_um_src - ds->color_sets);
     }
 }
 

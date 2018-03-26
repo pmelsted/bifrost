@@ -24,7 +24,7 @@ DataStorage<U>::DataStorage(const size_t nb_seeds_, const size_t nb_elem_, const
     //Initialize the hash function seeds for
     for (size_t i = 0; i != 256; ++i) seeds[i] = distribution(generator);
 
-    color_sets = new UnitigColors<U>[nb_elem];
+    color_sets = new UnitigColors[nb_elem];
     data = new U[nb_elem];
 }
 
@@ -40,7 +40,7 @@ inline DataStorage<void>::DataStorage(const size_t nb_seeds_, const size_t nb_el
     //Initialize the hash function seeds for
     for (int i = 0; i < 256; ++i) seeds[i] = distribution(generator);
 
-    color_sets = new UnitigColors<void>[nb_elem];
+    color_sets = new UnitigColors[nb_elem];
 }
 
 template<typename U>
@@ -52,7 +52,7 @@ DataStorage<U>::DataStorage(const DataStorage& o) : nb_seeds(o.nb_seeds), nb_col
 
     if ((o.color_sets != nullptr) && (o.nb_elem != 0)){
 
-        color_sets = new UnitigColors<U>[nb_elem];
+        color_sets = new UnitigColors[nb_elem];
 
         copy(o.color_sets, o.color_sets + nb_elem, color_sets);
     }
@@ -74,7 +74,7 @@ inline DataStorage<void>::DataStorage(const DataStorage& o) :  nb_seeds(o.nb_see
 
     if ((o.color_sets != nullptr) && (o.nb_elem != 0)){
 
-        color_sets = new UnitigColors<void>[nb_elem];
+        color_sets = new UnitigColors[nb_elem];
 
         copy(o.color_sets, o.color_sets + nb_elem, color_sets);
     }
@@ -165,7 +165,7 @@ DataStorage<U>& DataStorage<U>::operator=(const DataStorage& o) {
 
     if ((o.color_sets != nullptr) && (o.nb_elem != 0)){
 
-        color_sets = new UnitigColors<U>[nb_elem];
+        color_sets = new UnitigColors[nb_elem];
 
         copy(o.color_sets, o.color_sets + nb_elem, color_sets);
     }
@@ -201,7 +201,7 @@ inline DataStorage<void>& DataStorage<void>::operator=(const DataStorage& o) {
 
     if ((o.color_sets != nullptr) && (o.nb_elem != 0)){
 
-        color_sets = new UnitigColors<void>[nb_elem];
+        color_sets = new UnitigColors[nb_elem];
 
         copy(o.color_sets, o.color_sets + nb_elem, color_sets);
     }
@@ -268,7 +268,7 @@ inline DataStorage<void>& DataStorage<void>::operator=(DataStorage&& o) {
 }
 
 template<typename U>
-const UnitigColors<U>* DataStorage<U>::getUnitigColors(const const_UnitigColorMap<U>& um) const {
+const UnitigColors* DataStorage<U>::getUnitigColors(const const_UnitigColorMap<U>& um) const {
 
     if (!um.isEmpty && (color_sets != nullptr)){
 
@@ -288,7 +288,7 @@ const UnitigColors<U>* DataStorage<U>::getUnitigColors(const const_UnitigColorMa
 }
 
 template<typename U>
-UnitigColors<U>* DataStorage<U>::getUnitigColors(const UnitigColorMap<U>& um) {
+UnitigColors* DataStorage<U>::getUnitigColors(const UnitigColorMap<U>& um) {
 
     if (!um.isEmpty && (color_sets != nullptr)){
 
@@ -362,12 +362,12 @@ bool DataStorage<U>::joinUnitigColors(const UnitigColorMap<U>& um_dest, const Un
 
     if (!um_dest.isEmpty && !um_src.isEmpty && (color_sets != nullptr)){
 
-        UnitigColors<U>* color_set_dest = getUnitigColors(um_dest);
-        UnitigColors<U>* color_set_src = getUnitigColors(um_src);
+        UnitigColors* color_set_dest = getUnitigColors(um_dest);
+        UnitigColors* color_set_src = getUnitigColors(um_src);
 
         if ((color_set_dest != nullptr) && (color_set_src != nullptr)){
 
-            UnitigColors<U> new_cs, csd_rev, css_rev;
+            UnitigColors new_cs, csd_rev, css_rev;
 
             size_t prev_color_id = 0xffffffffffffffff;
             size_t prev_km_dist = 0xffffffffffffffff;
@@ -383,7 +383,7 @@ bool DataStorage<U>::joinUnitigColors(const UnitigColorMap<U>& um_dest, const Un
                 color_set_dest = &csd_rev;
             }
 
-            typename UnitigColors<U>::const_iterator it = color_set_dest->begin(), it_end = color_set_dest->end();
+            UnitigColors::const_iterator it = color_set_dest->begin(), it_end = color_set_dest->end();
 
             if (it != it_end){
 
@@ -469,23 +469,22 @@ bool DataStorage<U>::joinUnitigColors(const UnitigColorMap<U>& um_dest, const Un
 }
 
 template<typename U>
-UnitigColors<U> DataStorage<U>::getSubUnitigColors(const UnitigColorMap<U>& um) const {
+UnitigColors DataStorage<U>::getSubUnitigColors(const UnitigColorMap<U>& um) const {
 
-    UnitigColors<U> new_cs;
+    UnitigColors new_cs;
 
     if (!um.isEmpty && (color_sets != nullptr)){
 
-        const UnitigColors<U>* cs = getUnitigColors(um);
+        const UnitigColors* cs = getUnitigColors(um);
 
         if (cs != nullptr){
 
             const size_t end = um.dist + um.len;
             const size_t um_km_sz = um.size - um.getCompactedDBG()->getK() + 1;
 
-            //UnitigColorMap<U> fake_um(0, 0, 1, um.len, false, false, um.strand, nullptr);
             UnitigColorMap<U> um_tmp(0, 1, um.len, um.strand);
 
-            for (typename UnitigColors<U>::const_iterator it = cs->begin(), it_end = cs->end(); it != it_end; ++it){
+            for (UnitigColors::const_iterator it = cs->begin(), it_end = cs->end(); it != it_end; ++it){
 
                 const size_t color_id = it->getColorID(um_km_sz);
                 const size_t km_dist = it->getKmerPosition(um_km_sz);
@@ -510,7 +509,7 @@ vector<string> DataStorage<U>::getSubUnitigColorNames(const UnitigColorMap<U>& u
 
     if (!um.isEmpty && (color_sets != nullptr)){
 
-        const UnitigColors<U>* cs = getUnitigColors(um);
+        const UnitigColors* cs = getUnitigColors(um);
 
         if (cs != nullptr){
 
@@ -519,10 +518,10 @@ vector<string> DataStorage<U>::getSubUnitigColorNames(const UnitigColorMap<U>& u
             const size_t end = um.dist + um.len;
             const size_t um_km_sz = um.size - um.getCompactedDBG()->getK() + 1;
 
-            for (typename UnitigColors<U>::const_iterator it = cs->begin(), it_end = cs->end(); it != it_end; ++it){
+            for (UnitigColors::const_iterator it = cs->begin(), it_end = cs->end(); it != it_end; ++it){
 
-                const size_t color_id = *it / um_km_sz;
-                const size_t km_dist = *it - (color_id * um_km_sz);
+                const size_t color_id = it->getColorID(um_km_sz);
+                const size_t km_dist = it->getKmerPosition(um_km_sz);
 
                 if ((km_dist >= um.dist) && (km_dist < end) && (color_id != prev_color_id)){
 
@@ -538,11 +537,11 @@ vector<string> DataStorage<U>::getSubUnitigColorNames(const UnitigColorMap<U>& u
 }
 
 template<typename U>
-UnitigColors<U>* DataStorage<U>::insert() {
+UnitigColors* DataStorage<U>::insert() {
 
     if (nb_free_elem == 0){
 
-        UnitigColors<U>* old_color_sets = color_sets;
+        UnitigColors* old_color_sets = color_sets;
         U* old_data = data;
 
         const size_t old_nb_elem = nb_elem;
@@ -550,7 +549,7 @@ UnitigColors<U>* DataStorage<U>::insert() {
         nb_free_elem = nb_elem * 0.1;
         nb_elem += nb_free_elem;
 
-        color_sets = new UnitigColors<U>[nb_elem];
+        color_sets = new UnitigColors[nb_elem];
 
         std::move(color_sets, color_sets + old_nb_elem, old_color_sets);
         delete[] old_color_sets;
@@ -565,18 +564,18 @@ UnitigColors<U>* DataStorage<U>::insert() {
 }
 
 template<>
-inline UnitigColors<void>* DataStorage<void>::insert() {
+inline UnitigColors* DataStorage<void>::insert() {
 
     if (nb_free_elem == 0){
 
-        UnitigColors<void>* old_color_sets = color_sets;
+        UnitigColors* old_color_sets = color_sets;
 
         const size_t old_nb_elem = nb_elem;
 
         nb_free_elem = nb_elem * 0.1;
         nb_elem += nb_free_elem;
 
-        color_sets = new UnitigColors<void>[nb_elem];
+        color_sets = new UnitigColors[nb_elem];
 
         std::move(color_sets, color_sets + old_nb_elem, old_color_sets);
         delete[] old_color_sets;
@@ -710,7 +709,7 @@ bool DataStorage<U>::read(const string& filename_colors, bool verbose) {
 
     overflow = KmerHashTable<size_t>(overflow_sz);
 
-    color_sets = new UnitigColors<U>[nb_elem];
+    color_sets = new UnitigColors[nb_elem];
     data = new U[nb_elem];
 
     for (size_t i = 0; (i < nb_seeds) && colors_in.good(); ++i){
@@ -796,7 +795,7 @@ inline bool DataStorage<void>::read(const string& filename_colors, bool verbose)
 
     overflow = KmerHashTable<size_t>(overflow_sz);
 
-    color_sets = new UnitigColors<U>[nb_elem];
+    color_sets = new UnitigColors[nb_elem];
 
     for (size_t i = 0; (i < nb_seeds) && colors_in.good(); ++i){
         //Read the hash function seeds of the graph

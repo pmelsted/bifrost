@@ -14,18 +14,12 @@ template<typename Unitig_data_t> class ColoredCDBG;
 template<typename Unitig_data_t> class DataAccessor;
 template<typename Unitig_data_t> class DataStorage;
 
-template<typename U> using UnitigColorMap = UnitigMap<DataAccessor<U>, DataStorage<U>>;
-template<typename U> using const_UnitigColorMap = const_UnitigMap<DataAccessor<U>, DataStorage<U>>;
-
 /** @class UnitigColors
-* @brief Represent the k-mer color sets of a unitig. Its template parameter is the type of data
-* associated with the unitigs of the graph.
+* @brief Represent the k-mer color sets of a unitig.
 */
-template<typename Unitig_data_t = void>
 class UnitigColors {
 
         typedef Roaring Bitmap;
-        typedef Unitig_data_t U;
 
         template<typename U> friend class ColoredCDBG;
         template<typename U> friend class DataAccessor;
@@ -33,142 +27,7 @@ class UnitigColors {
 
     public:
 
-        class ColorKmer_ID;
-
-        /** @class UnitigColors_const_iterator
-        * @brief See UnitigColors::const_iterator
-        */
-        template<typename U>
-        class UnitigColors_const_iterator : public std::iterator<std::forward_iterator_tag, ColorKmer_ID> {
-
-            template<typename T> friend class UnitigColors;
-
-            public:
-
-                /** Constructor of an empty iterator. The resulting iterator can't be used as it is
-                * (it is not associated with any UnitigColors).
-                */
-                UnitigColors_const_iterator() : cs(nullptr), flag(unoccupied), it_setBits(0),
-                                                cs_sz(0), it_roar(empty_roar.end()) {}
-
-                /** Copy assignment operator. After the call to this function, the same iterator exists
-                * twice in memory.
-                * @param o is the iterator to copy.
-                * @return a reference to the iterator copy.
-                */
-                UnitigColors_const_iterator<U>& operator=(const UnitigColors_const_iterator& o) {
-
-                    cs = o.cs;
-                    flag = o.flag;
-                    it_setBits = o.it_setBits;
-                    ck_id = o.ck_id;
-                    cs_sz = o.cs_sz;
-                    it_roar = o.it_roar;
-
-                    return *this;
-                }
-
-                /** Indirection operator.
-                * @return a ColorKmer_ID object reference representing the position of a k-mer in the unitig
-                * and the ID of the color associated with the k-mer at the given position.
-                */
-                const ColorKmer_ID& operator*() const { return ck_id; }
-
-                /** Dereference operator.
-                * @return a ColorKmer_ID object pointer representing the position of a k-mer in the unitig
-                * and the ID of the color associated with the k-mer at the given position.
-                */
-                const ColorKmer_ID* operator->() const { return &ck_id; }
-
-                /** Postfix increment operator: it iterates over the next k-mer of the unitig having the
-                * current color or the first k-mer having the next color if all k-mers having the current
-                * color have already been visited by this iterator.
-                * @return a copy of the iterator before the call to this operator.
-                */
-                UnitigColors_const_iterator<U> operator++(int) {
-
-                    UnitigColors_const_iterator<U> tmp(*this);
-                    operator++();
-                    return tmp;
-                }
-
-                /** Prefix increment operator: it iterates over the next k-mer of the unitig having the
-                * current color or the first k-mer having the next color if all k-mers having the current
-                * color have already been visited by this iterator.
-                * @return a reference to the current iterator.
-                */
-                UnitigColors_const_iterator<U>& operator++() {
-
-                    if (it_setBits == cs_sz) return *this;
-
-                    ++it_setBits;
-
-                    if (flag == ptrCompressedBitmap) {
-
-                        if (it_setBits != 0) ++it_roar;
-                        if (it_roar != cs->getConstPtrBitmap()->end()) ck_id = *it_roar;
-                    }
-                    else if (flag == localBitVectorColor){
-
-                        while (it_setBits < maxBitVectorIDs){
-
-                            if (((cs->setBits >> (it_setBits + 2)) & 0x1) != 0){
-
-                                ck_id = it_setBits;
-                                break;
-                            }
-
-                            ++it_setBits;
-                        }
-                    }
-                    else if (flag == localSingleColor) ck_id = cs->setBits >> 2;
-
-                    return *this;
-                }
-
-                /** Equality operator.
-                * @return a boolean indicating if two iterators are the same (true) or not (false).
-                */
-                bool operator==(const UnitigColors_const_iterator& o) const {
-
-                    return  (cs == o.cs) && (flag == o.flag) && (cs_sz == o.cs_sz) &&
-                            ((flag == ptrCompressedBitmap) ? (it_roar == o.it_roar) : (it_setBits == o.it_setBits));
-                }
-
-                /** Inequality operator.
-                * @return a boolean indicating if two iterators are different (true) or not (false).
-                */
-                bool operator!=(const UnitigColors_const_iterator& o) const { return !operator==(o); }
-
-            private:
-
-                const UnitigColors<U>* cs;
-
-                size_t flag;
-
-                size_t it_setBits;
-                size_t cs_sz;
-
-                ColorKmer_ID ck_id;
-
-                const Roaring empty_roar;
-                Roaring::const_iterator it_roar;
-
-                UnitigColors_const_iterator(const UnitigColors<U>* cs_, const bool beg) :   cs(cs_), it_setBits(0xffffffffffffffff),
-                                                                                            ck_id(0), it_roar(empty_roar.end()) {
-
-                    flag = cs->setBits & flagMask;
-
-                    if (flag == ptrCompressedBitmap){
-
-                        it_roar = beg ? cs->getConstPtrBitmap()->begin() : cs->getConstPtrBitmap()->end();
-                        cs_sz = cs->size();
-                    }
-                    else cs_sz = (flag == localSingleColor) ? 1 : maxBitVectorIDs;
-
-                    if (!beg) it_setBits = cs_sz;
-                }
-        };
+        class UnitigColors_const_iterator;
 
         /** @class ColorKmer_ID
         * @brief Represents the position of a k-mer in a unitig and the ID of the color associated
@@ -176,7 +35,7 @@ class UnitigColors {
         */
         class ColorKmer_ID {
 
-            template<typename U> friend class UnitigColors_const_iterator;
+            friend class UnitigColors_const_iterator;
 
             public:
 
@@ -228,13 +87,146 @@ class UnitigColors {
                 size_t ck_id;
         };
 
+        /** @class UnitigColors_const_iterator
+        * @brief See UnitigColors::const_iterator
+        */
+        class UnitigColors_const_iterator : public std::iterator<std::forward_iterator_tag, ColorKmer_ID> {
+
+            friend class UnitigColors;
+
+            public:
+
+                /** Constructor of an empty iterator. The resulting iterator can't be used as it is
+                * (it is not associated with any UnitigColors).
+                */
+                UnitigColors_const_iterator() : cs(nullptr), flag(unoccupied), it_setBits(0),
+                                                cs_sz(0), it_roar(empty_roar.end()) {}
+
+                /** Copy assignment operator. After the call to this function, the same iterator exists
+                * twice in memory.
+                * @param o is the iterator to copy.
+                * @return a reference to the iterator copy.
+                */
+                UnitigColors_const_iterator& operator=(const UnitigColors_const_iterator& o) {
+
+                    cs = o.cs;
+                    flag = o.flag;
+                    it_setBits = o.it_setBits;
+                    ck_id = o.ck_id;
+                    cs_sz = o.cs_sz;
+                    it_roar = o.it_roar;
+
+                    return *this;
+                }
+
+                /** Indirection operator.
+                * @return a ColorKmer_ID object reference representing the position of a k-mer in the unitig
+                * and the ID of the color associated with the k-mer at the given position.
+                */
+                const ColorKmer_ID& operator*() const { return ck_id; }
+
+                /** Dereference operator.
+                * @return a ColorKmer_ID object pointer representing the position of a k-mer in the unitig
+                * and the ID of the color associated with the k-mer at the given position.
+                */
+                const ColorKmer_ID* operator->() const { return &ck_id; }
+
+                /** Postfix increment operator: it iterates over the next k-mer of the unitig having the
+                * current color or the first k-mer having the next color if all k-mers having the current
+                * color have already been visited by this iterator.
+                * @return a copy of the iterator before the call to this operator.
+                */
+                UnitigColors_const_iterator operator++(int) {
+
+                    UnitigColors_const_iterator tmp(*this);
+                    operator++();
+                    return tmp;
+                }
+
+                /** Prefix increment operator: it iterates over the next k-mer of the unitig having the
+                * current color or the first k-mer having the next color if all k-mers having the current
+                * color have already been visited by this iterator.
+                * @return a reference to the current iterator.
+                */
+                UnitigColors_const_iterator& operator++() {
+
+                    if (it_setBits == cs_sz) return *this;
+
+                    ++it_setBits;
+
+                    if (flag == ptrCompressedBitmap) {
+
+                        if (it_setBits != 0) ++it_roar;
+                        if (it_roar != cs->getConstPtrBitmap()->end()) ck_id = *it_roar;
+                    }
+                    else if (flag == localBitVectorColor){
+
+                        while (it_setBits < maxBitVectorIDs){
+
+                            if (((cs->setBits >> (it_setBits + 2)) & 0x1) != 0){
+
+                                ck_id = it_setBits;
+                                break;
+                            }
+
+                            ++it_setBits;
+                        }
+                    }
+                    else if (flag == localSingleColor) ck_id = cs->setBits >> 2;
+
+                    return *this;
+                }
+
+                /** Equality operator.
+                * @return a boolean indicating if two iterators are the same (true) or not (false).
+                */
+                bool operator==(const UnitigColors_const_iterator& o) const {
+
+                    return  (cs == o.cs) && (flag == o.flag) && (cs_sz == o.cs_sz) &&
+                            ((flag == ptrCompressedBitmap) ? (it_roar == o.it_roar) : (it_setBits == o.it_setBits));
+                }
+
+                /** Inequality operator.
+                * @return a boolean indicating if two iterators are different (true) or not (false).
+                */
+                bool operator!=(const UnitigColors_const_iterator& o) const { return !operator==(o); }
+
+            private:
+
+                const UnitigColors* cs;
+
+                size_t flag;
+
+                size_t it_setBits;
+                size_t cs_sz;
+
+                ColorKmer_ID ck_id;
+
+                const Roaring empty_roar;
+                Roaring::const_iterator it_roar;
+
+                UnitigColors_const_iterator(const UnitigColors* cs_, const bool beg) :  cs(cs_), it_setBits(0xffffffffffffffff),
+                                                                                        ck_id(0), it_roar(empty_roar.end()) {
+
+                    flag = cs->setBits & flagMask;
+
+                    if (flag == ptrCompressedBitmap){
+
+                        it_roar = beg ? cs->getConstPtrBitmap()->begin() : cs->getConstPtrBitmap()->end();
+                        cs_sz = cs->size();
+                    }
+                    else cs_sz = (flag == localSingleColor) ? 1 : maxBitVectorIDs;
+
+                    if (!beg) it_setBits = cs_sz;
+                }
+        };
 
         /** @typedef const_iterator
         * @brief Iterator for the colors of a unitig. The iterator iterates over the colors of a
         * unitig in ascending order. For each color, it iterates over the k-mer positions
         * of the unitig k-mers having this color, in ascending order.
         */
-        typedef UnitigColors_const_iterator<U> const_iterator;
+        typedef UnitigColors_const_iterator const_iterator;
 
         /** Constructor (set up an empty container of k-mer color sets). The UnitigColors is
         * initialized as "unoccupied": the color set is "free" to be used, it is not associated
@@ -278,20 +270,20 @@ class UnitigColors {
         void empty();
 
         /** Add a color in the current UnitigColors to all k-mers of a unitig mapping.
-        * @param um is a const_UnitigColorMap representing a unitig mapping for which the color must be added.
-        * The color will be added only for the mapping, i.e, unitig[um.dist..um.dist+um.len+k-1]
+        * @param um is a UnitigMapBase object representing a mapping to a reference unitig for which the
+        * color must be added. The color will be added only for the given mapping, i.e, unitig[um.dist..um.dist+um.len+k-1]
         * @param color_id is the ID of the color to add.
         */
-        void add(const const_UnitigColorMap<U>& um, const size_t color_id);
+        void add(const UnitigMapBase& um, const size_t color_id);
 
         /** Check if a color is present on all k-mers of a unitig mapping.
-        * @param um is a const_UnitigColorMap representing a unitig mapping. All k-mers of this mapping will be
+        * @param um is a UnitigMapBase object representing a mapping to a reference unitig. All k-mers of this mapping will be
         * checked for the presence of the color. If true is returned, all k-mers of the mapping have the color.
         * If false is returned, at least one k-mer of the mapping does not have the color.
         * @param color_id is the ID of the color to check the presence.
         * @return a boolean indicating if the color is present on all k-mers of the unitig mapping.
         */
-        bool contains(const const_UnitigColorMap<U>& um, const size_t color_id) const;
+        bool contains(const UnitigMapBase& um, const size_t color_id) const;
 
         /** Get the number of colors of a unitig (sum of the number of colors for each k-mer of the unitig).
         * @return Number of colors (sum of the number of colors for each k-mer of the unitig).
@@ -341,8 +333,6 @@ class UnitigColors {
         */
         const_iterator end() const { return const_iterator(this, false); }
 
-        //void test(const const_UnitigColorMap<U>& um);
-
     private:
 
         inline void releasePointer(){
@@ -358,8 +348,8 @@ class UnitigColors {
 
         void add(const size_t color_id);
 
-        UnitigColors<U> reverse(const const_UnitigColorMap<U>& um) const;
-        void merge(const UnitigColors<U>& cs);
+        UnitigColors reverse(const UnitigMapBase& um) const;
+        void merge(const UnitigColors& cs);
 
         inline Bitmap* getPtrBitmap() const { return reinterpret_cast<Bitmap*>(setBits & pointerMask); }
         inline const Bitmap* getConstPtrBitmap() const { return reinterpret_cast<const Bitmap*>(setBits & pointerMask); }
@@ -386,7 +376,5 @@ class UnitigColors {
             Bitmap* setPointer;
         };
 };
-
-#include "ColorSet.tcc"
 
 #endif

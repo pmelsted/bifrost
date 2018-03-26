@@ -397,38 +397,6 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
 
     delete[] cs_locks;
     delete[] cs_to_optimize;
-
-    /*cout << "=== Raw color sets before optimization ===" << endl;
-
-    size_t sz = 0;
-
-    for (size_t i = 0; i < ds->nb_color_sets; ++i) sz += ds->color_sets[i].getSizeInBytes();
-
-    cout << "Size in bytes: " << sz << " bytes" << endl;
-    cout << "=== Raw color sets after optimization ===" << endl;
-
-    sz = 0;
-
-    for (size_t i = 0; i < ds->nb_color_sets; ++i) ds->color_sets[i].optimize();
-    for (size_t i = 0; i < ds->nb_color_sets; ++i) sz += ds->color_sets[i].getSizeInBytes();
-
-    cout << "Size in bytes: " << sz << " bytes" << endl;
-    cout << "=== Test color sets before optimization ===" << endl;
-
-    sz = 0;
-
-    for (auto& unitig : *this) ds->getUnitigColors(unitig)->test(unitig);
-    for (size_t i = 0; i < ds->nb_color_sets; ++i) sz += ds->color_sets[i].getSizeInBytes();
-
-    cout << "Size in bytes: " << sz << " bytes" << endl;
-    cout << "=== Test color sets after optimization ===" << endl;
-
-    sz = 0;
-
-    for (size_t i = 0; i < ds->nb_color_sets; ++i) ds->color_sets[i].optimize();
-    for (size_t i = 0; i < ds->nb_color_sets; ++i) sz += ds->color_sets[i].getSizeInBytes();
-
-    cout << "Size in bytes: " << sz << " bytes" << endl;*/
 }
 
 template<typename U>
@@ -495,7 +463,7 @@ void ColoredCDBG<U>::checkColors(const CCDBG_Build_opt& opt) {
             exit(1);
         }
 
-        const UnitigColors<U>* cs = ucm.getData()->getUnitigColors(ucm);
+        const UnitigColors* cs = ucm.getData()->getUnitigColors(ucm);
 
         if (cs == nullptr){
 

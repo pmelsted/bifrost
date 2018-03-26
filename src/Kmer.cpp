@@ -1,7 +1,4 @@
 #include "Kmer.hpp"
-#include <bitset>
-#include <string>
-#include <iostream>
 
 using namespace std;
 

@@ -188,7 +188,8 @@ class CCDBG_Data_t {
         * parameter um_src then, after the call to this function, A will become the concatenation of itself with B (A = AB) and
         * B will be removed. Be careful that if um_dest.strand = false, then the reverse-complement of A is going to be used in
         * the concatenation. Reciprocally, if um_src.strand = false, then the reverse-complement of B is going to be used in the
-        * concatenation. The data of each unitig can be accessed through the method UnitigColorMap::getData().
+        * concatenation. The data of each unitig can be accessed through the method UnitigColorMap::getData(). Note that this
+        * method is static.
         * @param um_dest is a UnitigColorMap object representing a colored unitig (and its data) to which another unitig is
         * going to be appended.
         * @param um_src is a UnitigColorMap object representing a colored unitig (and its data) that will be appended at the end
@@ -196,18 +197,27 @@ class CCDBG_Data_t {
         */
         static void join(const UnitigColorMap<U>& um_dest, const UnitigColorMap<U>& um_src){}
 
-        /** Extract data from a colored unitig A to be associated with a colored unitig B which is the unitig mapping given by the
-        * UnitigMap object um_src. Hence, B = A[um_src.dist, um_src.dist + um_src.len + k - 1]. Be careful that if um_src.strand is
-        * false, then B will be extracted from the reverse-complement of A, i.e, B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1]).
-        * @param um_src is a UnitigColorMap object representing the mapping to a colored unitig A from which a new colored unitig B
-        * will be created, i.e, B = A[um_src.dist, um_src.dist + um_src.len + k - 1] or B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1])
+        /** Extract data from a colored unitig A to be associated with a colored unitig B which is a sub-unitig of A. Unitig B is defined
+        * as a mapping to A given by the input UnitigColorMap object um_src. Hence, B = A[um_src.dist, um_src.dist + um_src.len + k - 1]
+        * or B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1]) if um_src.strand == false (B is extracted from the reverse-complement
+        * of A). Unitig A is deleted from the graph and B is inserted in the graph (along with their data and colors) ONLY AFTER this function,
+        * called with input parameter last_extraction == true, returns. Note that this method is static.
+        * @param data_dest is a pointer to a newly constructed object that you can fill in with new data to associate with colored unitig B.
+        * @param uc_dest is a constant reference to a UnitigColors object representing the k-mer color sets of colored unitig B.
+        * @param um_dest is a UnitigMapBase object representing the new colored unitig B that will be inserted in the graph, i.e,
+        * B = A[um_src.dist, um_src.dist + um_src.len + k - 1] or B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1]) if
+        * um_src.strand == false. The object is of type UnitigMapBase (represents only the mapping info, the unitig itself cannot be accessed)
+        * because it is not yet in the graph. Its only purpose is to be used with the methods of the input UnitigColors type object uc_dest.
+        * @param um_src is a UnitigColorMap object representing the mapping to a colored unitig A from which a new colored unitig B will be
+        * extracted, i.e, B = A[um_src.dist, um_src.dist + um_src.len + k - 1] or B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1])
         * if um_src.strand == false.
-        * @param new_data is a pointer to a newly constructed object that you can fill in with new data to associate with colored unitig B.
-        * @param last_extraction is a boolean indicating if this is the last call to this function on the reference unitig used for the
-        * mapping given by um_src. If last_extraction is true, the reference unitig of um_src will be removed from the graph right after
-        * this function returns.
+        * @param last_extraction is a boolean indicating if this is the last call to this function on the reference unitig A used for the
+        * mapping given by um_src. If last_extraction is true, the reference unitig A of um_src will be removed from the graph right after
+        * this function returns. Also, all unitigs B extracted from the reference unitig A, along with their data and colors, will be inserted
+        * in the graph.
         */
-        static void sub(const UnitigColorMap<U>& um_src, U* new_data, bool last_extraction){}
+        static void sub(U* data_dest, const UnitigColors& uc_dest, const UnitigMapBase& um_dest, const UnitigColorMap<U>& um_src,
+                        const bool last_extraction){}
 
         /** Serialize the data to a string. This function is used when the graph is written to disk in GFA format.
         * If the returned string is not empty, the string is appended to an optional field of the Segment line matching the unitig

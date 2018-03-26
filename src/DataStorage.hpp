@@ -41,10 +41,10 @@ class DataStorage {
         const U* getData(const const_UnitigColorMap<U>& um) const;
         U* getData(const UnitigColorMap<U>& um);
 
-        const UnitigColors<U>* getUnitigColors(const const_UnitigColorMap<U>& um) const;
-        UnitigColors<U>* getUnitigColors(const UnitigColorMap<U>& um);
+        const UnitigColors* getUnitigColors(const const_UnitigColorMap<U>& um) const;
+        UnitigColors* getUnitigColors(const UnitigColorMap<U>& um);
 
-        UnitigColors<U> getSubUnitigColors(const UnitigColorMap<U>& um) const;
+        UnitigColors getSubUnitigColors(const UnitigColorMap<U>& um) const;
         vector<string> getSubUnitigColorNames(const UnitigColorMap<U>& um) const;
 
         bool write(const string prefix_output_filename, const size_t nb_threads, const bool verbose = false) const;
@@ -54,7 +54,7 @@ class DataStorage {
 
         uint64_t getHash(const UnitigColorMap<U>& um) const;
 
-        UnitigColors<U>* insert();
+        UnitigColors* insert();
 
     private:
 
@@ -66,7 +66,7 @@ class DataStorage {
         size_t nb_elem;
         size_t nb_free_elem;
 
-        UnitigColors<U>* color_sets;
+        UnitigColors* color_sets;
         U* data;
 
         KmerHashTable<size_t> overflow;

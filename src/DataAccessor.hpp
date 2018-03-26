@@ -50,14 +50,14 @@ class DataAccessor : public CDBG_Data_t<DataAccessor<Unitig_data_t>, DataStorage
         * @return a constant pointer to a UnitigColors object representing the colors of the
         * reference unitig.
         */
-        const UnitigColors<U>* getUnitigColors(const const_UnitigColorMap<U>& um) const;
+        const UnitigColors* getUnitigColors(const const_UnitigColorMap<U>& um) const;
 
         /** Get the colors of the reference unitig.
         * @param um is a constant reference to a const_UnitigColorMap object for which the colors of the
         * reference unitig used in the mapping must be obtained.
         * @return a pointer to a UnitigColors object representing the colors of the reference unitig.
         */
-        UnitigColors<U>* getUnitigColors(const UnitigColorMap<U>& um) const;
+        UnitigColors* getUnitigColors(const UnitigColorMap<U>& um) const;
 
         /** Create a new UnitigColors object for a unitig B corresponding to a unitig mapping to a
         * reference unitig A, i.e, B = A[um.dist..um.dist + um.len + k - 1] or
@@ -66,7 +66,7 @@ class DataAccessor : public CDBG_Data_t<DataAccessor<Unitig_data_t>, DataStorage
         * which we want to obtain a new UnitigColors object.
         * @return a UnitigColors object for which the k-mers and colors match the input unitig mapping.
         */
-        UnitigColors<U> getSubUnitigColors(const const_UnitigColorMap<U>& um) const;
+        UnitigColors getSubUnitigColors(const const_UnitigColorMap<U>& um) const;
 
         /** Obtain the name of the colors present on AT LEAST one k-mer of a unitig mapping.
         * @param um is a constant reference to a const_UnitigColorMap object which is a unitig mapping.
@@ -85,19 +85,23 @@ class DataAccessor : public CDBG_Data_t<DataAccessor<Unitig_data_t>, DataStorage
         */
         static void join(const UnitigColorMap<U>& um_dest, const UnitigColorMap<U>& um_src);
 
-        /** Extract data and colors from a colored unitig A to be associated with a colored unitig B which is
-        * the unitig mapping given by the UnitigMap object um_src. Hence, B = A[um_src.dist, um_src.dist + um_src.len + k - 1]
-        * or B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1]) if um_src.strand == false.
-        * @param um_src is a UnitigColorMap object representing the mapping to a colored unitig A from which
-        * a new colored unitig B will be created, i.e, B = A[um_src.dist, um_src.dist + um_src.len + k - 1]
-        * or B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1]) if um_src.strand == false.
-        * @param new_data is a pointer to a newly DataAccessor that will be filled in with new data and colors
-        * to associate with colored unitig B.
-        * @param last_extraction is a boolean indicating if this is the last call to this function before removing
-        * from the graph the reference unitig used for the mapping given in um_src. If last_extraction is true, the
-        * reference unitig of um_src will be removed from the graph right after this function returns.
+        /** Extract data and colors from a colored unitig A to be associated with a colored unitig B which is a sub-unitig of A.
+        * Unitig B is defined as a mapping to A given by the input UnitigColorMap object um_src.
+        * Hence, B = A[um_src.dist, um_src.dist + um_src.len + k - 1] or B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1])
+        * if um_src.strand == false (B is extracted from the reverse-complement of A). Unitig A is deleted from the graph and B is
+        * inserted in the graph (along with their data and colors) ONLY AFTER this function, called with input parameter
+        * last_extraction == true, returns. Note that this method is static.
+        * @param data_dest is a pointer to a newly constructed object that is filled in with data of type Unitig_data_t to associate
+        * with unitig B.
+        * @param um_src is a UnitigColorMap object representing the mapping to a colored unitig A from which a new colored unitig B
+        * will be extracted, i.e, B = A[um_src.dist, um_src.dist + um_src.len + k - 1] or
+        * B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1]) if um_src.strand == false.
+        * @param last_extraction is a boolean indicating if this is the last call to this function on the reference unitig A used for the
+        * mapping given by um_src. If last_extraction is true, the reference unitig A of um_src will be removed from the graph right after
+        * this function returns. Also, all unitigs B extracted from the reference unitig A, along with their data and colors, will be inserted
+        * in the graph.
         */
-        static void sub(const UnitigColorMap<U>& um_src, DataAccessor<Unitig_data_t>* new_data, const bool last_extraction);
+        static void sub(DataAccessor<Unitig_data_t>* data_dest, const UnitigColorMap<U>& um_src, const bool last_extraction);
 
         /** Serialize the data to a string. This function is used when the graph is written to disk in GFA format.
         * If the returned string is not empty, the string is appended to an optional field of the Segment line matching the unitig

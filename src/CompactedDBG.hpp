@@ -200,19 +200,21 @@ class CDBG_Data_t {
         */
         static void join(const UnitigMap<Unitig_data_t, Graph_data_t>& um_dest, const UnitigMap<Unitig_data_t, Graph_data_t>& um_src){}
 
-        /** Extract data from a unitig A to be associated with a unitig B which is the unitig mapping given by the UnitigMap object
-        * um_src. Hence, B = A[um_src.dist, um_src.dist + um_src.len + k - 1]. Be careful that if um_src.strand = false, then B will
-        * be extracted from the reverse-complement of A, i.e, B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1]). Note that
-        * this method is static.
-        * @param um_src is a UnitigMap object representing the mapping to a unitig A from which a new unitig B will be created, i.e,
+        /** Extract data from a unitig A to be associated with a unitig B which is a sub-unitig of A. Unitig B is defined as a
+        * mapping to A given by the input UnitigMap object um_src. Hence, B = A[um_src.dist, um_src.dist + um_src.len + k - 1]
+        * or B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1]) if um_src.strand == false (B is extracted from the
+        * reverse-complement of A). Unitig A is deleted from the graph and B is inserted in the graph (along with their data)
+        * ONLY AFTER this function, called with input parameter last_extraction == true, returns. Note that this method is static.
+        * @param new_data is a pointer to a newly constructed object that you can fill in with new data to associate with unitig B.
+        * @param um_src is a UnitigMap object representing the mapping to a unitig A from which a new unitig B will be extracted, i.e,
         * B = A[um_src.dist, um_src.dist + um_src.len + k - 1] or B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1]) if
         * um_src.strand == false.
-        * @param new_data is a pointer to a newly constructed object that you can fill in with new data to associate with unitig B.
         * @param last_extraction is a boolean indicating if this is the last call to this function on the reference unitig used for the
-        * mapping given by um_src. If last_extraction is true, the reference unitig of um_src will be removed from the graph right after
-        * this function returns.
+        * mapping given by um_src. If last_extraction is true, the reference unitig A of um_src will be removed from the graph right
+        * after this function returns. Also, all unitigs B extracted from the reference unitig A, along with their data, will be inserted
+        * in the graph.
         */
-        static void sub(const UnitigMap<Unitig_data_t, Graph_data_t>& um_src, Unitig_data_t* new_data, bool last_extraction){}
+        static void sub(Unitig_data_t* new_data, const UnitigMap<Unitig_data_t, Graph_data_t>& um_src, bool last_extraction){}
 
         /** Serialize the data to a string. This function is used when the graph is written to disk in GFA format.
         * If the returned string is not empty, the string is appended to an optional field of the Segment line matching the unitig

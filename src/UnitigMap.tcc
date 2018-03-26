@@ -5,26 +5,26 @@
 #include "NeighborIterator.hpp"
 
 template<typename U, typename G, bool is_const>
-UnitigMap<U, G, is_const>::UnitigMap(const size_t length, CompactedDBG_ptr_t cdbg_) :   len(length), pos_unitig(0), dist(0), size(0), isShort(false),
-                                                                                        isAbundant(false), isEmpty(true), strand(true), cdbg(cdbg_) {}
+UnitigMap<U, G, is_const>::UnitigMap(const size_t length, CompactedDBG_ptr_t cdbg_) :   UnitigMapBase(length), pos_unitig(0), isShort(false),
+                                                                                        isAbundant(false), cdbg(cdbg_) {}
 
 template<typename U, typename G, bool is_const>
 UnitigMap<U, G, is_const>::UnitigMap(const size_t start, const size_t length, const size_t unitig_sz, const bool strand) :
-                                    pos_unitig(0), dist(start), len(length), size(unitig_sz), cdbg(nullptr), strand(strand), isShort(false),
-                                    isAbundant(false), isEmpty(false) {}
+                                    UnitigMapBase(start, length, unitig_sz, strand), pos_unitig(0),
+                                    isShort(false), isAbundant(false), cdbg(nullptr) {}
 
 template<typename U, typename G, bool is_const>
 bool UnitigMap<U, G, is_const>::operator==(const UnitigMap& o) const {
 
-    return  (pos_unitig == o.pos_unitig) && (dist == o.dist) && (len == o.len) && (size == o.size) && (strand == o.strand) &&
-            (isEmpty == o.isEmpty) && (isShort == o.isShort) && (isAbundant == o.isAbundant) && (cdbg == o.cdbg);
+    return  UnitigMapBase::operator==(o) && (pos_unitig == o.pos_unitig) &&
+            (isShort == o.isShort) && (isAbundant == o.isAbundant) && (cdbg == o.cdbg);
 }
 
 template<typename U, typename G, bool is_const>
 bool UnitigMap<U, G, is_const>::operator!=(const UnitigMap& o) const {
 
-    return  (pos_unitig != o.pos_unitig) || (dist != o.dist) || (len != o.len) || (size != o.size) || (strand != o.strand) ||
-            (isEmpty != o.isEmpty) || (isShort != o.isShort) || (isAbundant != o.isAbundant) || (cdbg != o.cdbg);
+    return  UnitigMapBase::operator!=(o) || (pos_unitig != o.pos_unitig) ||
+            (isShort != o.isShort) || (isAbundant != o.isAbundant) || (cdbg != o.cdbg);
 }
 
 template<typename U, typename G, bool is_const>
@@ -291,7 +291,7 @@ typename std::enable_if<!is_void, Unitig<U>>::type UnitigMap<U, G, is_const>::sp
 
     Unitig<U> unitig;
 
-    U::sub(*this, &(unitig.data), last_split);
+    U::sub(&(unitig.data), *this, last_split);
 
     return unitig;
 }
@@ -347,8 +347,8 @@ void UnitigMap<U, G, is_const>::partialCopy(const UnitigMap<U, G, is_const>& o) 
 }
 
 template<typename U, typename G, bool is_const>
-UnitigMap<U, G, is_const>::UnitigMap(size_t p_unitig, size_t i, size_t l, size_t sz, bool short_, bool abundance, bool strd, CompactedDBG_ptr_t cdbg_) :
-                                    pos_unitig(p_unitig), dist(i), len(l), size(sz), cdbg(cdbg_), strand(strd), isShort(short_), isAbundant(abundance),
-                                    isEmpty(false) {}
+UnitigMap<U, G, is_const>::UnitigMap(size_t p_unitig, size_t i, size_t l, size_t sz, bool short_, bool abundance, bool strd,
+                                     CompactedDBG_ptr_t cdbg_) : UnitigMapBase(i, l, sz, strd), pos_unitig(p_unitig),
+                                     isShort(short_), isAbundant(abundance), cdbg(cdbg_) {}
 
 #endif
