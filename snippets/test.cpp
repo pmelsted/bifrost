@@ -30,13 +30,14 @@ class myBool : public CCDBG_Data_t<myBool>, CDBG_Data_t<myBool> {
         }
 
         // Sub method for ColoredCDBG
-        static void sub(const UnitigColorMap<myBool>& um_src, myBool* new_data, bool last_extraction){
+        static void sub(myBool* data_dest, const UnitigColors& uc_dest, const UnitigMapBase& um_dest,
+                        const UnitigColorMap<myBool>& um_src, const bool last_extraction) {
 
             // This function creates a new unitig which is a sub-unitig from um_src
             // The new unitig created is set to "not visited" as a measure of precaution
             // (it is already initialed by default to "not visited" in the constructor)
 
-            new_data->set_not_seen_visited();
+            data_dest->set_not_seen_visited();
         }
 
         // Join method for CompactedDBG
@@ -51,13 +52,13 @@ class myBool : public CCDBG_Data_t<myBool>, CDBG_Data_t<myBool> {
         }
 
         // Sub method for CompactedDBG
-        static void sub(const UnitigMap<myBool>& um_src, myBool* new_data, bool last_extraction){
+        static void sub(myBool* data_dest, const UnitigMap<myBool>& um_src, bool last_extraction){
 
             // This function creates a new unitig which is a sub-unitig from um_src
             // The new unitig created is set to "not visited" as a measure of precaution
             // (it is already initialed by default to "not visited" in the constructor)
 
-            new_data->set_not_seen_visited();
+            data_dest->set_not_seen_visited();
         }
 
         void toString() const {
@@ -303,7 +304,7 @@ void getCoreGraph(const ColoredCDBG<myBool>& cdbg_in, CompactedDBG<myBool>& cdbg
         for (size_t i = 0; i <= unitig.size - static_cast<size_t>(cdbg_in.getK()); ++i){
 
             const const_UnitigColorMap<myBool> ucm = unitig.getKmerMapping(i); // Get the mapping for this k-mer
-            const UnitigColors<myBool>* uc = ucm.getData()->getUnitigColors(ucm); // Get the color set associated with this unitig
+            const UnitigColors* uc = ucm.getData()->getUnitigColors(ucm); // Get the color set associated with this unitig
 
             bool isCore = true; // Is the k-mer a core k-mer (has all colors, default is yes)?
 
