@@ -218,14 +218,12 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
 
     FileParser fp(ds->color_names);
 
-    //unordered_set<uint64_t>* cs_to_optimize = new unordered_set<uint64_t>[nb_threads];
-
     std::atomic_flag* cs_locks = new std::atomic_flag[nb_locks];
 
     for (size_t i = 0; i < nb_locks; ++i) cs_locks[i].clear();
 
     // Main worker thread
-    auto worker_function = [&](const vector<pair<string, size_t>>& v_read_color/*, unordered_set<uint64_t>& cs_set*/) {
+    auto worker_function = [&](const vector<pair<string, size_t>>& v_read_color) {
 
         // for each input
         for (const auto& read_color : v_read_color) {
@@ -245,32 +243,13 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
                         it_km += um.len - 1;
                     }
 
-                    const uint64_t pos_cs = ds->getHash(um);
-                    const uint64_t id_lock = pos_cs % nb_locks;
-
-                    //cs_set.insert(pos_cs);
+                    const uint64_t id_lock = ds->getHash(um) % nb_locks;
 
                     while (cs_locks[id_lock].test_and_set(std::memory_order_acquire)); // Set the corresponding lock
 
                     ds->getUnitigColors(um)->add(um, read_color.second);
 
                     cs_locks[id_lock].clear(std::memory_order_release);
-
-                    /*if (cs_set.size() > nb_read_optimize){ // Number of non-optimized color sets for this thread is too large
-
-                        for (const auto pos_cs_tmp : cs_set){ //Iterate over previously modified color sets
-
-                            const uint64_t id_lock_tmp = pos_cs_tmp % nb_locks;
-
-                            while (cs_locks[id_lock_tmp].test_and_set(std::memory_order_acquire));
-
-                            ds->color_sets[pos_cs_tmp].optimize(); //Optimize the color set
-
-                            cs_locks[id_lock_tmp].clear(std::memory_order_release);
-                        }
-
-                        cs_set.clear(); //Clear the set of color sets to optimize
-                    }*/
                 }
             }
         }
@@ -372,7 +351,7 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
                                 stop = reading_function(reads_colors[t]);
                             }
 
-                            worker_function(reads_colors[t]/*, cs_to_optimize[t]*/);
+                            worker_function(reads_colors[t]);
 
                             reads_colors[t].clear();
                         }
@@ -388,15 +367,11 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
         }
     }
 
-    /*for (size_t t = 0; t < nb_threads; ++t){
-
-        for (const auto pos_cs_tmp : cs_to_optimize[t]) ds->color_sets[pos_cs_tmp].optimize();
-    }*/
-
     fp.close();
 
     delete[] cs_locks;
-    //delete[] cs_to_optimize;
+
+    //checkColors(ds->color_names);
 }
 
 template<typename U>
@@ -422,7 +397,7 @@ string ColoredCDBG<U>::getColorName(const size_t color_id) const {
 }
 
 template<typename U>
-void ColoredCDBG<U>::checkColors(const CCDBG_Build_opt& opt) {
+void ColoredCDBG<U>::checkColors(const vector<string>& filename_seq_in) const {
 
     cout << "ColoredCDBG::checkColors(): Start" << endl;
 
@@ -432,7 +407,7 @@ void ColoredCDBG<U>::checkColors(const CCDBG_Build_opt& opt) {
 
     KmerHashTable<tiny_vector<size_t, 1>> km_h;
 
-    FastqFile FQ(opt.filename_seq_in);
+    FastqFile FQ(filename_seq_in);
 
     while (FQ.read_next(s, file_id) >= 0){
 
@@ -451,6 +426,8 @@ void ColoredCDBG<U>::checkColors(const CCDBG_Build_opt& opt) {
     }
 
     FQ.close();
+
+    cout << "ColoredCDBG::checkColors(): All k-mers in the hash table with their colors" << endl;
 
     for (typename KmerHashTable<tiny_vector<size_t, 1>>::const_iterator it_km = km_h.begin(), it_km_end = km_h.end(); it_km != it_km_end; ++it_km){
 
@@ -474,15 +451,15 @@ void ColoredCDBG<U>::checkColors(const CCDBG_Build_opt& opt) {
         const tiny_vector<size_t, 1>& tv = *it_km;
         const size_t tv_nb_max_elem = tv.size() * 64;
 
-        for (size_t i = 0; i < std::min(opt.filename_seq_in.size(), tv_nb_max_elem); ++i){
+        for (size_t i = 0; i < std::min(filename_seq_in.size(), tv_nb_max_elem); ++i){
 
             const bool color_pres_graph = cs->contains(ucm, i);
             const bool color_pres_hasht = ((tv[i/64] >> (i%64)) & 0x1) == 0x1;
 
             if (color_pres_graph != color_pres_hasht){
 
-                cerr << "ColoredCDBG::checkColors(): Current color is " << i << ": " << opt.filename_seq_in[i] << endl;
-                cerr << "ColoredCDBG::checkColors(): K-mer " << km.toString() << " for color " << i << ": " << opt.filename_seq_in[i] << endl;
+                cerr << "ColoredCDBG::checkColors(): Current color is " << i << ": " << filename_seq_in[i] << endl;
+                cerr << "ColoredCDBG::checkColors(): K-mer " << km.toString() << " for color " << i << ": " << filename_seq_in[i] << endl;
                 cerr << "ColoredCDBG::checkColors(): Full unitig: " << ucm.toString() << endl;
                 cerr << "ColoredCDBG::checkColors(): Present in graph: " << color_pres_graph << endl;
                 cerr << "ColoredCDBG::checkColors(): Present in hash table: " << color_pres_hasht << endl;

@@ -76,14 +76,34 @@ void UnitigColors::add(const UnitigMapBase& um, const size_t color_id) {
 
     if ((setBits & flagMask) == unoccupied) setBits = localBitVectorColor;
 
-    const uintptr_t flag = setBits & flagMask;
+    uintptr_t flag = setBits & flagMask;
+
+    if (flag == localSingleColor){
+
+        const uintptr_t setBits_tmp = setBits >> 2;
+
+        if ((setBits_tmp < maxBitVectorIDs) && ((color_id_end - 1) < maxBitVectorIDs)){
+
+            setBits = (1ULL << (setBits_tmp + 2)) | localBitVectorColor;
+        }
+        else {
+
+            setPointer = new Bitmap;
+
+            setPointer->add(setBits_tmp);
+
+            setBits &= pointerMask;
+        }
+
+        flag = setBits & flagMask;
+    }
 
     if (flag == localBitVectorColor){
 
         if ((setBits == localBitVectorColor) && (um.len == 1)) setBits = (color_id_start << 2) | localSingleColor;
         else if ((color_id_end - 1) < maxBitVectorIDs){
 
-            for (; color_id_start < color_id_end; ++color_id_start) setBits |= 1ULL << (color_id_start + 2);
+            for (; color_id_start != color_id_end; ++color_id_start) setBits |= 1ULL << (color_id_start + 2);
         }
         else {
 
@@ -96,20 +116,45 @@ void UnitigColors::add(const UnitigMapBase& um, const size_t color_id) {
                 if ((setBits_tmp & 0x1) != 0) setPointer->add(i);
             }
 
-            for (; color_id_start < color_id_end; ++color_id_start) setPointer->add(color_id_start);
-
             setBits &= pointerMask;
         }
+
+        flag = setBits & flagMask;
     }
-    else if (flag == localSingleColor){
+
+    if (flag == ptrCompressedBitmap) {
+
+        Bitmap* bitmap = getPtrBitmap();
+
+        for (; color_id_start < color_id_end; ++color_id_start) bitmap->add(color_id_start);
+
+        /*const size_t nb_color_id = color_id_end - color_id_start;
+
+        uint32_t* color_id_insert = new uint32_t[nb_color_id];
+
+        for (size_t i = 0; color_id_start < color_id_end; ++color_id_start, ++i) color_id_insert[i] = color_id_start;
+
+        bitmap->addMany(nb_color_id, color_id_insert);
+
+        delete[] color_id_insert;*/
+
+        optimize();
+    }
+}
+
+void UnitigColors::add(const size_t color_id) { // PRIVATE
+
+    if ((setBits & flagMask) == unoccupied) setBits = localBitVectorColor;
+
+    uintptr_t flag = setBits & flagMask;
+
+    if (flag == localSingleColor){
 
         const uintptr_t setBits_tmp = setBits >> 2;
 
-        if ((setBits_tmp < maxBitVectorIDs) && ((color_id_end - 1) < maxBitVectorIDs)){
+        if ((setBits_tmp < maxBitVectorIDs) && (color_id < maxBitVectorIDs)){
 
-            setBits = (1ULL << (setBits_tmp + 2)) | localBitVectorColor;
-
-            for (; color_id_start < color_id_end; ++color_id_start) setBits |= 1ULL << (color_id_start + 2);
+            setBits = (1ULL << (setBits_tmp + 2)) | (1ULL << (color_id + 2)) | localBitVectorColor;
         }
         else {
 
@@ -117,19 +162,34 @@ void UnitigColors::add(const UnitigMapBase& um, const size_t color_id) {
 
             setPointer->add(setBits_tmp);
 
-            for (; color_id_start < color_id_end; ++color_id_start) setPointer->add(color_id_start);
+            setBits &= pointerMask;
+        }
+
+        flag = setBits & flagMask;
+    }
+
+    if (flag == localBitVectorColor){
+
+        if (setBits == localBitVectorColor) setBits = (color_id << 2) | localSingleColor;
+        else if (color_id < maxBitVectorIDs) setBits |= 1ULL << (color_id + 2);
+        else {
+
+            uintptr_t setBits_tmp = setBits >> 2;
+
+            setPointer = new Bitmap;
+
+            for (size_t i = 0; setBits_tmp != 0; ++i, setBits_tmp >>= 1) {
+
+                if ((setBits_tmp & 0x1) != 0) setPointer->add(i);
+            }
 
             setBits &= pointerMask;
         }
-    }
-    else { // flag == ptrCompressedBitmap
 
-        Bitmap* bitmap = getPtrBitmap();
-
-        for (; color_id_start < color_id_end; ++color_id_start) bitmap->add(color_id_start);
+        flag = setBits & flagMask;
     }
 
-    optimize();
+    if (flag == ptrCompressedBitmap) getPtrBitmap()->add(color_id); // flag == ptrCompressedBitmap
 }
 
 void UnitigColors::remove(const UnitigMapBase& um, const size_t color_id) {
@@ -156,7 +216,7 @@ void UnitigColors::remove(const UnitigMapBase& um, const size_t color_id) {
 
         const uintptr_t setBits_tmp = setBits >> 2;
 
-        if ((setBits_tmp >= color_id_start) && (setBits_tmp <= color_id_end)) setBits = localSingleColor;
+        if ((setBits_tmp >= color_id_start) && (setBits_tmp < color_id_end)) setBits = localSingleColor;
     }
     else { // flag == ptrCompressedBitmap
 
@@ -167,53 +227,6 @@ void UnitigColors::remove(const UnitigMapBase& um, const size_t color_id) {
         if (bitmap->cardinality() == 0) empty();
         else optimize();
     }
-}
-
-void UnitigColors::add(const size_t color_id) { // PRIVATE
-
-    if ((setBits & flagMask) == unoccupied) setBits = localBitVectorColor;
-
-    const uintptr_t flag = setBits & flagMask;
-
-    if (flag == localBitVectorColor){
-
-        if (setBits == localBitVectorColor) setBits = (color_id << 2) | localSingleColor;
-        else if (color_id < maxBitVectorIDs) setBits |= 1ULL << (color_id + 2);
-        else {
-
-            uintptr_t setBits_tmp = setBits >> 2;
-
-            setPointer = new Bitmap;
-
-            for (size_t i = 0; setBits_tmp != 0; ++i, setBits_tmp >>= 1) {
-
-                if ((setBits_tmp & 0x1) != 0) setPointer->add(i);
-            }
-
-            setPointer->add(color_id);
-
-            setBits &= pointerMask;
-        }
-    }
-    else if (flag == localSingleColor){
-
-        const uintptr_t setBits_tmp = setBits >> 2;
-
-        if ((setBits_tmp < maxBitVectorIDs) && (color_id < maxBitVectorIDs)){
-
-            setBits = (1ULL << (setBits_tmp + 2)) | (1ULL << (color_id + 2)) | localBitVectorColor;
-        }
-        else {
-
-            setPointer = new Bitmap;
-
-            setPointer->add(setBits_tmp);
-            setPointer->add(color_id);
-
-            setBits &= pointerMask;
-        }
-    }
-    else getPtrBitmap()->add(color_id); // flag == ptrCompressedBitmap
 }
 
 bool UnitigColors::contains(const UnitigMapBase& um, const size_t color_id) const {
