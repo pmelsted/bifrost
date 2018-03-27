@@ -68,65 +68,6 @@ size_t UnitigColors::getSizeInBytes() const {
     return sizeof(UnitigColors);
 }
 
-bool UnitigColors::write(ostream& stream_out) const {
-
-    if (stream_out.good()){
-
-        const uintptr_t flag = setBits & flagMask;
-
-        if (flag == ptrCompressedBitmap){
-
-            const uint32_t expected_sz = getConstPtrBitmap()->getSizeInBytes();
-
-            const uintptr_t flag_expected_sz = (static_cast<uintptr_t>(expected_sz) << 32) | flag;
-
-            char* serialized = new char[expected_sz];
-
-            getConstPtrBitmap()->write(serialized);
-
-            stream_out.write(reinterpret_cast<const char*>(&flag_expected_sz), sizeof(uintptr_t));
-            stream_out.write(serialized, expected_sz);
-
-            delete[] serialized;
-        }
-        else stream_out.write(reinterpret_cast<const char*>(&setBits), sizeof(uintptr_t));
-
-        return true;
-    }
-
-    return false;
-}
-
-bool UnitigColors::read(istream& stream_in) {
-
-    if (stream_in.good()){
-
-        stream_in.read(reinterpret_cast<char*>(&setBits), sizeof(uintptr_t));
-
-        const uintptr_t flag = setBits & flagMask;
-
-        if (flag == ptrCompressedBitmap){
-
-            const uint32_t expected_sz = static_cast<uint32_t>(setBits >> 32);
-
-            char* serialized = new char[expected_sz];
-            setPointer = new Bitmap;
-
-            stream_in.read(serialized, expected_sz);
-
-            *setPointer = std::move(Bitmap::read(serialized));
-
-            setBits &= pointerMask;
-
-            delete[] serialized;
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
 void UnitigColors::add(const UnitigMapBase& um, const size_t color_id) {
 
     const size_t um_km_sz = um.size - Kmer::k + 1;
@@ -186,6 +127,42 @@ void UnitigColors::add(const UnitigMapBase& um, const size_t color_id) {
         Bitmap* bitmap = getPtrBitmap();
 
         for (; color_id_start < color_id_end; ++color_id_start) bitmap->add(color_id_start);
+    }
+}
+
+void UnitigColors::remove(const UnitigMapBase& um, const size_t color_id) {
+
+    const uintptr_t flag = setBits & flagMask;
+
+    if (flag == unoccupied) return;
+
+    const size_t um_km_sz = um.size - Kmer::k + 1;
+    size_t color_id_start = um_km_sz * color_id + um.dist;
+    const size_t color_id_end = color_id_start + std::min(um_km_sz - um.dist, um.len);
+
+    if (flag == localBitVectorColor){
+
+        uintptr_t mask = 0;
+
+        for (; color_id_start < min(maxBitVectorIDs, color_id_end); ++color_id_start) mask |= 1ULL << (color_id_start + 2);
+
+        setBits &= ~mask;
+
+        if (setBits == localBitVectorColor) setBits = localSingleColor;
+    }
+    else if (flag == localSingleColor){
+
+        const uintptr_t setBits_tmp = setBits >> 2;
+
+        if ((setBits_tmp >= color_id_start) && (setBits_tmp <= color_id_end)) setBits = localSingleColor;
+    }
+    else { // flag == ptrCompressedBitmap
+
+        Bitmap* bitmap = getPtrBitmap();
+
+        for (; color_id_start < color_id_end; ++color_id_start) bitmap->remove(color_id_start);
+
+        if (bitmap->cardinality() == 0) empty();
     }
 }
 
@@ -284,6 +261,65 @@ size_t UnitigColors::size() const {
     return 0; //flag == unoccupied
 }
 
+bool UnitigColors::write(ostream& stream_out) const {
+
+    if (stream_out.good()){
+
+        const uintptr_t flag = setBits & flagMask;
+
+        if (flag == ptrCompressedBitmap){
+
+            const uint32_t expected_sz = getConstPtrBitmap()->getSizeInBytes();
+
+            const uintptr_t flag_expected_sz = (static_cast<uintptr_t>(expected_sz) << 32) | flag;
+
+            char* serialized = new char[expected_sz];
+
+            getConstPtrBitmap()->write(serialized);
+
+            stream_out.write(reinterpret_cast<const char*>(&flag_expected_sz), sizeof(uintptr_t));
+            stream_out.write(serialized, expected_sz);
+
+            delete[] serialized;
+        }
+        else stream_out.write(reinterpret_cast<const char*>(&setBits), sizeof(uintptr_t));
+
+        return true;
+    }
+
+    return false;
+}
+
+bool UnitigColors::read(istream& stream_in) {
+
+    if (stream_in.good()){
+
+        stream_in.read(reinterpret_cast<char*>(&setBits), sizeof(uintptr_t));
+
+        const uintptr_t flag = setBits & flagMask;
+
+        if (flag == ptrCompressedBitmap){
+
+            const uint32_t expected_sz = static_cast<uint32_t>(setBits >> 32);
+
+            char* serialized = new char[expected_sz];
+            setPointer = new Bitmap;
+
+            stream_in.read(serialized, expected_sz);
+
+            *setPointer = std::move(Bitmap::read(serialized));
+
+            setBits &= pointerMask;
+
+            delete[] serialized;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
 UnitigColors UnitigColors::reverse(const UnitigMapBase& um) const {
 
     const size_t len_unitig_km = um.size - Kmer::k + 1;
@@ -333,3 +369,13 @@ void UnitigColors::merge(const UnitigColors& cs){
     }
     else add(cs.setBits >> 2); // flag_cs = localSingleColor
 }
+
+const size_t UnitigColors::maxBitVectorIDs = 62; // 64 bits - 2 bits for the color set type
+
+const uintptr_t UnitigColors::ptrCompressedBitmap = 0x0;
+const uintptr_t UnitigColors::localBitVectorColor = 0x1;
+const uintptr_t UnitigColors::localSingleColor = 0x2;
+const uintptr_t UnitigColors::unoccupied = 0x3;
+
+const uintptr_t UnitigColors::flagMask = 0x3;
+const uintptr_t UnitigColors::pointerMask = 0xfffffffffffffffc;

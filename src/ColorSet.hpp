@@ -276,6 +276,13 @@ class UnitigColors {
         */
         void add(const UnitigMapBase& um, const size_t color_id);
 
+        /** Remove a color in the current UnitigColors for all k-mers of a unitig mapping.
+        * @param um is a UnitigMapBase object representing a mapping to a reference unitig for which the
+        * color must be removed. The color will be removed only for the given mapping, i.e, unitig[um.dist..um.dist+um.len+k-1]
+        * @param color_id is the ID of the color to remove.
+        */
+        void remove(const UnitigMapBase& um, const size_t color_id);
+
         /** Check if a color is present on all k-mers of a unitig mapping.
         * @param um is a UnitigMapBase object representing a mapping to a reference unitig. All k-mers of this mapping will be
         * checked for the presence of the color. If true is returned, all k-mers of the mapping have the color.
@@ -354,7 +361,7 @@ class UnitigColors {
         inline Bitmap* getPtrBitmap() const { return reinterpret_cast<Bitmap*>(setBits & pointerMask); }
         inline const Bitmap* getConstPtrBitmap() const { return reinterpret_cast<const Bitmap*>(setBits & pointerMask); }
 
-        static const size_t maxBitVectorIDs = 62; // 64 bits - 2 bits for the color set type
+        static const size_t maxBitVectorIDs; // 64 bits - 2 bits for the color set type = 62
 
         // asBits and asPointer represent:
         // Flag 0 - A pointer to a compressed bitmap containing colors
@@ -362,13 +369,13 @@ class UnitigColors {
         // Flag 2 - A single integer which is a color
         // Flag 3 - Unoccupied color set (not associated with any unitig)
 
-        static const uintptr_t ptrCompressedBitmap = 0x0;
-        static const uintptr_t localBitVectorColor = 0x1;
-        static const uintptr_t localSingleColor = 0x2;
-        static const uintptr_t unoccupied = 0x3;
+        static const uintptr_t ptrCompressedBitmap; // Flag 0
+        static const uintptr_t localBitVectorColor; // Flag 1
+        static const uintptr_t localSingleColor; // Flag 2
+        static const uintptr_t unoccupied; // Flag 3
 
-        static const uintptr_t flagMask = 0x3;
-        static const uintptr_t pointerMask = 0xfffffffffffffffc;
+        static const uintptr_t flagMask; // 0x3
+        static const uintptr_t pointerMask; // 0xfffffffffffffffc
 
         union {
 
