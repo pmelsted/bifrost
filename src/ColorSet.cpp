@@ -128,6 +128,8 @@ void UnitigColors::add(const UnitigMapBase& um, const size_t color_id) {
 
         for (; color_id_start < color_id_end; ++color_id_start) bitmap->add(color_id_start);
     }
+
+    optimize();
 }
 
 void UnitigColors::remove(const UnitigMapBase& um, const size_t color_id) {
@@ -163,6 +165,7 @@ void UnitigColors::remove(const UnitigMapBase& um, const size_t color_id) {
         for (; color_id_start < color_id_end; ++color_id_start) bitmap->remove(color_id_start);
 
         if (bitmap->cardinality() == 0) empty();
+        else optimize();
     }
 }
 

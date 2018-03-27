@@ -218,14 +218,14 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
 
     FileParser fp(ds->color_names);
 
-    unordered_set<uint64_t>* cs_to_optimize = new unordered_set<uint64_t>[nb_threads];
+    //unordered_set<uint64_t>* cs_to_optimize = new unordered_set<uint64_t>[nb_threads];
 
     std::atomic_flag* cs_locks = new std::atomic_flag[nb_locks];
 
     for (size_t i = 0; i < nb_locks; ++i) cs_locks[i].clear();
 
     // Main worker thread
-    auto worker_function = [&](const vector<pair<string, size_t>>& v_read_color, unordered_set<uint64_t>& cs_set) {
+    auto worker_function = [&](const vector<pair<string, size_t>>& v_read_color/*, unordered_set<uint64_t>& cs_set*/) {
 
         // for each input
         for (const auto& read_color : v_read_color) {
@@ -248,7 +248,7 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
                     const uint64_t pos_cs = ds->getHash(um);
                     const uint64_t id_lock = pos_cs % nb_locks;
 
-                    cs_set.insert(pos_cs);
+                    //cs_set.insert(pos_cs);
 
                     while (cs_locks[id_lock].test_and_set(std::memory_order_acquire)); // Set the corresponding lock
 
@@ -256,7 +256,7 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
 
                     cs_locks[id_lock].clear(std::memory_order_release);
 
-                    if (cs_set.size() > nb_read_optimize){ // Number of non-optimized color sets for this thread is too large
+                    /*if (cs_set.size() > nb_read_optimize){ // Number of non-optimized color sets for this thread is too large
 
                         for (const auto pos_cs_tmp : cs_set){ //Iterate over previously modified color sets
 
@@ -270,7 +270,7 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
                         }
 
                         cs_set.clear(); //Clear the set of color sets to optimize
-                    }
+                    }*/
                 }
             }
         }
@@ -372,7 +372,7 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
                                 stop = reading_function(reads_colors[t]);
                             }
 
-                            worker_function(reads_colors[t], cs_to_optimize[t]);
+                            worker_function(reads_colors[t]/*, cs_to_optimize[t]*/);
 
                             reads_colors[t].clear();
                         }
@@ -388,15 +388,15 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
         }
     }
 
-    for (size_t t = 0; t < nb_threads; ++t){
+    /*for (size_t t = 0; t < nb_threads; ++t){
 
         for (const auto pos_cs_tmp : cs_to_optimize[t]) ds->color_sets[pos_cs_tmp].optimize();
-    }
+    }*/
 
     fp.close();
 
     delete[] cs_locks;
-    delete[] cs_to_optimize;
+    //delete[] cs_to_optimize;
 }
 
 template<typename U>

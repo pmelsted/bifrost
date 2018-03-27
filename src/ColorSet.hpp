@@ -316,14 +316,6 @@ class UnitigColors {
         */
         size_t getSizeInBytes() const;
 
-        /** Optimize the memory of a UnitigColor. Useful in case stretches of overlapping k-mers
-        * in a unitig share the same color.
-        */
-        inline void optimize(){
-
-            if ((setBits & flagMask) == ptrCompressedBitmap) getPtrBitmap()->runOptimize();
-        }
-
         /** Create a constant iterator to the first color of the UnitigColors. Each color the
         * iterator returns appears on AT LEAST one k-mer of the unitig.
         * @return a constant iterator to the first color of the UnitigColors. Each color the
@@ -341,6 +333,14 @@ class UnitigColors {
         const_iterator end() const { return const_iterator(this, false); }
 
     private:
+
+        /** Optimize the memory of a UnitigColor. Useful in case stretches of overlapping k-mers
+        * in a unitig share the same color.
+        */
+        inline void optimize(){
+
+            if ((setBits & flagMask) == ptrCompressedBitmap) getPtrBitmap()->runOptimize();
+        }
 
         inline void releasePointer(){
 
