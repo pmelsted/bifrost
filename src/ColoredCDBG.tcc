@@ -209,7 +209,6 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
     const int k_ = this->getK();
 
     const size_t nb_locks = nb_threads * 1024;
-    const size_t nb_read_optimize = 50000 / nb_threads;
     const size_t chunk_size = 1000;
 
     size_t prev_file_id = 0;
