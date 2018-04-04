@@ -146,6 +146,9 @@ struct CCDBG_Build_opt {
         cdbg_opt.inFilenameBBF = inFilenameBBF;
         cdbg_opt.outFilenameBBF = outFilenameBBF;
 
+        cdbg_opt.k = k;
+        cdbg_opt.g = g;
+
         cdbg_opt.clipTips = clipTips;
         cdbg_opt.deleteIsolated = deleteIsolated;
         cdbg_opt.useMercyKmers = useMercyKmers;

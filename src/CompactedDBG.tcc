@@ -294,9 +294,9 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
 
                 KmerStream kms(kms_opt);
 
-                opt.nb_unique_kmers = kms.F0();
+                opt.nb_unique_kmers = max(1UL, kms.F0());
 
-                if (!opt.reference_mode) opt.nb_non_unique_kmers = opt.nb_unique_kmers - kms.f1();
+                if (!opt.reference_mode) opt.nb_non_unique_kmers = max(1UL, opt.nb_unique_kmers - kms.f1());
 
                 if (opt.verbose){
 
