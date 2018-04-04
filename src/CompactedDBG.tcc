@@ -287,19 +287,16 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
 
                 kms_opt.threads = opt.nb_threads;
                 kms_opt.verbose = opt.verbose;
-                kms_opt.klist.push_back(opt.k);
-                kms_opt.q_cutoff.push_back(0);
+                kms_opt.k = opt.k;
+                kms_opt.q = 0;
 
                 for (const auto& s : opt.filename_in) kms_opt.files.push_back(s);
 
                 KmerStream kms(kms_opt);
 
-                for (KmerStream::const_iterator it = kms.begin(), it_end; it != it_end; ++it){
+                opt.nb_unique_kmers = kms.F0();
 
-                    opt.nb_unique_kmers = it.F0();
-
-                    if (!opt.reference_mode) opt.nb_non_unique_kmers = opt.nb_unique_kmers - it.f1();
-                }
+                if (!opt.reference_mode) opt.nb_non_unique_kmers = opt.nb_unique_kmers - kms.f1();
 
                 if (opt.verbose){
 

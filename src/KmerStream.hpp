@@ -23,16 +23,19 @@ using namespace std;
 
 struct KmerStream_Build_opt {
 
-    vector<int> klist;
-    vector<size_t> q_cutoff;
     vector<string> files;
+
     bool verbose;
+
     double e;
+
+    size_t k;
+    size_t q;
     size_t q_base;
     size_t threads;
     size_t chunksize;
 
-    KmerStream_Build_opt() :  verbose(false), e(0.01), threads(1), chunksize(100000), q_base(33) {}
+    KmerStream_Build_opt() : q_base(33), q(0), k(31), verbose(false), e(0.01), threads(1), chunksize(10000) {}
 };
 
 class ReadQualityHasher;
@@ -212,93 +215,10 @@ class KmerStream {
 
     public:
 
-        class KmerStream_const_iterator : public std::iterator<std::forward_iterator_tag, pair<size_t, size_t>>{
+        KmerStream(const KmerStream_Build_opt& opt) :   k(opt.k), q(opt.q), q_base(opt.q_base), e(opt.e), rqh(e, q_base), rsh(e),
+                                                        nb_threads(opt.threads), chunksize(opt.chunksize), invalid(false), verbose(opt.verbose) {
 
-            private:
-
-                size_t it;
-                size_t sz;
-                bool invalid;
-                const KmerStream* kms;
-
-            public:
-
-                KmerStream_const_iterator() : kms(nullptr), it(0), sz(0), invalid(true) {}
-
-                KmerStream_const_iterator(const KmerStream* kms_) : kms(kms_), it(0), sz(0), invalid(false) {
-
-                    if ((kms == nullptr) || kms->invalid) invalid = true;
-                    else sz = kms->klist.size() * kms->q_cutoff.size();
-                }
-
-                KmerStream_const_iterator(const KmerStream_const_iterator& o) : kms(o.kms), it(o.it), sz(o.sz), invalid(o.invalid) {}
-
-                KmerStream_const_iterator& operator=(const KmerStream_const_iterator& o) {
-
-                    kms = o.kms;
-                    it = o.it;
-                    sz = o.sz;
-                    invalid = o.invalid;
-
-                    return *this;
-                }
-
-                KmerStream_const_iterator operator++(int) {
-
-                    KmerStream_const_iterator tmp(*this);
-                    operator++();
-                    return tmp;
-                }
-
-                KmerStream_const_iterator& operator++() {
-
-                    if (!invalid){
-
-                        if (it + 1 >= sz) invalid = true;
-                        else ++it;
-                    }
-
-                    return *this;
-                }
-
-                bool operator==(const KmerStream_const_iterator& o) {
-
-                    if (invalid || o.invalid) return invalid && o.invalid;
-                    return  (it == o.it) && (kms == o.kms);
-                }
-
-                bool operator!=(const KmerStream_const_iterator& o) { return !operator==(o); }
-
-                pair<size_t, size_t> operator*() const { return make_pair(F0(), f1()); }
-
-                size_t F0() const {
-
-                    if (invalid) return 0;
-                    if (kms->v_fa_res.size() == 0) return kms->v_fq_res[it].F0();
-                    return kms->v_fa_res[it].F0();
-                }
-
-                size_t F1() const {
-
-                    if (invalid) return 0;
-                    if (kms->v_fa_res.size() == 0) return kms->v_fq_res[it].F1();
-                    return kms->v_fa_res[it].F1();
-                }
-
-                size_t f1() const {
-
-                    if (invalid) return 0;
-                    if (kms->v_fa_res.size() == 0) return kms->v_fq_res[it].f1();
-                    return kms->v_fa_res[it].f1();
-                }
-        };
-
-        typedef KmerStream_const_iterator const_iterator;
-
-        KmerStream(const KmerStream_Build_opt& opt) :   klist(opt.klist), q_cutoff(opt.q_cutoff), verbose(opt.verbose), e(opt.e),
-                                                        q_base(opt.q_base), nb_threads(opt.threads), chunksize(opt.chunksize), invalid(false) {
-
-            size_t max_threads = std::thread::hardware_concurrency();
+            const size_t max_threads = std::thread::hardware_concurrency();
 
             if (nb_threads <= 0){
 
@@ -312,26 +232,9 @@ class KmerStream {
                 invalid = true;
             }
 
-            if (klist.size() == 0){
+            if (k == 0){
 
-                cerr << "KmerStream::KmerStream(): No length k of k-mers given" << endl;
-                invalid = true;
-            }
-            else {
-
-                for (const auto& k : klist){
-
-                    if (k <= 0){
-
-                        cerr << "KmerStream::KmerStream(): Length k of k-mers cannot be less than or equal to 0" << endl;
-                        invalid = true;
-                    }
-                }
-            }
-
-            if (q_cutoff.size() == 0){
-
-                cerr << "KmerStream::KmerStream(): No quality cutoff given" << endl;
+                cerr << "KmerStream::KmerStream(): Length k of k-mers cannot be less than or equal to 0" << endl;
                 invalid = true;
             }
 
@@ -404,110 +307,113 @@ class KmerStream {
 
             if (invalid) exit(1);
 
-            if (files_with_quality.size() != 0) v_fq_res = nb_threads > 1 ? RunThreadedFastqStream() : RunFastqStream();
-            if (files_no_quality.size() != 0) v_fa_res = nb_threads > 1 ? RunThreadedFastaStream() : RunFastaStream();
+            rqh.setQualityCutoff(q);
 
-            size_t i = 0;
+            rqh.setK(k);
+            rsh.setK(k);
 
-            if ((files_with_quality.size() != 0) && (files_no_quality.size() != 0)){
+            if (files_with_quality.size() != 0) nb_threads > 1 ? RunThreadedFastqStream() : RunFastqStream();
+            if (files_no_quality.size() != 0) nb_threads > 1 ? RunThreadedFastaStream() : RunFastaStream();
 
-                for (auto& sp : v_fa_res){
-
-                    sp.join(v_fq_res[i]);
-                    ++i;
-                }
-
-                v_fq_res.clear();
-            }
+            rsh.join(rqh);
         }
 
-        const_iterator begin() { return const_iterator(this); }
+        inline size_t F0() const { return rsh.F0(); }
 
-        const_iterator end() { return const_iterator(); }
+        inline size_t F1() const { return rsh.F1(); }
+
+        inline size_t f1() const { return rsh.f1(); }
 
     private:
 
-        vector<ReadQualityHasher> RunFastqStream() {
+        void RunFastqStream() {
 
             FileParser fp(files_with_quality);
 
-            size_t nreads = 0;
             size_t file_id = 0;
 
-            const size_t qsize = q_cutoff.size();
-            const size_t ksize = klist.size();
-
             string seq;
-
-            vector<ReadQualityHasher> sps(qsize * ksize, ReadQualityHasher(e, q_base));
-
-            for (size_t i = 0; i < qsize; ++i) {
-
-                for (size_t j = 0; j < ksize; ++j) {
-
-                    sps[i * ksize + j].setQualityCutoff(q_cutoff[i]);
-                    sps[i * ksize + j].setK(klist[j]);
-                }
-            }
 
             while (fp.read(seq, file_id)){
 
-                ++nreads;
-
                 const char* qss = fp.getQualityScoreString();
 
-                for (size_t i = 0; i < qsize * ksize; ++i) sps[i](seq.c_str(), seq.length(), qss, strlen(qss));
+                std::transform(seq.begin(), seq.end(), seq.begin(), ::toupper);
+
+                rqh(seq.c_str(), seq.length(), qss, strlen(qss));
             }
 
             fp.close();
-
-            return sps;
         }
 
-        vector<ReadQualityHasher> RunThreadedFastqStream() {
+        void RunThreadedFastqStream() {
 
             size_t file_id = 0;
 
-            const size_t chunk_size = 1000;
+            size_t pos_read = k - 1;
+            size_t len_read = 0;
 
-            const size_t qsize = q_cutoff.size();
-            const size_t ksize = klist.size();
-            const size_t nb_k_q = qsize * ksize;
+            string seq, qual;
 
-            string seq;
-
-            vector<ReadQualityHasher> sps(nb_k_q * nb_threads, ReadQualityHasher(e, q_base));
-
-            for (size_t i = 0; i < qsize; ++i) {
-
-                for (size_t j = 0; j < ksize; ++j) {
-
-                    for (size_t t = 0; t < nb_threads; ++t){
-
-                        sps[(i * ksize + j) * nb_threads + t].setQualityCutoff(q_cutoff[i]);
-                        sps[(i * ksize + j) * nb_threads + t].setK(klist[j]);
-                    }
-                }
-            }
+            vector<ReadQualityHasher> sps(nb_threads, rqh);
 
             FileParser fp(files_with_quality);
 
             auto reading_function = [&](vector<pair<string, string>>& readv) {
 
-                size_t readCount = 0;
+                size_t reads_now = 0;
 
-                const size_t chunk = chunk_size * 100;
+                while ((pos_read < len_read) && (reads_now < chunksize)){
 
-                while (readCount < chunk) {
+                    pos_read -= k - 1;
 
-                    if (fp.read(seq, file_id)){
+                    readv.push_back(make_pair(seq.substr(pos_read, 1000), qual.substr(pos_read, 1000)));
 
-                        readv.push_back(make_pair(seq, string(fp.getQualityScoreString())));
+                    pos_read += 1000;
 
-                        readCount += seq.length();
-                    }
-                    else return true;
+                    ++reads_now;
                 }
+
+                while (reads_now < chunksize) {
+
+                    if (fp.read(seq, file_id)) {
+
+                        qual = fp.getQualityScoreString();
+
+                        len_read = seq.length();
+                        pos_read = len_read;
+
+                        if (len_read > 1000){
+
+                            pos_read = k - 1;
+
+                            while ((pos_read < len_read) && (reads_now < chunksize)){
+
+                                pos_read -= k - 1;
+
+                                readv.push_back(make_pair(seq.substr(pos_read, 1000), qual.substr(pos_read, 1000)));
+
+                                pos_read += 1000;
+
+                                ++reads_now;
+                            }
+                        }
+                        else {
+
+                            readv.push_back(make_pair(seq, qual));
+
+                            ++reads_now;
+                        }
+                    }
+                    else {
+
+                        for (auto& p : readv) std::transform(p.first.begin(), p.first.end(), p.first.begin(), ::toupper);
+
+                        return true;
+                    }
+                }
+
+                for (auto& p : readv) std::transform(p.first.begin(), p.first.end(), p.first.begin(), ::toupper);
 
                 return false;
             };
@@ -536,15 +442,7 @@ class KmerStream {
                                     stop = reading_function(readvs[t]);
                                 }
 
-                                for (size_t i = 0; i < qsize; ++i) {
-
-                                    for (size_t j = 0; j < ksize; ++j){
-
-                                        const size_t id = (i * ksize + j) * nb_threads + t;
-
-                                        for (const auto& r : readvs[t]) sps[id](r.first.c_str(), r.first.size(), r.second.c_str(), r.second.size());
-                                    }
-                                }
+                                for (const auto& r : readvs[t]) sps[t](r.first.c_str(), r.first.size(), r.second.c_str(), r.second.size());
 
                                 readvs[t].clear();
                             }
@@ -557,94 +455,83 @@ class KmerStream {
 
             fp.close();
 
-            vector<ReadQualityHasher> res;
-
-            for (size_t j = 0; j < nb_k_q; ++j){
-
-                ReadQualityHasher& sp = sps[j * nb_threads];
-
-                for (size_t i = 1; i < nb_threads; ++i) sp.join(sps[j * nb_threads + i]);
-
-                res.push_back(sp);
-            }
-
-            return res;
+            for (size_t t = 0; t != nb_threads; ++t) rqh.join(sps[t]);
         }
 
-        vector<ReadHasher> RunFastaStream() {
+        void RunFastaStream() {
 
-            //std::ios_base::sync_with_stdio(false);
-
-            size_t nreads = 0;
             size_t file_id = 0;
 
-            const size_t qsize = q_cutoff.size();
-            const size_t ksize = klist.size();
-
             string seq;
-
-            vector<ReadHasher> sps(qsize * ksize, ReadHasher(e));
-
-            for (size_t i = 0; i < qsize; ++i) {
-
-                for (size_t j = 0; j < ksize; ++j) sps[i * ksize + j].setK(klist[j]);
-            }
 
             FileParser fp(files_no_quality);
 
             while (fp.read(seq, file_id)){
 
-                ++nreads;
-
                 std::transform(seq.begin(), seq.end(), seq.begin(), ::toupper);
 
-                for (size_t i = 0; i < qsize * ksize; ++i) sps[i](seq.c_str(), seq.length(), nullptr, 0);
+                rsh(seq.c_str(), seq.length(), nullptr, 0);
             }
 
             fp.close();
-
-            return sps;
         }
 
-        vector<ReadHasher> RunThreadedFastaStream() {
+        void RunThreadedFastaStream() {
 
-            //std::ios_base::sync_with_stdio(false);
+            size_t file_id = 0;
 
-            size_t file_id;
-
-            const size_t chunk_size = 1000;
-
-            const size_t qsize = q_cutoff.size();
-            const size_t ksize = klist.size();
-            const size_t nb_k_q = qsize * ksize;
+            size_t pos_read = k - 1;
+            size_t len_read = 0;
 
             string seq;
 
-            vector<ReadHasher> sps(nb_k_q * nb_threads, ReadHasher(e));
-
-            for (size_t i = 0; i < qsize; ++i) {
-
-                for (size_t j = 0; j < ksize; ++j) {
-
-                    for (size_t t = 0; t < nb_threads; ++t) sps[(i * ksize + j) * nb_threads + t].setK(klist[j]);
-                }
-            }
+            vector<ReadHasher> sps(nb_threads, rsh);
 
             FileParser fp(files_no_quality);
 
             auto reading_function = [&](vector<string>& readv) {
 
-                size_t readCount = 0;
+                size_t reads_now = 0;
 
-                const size_t chunk = chunk_size * 100;
+                while ((pos_read < len_read) && (reads_now < chunksize)){
 
-                while (readCount < chunk) {
+                    pos_read -= k - 1;
 
-                    if (fp.read(seq, file_id)){
+                    readv.emplace_back(seq.substr(pos_read, 1000));
 
-                        readv.push_back(seq);
+                    pos_read += 1000;
 
-                        readCount += seq.length();
+                    ++reads_now;
+                }
+
+                while (reads_now < chunksize) {
+
+                    if (fp.read(seq, file_id)) {
+
+                        len_read = seq.length();
+                        pos_read = len_read;
+
+                        if (len_read > 1000){
+
+                            pos_read = k - 1;
+
+                            while ((pos_read < len_read) && (reads_now < chunksize)){
+
+                                pos_read -= k - 1;
+
+                                readv.emplace_back(seq.substr(pos_read, 1000));
+
+                                pos_read += 1000;
+
+                                ++reads_now;
+                            }
+                        }
+                        else {
+
+                            readv.emplace_back(seq);
+
+                            ++reads_now;
+                        }
                     }
                     else {
 
@@ -667,7 +554,7 @@ class KmerStream {
 
                 mutex mutex_file;
 
-                for (size_t t = 0; t < nb_threads; ++t){
+                for (size_t t = 0; t != nb_threads; ++t){
 
                     workers.emplace_back(
 
@@ -683,15 +570,7 @@ class KmerStream {
                                     stop = reading_function(readvs[t]);
                                 }
 
-                                for (size_t i = 0; i < qsize; ++i) {
-
-                                    for (size_t j = 0; j < ksize; ++j){
-
-                                        const size_t id = (i * ksize + j) * nb_threads + t;
-
-                                        for (const auto& r : readvs[t]) sps[id](r.c_str(), r.size(), nullptr, 0);
-                                    }
-                                }
+                                for (const auto& r : readvs[t]) sps[t](r.c_str(), r.size(), nullptr, 0);
 
                                 readvs[t].clear();
                             }
@@ -704,30 +583,24 @@ class KmerStream {
 
             fp.close();
 
-            vector<ReadHasher> res;
-
-            for (size_t j = 0; j < nb_k_q; ++j){
-
-                ReadHasher& sp = sps[j * nb_threads];
-
-                for (size_t i = 1; i < nb_threads; ++i) sp.join(sps[j * nb_threads + i]);
-
-                res.push_back(sp);
-            }
-
-            return res;
+            for (size_t t = 0; t != nb_threads; ++t) rsh.join(sps[t]);
         }
 
-        vector<int> klist;
-        vector<size_t> q_cutoff;
+        size_t k;
+        size_t q;
+        size_t q_base;
+
+        double e;
+
+        ReadQualityHasher rqh;
+        ReadHasher rsh;
+
         vector<string> files_no_quality;
         vector<string> files_with_quality;
-        vector<ReadQualityHasher> v_fq_res;
-        vector<ReadHasher> v_fa_res;
+
         bool verbose;
         bool invalid;
-        double e;
-        size_t q_base;
+
         size_t nb_threads;
         size_t chunksize;
 };
