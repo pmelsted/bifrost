@@ -312,6 +312,8 @@ class KmerStream {
             rqh.setK(k);
             rsh.setK(k);
 
+            if (verbose) cout << "KmerStream::KmerStream(): Start computing k-mer cardinality estimations" << endl;
+
             if (files_with_quality.size() != 0) nb_threads > 1 ? RunThreadedFastqStream() : RunFastqStream();
             if (files_no_quality.size() != 0) nb_threads > 1 ? RunThreadedFastaStream() : RunFastaStream();
 
