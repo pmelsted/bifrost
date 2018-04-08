@@ -10,8 +10,8 @@ In order to compile and use Bifrost, you need a machine running a 64 bits POSIX-
 
 In order to compile Bifrost, you will need:
 
-- Cmake (https://cmake.org/)
-- Roaring (https://github.com/RoaringBitmap/CRoaring)
+- Cmake version 2.8.12 minimum (https://cmake.org/)
+- Roaring version 0.2.39 minimum (https://github.com/RoaringBitmap/CRoaring) 
 - zlib (https://zlib.net/)
 
 All can be downloaded and installed by following the instructions on their respective websites. It is however most likely that at least few of them are available via a package manager for your operating system.
