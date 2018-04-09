@@ -7,6 +7,8 @@
 #include <iostream>
 #include <stdint.h>
 
+#include "Common.hpp"
+
 class TinyBitmap {
 
     public:
@@ -18,6 +20,8 @@ class TinyBitmap {
 
         TinyBitmap& operator=(const TinyBitmap& o);
 
+        void empty();
+
         bool add(const uint32_t val);
         bool contains(const uint32_t val);
 
@@ -26,10 +30,12 @@ class TinyBitmap {
         size_t getSizeInBytes() const;
         size_t size() const;
 
+        size_t runOptimize();
+
     private:
 
-        bool increase_sz(const size_t sz_min);
-        bool switch_mode();
+        bool increase_sz(const uint32_t sz_min);
+        bool switch_mode(const uint32_t sz_min = 0);
 
         static const uint32_t sz_mul_mask;
         static const uint32_t mode_mask;
@@ -43,6 +49,7 @@ class TinyBitmap {
 
         static const uint32_t bmp_mode;
         static const uint32_t list_mode;
+        static const uint32_t rle_list_mode;
 
         uint32_t* tiny_bmp;
 };
