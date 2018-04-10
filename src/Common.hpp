@@ -60,6 +60,33 @@ inline string reverse_complement(const string& s){
     return seq;
 }
 
+inline size_t rndup(size_t v) {
+
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v |= v >> 32;
+    v++;
+
+    return v;
+}
+
+inline uint32_t rndup(uint32_t v) {
+
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v++;
+
+    return v;
+}
+
 template<typename T> class wrapperData {
 
     public:

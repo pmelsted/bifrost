@@ -1082,20 +1082,6 @@ struct KmerHashTable {
         }
     }
 
-    size_t rndup(size_t v) const {
-
-        v--;
-        v |= v >> 1;
-        v |= v >> 2;
-        v |= v >> 4;
-        v |= v >> 8;
-        v |= v >> 16;
-        v |= v >> 32;
-        v++;
-
-        return v;
-    }
-
     iterator begin() {
 
         iterator it(this);
@@ -1478,20 +1464,6 @@ struct MinimizerHashTable {
                 h_tmp = h;
             }
         }
-    }
-
-    size_t rndup(size_t v) const {
-
-        v--;
-        v |= v >> 1;
-        v |= v >> 2;
-        v |= v >> 4;
-        v |= v >> 8;
-        v |= v >> 16;
-        v |= v >> 32;
-        v++;
-
-        return v;
     }
 
     iterator begin() {
@@ -1901,20 +1873,6 @@ struct MinimizerHashTable_2Val {
                 h_tmp = h;
             }
         }
-    }
-
-    size_t rndup(size_t v) const {
-
-        v--;
-        v |= v >> 1;
-        v |= v >> 2;
-        v |= v >> 4;
-        v |= v >> 8;
-        v |= v >> 16;
-        v |= v >> 32;
-        v++;
-
-        return v;
     }
 
     iterator begin() {
