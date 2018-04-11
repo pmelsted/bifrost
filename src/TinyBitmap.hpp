@@ -32,10 +32,12 @@ class TinyBitmap {
 
         size_t runOptimize();
 
+        void print() const;
+
     private:
 
         bool increase_sz(const uint32_t sz_min);
-        bool switch_mode(const uint32_t sz_min = 0);
+        bool switch_mode(const uint32_t sz_min, const uint32_t new_mode);
 
         static const uint32_t sz_mul_mask;
         static const uint32_t mode_mask;
@@ -44,7 +46,7 @@ class TinyBitmap {
         static const uint32_t bloc_sz_bits;
         static const uint32_t nb_blocks_max;
 
-        static const uint16_t bloc_sizes[];
+        static const uint32_t bloc_sizes[];
         static const uint32_t nb_bloc_sizes;
 
         static const uint32_t bmp_mode;
