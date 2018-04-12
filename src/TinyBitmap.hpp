@@ -23,7 +23,8 @@ class TinyBitmap {
         void empty();
 
         bool add(const uint32_t val);
-        bool contains(const uint32_t val);
+        void remove(const uint32_t val);
+        bool contains(const uint32_t val) const;
 
         uint32_t maximum() const;
 
@@ -36,24 +37,43 @@ class TinyBitmap {
 
     private:
 
-        bool increase_sz(const uint32_t sz_min);
-        bool switch_mode(const uint32_t sz_min, const uint32_t new_mode);
+        bool change_sz(const uint16_t sz_min);
+        bool switch_mode(const uint16_t sz_min, const uint16_t new_mode);
 
-        static const uint32_t sz_mul_mask;
-        static const uint32_t mode_mask;
+        inline uint16_t getIndexSize() const { return (tiny_bmp[0] & sz_mask) >> 1; }
+        inline uint16_t getMode() const { return (tiny_bmp[0] & mode_mask); }
+        inline uint16_t getBits() const { return (tiny_bmp[0] & bits_mask); }
 
-        static const uint32_t bloc_sz;
-        static const uint32_t bloc_sz_bits;
-        static const uint32_t nb_blocks_max;
+        inline uint16_t getCardinality() const { return tiny_bmp[1]; }
+        inline uint16_t getOffset() const { return tiny_bmp[2]; }
 
-        static const uint32_t bloc_sizes[];
-        static const uint32_t nb_bloc_sizes;
+        static inline uint16_t getIndexLargerSize(const uint16_t sz_min) {
 
-        static const uint32_t bmp_mode;
-        static const uint32_t list_mode;
-        static const uint32_t rle_list_mode;
+            uint16_t idx = 0;
 
-        uint32_t* tiny_bmp;
+            while (sizes[idx] < sz_min) ++idx;
+
+            return idx;
+        }
+
+        static const uint16_t sz_mask;
+        static const uint16_t mode_mask;
+        static const uint16_t bits_mask;
+
+        static const uint16_t bmp_mode;
+        static const uint16_t list_mode;
+        static const uint16_t rle_list_mode;
+
+        static const uint16_t bits_16;
+        static const uint16_t bits_32;
+
+        static const uint16_t sz_min;
+        static const uint16_t sz_max;
+
+        static const uint16_t sizes[];
+        static const uint16_t nb_sizes;
+
+        uint16_t* tiny_bmp;
 };
 
 #endif
