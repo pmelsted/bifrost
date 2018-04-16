@@ -24,7 +24,55 @@ using namespace std;
 
 class TinyBitmap {
 
+    class TinyBitmapIterator : public std::iterator<std::input_iterator_tag, uint32_t> {
+
+        friend class TinyBitmap;
+
+        public:
+
+            TinyBitmapIterator();
+
+            TinyBitmapIterator& operator++();
+            TinyBitmapIterator operator++(int);
+
+            inline bool operator==(const TinyBitmapIterator& o) const {
+
+                if (invalid || o.invalid) return invalid && o.invalid;
+
+                return  (t_bmp == o.t_bmp) && (sz == o.sz) && (mode == o.mode) && (card == o.card) &&
+                        (i == o.i) && (j == o.j) && (e == o.e) && (offset == o.offset) && (val == o.val);
+            }
+
+            inline bool operator!=(const TinyBitmapIterator& o) const { return !operator==(o); }
+
+            inline const uint32_t& operator*() const { return val; }
+            inline const uint32_t* operator->() const { return &val; }
+
+        private:
+
+            TinyBitmapIterator(const TinyBitmap& t_bmp_, const bool start);
+
+            uint16_t sz;
+            uint16_t mode;
+            uint16_t card;
+
+            uint16_t i;
+            uint16_t j;
+            uint16_t e;
+
+            uint32_t offset;
+            uint32_t val;
+
+            bool invalid;
+
+            const TinyBitmap* t_bmp;
+    };
+
+    friend class TinyBitmapIterator;
+
     public:
+
+        typedef TinyBitmapIterator const_iterator;
 
         TinyBitmap();
         TinyBitmap(const TinyBitmap& o);
@@ -47,6 +95,10 @@ class TinyBitmap {
         size_t size() const;
 
         size_t runOptimize();
+        size_t shrinkSize();
+
+        const_iterator begin() const;
+        const_iterator end() const;
 
         static bool test(const bool verbose = true);
 

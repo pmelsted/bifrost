@@ -6,7 +6,7 @@ TinyBitmap::TinyBitmap(const TinyBitmap& o) : tiny_bmp(nullptr) {
 
     if (o.tiny_bmp != nullptr){
 
-        const uint16_t sz = getSize();
+        const uint16_t sz = o.getSize();
 
         tiny_bmp = new uint16_t[sz];
 
@@ -28,7 +28,7 @@ TinyBitmap& TinyBitmap::operator=(const TinyBitmap& o) {
 
         if (o.tiny_bmp != nullptr){
 
-            const uint16_t sz = getSize();
+            const uint16_t sz = o.getSize();
 
             tiny_bmp = new uint16_t[sz];
 
@@ -71,7 +71,7 @@ bool TinyBitmap::add(const uint32_t val){
     if (tiny_bmp == nullptr){
 
         tiny_bmp = new uint16_t[sizes[0]](); // Size = 8, offset = 0; bmp_mode
-        tiny_bmp[0] = sizes[0] << 3 | bmp_mode | bits_16;
+        tiny_bmp[0] = (sizes[0] << 3) | bmp_mode | bits_16;
         tiny_bmp[2] = val_div;
     }
 
@@ -85,7 +85,7 @@ bool TinyBitmap::add(const uint32_t val){
     //cout << "TinyBitmap::add(): cardinality = " << cardinality << endl;
 
     // Compute if inserting new value triggers an increase of the container size
-    if (((mode == bmp_mode) && (val_mod >= ((sz - 3) << 4))) || ((mode != bmp_mode) && (cardinality == (sz - 3 - (mode == rle_list_mode))))){
+    if (((mode == bmp_mode) && (val_mod >= ((sz - 3) << 4))) || ((mode != bmp_mode) && (cardinality >= (sz - 3 - (mode == rle_list_mode))))){
 
         // Means that in its current mode, container size must be increased to add a value
         // We need to compute if which mode has the smaller container size
@@ -100,7 +100,7 @@ bool TinyBitmap::add(const uint32_t val){
             mode = getMode();
             cardinality = getCardinality();
 
-            if (cardinality != (sz - 4)) inc = false;
+            if (cardinality <= (sz - 5)) inc = false;
         }
 
         if (inc){
@@ -116,7 +116,7 @@ bool TinyBitmap::add(const uint32_t val){
             if (mode == rle_list_mode){
 
                 const uint16_t nb_val = size();
-                const uint16_t nb_val_rle_list = getNextSize(sz);
+                const uint16_t nb_val_rle_list = getNextSize(sz + 1);
                 const uint16_t nb_val_list = getNextSize(nb_val + 4);
                 const uint16_t nb_val_min = (nb_val > (0xFFFF - 48)) ? 0xFFFF : std::min(nb_val_rle_list, std::min(nb_val_list, nb_uint_bmp));
 
@@ -380,7 +380,7 @@ void TinyBitmap::remove(const uint32_t val){
             }
             else if (val_mod == tiny_bmp[imin]) ++tiny_bmp[imin];
             else if (val_mod == tiny_bmp[imin + 1]) --tiny_bmp[imin + 1];
-            else if (cardinality != (getSize() - 4)){ // There is enough space to insert a new run
+            else if ((cardinality + 2) <= getSize()){ // There is enough space to insert a new run
 
                 std::memmove(&tiny_bmp[imin + 3], &tiny_bmp[imin + 1], (cardinality + 1 - imin) * sizeof(uint16_t)); // Shift values
 
@@ -572,6 +572,34 @@ size_t TinyBitmap::runOptimize() {
     return 0;
 }
 
+size_t TinyBitmap::shrinkSize() {
+
+    if (tiny_bmp == nullptr) return 0;
+
+    const uint16_t sz = getSize();
+    const uint16_t mode = getMode();
+
+    uint16_t new_sz;
+
+    if (mode == bmp_mode){
+
+        const uint16_t max_val_mod = static_cast<const uint16_t>(maximum() & 0xFFFF) + 1;
+        new_sz = (max_val_mod >> 4) + ((max_val_mod & 0xF) != 0) + 3;
+    }
+    else new_sz = getCardinality() + 3;
+
+    uint16_t* new_t_bmp = new uint16_t[new_sz];
+
+    std::copy(tiny_bmp, tiny_bmp + new_sz, new_t_bmp);
+
+    delete[] tiny_bmp;
+    tiny_bmp = new_t_bmp;
+
+    tiny_bmp[0] = (tiny_bmp[0] & ~sz_mask) | (new_sz << 3);
+
+    return sz - new_sz;
+}
+
 void TinyBitmap::print() const {
 
     if (tiny_bmp == nullptr) return;
@@ -724,22 +752,38 @@ bool TinyBitmap::switch_mode(const uint16_t sz_min, const uint16_t new_mode) {
     return true;
 }
 
+TinyBitmap::const_iterator TinyBitmap::begin() const {
+
+    const_iterator it(*this, true);
+    ++it;
+    return it;
+}
+
+TinyBitmap::const_iterator TinyBitmap::end() const {
+
+    return const_iterator(*this, false);
+}
+
 bool TinyBitmap::test(const bool verbose) {
 
     TinyBitmap t_bmp;
 
-    if (verbose) cout << "Adding stuff in sequential order from 0 to 65536-49" << endl;
+    if (verbose) cout << "TinyBitmap::test(): Adding values in sequential order from 0 to 65536-49" << endl;
 
     for (uint32_t i = 0; i != 65536-48; ++i){
 
         if (t_bmp.add(i) != t_bmp.contains(i)){
 
-            if (verbose) cerr << "Error while adding stuff" << endl;
+            if (verbose) cerr << "TinyBitmap::test(): Error while adding values" << endl;
             return false;
         }
     }
 
-    if (verbose) cout << "Deleting stuff in sequential order from 0 to 65536-49" << endl;
+    if (verbose) cout << "TinyBitmap::test(): Iterating over the values" << endl;
+
+    for (const auto val : t_bmp) {}
+
+    if (verbose) cout << "TinyBitmap::test(): Deleting values in sequential order from 0 to 65536-49" << endl;
 
     for (uint32_t i = 0; i != 65536-48; ++i){
 
@@ -747,7 +791,7 @@ bool TinyBitmap::test(const bool verbose) {
 
         if (t_bmp.contains(i)){
 
-            if (verbose) cerr << "Error while removing stuff" << endl;
+            if (verbose) cerr << "TinyBitmap::test(): Error while removing values" << endl;
             return false;
         }
     }
@@ -756,11 +800,11 @@ bool TinyBitmap::test(const bool verbose) {
 
     for (size_t j = 0; j < 1; ++j){
 
-        if (verbose) cout << "Adding stuff in random order from 0 to 65536-49 (round " << j << ")" << endl;
+        if (verbose) cout << "TinyBitmap::test(): Adding values in random order from 0 to 65536-49 (round " << j << ")" << endl;
 
         vector<uint32_t> val_added;
 
-        for (uint32_t i = 0, cpt = 0; i != 65536 - 48; ++i, ++cpt){
+        for (uint32_t i = 0; i != 65536 - 48; ++i){
 
             const uint32_t val = rand() % (65536 - 48);
 
@@ -768,12 +812,16 @@ bool TinyBitmap::test(const bool verbose) {
 
             if (t_bmp.add(val) != t_bmp.contains(val)){
 
-                if (verbose) cerr << "Error while adding stuff" << endl;
+                if (verbose) cerr << "TinyBitmap::test(): Error while adding values" << endl;
                 return false;
             }
         }
 
-        if (verbose) cout << "Removing stuff in random order from 0 to 65536-49 (round " << j << ")" << endl;
+        if (verbose) cout << "TinyBitmap::test(): Iterating over the values" << endl;
+
+        for (const auto val : t_bmp) {}
+
+        if (verbose) cout << "TinyBitmap::test(): Removing values in random order from 0 to 65536-49 (round " << j << ")" << endl;
 
         std::random_shuffle(val_added.begin(), val_added.end());
 
@@ -783,7 +831,7 @@ bool TinyBitmap::test(const bool verbose) {
 
             if (t_bmp.contains(val)){
 
-                if (verbose) cerr << "Error while removing stuff" << endl;
+                if (verbose) cerr << "TinyBitmap::test(): Error while removing values" << endl;
                 return false;
             }
         }
@@ -791,18 +839,22 @@ bool TinyBitmap::test(const bool verbose) {
         t_bmp.empty();
     }
 
-    if (verbose) cout << "Adding stuff in sequential order from 65536 to 65536 + 4096 - 3" << endl;
+    if (verbose) cout << "TinyBitmap::test(): Adding values in sequential order from 65536 to 65536 + 4096 - 3" << endl;
 
     for (uint32_t i = 65536; i != 65536 + 4096 - 3; ++i){
 
         if (t_bmp.add(i) != t_bmp.contains(i)){
 
-            if (verbose) cerr << "Error while adding stuff" << endl;
+            if (verbose) cerr << "TinyBitmap::test(): Error while adding values" << endl;
             return false;
         }
     }
 
-    if (verbose) cout << "Removing stuff in sequential order from 65536 to 65536 + 4096 - 3" << endl;
+    if (verbose) cout << "TinyBitmap::test(): Iterating over the values" << endl;
+
+    for (const auto val : t_bmp) {}
+
+    if (verbose) cout << "TinyBitmap::test(): Removing values in sequential order from 65536 to 65536 + 4096 - 3" << endl;
 
     for (uint32_t i = 65536; i != 65536 + 4096 - 3; ++i){
 
@@ -810,25 +862,29 @@ bool TinyBitmap::test(const bool verbose) {
 
         if (t_bmp.contains(i)){
 
-            if (verbose) cerr << "Error while removing stuff" << endl;
+            if (verbose) cerr << "TinyBitmap::test(): Error while removing values" << endl;
             return false;
         }
     }
 
     t_bmp.empty();
 
-    if (verbose) cout << "Adding stuff in reverse sequential order from 65536 + 4096 - 4 to 65536" << endl;
+    if (verbose) cout << "TinyBitmap::test(): Adding values in reverse sequential order from 65536 + 4096 - 4 to 65536" << endl;
 
     for (uint32_t i = 65536 + 4096 - 4; i >= 65536; --i){
 
         if (t_bmp.add(i) != t_bmp.contains(i)){
 
-            if (verbose) cerr << "Error while adding stuff" << endl;
+            if (verbose) cerr << "TinyBitmap::test(): Error while adding values" << endl;
             return false;
         }
     }
 
-    if (verbose) cout << "Removing stuff in reverse sequential order from 65536 + 4096 - 4 to 65536" << endl;
+    if (verbose) cout << "TinyBitmap::test(): Iterating over the values" << endl;
+
+    for (const auto val : t_bmp) {}
+
+    if (verbose) cout << "TinyBitmap::test(): Removing values in reverse sequential order from 65536 + 4096 - 4 to 65536" << endl;
 
     for (uint32_t i = 65536 + 4096 - 4; i >= 65536; --i){
 
@@ -836,7 +892,7 @@ bool TinyBitmap::test(const bool verbose) {
 
         if (t_bmp.contains(i)){
 
-            if (verbose) cerr << "Error while removing stuff" << endl;
+            if (verbose) cerr << "TinyBitmap::test(): Error while removing values" << endl;
             return false;
         }
     }
@@ -845,7 +901,7 @@ bool TinyBitmap::test(const bool verbose) {
 
     for (size_t j = 0; j < 1; ++j){
 
-        if (verbose) cout << "Adding stuff in random order (round " << j << ")" << endl;
+        if (verbose) cout << "TinyBitmap::test(): Adding values in random order (round " << j << ")" << endl;
 
         vector<uint32_t> val_added;
 
@@ -857,12 +913,16 @@ bool TinyBitmap::test(const bool verbose) {
 
             if (t_bmp.add(val) != t_bmp.contains(val)){
 
-                if (verbose) cerr << "Error while adding stuff" << endl;
+                if (verbose) cerr << "TinyBitmap::test(): Error while adding values" << endl;
                 return false;
             }
         }
 
-        if (verbose) cout << "Removing stuff in random order (round " << j << ")" << endl;
+        if (verbose) cout << "TinyBitmap::test(): Iterating over the values" << endl;
+
+        for (const auto val : t_bmp) {}
+
+        if (verbose) cout << "TinyBitmap::test(): Removing values in random order (round " << j << ")" << endl;
 
         std::random_shuffle(val_added.begin(), val_added.end());
 
@@ -872,7 +932,7 @@ bool TinyBitmap::test(const bool verbose) {
 
             if (t_bmp.contains(val)){
 
-                if (verbose) cerr << "Error while removing stuff" << endl;
+                if (verbose) cerr << "TinyBitmap::test(): Error while removing values" << endl;
                 return false;
             }
         }
@@ -881,6 +941,101 @@ bool TinyBitmap::test(const bool verbose) {
     }
 
     return true;
+}
+
+TinyBitmap::TinyBitmapIterator::TinyBitmapIterator() :  sz(0), mode(0), card(0), offset(0), i(0xFFFF), j(0xFFFF), e(0xFFFF),
+                                                        val(0xFFFFFFFF), invalid(true), t_bmp(nullptr) {};
+
+TinyBitmap::TinyBitmapIterator::TinyBitmapIterator(const TinyBitmap& t_bmp_, const bool start) :    sz(0), mode(0), card(0), offset(0), i(0xFFFF), j(0xFFFF),
+                                                                                                    e(0xFFFF), val(0xFFFFFFFF), invalid(true), t_bmp(&t_bmp_) {
+
+    if (start && (t_bmp != nullptr) && (t_bmp->tiny_bmp != nullptr)){
+
+        sz = t_bmp->getSize();
+        mode = t_bmp->getMode();
+        card = t_bmp->getCardinality();
+
+        offset = static_cast<uint32_t>(t_bmp->getOffset()) << 16;
+
+        if (card != 0) invalid = false;
+    }
+};
+
+TinyBitmap::TinyBitmapIterator& TinyBitmap::TinyBitmapIterator::operator++() {
+
+    if (invalid) return *this; // Iterator has ended
+
+    if (i == 0xFFFF){ // Means this is the first iteration
+
+        i = 3;
+
+        if (mode == bmp_mode){
+
+            j = 0xFFFF;
+            e = t_bmp->tiny_bmp[3];
+        }
+        else if (mode == rle_list_mode){
+
+            i = 1;
+            j = 4;
+            val = t_bmp->tiny_bmp[4] - 1;
+        }
+    }
+
+    if (mode == bmp_mode){
+
+        if (e == 0){
+
+            ++i;
+            j = 0;
+            e = t_bmp->tiny_bmp[i];
+        }
+        else ++j;
+
+        for (; (i != sz) && (card != 0); ++i){
+
+            for (; e != 0; e >>= 1, ++j){
+
+                if (e & 0x1){
+
+                    val = offset | (((i - 3) << 4) + j);
+                    --card;
+                    return *this;
+                }
+            }
+        }
+
+        invalid = true;
+    }
+    else if (mode == list_mode){
+
+        ++i;
+
+        if (i == sz) invalid = true;
+        else val = offset | t_bmp->tiny_bmp[i];
+    }
+    else {
+
+        ++val;
+
+        if ((val & 0xFFFF) == t_bmp->tiny_bmp[j]){
+
+            i += 2;
+            j = i + 1;
+
+            if (j >= sz) invalid = true;
+            else val = offset | t_bmp->tiny_bmp[i];
+        }
+    }
+
+    return *this;
+}
+
+TinyBitmap::TinyBitmapIterator TinyBitmap::TinyBitmapIterator::operator++(int){
+
+    TinyBitmapIterator tmp(*this);
+    operator++();
+    return tmp;
 }
 
 const uint16_t TinyBitmap::sz_mask = 0xFFF8;    // 1111111111111000
