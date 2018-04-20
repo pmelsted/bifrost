@@ -43,8 +43,7 @@
 * @var CCDBG_Build_opt::nb_threads
 * Number of threads to use for building the graph. Default is 1.
 * @var CCDBG_Build_opt::read_chunksize
-* Number of reads shared and processed by CCDBG_Build_opt::nb_threads threads at the same time.
-* Default is 10000.
+* Number of reads a thread can read and process at a time. Default is 64.
 * @var CCDBG_Build_opt::unitig_size
 * Maximum length of a unitig. Default is 100000.
 * @var CCDBG_Build_opt::nb_unique_kmers
@@ -119,7 +118,7 @@ struct CCDBG_Build_opt {
     string prefixFilenameOut;
 
     CCDBG_Build_opt() : nb_threads(1), k(DEFAULT_K), g(DEFAULT_G), nb_unique_kmers(0), nb_non_unique_kmers(0),
-                        nb_bits_unique_kmers_bf(14), nb_bits_non_unique_kmers_bf(14), read_chunksize(10000),
+                        nb_bits_unique_kmers_bf(14), nb_bits_non_unique_kmers_bf(14), read_chunksize(64),
                         unitig_size(1000000), verbose(false), clipTips(false), deleteIsolated(false), useMercyKmers(false),
                         outputGFA(true), outputColors(true), reference_mode(true), inFilenameBBF(""), outFilenameBBF("") {}
 

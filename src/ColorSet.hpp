@@ -4,6 +4,7 @@
 #include <roaring/roaring.hh>
 
 #include "CompactedDBG.hpp"
+#include "TinyBitmap.hpp"
 
 /** @file src/ColorSet.hpp
 * Interface for UnitigColors, the unitig container of k-mer color sets used in ColoredCDBG.
@@ -36,6 +37,7 @@ class UnitigColors {
         class ColorKmer_ID {
 
             friend class UnitigColors_const_iterator;
+            friend class UnitigColors;
 
             public:
 
@@ -55,11 +57,11 @@ class UnitigColors {
 
             private:
 
+                size_t ck_id;
+
                 ColorKmer_ID();
                 ColorKmer_ID(const size_t id);
                 ColorKmer_ID& operator=(const size_t ck_id_);
-
-                size_t ck_id;
         };
 
         /** @class UnitigColors_const_iterator
@@ -136,7 +138,9 @@ class UnitigColors {
                 ColorKmer_ID ck_id;
 
                 const Roaring empty_roar;
+
                 Roaring::const_iterator it_roar;
+                TinyBitmap::const_iterator it_t_bmp;
 
                 UnitigColors_const_iterator(const UnitigColors* cs_, const bool beg);
         };
@@ -189,6 +193,11 @@ class UnitigColors {
         */
         void empty();
 
+        /** Check if a UnitigColors is empty (no colors).
+        * @return a boolean indicating if the UnitigColors is empty.
+        */
+        inline bool isEmpty() const { return (size() == 0); }
+
         /** Add a color in the current UnitigColors to all k-mers of a unitig mapping.
         * @param um is a UnitigMapBase object representing a mapping to a reference unitig for which the
         * color must be added. The color will be added only for the given mapping, i.e, unitig[um.dist..um.dist+um.len+k-1]
@@ -216,6 +225,15 @@ class UnitigColors {
         * @return Number of colors (sum of the number of colors for each k-mer of the unitig).
         */
         size_t size() const;
+
+        /** Get the number of k-mers of a unitig having a given color.
+        * @param um is a UnitigMapBase object representing a mapping to a reference unitig
+        * @param color_id is the color index
+        * @return Number of colors (sum of the number of colors for each k-mer of the unitig).
+        */
+        size_t size(const UnitigMapBase& um, const size_t color_id) const;
+
+        ColorKmer_ID maximum() const;
 
         /** Write a UnitigColors to a stream.
         * @param stream_out is an out stream to which the UnitigColors must be written. It must be
@@ -250,30 +268,23 @@ class UnitigColors {
 
     private:
 
-        /** Optimize the memory of a UnitigColor. Useful in case stretches of overlapping k-mers
-        * in a unitig share the same color.
-        */
-        inline void optimize(){
+        inline void releaseMemory(){
 
-            if ((setBits & flagMask) == ptrCompressedBitmap) getPtrBitmap()->runOptimize();
+            const uintptr_t flag = setBits & flagMask;
+
+            if (flag == ptrBitmap) delete getPtrBitmap();
+            else if (flag == localTinyBitmap) t_bmp.empty();
+
+            setBits = localBitVector;
         }
 
-        inline void releasePointer(){
-
-            if ((setBits & flagMask) == ptrCompressedBitmap) delete getPtrBitmap();
-        }
-
-        inline void setOccupied(){ if (isUnoccupied()) setBits = localBitVectorColor; }
-        inline void setUnoccupied(){ releasePointer(); setBits = unoccupied; }
-
-        inline bool isUnoccupied() const { return ((setBits & flagMask) == unoccupied); }
-        inline bool isOccupied() const { return ((setBits & flagMask) != unoccupied); }
+        inline bool isBitmap() const { return ((setBits & flagMask) == ptrBitmap); }
+        inline bool isTinyBitmap() const { return ((setBits & flagMask) == localTinyBitmap); }
 
         void add(const size_t color_id);
         bool contains(const size_t color_km_id) const;
 
         UnitigColors reverse(const UnitigMapBase& um) const;
-        void merge(const UnitigColors& cs);
 
         inline Bitmap* getPtrBitmap() const { return reinterpret_cast<Bitmap*>(setBits & pointerMask); }
         inline const Bitmap* getConstPtrBitmap() const { return reinterpret_cast<const Bitmap*>(setBits & pointerMask); }
@@ -281,15 +292,15 @@ class UnitigColors {
         static const size_t maxBitVectorIDs; // 64 bits - 2 bits for the color set type = 62
 
         // asBits and asPointer represent:
-        // Flag 0 - A pointer to a compressed bitmap containing colors
-        // Flag 1 - A bit vector of 62 bits storing presence/absence of up to 62 colors (one bit = one color)
-        // Flag 2 - A single integer which is a color
-        // Flag 3 - Unoccupied color set (not associated with any unitig)
+        // Flag 0 - A TinyBitmap which can contain up to 65488 uint
+        // Flag 1 - A bit vector of 62 bits storing presence/absence of up to 62 integers
+        // Flag 2 - A single integer
+        // Flag 3 - A pointer to a CRoaring compressed bitmap which can contain up to 2^32 uint
 
-        static const uintptr_t ptrCompressedBitmap; // Flag 0
-        static const uintptr_t localBitVectorColor; // Flag 1
-        static const uintptr_t localSingleColor; // Flag 2
-        static const uintptr_t unoccupied; // Flag 3
+        static const uintptr_t localTinyBitmap; // Flag 0
+        static const uintptr_t localBitVector; // Flag 1
+        static const uintptr_t localSingleInt; // Flag 2
+        static const uintptr_t ptrBitmap; // Flag 3
 
         static const uintptr_t flagMask; // 0x3
         static const uintptr_t pointerMask; // 0xfffffffffffffffc
@@ -297,6 +308,7 @@ class UnitigColors {
         union {
 
             uintptr_t setBits;
+            TinyBitmap t_bmp;
             Bitmap* setPointer;
         };
 };

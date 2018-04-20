@@ -78,6 +78,26 @@ template<typename U, typename G, bool is_const>
 BackwardCDBG<U, G, is_const>::BackwardCDBG(const UnitigMap<U, G, is_const>& um_) : um(um_) {}
 
 template<typename U, typename G, bool is_const>
+bool BackwardCDBG<U, G, is_const>::hasPredecessors() const { return (um.bw_begin() != um.bw_end()); }
+
+template<typename U, typename G, bool is_const>
+size_t BackwardCDBG<U, G, is_const>::cardinality() const {
+
+    neighborIterator<U, G, is_const> it_start = begin();
+    neighborIterator<U, G, is_const> it_end = end();
+
+    size_t card = 0;
+
+    while (it_start != it_end){
+
+        ++it_start;
+        ++card;
+    }
+
+    return card;
+}
+
+template<typename U, typename G, bool is_const>
 neighborIterator<U, G, is_const> BackwardCDBG<U, G, is_const>::begin() const { return um.bw_begin(); }
 
 template<typename U, typename G, bool is_const>
@@ -88,6 +108,26 @@ neighborIterator<U, G, is_const> BackwardCDBG<U, G, is_const>::end() const { ret
 
 template<typename U, typename G, bool is_const>
 ForwardCDBG<U, G, is_const>::ForwardCDBG(const UnitigMap<U, G, is_const>& um_) : um(um_) {}
+
+template<typename U, typename G, bool is_const>
+bool ForwardCDBG<U, G, is_const>::hasSuccessors() const { return (um.fw_begin() != um.fw_end()); }
+
+template<typename U, typename G, bool is_const>
+size_t ForwardCDBG<U, G, is_const>::cardinality() const {
+
+    neighborIterator<U, G, is_const> it_start = begin();
+    neighborIterator<U, G, is_const> it_end = end();
+
+    size_t card = 0;
+
+    while (it_start != it_end){
+
+        ++it_start;
+        ++card;
+    }
+
+    return card;
+}
 
 template<typename U, typename G, bool is_const>
 neighborIterator<U, G, is_const> ForwardCDBG<U, G, is_const>::begin() const { return um.fw_begin(); }

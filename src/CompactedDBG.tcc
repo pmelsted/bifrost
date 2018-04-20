@@ -1600,7 +1600,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
 
                             ++round;
 
-                            if (opt.verbose) cout << "CompactedDBG::construct(): Reading round " << round << endl;
+                            //if (opt.verbose) cout << "CompactedDBG::construct(): Reading round " << round << endl;
 
                             stop = reading_function(reads[i]);
                         }

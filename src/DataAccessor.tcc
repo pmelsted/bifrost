@@ -118,7 +118,12 @@ void DataAccessor<U>::join(const UnitigColorMap<U>& um_dest, const UnitigColorMa
         }
     }
 
-    if (cs_src != nullptr) cs_src->setUnoccupied();
+    if (cs_src != nullptr){
+
+        const uint64_t h_src = ds->getHash(um_src) % ds->nb_color_sets;
+
+        ds->unitig_cs_link[h_src >> 6] &= ~(1ULL << (h_src & 0x3F));
+    }
 
     if ((data_unitig_dest != nullptr) && (data_unitig_src != nullptr)){
 
@@ -128,6 +133,8 @@ void DataAccessor<U>::join(const UnitigColorMap<U>& um_dest, const UnitigColorMa
 
 template<>
 inline void DataAccessor<void>::join(const UnitigColorMap<void>& um_dest, const UnitigColorMap<void>& um_src){
+
+    DataStorage<void>* ds = um_dest.getCompactedDBG()->getData();
 
     DataAccessor<void>* da_dest = um_dest.getData();
     UnitigColors* cs_dest = da_dest->getUnitigColors(um_dest);
@@ -139,8 +146,6 @@ inline void DataAccessor<void>::join(const UnitigColorMap<void>& um_dest, const 
 
         const Kmer head = um_dest.getUnitigHead();
         const Kmer new_head = um_dest.strand ? head : um_dest.getUnitigTail().twin();
-
-        DataStorage<void>* ds = um_dest.getCompactedDBG()->getData();
 
         ds->joinUnitigColors(um_dest, um_src); // Join the color sets
 
@@ -155,7 +160,12 @@ inline void DataAccessor<void>::join(const UnitigColorMap<void>& um_dest, const 
         }
     }
 
-    if (cs_src != nullptr) cs_src->setUnoccupied();
+    if (cs_src != nullptr){
+
+        const uint64_t h_src = ds->getHash(um_src) % ds->nb_color_sets;
+
+        ds->unitig_cs_link[h_src >> 6] &= ~(1ULL << (h_src & 0x3F));
+    }
 }
 
 template<typename U>

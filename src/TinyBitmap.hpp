@@ -86,13 +86,17 @@ class TinyBitmap {
         void empty();
 
         bool add(const uint32_t val);
-        void remove(const uint32_t val);
+        bool remove(const uint32_t val);
         bool contains(const uint32_t val) const;
 
         uint32_t maximum() const;
 
+        bool write(ostream& stream_out) const;
+        bool read(istream& stream_in);
+
         size_t getSizeInBytes() const;
         size_t size() const;
+        size_t size(uint32_t start_value, const uint32_t end_value) const;
 
         size_t runOptimize();
         size_t shrinkSize();

@@ -34,7 +34,7 @@ void PrintUsage() {
     "  -B, --bloom-bits2        Number of Bloom filter bits per k-mer occurring at least twice in the input files (default is 14)" << endl <<
     "  -l, --load-mbbf          Filename for input Blocked Bloom Filter, skips filtering step (default is no input)" << endl <<
     "  -w, --write-mbbf         Filename for output Blocked Bloom Filter (default is no output)" << endl <<
-    "  -s, --chunk-size         Read chunksize to split between threads (default is 10000)" << endl <<
+    "  -s, --chunk-size         Read chunk size per thread (default is 64)" << endl <<
     endl << "Optional parameters with no argument:" << endl << endl <<
     "  -p, --produce-colors     Produce a colored and compacted de Bruijn graph (default is without colors)" << endl <<
     "  -r, --reference          Reference mode, no filtering" << endl <<

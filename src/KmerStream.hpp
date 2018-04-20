@@ -35,7 +35,7 @@ struct KmerStream_Build_opt {
     size_t threads;
     size_t chunksize;
 
-    KmerStream_Build_opt() : q_base(33), q(0), k(31), verbose(false), e(0.01), threads(1), chunksize(10000) {}
+    KmerStream_Build_opt() : q_base(33), q(0), k(31), verbose(false), e(0.01), threads(1), chunksize(64) {}
 };
 
 class ReadQualityHasher;

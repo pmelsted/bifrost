@@ -88,15 +88,9 @@ bool ColoredCDBG<U>::write(const string prefix_output_filename, const size_t nb_
 template<typename U>
 void ColoredCDBG<U>::initColorSets(const CCDBG_Build_opt& opt, const size_t max_nb_hash){
 
-    const size_t nb_locks = opt.nb_threads * 1024;
-
     size_t last_empty_pos = 0;
 
     mutex mutex_cs_overflow;
-
-    std::atomic_flag* cs_locks = new std::atomic_flag[nb_locks];
-
-    for (size_t i = 0; i < nb_locks; ++i) cs_locks[i].clear();
 
     DataStorage<U>* ds = this->getData();
     DataStorage<U> new_ds = DataStorage<U>(max_nb_hash, this->size(), opt.filename_seq_in);
@@ -107,7 +101,7 @@ void ColoredCDBG<U>::initColorSets(const CCDBG_Build_opt& opt, const size_t max_
 
         int i;
 
-        uint64_t h_v, id_lock;
+        uint64_t h_v, id_link_mod;
 
         for (auto& unitig = a; unitig != b; ++unitig){
 
@@ -116,39 +110,26 @@ void ColoredCDBG<U>::initColorSets(const CCDBG_Build_opt& opt, const size_t max_
             for (i = 0; i < max_nb_hash; ++i){
 
                 h_v = head.hash(ds->seeds[i]) % ds->nb_color_sets; // Hash to which we can possibly put our colorset for current kmer
-                id_lock = h_v % nb_locks; // Lock ID for this hash
+                id_link_mod = 1ULL << (h_v & 0x3F);
 
-                while (cs_locks[id_lock].test_and_set(std::memory_order_acquire)); // Set the corresponding lock
-
-                if (ds->color_sets[h_v].isUnoccupied()) break; // If color set is unoccupied, we want to use it, maintain lock
-
-                cs_locks[id_lock].clear(std::memory_order_release); // Else, lock is released
+                if ((ds->unitig_cs_link[h_v >> 6].fetch_or(id_link_mod) & id_link_mod) == 0) break;
             }
 
             if (i == max_nb_hash){ // IF we couldn't find a hash matching an unoccupied color set for current k-mer
 
-                unique_lock<mutex> lock(mutex_cs_overflow); // Set lock for insertion into hash table of k-mer overflow
+                unique_lock<mutex> lock(mutex_cs_overflow);
 
                 while (true){
 
-                    id_lock = last_empty_pos % nb_locks; // Lock ID for this hash
+                    id_link_mod = 1ULL << (last_empty_pos & 0x3F);
 
-                    while (cs_locks[id_lock].test_and_set(std::memory_order_acquire)); // Set the corresponding lock
-
-                    if (ds->color_sets[last_empty_pos].isUnoccupied()) break; // If color set is unoccupied, we want to use it, maintain lock
-
-                    cs_locks[id_lock].clear(std::memory_order_release); // Else, lock is released
+                    if ((ds->unitig_cs_link[last_empty_pos >> 6].fetch_or(id_link_mod) & id_link_mod) == 0) break;
 
                     last_empty_pos = ((last_empty_pos + 1) == ds->nb_color_sets ? 0 : last_empty_pos + 1);
                 }
 
-                h_v = last_empty_pos;
-
                 ds->overflow.insert(head, last_empty_pos); // Insertion
             }
-
-            ds->color_sets[h_v].setOccupied(); // Set color set to occupied
-            cs_locks[id_lock].clear(std::memory_order_release); // Release lock
 
             *(unitig->getData()) = DataAccessor<U>(static_cast<uint8_t>(i == max_nb_hash ? 0 : i + 1));
         }
@@ -196,8 +177,6 @@ void ColoredCDBG<U>::initColorSets(const CCDBG_Build_opt& opt, const size_t max_
         for (auto& t : workers) t.join();
     }
 
-    delete[] cs_locks;
-
     cout << "Number of unitigs not hashed is " << ds->overflow.size() << " on " << ds->nb_color_sets << " unitigs." << endl;
 }
 
@@ -209,7 +188,7 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
     const int k_ = this->getK();
 
     const size_t nb_locks = nb_threads * 1024;
-    const size_t chunk_size = 1000;
+    const size_t chunk_size = 64;
 
     size_t prev_file_id = 0;
 
@@ -243,10 +222,11 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
                     }
 
                     const uint64_t id_lock = ds->getHash(um) % nb_locks;
+                    UnitigColors* uc = ds->getUnitigColors(um);
 
                     while (cs_locks[id_lock].test_and_set(std::memory_order_acquire)); // Set the corresponding lock
 
-                    ds->getUnitigColors(um)->add(um, read_color.second);
+                    uc->add(um, read_color.second);
 
                     cs_locks[id_lock].clear(std::memory_order_release);
                 }
@@ -313,13 +293,14 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
             }
         }
 
+        for (auto& p : v_read_color) std::transform(p.first.begin(), p.first.end(), p.first.begin(), ::toupper);
+
+        const bool ret = (file_id != prev_file_id);
+
         next_file = true;
         prev_file_id = file_id;
 
-        for (auto& p : v_read_color) std::transform(p.first.begin(), p.first.end(), p.first.begin(), ::toupper);
-
-        if (file_id != prev_file_id) return true;
-        return false;
+        return ret;
     };
 
     {
@@ -371,6 +352,171 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
     delete[] cs_locks;
 
     //checkColors(ds->color_names);
+
+    /*size_t nb_unitigs = 0;
+    size_t nb_neighbors_modified = 0;
+
+    size_t nb_km_colors = 0;
+    size_t nb_km_full_colors = 0;
+
+    size_t cs_sz_before = 0;
+    size_t cs_sz_after = 0;
+
+    size_t cs_card_before = 0;
+    size_t cs_card_after = 0;
+
+    vector<pair<UnitigColorMap<U>, pair<size_t, size_t>>> v_unitigs;
+
+    vector<TinyBitmap> v_new_uc;
+
+    unordered_set<Kmer, KmerHash> unitigs_modified;
+
+    auto sort_unitigs = [](const pair<UnitigColorMap<U>, pair<size_t, size_t>>& p1,
+                           const pair<UnitigColorMap<U>, pair<size_t, size_t>>& p2) {
+
+        if (p1.second.first == p2.second.first) return (p1.second.second < p2.second.second);
+        return (p1.second.first < p2.second.first);
+
+        //return ((p1.second.first * p1.second.second) < (p2.second.first * p2.second.second));
+    };
+
+    for (auto& unitig : *this){
+
+        const DataAccessor<U>* da = unitig.getData();
+        const UnitigColors* uc = da->getUnitigColors(unitig);
+
+        pair<size_t, size_t> degree(0, 0); // (edge degree, full color degree)
+
+        degree.first = unitig.getPredecessors().cardinality() + unitig.getSuccessors().cardinality();
+
+        for (UnitigColors::const_iterator it = uc->begin(); it != uc->end(); it.nextColor(unitig.len)){
+
+            if (uc->size(unitig, it->getColorID(unitig.len)) == unitig.len) ++(degree.second);
+        }
+
+        v_unitigs.push_back(make_pair(unitig, degree));
+    }
+
+    sort(v_unitigs.begin(), v_unitigs.end(), sort_unitigs);
+
+    for (auto& p : v_unitigs){
+
+        UnitigColorMap<U>& unitig = p.first;
+
+        UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
+
+        // If unitig has not been used already and if it has at least one successor or predecessor
+        if ((p.second.first != 0) && (unitigs_modified.find(unitig.getUnitigHead()) == unitigs_modified.end())){
+
+            const Kmer unitig_head = unitig.getUnitigHead();
+
+            size_t nb_neighbor_inter = 0;
+
+            vector<size_t> id_unitig, id_unitig_inter;
+
+            for (UnitigColors::const_iterator it = uc->begin(); it != uc->end(); it.nextColor(unitig.len)){
+
+                const size_t color_id = it->getColorID(unitig.len);
+
+                if (uc->size(unitig, color_id) == unitig.len) id_unitig.push_back(color_id);
+            }
+
+            id_unitig_inter = id_unitig;
+
+            for (const auto& pred : unitig.getPredecessors()){
+
+                if ((pred.getUnitigHead() != unitig_head) && (unitigs_modified.find(pred.getUnitigHead()) == unitigs_modified.end())){
+
+                    const UnitigColors* uc_p = pred.getData()->getUnitigColors(pred);
+
+                    vector<size_t> id_unitig_p, intersection;
+
+                    for (UnitigColors::const_iterator it_p = uc_p->begin(); it_p != uc_p->end(); it_p.nextColor(pred.len)){
+
+                        const size_t color_id = it_p->getColorID(pred.len);
+
+                        if (uc_p->size(pred, color_id) == pred.len) id_unitig_p.push_back(color_id);
+                    }
+
+                    set_intersection(id_unitig_inter.begin(), id_unitig_inter.end(), id_unitig_p.begin(), id_unitig_p.end(), back_inserter(intersection));
+
+                    id_unitig_inter = intersection;
+
+                    ++nb_neighbor_inter;
+                }
+            }
+
+            for (const auto& succ : unitig.getSuccessors()){
+
+                if ((succ.getUnitigHead() != unitig_head) && (unitigs_modified.find(succ.getUnitigHead()) == unitigs_modified.end())){
+
+                    const UnitigColors* uc_p = succ.getData()->getUnitigColors(succ);
+
+                    vector<size_t> id_unitig_p, intersection;
+
+                    for (UnitigColors::const_iterator it_p = uc_p->begin(); it_p != uc_p->end(); it_p.nextColor(succ.len)){
+
+                        const size_t color_id = it_p->getColorID(succ.len);
+
+                        if (uc_p->size(succ, color_id) == succ.len) id_unitig_p.push_back(color_id);
+                    }
+
+                    set_intersection(id_unitig_inter.begin(), id_unitig_inter.end(), id_unitig_p.begin(), id_unitig_p.end(), back_inserter(intersection));
+
+                    id_unitig_inter = intersection;
+
+                    ++nb_neighbor_inter;
+                }
+            }
+
+            if ((nb_neighbor_inter != 0) && (id_unitig_inter.size() >= 0.5 * id_unitig.size())){
+
+                unitigs_modified.insert(unitig.getUnitigHead());
+
+                const UnitigMapBase umb(0, 1, Kmer::k, true);
+
+                UnitigColors new_uc;
+
+                for (const auto color_id : id_unitig_inter){
+
+                    uc->remove(unitig, color_id);
+                    new_uc.add(umb, color_id);
+                }
+
+                v_new_uc.push_back(move(new_uc));
+
+                for (auto& pred : unitig.getPredecessors()){
+
+                    if (unitigs_modified.find(pred.getUnitigHead()) == unitigs_modified.end()){
+
+                        UnitigColors* uc_p = pred.getData()->getUnitigColors(pred);
+
+                        for (const auto color_id : id_unitig_inter) uc_p->remove(pred, color_id);
+
+                        unitigs_modified.insert(pred.getUnitigHead());
+
+                        ++nb_neighbors_modified;
+                    }
+                }
+
+                for (auto& succ : unitig.getSuccessors()){
+
+                    if (unitigs_modified.find(succ.getUnitigHead()) == unitigs_modified.end()){
+
+                        UnitigColors* uc_p = succ.getData()->getUnitigColors(succ);
+
+                        for (const auto color_id : id_unitig_inter) uc_p->remove(succ, color_id);
+
+                        unitigs_modified.insert(succ.getUnitigHead());
+
+                        ++nb_neighbors_modified;
+                    }
+                }
+
+                ++nb_unitigs;
+            }
+        }
+    }*/
 }
 
 template<typename U>

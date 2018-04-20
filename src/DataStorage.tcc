@@ -2,59 +2,71 @@
 #define BFG_DATASTORAGE_TCC
 
 template<typename U>
-DataStorage<U>::DataStorage() : color_sets(nullptr), data(nullptr), nb_seeds(0), nb_color_sets(0), nb_elem(0), nb_free_elem(0) {
+DataStorage<U>::DataStorage() : color_sets(nullptr), unitig_cs_link(nullptr), data(nullptr), nb_seeds(0), nb_color_sets(0), nb_elem(0), nb_free_elem(0) {
 
     std::random_device rd; //Seed
     std::default_random_engine generator(rd()); //Random number generator
     std::uniform_int_distribution<long long unsigned> distribution(0, 0xFFFFFFFFFFFFFFFF); //Distribution on which to apply the generator
 
-    //Initialize the hash function seeds for
-    for (size_t i = 0; i != 256; ++i) seeds[i] = distribution(generator);
+    for (size_t i = 0; i != 256; ++i) seeds[i] = distribution(generator); //Initialize the hash function seeds
 }
 
 template<typename U>
 DataStorage<U>::DataStorage(const size_t nb_seeds_, const size_t nb_elem_, const vector<string>& color_names_) :
-                            color_sets(nullptr), data(nullptr), nb_seeds(nb_seeds_), nb_elem(nb_elem_),
+                            color_sets(nullptr), unitig_cs_link(nullptr), data(nullptr), nb_seeds(nb_seeds_), nb_elem(nb_elem_),
                             nb_free_elem(0), nb_color_sets(nb_elem_), color_names(color_names_) {
 
     std::random_device rd; //Seed
     std::default_random_engine generator(rd()); //Random number generator
     std::uniform_int_distribution<long long unsigned> distribution(0, 0xFFFFFFFFFFFFFFFF); //Distribution on which to apply the generator
 
-    //Initialize the hash function seeds for
-    for (size_t i = 0; i != 256; ++i) seeds[i] = distribution(generator);
+    const size_t sz_unitig_cs_link = (nb_elem >> 6) + ((nb_elem & 0x3F) != 0);
+
+    for (size_t i = 0; i != 256; ++i) seeds[i] = distribution(generator); //Initialize the hash function seeds
 
     color_sets = new UnitigColors[nb_elem];
+    unitig_cs_link = new atomic<uint64_t>[sz_unitig_cs_link];
     data = new U[nb_elem];
+
+    for (size_t i = 0; i != sz_unitig_cs_link; ++i) unitig_cs_link[i] = 0;
 }
 
 template<>
 inline DataStorage<void>::DataStorage(const size_t nb_seeds_, const size_t nb_elem_, const vector<string>& color_names_) :
-                                color_sets(nullptr), data(nullptr), nb_seeds(nb_seeds_), nb_elem(nb_elem_),
+                                color_sets(nullptr), unitig_cs_link(nullptr), data(nullptr), nb_seeds(nb_seeds_), nb_elem(nb_elem_),
                                 nb_free_elem(0), nb_color_sets(nb_elem_), color_names(color_names_) {
 
     std::random_device rd; //Seed
     std::default_random_engine generator(rd()); //Random number generator
     std::uniform_int_distribution<long long unsigned> distribution(0, 0xFFFFFFFFFFFFFFFF); //Distribution on which to apply the generator
 
-    //Initialize the hash function seeds for
-    for (int i = 0; i < 256; ++i) seeds[i] = distribution(generator);
+    const size_t sz_unitig_cs_link = (nb_elem >> 6) + ((nb_elem & 0x3F) != 0);
+
+    for (int i = 0; i < 256; ++i) seeds[i] = distribution(generator); //Initialize the hash function seeds
 
     color_sets = new UnitigColors[nb_elem];
+    unitig_cs_link = new atomic<uint64_t>[sz_unitig_cs_link];
+
+    for (size_t i = 0; i != sz_unitig_cs_link; ++i) unitig_cs_link[i] = 0;
 }
 
 template<typename U>
 DataStorage<U>::DataStorage(const DataStorage& o) : nb_seeds(o.nb_seeds), nb_color_sets(o.nb_color_sets), nb_elem(o.nb_elem),
                                                     nb_free_elem(o.nb_free_elem), color_names(o.color_names), data(nullptr),
-                                                    color_sets(nullptr), overflow(o.overflow) {
+                                                    color_sets(nullptr), unitig_cs_link(nullptr), overflow(o.overflow) {
 
     memcpy(seeds, o.seeds, 256 * sizeof(uint64_t));
 
     if ((o.color_sets != nullptr) && (o.nb_elem != 0)){
 
         color_sets = new UnitigColors[nb_elem];
-
         copy(o.color_sets, o.color_sets + nb_elem, color_sets);
+
+        const size_t sz_link = (nb_elem >> 6) + ((nb_elem & 0x3F) != 0);
+
+        unitig_cs_link = new atomic<uint64_t>[sz_link];
+
+        for (size_t i = 0; i != sz_link; ++i) unitig_cs_link[i] = o.sz_link[i].load();
     }
 
     if ((o.data != nullptr) && (o.nb_elem != 0)){
@@ -68,26 +80,32 @@ DataStorage<U>::DataStorage(const DataStorage& o) : nb_seeds(o.nb_seeds), nb_col
 template<>
 inline DataStorage<void>::DataStorage(const DataStorage& o) :  nb_seeds(o.nb_seeds), nb_color_sets(o.nb_color_sets), nb_elem(o.nb_elem),
                                                         nb_free_elem(o.nb_free_elem), color_names(o.color_names), data(nullptr),
-                                                        color_sets(nullptr), overflow(o.overflow) {
+                                                        color_sets(nullptr), unitig_cs_link(nullptr), overflow(o.overflow) {
 
     memcpy(seeds, o.seeds, 256 * sizeof(uint64_t));
 
     if ((o.color_sets != nullptr) && (o.nb_elem != 0)){
 
         color_sets = new UnitigColors[nb_elem];
-
         copy(o.color_sets, o.color_sets + nb_elem, color_sets);
+
+        const size_t sz_link = (nb_elem >> 6) + ((nb_elem & 0x3F) != 0);
+
+        unitig_cs_link = new atomic<uint64_t>[sz_link];
+
+        for (size_t i = 0; i != sz_link; ++i) unitig_cs_link[i] = o.unitig_cs_link[i].load();
     }
 }
 
 template<typename U>
 DataStorage<U>::DataStorage(DataStorage&& o) :  nb_seeds(o.nb_seeds), nb_color_sets(o.nb_color_sets), nb_elem(o.nb_elem),
-                                                nb_free_elem(o.nb_free_elem), color_sets(o.color_sets), data(o.data),
-                                                color_names(move(o.color_names)), overflow(move(o.overflow)) {
+                                                nb_free_elem(o.nb_free_elem), color_sets(o.color_sets), unitig_cs_link(o.unitig_cs_link),
+                                                data(o.data), color_names(move(o.color_names)), overflow(move(o.overflow)) {
 
     memcpy(seeds, o.seeds, 256 * sizeof(uint64_t));
 
     o.color_sets = nullptr;
+    o.unitig_cs_link = nullptr;
     o.data = nullptr;
 
     o.clear();
@@ -119,6 +137,12 @@ void DataStorage<U>::empty() {
         color_sets = nullptr;
     }
 
+    if (unitig_cs_link != nullptr){
+
+        delete[] unitig_cs_link;
+        unitig_cs_link = nullptr;
+    }
+
     if (data != nullptr){
 
         delete[] data;
@@ -136,6 +160,12 @@ inline void DataStorage<void>::empty() {
 
         delete[] color_sets;
         color_sets = nullptr;
+    }
+
+    if (unitig_cs_link != nullptr){
+
+        delete[] unitig_cs_link;
+        unitig_cs_link = nullptr;
     }
 
     data = nullptr;
@@ -159,6 +189,7 @@ DataStorage<U>& DataStorage<U>::operator=(const DataStorage& o) {
     overflow = o.overflow;
 
     color_sets = nullptr;
+    unitig_cs_link = nullptr;
     data = nullptr;
 
     memcpy(seeds, o.seeds, 256 * sizeof(uint64_t));
@@ -166,8 +197,12 @@ DataStorage<U>& DataStorage<U>::operator=(const DataStorage& o) {
     if ((o.color_sets != nullptr) && (o.nb_elem != 0)){
 
         color_sets = new UnitigColors[nb_elem];
-
         copy(o.color_sets, o.color_sets + nb_elem, color_sets);
+
+        const size_t sz_link = (nb_elem >> 6) + ((nb_elem & 0x3F) != 0);
+
+        unitig_cs_link = new atomic<uint64_t>[sz_link];
+        for (size_t i = 0; i != sz_link; ++i) unitig_cs_link[i] = o.unitig_cs_link[i].load();
     }
 
     if ((o.data != nullptr) && (o.nb_elem != 0)){
@@ -202,8 +237,13 @@ inline DataStorage<void>& DataStorage<void>::operator=(const DataStorage& o) {
     if ((o.color_sets != nullptr) && (o.nb_elem != 0)){
 
         color_sets = new UnitigColors[nb_elem];
-
         copy(o.color_sets, o.color_sets + nb_elem, color_sets);
+
+        const size_t sz_link = (nb_elem >> 6) + ((nb_elem & 0x3F) != 0);
+
+        unitig_cs_link = new atomic<uint64_t>[sz_link];
+
+        for (size_t i = 0; i != sz_link; ++i) unitig_cs_link[i] = o.unitig_cs_link[i].load();
     }
 
     return *this;
@@ -226,11 +266,13 @@ DataStorage<U>& DataStorage<U>::operator=(DataStorage&& o) {
         overflow = move(o.overflow);
 
         color_sets = o.color_sets;
+        unitig_cs_link = o.unitig_cs_link;
         data = o.data;
 
         memcpy(seeds, o.seeds, 256 * sizeof(uint64_t));
 
         o.color_sets = nullptr;
+        o.unitig_cs_link = nullptr;
         o.data = nullptr;
 
         o.clear();
@@ -256,10 +298,12 @@ inline DataStorage<void>& DataStorage<void>::operator=(DataStorage&& o) {
         overflow = move(o.overflow);
 
         color_sets = o.color_sets;
+        unitig_cs_link = o.unitig_cs_link;
 
         memcpy(seeds, o.seeds, 256 * sizeof(uint64_t));
 
         o.color_sets = nullptr;
+        o.unitig_cs_link = nullptr;
 
         o.clear();
     }
@@ -542,21 +586,32 @@ UnitigColors* DataStorage<U>::insert() {
     if (nb_free_elem == 0){
 
         UnitigColors* old_color_sets = color_sets;
+        atomic<uint64_t>* old_unitig_cs_link = unitig_cs_link;
         U* old_data = data;
 
         const size_t old_nb_elem = nb_elem;
+        const size_t old_sz_link = (old_nb_elem >> 6) + ((old_nb_elem & 0x3F) != 0);
 
         nb_free_elem = nb_elem * 0.1;
         nb_elem += nb_free_elem;
 
+        const size_t sz_link = (nb_elem >> 6) + ((nb_elem & 0x3F) != 0);
+
         color_sets = new UnitigColors[nb_elem];
 
-        std::move(color_sets, color_sets + old_nb_elem, old_color_sets);
+        move(color_sets, color_sets + old_nb_elem, old_color_sets);
         delete[] old_color_sets;
+
+        unitig_cs_link = new atomic<uint64_t>[sz_link];
+
+        for (size_t i = 0; i != old_sz_link; ++i) unitig_cs_link[i] = old_unitig_cs_link[i].load();
+        for (size_t i = old_sz_link; i != sz_link; ++i) atomic_init(&unitig_cs_link[i], 0);
+
+        delete[] old_unitig_cs_link;
 
         data = new U[nb_elem];
 
-        std::move(data, data + old_nb_elem, old_data);
+        move(data, data + old_nb_elem, old_data);
         delete[] old_data;
     }
 
@@ -569,16 +624,27 @@ inline UnitigColors* DataStorage<void>::insert() {
     if (nb_free_elem == 0){
 
         UnitigColors* old_color_sets = color_sets;
+        atomic<uint64_t>* old_unitig_cs_link = unitig_cs_link;
 
         const size_t old_nb_elem = nb_elem;
+        const size_t old_sz_link = (old_nb_elem >> 6) + ((old_nb_elem & 0x3F) != 0);
 
         nb_free_elem = nb_elem * 0.1;
         nb_elem += nb_free_elem;
 
+        const size_t sz_link = (nb_elem >> 6) + ((nb_elem & 0x3F) != 0);
+
         color_sets = new UnitigColors[nb_elem];
 
-        std::move(color_sets, color_sets + old_nb_elem, old_color_sets);
+        move(color_sets, color_sets + old_nb_elem, old_color_sets);
         delete[] old_color_sets;
+
+        unitig_cs_link = new atomic<uint64_t>[sz_link];
+
+        for (size_t i = 0; i != old_sz_link; ++i) unitig_cs_link[i] = old_unitig_cs_link[i].load();
+        for (size_t i = old_sz_link; i != sz_link; ++i) unitig_cs_link[i] = 0;
+
+        delete[] old_unitig_cs_link;
     }
 
     return &color_sets[nb_elem - nb_free_elem--];
@@ -638,6 +704,12 @@ bool DataStorage<U>::write(const string prefix_output_filename, const size_t nb_
     for (size_t i = 0; (i < nb_colors) && colors_out.good(); ++i){
         //Write the color names of the graph
         colors_out.write(color_names[i].c_str(), color_names[i].length() + 1);
+    }
+
+    for (uint64_t i = 0, j = ((nb_elem >> 6) + ((nb_elem & 0x3F) != 0)), e; (i != j) && colors_out.good(); ++i){
+
+        e = unitig_cs_link[i].load();
+        colors_out.write(reinterpret_cast<const char*>(&e), sizeof(uint64_t));
     }
 
     for (size_t i = 0; (i < nb_elem) && colors_out.good(); ++i) color_sets[i].write(colors_out); //Write the color sets
@@ -707,9 +779,12 @@ bool DataStorage<U>::read(const string& filename_colors, bool verbose) {
         return false;
     }
 
+    const size_t sz_unitig_cs_link = (nb_elem >> 6) + ((nb_elem & 0x3F) != 0);
+
     overflow = KmerHashTable<size_t>(overflow_sz);
 
     color_sets = new UnitigColors[nb_elem];
+    unitig_cs_link = new atomic<uint64_t>[sz_unitig_cs_link];
     data = new U[nb_elem];
 
     for (size_t i = 0; (i < nb_seeds) && colors_in.good(); ++i){
@@ -726,6 +801,12 @@ bool DataStorage<U>::read(const string& filename_colors, bool verbose) {
     }
 
     delete[] buffer;
+
+    for (uint64_t i = 0, e; (i != sz_unitig_cs_link) && colors_in.good(); ++i){
+
+        colors_in.read(reinterpret_cast<char*>(&e), sizeof(uint64_t));
+        unitig_cs_link[i] = e;
+    }
 
     for (size_t i = 0; (i < nb_elem) && colors_in.good(); ++i) color_sets[i].read(colors_in);
 
@@ -793,9 +874,12 @@ inline bool DataStorage<void>::read(const string& filename_colors, bool verbose)
         return false;
     }
 
+    const size_t sz_unitig_cs_link = (nb_elem >> 6) + ((nb_elem & 0x3F) != 0);
+
     overflow = KmerHashTable<size_t>(overflow_sz);
 
     color_sets = new UnitigColors[nb_elem];
+    unitig_cs_link = new atomic<uint64_t>[sz_unitig_cs_link];
 
     for (size_t i = 0; (i < nb_seeds) && colors_in.good(); ++i){
         //Read the hash function seeds of the graph
@@ -811,6 +895,8 @@ inline bool DataStorage<void>::read(const string& filename_colors, bool verbose)
     }
 
     delete[] buffer;
+
+    if (colors_in.good()) colors_in.read(reinterpret_cast<char*>(unitig_cs_link), sz_unitig_cs_link * sizeof(atomic<uint64_t>));
 
     for (size_t i = 0; (i < nb_elem) && colors_in.good(); ++i) color_sets[i].read(colors_in);
 

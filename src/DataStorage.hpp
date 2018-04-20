@@ -1,6 +1,8 @@
 #ifndef BFG_DATASTORAGE_HPP
 #define BFG_DATASTORAGE_HPP
 
+#include <atomic>
+
 #include "ColorSet.hpp"
 #include "CompactedDBG.hpp"
 
@@ -67,6 +69,8 @@ class DataStorage {
         size_t nb_free_elem;
 
         UnitigColors* color_sets;
+        atomic<uint64_t>* unitig_cs_link;
+
         U* data;
 
         KmerHashTable<size_t> overflow;

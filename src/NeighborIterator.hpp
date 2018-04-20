@@ -125,6 +125,13 @@ class BackwardCDBG {
         */
         explicit BackwardCDBG(const UnitigMap<U, G, is_const>& um_);
 
+        /** Check if the unitig has at least one predecessor.
+        * @return a boolean indicating if the unitig has at least one predecessor (true) or not (false).
+        */
+        bool hasPredecessors() const;
+
+        size_t cardinality() const;
+
         /** Return an iterator over the predecessors of a reference unitig. The returned iterator is initialized
         * over the first such predecessor, if there is one.
         * @return an iterator over the predecessors of a reference unitig. It is initialized over the first such
@@ -163,6 +170,13 @@ class ForwardCDBG {
         * @param um_ is a UnitigMap object: the wrapper will provide an iterator over the successors of the UnitigMap reference unitig
         */
         explicit ForwardCDBG(const UnitigMap<U, G, is_const>& um_);
+
+        /** Check if the unitig has at least one successor.
+        * @return a boolean indicating if the unitig has at least one successor (true) or not (false).
+        */
+        bool hasSuccessors() const;
+
+        size_t cardinality() const;
 
         /** Return an iterator over the successors of a reference unitig. The returned iterator is initialized
         * over the first such successor, if there is one.
