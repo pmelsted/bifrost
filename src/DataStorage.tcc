@@ -605,7 +605,7 @@ UnitigColors* DataStorage<U>::insert() {
         unitig_cs_link = new atomic<uint64_t>[sz_link];
 
         for (size_t i = 0; i != old_sz_link; ++i) unitig_cs_link[i] = old_unitig_cs_link[i].load();
-        for (size_t i = old_sz_link; i != sz_link; ++i) atomic_init(&unitig_cs_link[i], 0);
+        for (size_t i = old_sz_link; i != sz_link; ++i) unitig_cs_link[i] = 0;
 
         delete[] old_unitig_cs_link;
 

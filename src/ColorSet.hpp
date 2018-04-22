@@ -1,7 +1,7 @@
 #ifndef BFG_COLOR_HPP
 #define BFG_COLOR_HPP
 
-#include <roaring/roaring.hh>
+#include "roaring.hh"
 
 #include "CompactedDBG.hpp"
 #include "TinyBitmap.hpp"

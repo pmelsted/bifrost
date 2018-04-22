@@ -5,6 +5,13 @@
 #include <algorithm>
 #include <stdint.h>
 
+#ifndef XXH_NAMESPACE
+#define XXH_NAMESPACE BIFROST_HASH_
+#endif
+
+#define XXH_INLINE_ALL
+#include "xxhash.h"
+
 using namespace std;
 
 #define BFG_VERSION "0.2"

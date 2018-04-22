@@ -16,13 +16,7 @@
 #include <string>
 #include <iostream>
 
-#ifndef XXH_NAMESPACE
-#define XXH_NAMESPACE BIFROST_HASH_
-#endif
-
-extern "C" {
-    #include "xxhash.h"
-}
+#include "Common.hpp"
 
 /** @file src/Kmer.hpp
 * Interface for the class Kmer:

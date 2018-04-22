@@ -1,20 +1,14 @@
 # Bifrost
 
-**Highly Parallel and Memory Efficient Colored and Compacted de Bruijn Graph Construction**
+**Highly Parallel and Memory Efficient Construction of a Colored and Compacted de Bruijn Graph**
 
-This repository contains the source code for a new parallel and memory efficient algorithm enabling the direct construction of the compacted de Bruijn graph without producing the intermediate uncompacted de Bruijn graph. Despite making extensive use of a probabilistic data structure (the Bloom filter), our algorithm guarantees that the produced compacted de Bruijn graph is deterministic. Furthermore, the algorithm features de Bruijn graph simplification steps used by assemblers such as tip clipping and isolated unitig removal. In addition, as disk-based software performance is significantly affected by the discrepancy of speed among disk storage technologies, our method uses only main memory storage.
+De Bruijn graphs are the core data structure for a wide number of assemblers and genome analysis software processing High Throughput Sequencing datasets. For pan-genomic analysis, the colored de Bruijn graph is used in order to take advantage of the multiple sequenced genomes available for each species. However, memory consumption of tools based on the de Bruijn graph is often prohibitive, due to the large number of vertices, edges or colors in the graph. In order to process large and complex genomes, most short-read assemblers based on the de Bruijn graph paradigm reduce the assembly complexity and memory usage by compacting first all maximal non-branching paths of the graph into single vertices. Yet, such a compaction is challenging as it requires the uncompacted de Bruijn graph to be available in memory. We present a new parallel and memory efficient algorithm enabling the direct construction of the compacted de Bruijn graph without producing the intermediate uncompacted de Bruijn graph. Our method relies on a space and time efficient data structure, the Bloom filter, enhanced with minimizer hashing to increase cache performance. Despite making extensive use of a probabilistic data structure, our algorithm guarantees that the produced compacted de Bruijn graph is deterministic. In addition, the algorithm is extended with a graph coloring method which efficiently maps each k-mer of the graph to the set of genomes in which it occurs.
 
-## Dependencies
+## Requirements
 
-In order to compile and use Bifrost, you need a machine running a 64 bits POSIX-compliant UNIX or MacOS operating system. Bifrost successfully compiles and runs on Ubuntu 17.04 and MacOS.
+In order to compile and use Bifrost, you need a machine running a 64 bits POSIX-compliant UNIX or MacOS operating system. Bifrost successfully compiles with GCC and Clang. Bifrost successfully runs on Ubuntu and MacOS.
 
-In order to compile Bifrost, you will need:
-
-- Cmake version 2.8.12 minimum (https://cmake.org/)
-- Roaring version 0.2.39 minimum (https://github.com/RoaringBitmap/CRoaring) 
-- zlib (https://zlib.net/)
-
-All can be downloaded and installed by following the instructions on their respective websites. It is however most likely that at least few of them are available via a package manager for your operating system.
+In order to compile Bifrost, you will need Cmake version 2.8.12 minimum (https://cmake.org/) and zlib (https://zlib.net/). All can be downloaded and installed by following the instructions on their respective websites. It is however most likely that at least few of them are available via a package manager for your operating system.
 
 If you operating system is Ubuntu/Debian, you can install Cmake and Zlib as follows:
 ```
@@ -28,23 +22,7 @@ brew install cmake zlib
 
 ## Compilation and Installation
 
-Compilation requires Cmake (version 2.8.12 minimum) and a compiler such as GCC or Clang. You can verify the presence of GCC or Clang on your system with:
-```
-gcc -v
-g++ -v
-```
-
-If not present (unlikely), they can be installed for Ubuntu/Debian with:
-```
-sudo apt-get install build-essential
-```
-
-or for MacOS:
-```
-brew install --with-toolchain llvm
-```
-
-Then, installing should be as easy as:
+Installing should be as easy as:
 ```
 cd <bifrost_directory>
 mkdir build
@@ -155,8 +133,6 @@ Colors are used to annotate k-mers with the set of genomes/samples in which they
 
 ### Documentation
 
-16-03-2018: Documentation is broken because of the new API. New doc coming soon.
-
 Documentation for the Bifrost library is available in the */doc/doxygen* folder (HTML version, open *html/index.html*).
 
 The following command regenerates the documentation:
@@ -166,8 +142,6 @@ doxygen Doxyfile
 ```
 
 The documentation contains a description of all the functions and structures of the library.
-
-TODO: Code snippets
 
 ### Usage
 
@@ -182,12 +156,12 @@ in your C++ code. Then, use the following flags for compiling:
 
 and the following flags for linking:
 ```
--lbifrost -lroaring -pthread -lz
+-lbifrost -pthread -lz
 ```
 
 You can also link to the Bifrost static library (*libbifrost.a*) for better performance:
 ```
-<path_to_lib_folder>/libbifrost.a -lroaring -pthread -lz
+<path_to_lib_folder>/libbifrost.a -pthread -lz
 ```
 
 ### With colors (pre-alpha)
@@ -228,8 +202,10 @@ For any question, feedback or problem, please feel free to file an issue on this
 
 * The libdivide library is zlib licensed (https://github.com/ridiculousfish/libdivide)
 
-* The kseq functions for reading fast(a|q)(.gz) files are copyrighted by Heng Li and released
+* The kseq library is copyrighted by Heng Li and released
   under the MIT license (http://lh3lh3.users.sourceforge.net/kseq.shtml)
+
+* The CRoaring library is Apache 2.0 licensed (https://github.com/RoaringBitmap/CRoaring)
 
 *   This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
