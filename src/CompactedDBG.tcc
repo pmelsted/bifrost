@@ -1118,7 +1118,7 @@ bool CompactedDBG<U, G>::remove(const const_UnitigMap<U, G>& um, const bool verb
 
     if (!um.isAbundant && (um.pos_unitig != swap_position)) swapUnitigs(um.isShort, um.pos_unitig, swap_position);
 
-    deleteUnitig(um.isShort, um.isAbundant, um.pos_unitig);
+    deleteUnitig(um.isShort, um.isAbundant, swap_position);
 
     if (um.isShort) v_kmers.resize(swap_position);
     else if (!um.isAbundant) v_unitigs.resize(swap_position);
@@ -2773,94 +2773,6 @@ void CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, cons
     }
 }
 
-/*template<typename U, typename G>
-template<bool is_void>
-typename std::enable_if<!is_void, bool>::type CompactedDBG<U, G>::splitUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
-                                                                               size_t& v_unitigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp){
-
-    bool long_unitig = false;
-    bool deleted = true;
-
-    if (!sp.empty()){
-
-        const Unitig<U>* unitig = v_unitigs[pos_v_unitigs];
-
-        UnitigMap<U, G> um(pos_v_unitigs, 0, 0, unitig->length(), false, false, true, this);
-
-        const pair<size_t, size_t> lowpair = unitig->ccov.lowCoverageInfo();
-
-        const size_t totalcoverage = unitig->coveragesum - lowpair.second;
-        const size_t ccov_size = unitig->ccov.size();
-
-        const string str = unitig->seq.toString();
-
-        size_t i = 0;
-
-        deleted = false;
-
-        for (vector<pair<int,int>>::const_iterator sit = sp.begin(); sit != sp.end(); ++sit, ++i) { //Iterate over created split unitigs
-
-            um.dist = sit->first;
-            um.len = sit->second - um.dist;
-
-            const string split_str = str.substr(um.dist, um.len + k_ - 1); // Split unitig sequence
-            const uint64_t cov_tmp = (totalcoverage * um.len) / (ccov_size - lowpair.first); // Split unitig coverage
-
-            Unitig<U> data_tmp = um.splitData(sit+1 == sp.end()); //Split the data
-
-            if (split_str.length() == k_){
-
-                if (addUnitig(split_str, v_kmers_sz)){
-
-                    CompressedCoverage_t<U>& cc_t = *h_kmers_ccov.find(Kmer(split_str.c_str()).rep());
-
-                    cc_t.ccov.setFull();
-
-                    std::copy(data_tmp.getData(), data_tmp.getData() + 1, cc_t.getData());
-                }
-                else {
-
-                    v_kmers[v_kmers_sz].second.ccov.setFull(); // We don't care about the coverage per k-mer anymore
-
-                    std::copy(data_tmp.getData(), data_tmp.getData() + 1, v_kmers[v_kmers_sz].second.getData());
-
-                    ++v_kmers_sz;
-                }
-            }
-            else {
-
-                addUnitig(split_str, nxt_pos_insert_v_unitigs);
-
-                v_unitigs[nxt_pos_insert_v_unitigs]->initializeCoverage(true); //We don't care about the coverage per k-mer anymore
-                v_unitigs[nxt_pos_insert_v_unitigs]->coveragesum = cov_tmp;
-
-                std::copy(data_tmp.getData(), data_tmp.getData() + 1, v_unitigs[nxt_pos_insert_v_unitigs]->getData());
-
-                ++nxt_pos_insert_v_unitigs;
-
-                long_unitig = true;
-            }
-        }
-    }
-
-    --nxt_pos_insert_v_unitigs; //Position of the last unitig in the vector which is not NULL
-
-    if (pos_v_unitigs != nxt_pos_insert_v_unitigs){ // Do not proceed to swap if swap positions are the same
-
-        swapUnitigs(false, pos_v_unitigs, nxt_pos_insert_v_unitigs); // Swap unitigs
-
-        // If the swapped unitig, previously in position nxt_pos_insert, was a split unitig
-        // created in this method, do not try to split it again
-        if (nxt_pos_insert_v_unitigs >= v_unitigs_sz) ++pos_v_unitigs;
-        else --v_unitigs_sz;
-    }
-    else --v_unitigs_sz;
-
-    deleteUnitig(false, false, nxt_pos_insert_v_unitigs);
-
-    return deleted;
-}*/
-
 template<typename U, typename G>
 template<bool is_void>
 typename std::enable_if<!is_void, bool>::type CompactedDBG<U, G>::splitUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
@@ -3546,10 +3458,13 @@ typename std::enable_if<!is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_
                 cmTail.strand = tailDir;
                 cmHead.strand = headDir;
 
+                cmHead.mergeData(cmTail);
+                *(data_tmp.getData()) = std::move(*(cmHead.getData()));
+
                 if (cmHead.isShort || cmHead.isAbundant){
 
-                    cmTail.mergeData(cmHead); //If data, merge them
-                    std::copy(cmTail.getData(), cmTail.getData() + 1, data_tmp.getData());
+                    //cmTail.mergeData(cmHead); //If data, merge them
+                    //std::copy(cmTail.getData(), cmTail.getData() + 1, data_tmp.getData());
 
                     if (cmHead.isShort){ //If head is a short unitig, swap and delete it
 
@@ -3570,11 +3485,11 @@ typename std::enable_if<!is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_
 
                 if (cmTail.isShort || cmTail.isAbundant){
 
-                    if (!cmHead.isShort && !cmHead.isAbundant){
+                    /*if (!cmHead.isShort && !cmHead.isAbundant){
 
                         cmHead.mergeData(cmTail); //If data, merge them
                         std::copy(cmHead.getData(), cmHead.getData() + 1, data_tmp.getData());
-                    }
+                    }*/
 
                     if (cmTail.isShort){ //If tail is a short unitig, swap and delete it
 
@@ -3628,7 +3543,8 @@ typename std::enable_if<!is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_
                 unitig->coveragesum = covsum;
                 if (covsum >= cov_full * unitig->numKmers()) unitig->ccov.setFull();
 
-                std::copy(unitig->getData(), unitig->getData() + 1, data_tmp.getData());
+                //std::copy(unitig->getData(), unitig->getData() + 1, data_tmp.getData());
+                *(unitig->getData()) = std::move(*(data_tmp.getData()));
 
                 ++joined;
             }

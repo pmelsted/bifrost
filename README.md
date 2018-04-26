@@ -6,7 +6,7 @@ De Bruijn graphs are the core data structure for a wide number of assemblers and
 
 ## Requirements
 
-In order to compile and use Bifrost, you need a machine running a 64 bits POSIX-compliant UNIX or MacOS operating system. Bifrost successfully compiles with GCC and Clang. Bifrost successfully runs on Ubuntu and MacOS.
+In order to compile and use Bifrost, you need a machine running a 64 bits POSIX-compliant UNIX or MacOS operating system, GCC >= 5.0 or a recent C++11 capable compiler. Bifrost successfully compiles with GCC 5.3 and Clang 4. Bifrost successfully runs on Ubuntu and MacOS.
 
 In order to compile Bifrost, you will need Cmake version 2.8.12 minimum (https://cmake.org/) and zlib (https://zlib.net/). All can be downloaded and installed by following the instructions on their respective websites. It is however most likely that at least few of them are available via a package manager for your operating system.
 
