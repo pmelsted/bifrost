@@ -6,23 +6,27 @@ De Bruijn graphs are the core data structure for a wide number of assemblers and
 
 ## Requirements
 
-In order to compile and use Bifrost, you need a machine running a 64 bits POSIX-compliant UNIX or MacOS operating system, GCC >= 5.0 or a recent C++11 capable compiler. Bifrost successfully compiles with GCC 5.3 and Clang 4. Bifrost successfully runs on Ubuntu and MacOS.
+* 64 bits POSIX-compliant UNIX or MacOS operating system
+* C++11 capable compiler:
+    * [GCC](https://gcc.gnu.org/) 5.0 or later
+    * [Clang](http://clang.llvm.org/) 3.5 or later
+* [Cmake](https://cmake.org/) 2.8.12 or later
+* [Zlib](https://zlib.net/)
 
-In order to compile Bifrost, you will need Cmake version 2.8.12 minimum (https://cmake.org/) and zlib (https://zlib.net/). All can be downloaded and installed by following the instructions on their respective websites. It is however most likely that at least few of them are available via a package manager for your operating system.
+All can be downloaded and installed by following the instructions on their respective websites. It is most likely that at least few of them are available via a package manager for your operating system: 
 
-If you operating system is Ubuntu/Debian, you can install Cmake and Zlib as follows:
+* Ubuntu/Debian:
 ```
-sudo apt-get install cmake zlib1g
+sudo apt-get install build-essential cmake zlib1g
 ```
-
-If you operating system is MacOS, Cmake and Zlib can be easily downloaded and installed via Homebrew:
+* MacOS (with [Homebrew](https://brew.sh/)):
 ```
+brew install --with-toolchain llvm
 brew install cmake zlib
 ```
 
 ## Compilation and Installation
 
-Installing should be as easy as:
 ```
 cd <bifrost_directory>
 mkdir build
@@ -34,7 +38,10 @@ make install
 
 `make install` might requires `sudo` (`sudo make install`) to proceed. 
 
-By default, the installation creates a binary (*Bifrost*), a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS) and a static library (*libbifrost.a*).
+By default, the installation creates:
+* a binary (*Bifrost*)
+* a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS)
+* a static library (*libbifrost.a*).
 
 Make sure that your environment variables (such as *LD_LIBRARY_PATH*) are set correctly. A typical example of environment variables not set correctly is when *libbifrost.so* or *libbifrost.a* cannot be found when executing the binary of Bifrost.
 
@@ -47,12 +54,11 @@ In this case, the maximum *k* allowed is 63. Keep in mind that increasing *MAX_K
 
 ## Binary usage:
 
-Type the following command to run Bifrost:
 ```
 Bifrost
 ```
 
-It should display the command line interface:
+displays the command line interface:
 ```
 Bifrost x.y
 
@@ -76,7 +82,7 @@ Optional parameters with required argument:
   -B, --bloom-bits2        Number of Bloom filter bits per k-mer occurring at least twice in the input files (default is 14)
   -l, --load-mbbf          Filename for input Blocked Bloom Filter, skips filtering step (default is no input)
   -w, --write-mbbf         Filename for output Blocked Bloom Filter (default is no output)
-  -s, --chunk-size         Read chunksize to split between threads (default is 10000)
+  -s, --chunk-size         Read chunksize to split between threads (default is 64)
 
 Optional parameters with no argument:
 
