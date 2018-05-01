@@ -5,6 +5,7 @@
 * **Build**, **index** and **color** the compacted de Bruijn graph
 * **No need to build the uncompacted** de Bruijn graph
 * **Reads** or **assembled genomes** as input
+* Output **graph in GFA** (can be visualized with [Bandage](https://github.com/rrwick/Bandage))
 * **Graph cleaning**: short tip clipping, etc.
 * **No disk** usage (adapted for cluster architectures)
 * **Multi-threaded** and **SIMD** optimized
