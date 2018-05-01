@@ -12,7 +12,7 @@
 * **No dependency**
 * **C++ API** available:
     * Associate **your data with vertices**
-    * **Add** or **remove** (sub-)sequences or $k$-mers
+    * **Add** or **remove** (sub-)sequences or k-mers
     * **Find unitigs** containing **queried k-mers**
 
 ## Requirements
