@@ -2,7 +2,18 @@
 
 **Highly Parallel and Memory Efficient Construction of a Colored and Compacted de Bruijn Graph**
 
-De Bruijn graphs are the core data structure for a wide number of assemblers and genome analysis software processing High Throughput Sequencing datasets. For pan-genomic analysis, the colored de Bruijn graph is used in order to take advantage of the multiple sequenced genomes available for each species. However, memory consumption of tools based on the de Bruijn graph is often prohibitive, due to the large number of vertices, edges or colors in the graph. In order to process large and complex genomes, most short-read assemblers based on the de Bruijn graph paradigm reduce the assembly complexity and memory usage by compacting first all maximal non-branching paths of the graph into single vertices. Yet, such a compaction is challenging as it requires the uncompacted de Bruijn graph to be available in memory. We present a new parallel and memory efficient algorithm enabling the direct construction of the compacted de Bruijn graph without producing the intermediate uncompacted de Bruijn graph. Our method relies on a space and time efficient data structure, the Bloom filter, enhanced with minimizer hashing to increase cache performance. Despite making extensive use of a probabilistic data structure, our algorithm guarantees that the produced compacted de Bruijn graph is deterministic. In addition, the algorithm is extended with a graph coloring method which efficiently maps each k-mer of the graph to the set of genomes in which it occurs.
+* **Build**, **index** and **color** the compacted de Bruijn graph
+* **No need to build the uncompacted** de Bruijn graph
+* **Reads** or **assembled genomes** as input
+* **Graph cleaning**: short tip clipping, etc.
+* **No disk** usage (adapted for cluster architectures)
+* **Multi-threaded** and **SIMD** optimized
+* **k is the only input parameter**
+* **No dependency**
+* **C++ API** available:
+ * Associate **your data with vertices**
+ * **Add** or **remove** (sub-)sequences or $k$-mers
+ * **Find unitigs** containing **queried $k$-mers**
 
 ## Requirements
 
@@ -13,7 +24,7 @@ De Bruijn graphs are the core data structure for a wide number of assemblers and
 * [Cmake](https://cmake.org/) 2.8.12 or later
 * [Zlib](https://zlib.net/)
 
-All can be downloaded and installed by following the instructions on their respective websites. It is most likely that at least few of them are available via a package manager for your operating system: 
+All can be downloaded and installed by following the instructions on their respective websites. It is most likely all are available via a package manager for your operating system: 
 
 * Ubuntu/Debian:
 ```
