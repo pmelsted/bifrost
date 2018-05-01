@@ -1,6 +1,6 @@
 # Bifrost
 
-#### Highly Parallel and Memory Efficient Construction of a Colored and Compacted de Bruijn Graph
+### Highly Parallel and Memory Efficient Construction of a Colored and Compacted de Bruijn Graph
 
 * **Build**, **index** and **color** the compacted de Bruijn graph
 * **No need to build the uncompacted** de Bruijn graph
