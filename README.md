@@ -109,7 +109,7 @@ Optional parameters with no argument:
 
 Bifrost works in two steps:
 
-1. reads are filtered to remove errors
+1. reads are filtered to remove errors (*k*-mers with occurrence 1)
 2. the compacted de Bruijn graph is built from the filtered reads
 
 If you want to input assembled genomes, use the `-r` parameter and no filtering will be applied, all k-mers of the files will be used to build the graph.
@@ -142,8 +142,6 @@ Colors are used to annotate k-mers with the set of genomes/samples in which they
 <p align="center">
 <img src="pipeline_colored_cdbg.png" alt="pipeline_colors" width="800" align="middle"/>
 </p>
-
-02-02-2018: More color options coming soon
 
 ## API
 
@@ -184,7 +182,7 @@ You can also link to the Bifrost static library (*libbifrost.a*) for better perf
 
 ### With colors (pre-alpha)
 
-As a pre-alpha version, the API might be changing in the future and it might still contain some bugs.
+As a pre-alpha version, the ColoredCDBG API might be unstable and change in the future.
 
 ```
 #include <bifrost/ColoredCDBG.hpp>
