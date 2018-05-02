@@ -3174,9 +3174,16 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>
         }
         else {
 
-            auto worker_v_kmers = [&joins, this](typename vector<pair<Kmer, CompressedCoverage_t<U>>>::const_iterator a,
-                                                 typename vector<pair<Kmer, CompressedCoverage_t<U>>>::const_iterator b,
-                                                 vector<pair<Kmer, Kmer>>* v_out){
+            vector<vector<pair<Kmer, Kmer>>> t_v_out(nb_threads);
+            vector<std::atomic_flag> lcks(nb_threads);
+
+            for (auto& lck : lcks) lck.clear();
+
+            auto worker_v_kmers = [&joins, &lcks, &t_v_out, this](typename vector<pair<Kmer, CompressedCoverage_t<U>>>::const_iterator a,
+                                                                  typename vector<pair<Kmer, CompressedCoverage_t<U>>>::const_iterator b,
+                                                                  const size_t thread_id){
+
+                while (lcks[thread_id].test_and_set(std::memory_order_acquire));
 
                 for (size_t i = a - v_kmers.begin(), end = b - v_kmers.begin(); i != end; ++i) {
 
@@ -3187,14 +3194,32 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>
 
                     const const_UnitigMap<U, G> cm(i, 0, 1, k_, true, false, true, this);
 
-                    if ((joins.find(tail) == joins.end()) && checkJoin(tail, cm, fw)) v_out->push_back(make_pair(fw.twin(), tail));
-                    if ((joins.find(head_twin) == joins.end()) && checkJoin(head_twin, cm, bw)) v_out->push_back(make_pair(bw.twin(), head_twin));
+                    if ((joins.find(tail) == joins.end()) && checkJoin(tail, cm, fw)) t_v_out[thread_id].push_back(make_pair(fw.twin(), tail));
+                    if ((joins.find(head_twin) == joins.end()) && checkJoin(head_twin, cm, bw)) t_v_out[thread_id].push_back(make_pair(bw.twin(), head_twin));
+                }
+
+                lcks[thread_id].clear(std::memory_order_release);
+
+                if (t_v_out[thread_id].size() >= 1000){
+
+                    for (auto& lck : lcks){ //Acquire all the locks for insertion
+
+                        while (lck.test_and_set(std::memory_order_acquire));
+                    }
+
+                    for (const auto& p : t_v_out[thread_id]) joins.insert(p.first, p.second);
+
+                    for (auto& lck : lcks) lck.clear(std::memory_order_release); //Acquire all the locks for insertion
+
+                    t_v_out[thread_id].clear();
                 }
             };
 
-            auto worker_v_unitigs = [&joins, this](typename vector<Unitig<U>*>::const_iterator a,
-                                                   typename vector<Unitig<U>*>::const_iterator b,
-                                                   vector<pair<Kmer, Kmer>>* v_out){
+            auto worker_v_unitigs = [&joins, &lcks, &t_v_out, this](typename vector<Unitig<U>*>::const_iterator a,
+                                                                    typename vector<Unitig<U>*>::const_iterator b,
+                                                                    const size_t thread_id){
+
+                while (lcks[thread_id].test_and_set(std::memory_order_acquire));
 
                 for (size_t i = a - v_unitigs.begin(), end = b - v_unitigs.begin(); i != end; ++i) {
 
@@ -3207,25 +3232,41 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>
 
                     const const_UnitigMap<U, G> cm(i, 0, 1, seq.size(), false, false, true, this);
 
-                    if ((joins.find(tail) == joins.end()) && checkJoin(tail, cm, fw)) v_out->push_back(make_pair(fw.twin(), tail));
-                    if ((joins.find(head_twin) == joins.end()) && checkJoin(head_twin, cm, bw)) v_out->push_back(make_pair(bw.twin(), head_twin));
+                    if ((joins.find(tail) == joins.end()) && checkJoin(tail, cm, fw)) t_v_out[thread_id].push_back(make_pair(fw.twin(), tail));
+                    if ((joins.find(head_twin) == joins.end()) && checkJoin(head_twin, cm, bw)) t_v_out[thread_id].push_back(make_pair(bw.twin(), head_twin));
+                }
+
+                lcks[thread_id].clear(std::memory_order_release);
+
+                if (t_v_out[thread_id].size() >= 1000){
+
+                    for (auto& lck : lcks){ //Acquire all the locks for insertion
+
+                        while (lck.test_and_set(std::memory_order_acquire));
+                    }
+
+                    for (const auto& p : t_v_out[thread_id]) joins.insert(p.first, p.second);
+
+                    for (auto& lck : lcks) lck.clear(std::memory_order_release); //Acquire all the locks for insertion
+
+                    t_v_out[thread_id].clear();
                 }
             };
 
-            auto it_kmer = v_kmers.begin();
-            auto it_kmer_end = v_kmers.end();
-
             {
+
+                auto it_kmer = v_kmers.begin();
+                auto it_kmer_end = v_kmers.end();
+
                 vector<thread> workers; // need to keep track of threads so we can join them
-                vector<vector<pair<Kmer, Kmer>>> t_v_out(nb_threads);
 
-                mutex mutex_joins, mutex_it_km;
+                mutex mutex_it_km;
 
-                for (size_t i = 0; i < nb_threads; ++i){
+                for (size_t t = 0; t < nb_threads; ++t){
 
                     workers.emplace_back(
 
-                        [&, i]{
+                        [&, t]{
 
                             auto l_it_kmer = v_kmers.begin();
                             auto l_it_kmer_end = v_kmers.end();
@@ -3253,37 +3294,35 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>
                                     }
                                 }
 
-                                worker_v_kmers(l_it_kmer, l_it_kmer_end, &t_v_out[i]);
-
-                                {
-                                    unique_lock<mutex> lock(mutex_joins);
-
-                                    for (const auto& p : t_v_out[i]) joins.insert(p.first, p.second);
-                                }
-
-                                t_v_out[i].clear();
+                                worker_v_kmers(l_it_kmer, l_it_kmer_end, t);
                             }
                         }
                     );
                 }
 
                 for (auto& t : workers) t.join();
+
+                for (size_t t = 0; t < nb_threads; ++t){
+
+                    for (const auto& p : t_v_out[t]) joins.insert(p.first, p.second);
+
+                    t_v_out[t].clear();
+                }
             }
 
-            auto it_unitig = v_unitigs.begin();
-            auto it_unitig_end = v_unitigs.end();
-
             {
+                auto it_unitig = v_unitigs.begin();
+                auto it_unitig_end = v_unitigs.end();
+
                 vector<thread> workers; // need to keep track of threads so we can join them
-                vector<vector<pair<Kmer, Kmer>>> t_v_out(nb_threads);
 
-                mutex mutex_joins, mutex_it_unitig;
+                mutex mutex_it_unitig;
 
-                for (size_t i = 0; i < nb_threads; ++i){
+                for (size_t t = 0; t < nb_threads; ++t){
 
                     workers.emplace_back(
 
-                        [&, i]{
+                        [&, t]{
 
                             auto l_it_unitig = v_unitigs.begin();
                             auto l_it_unitig_end = v_unitigs.end();
@@ -3311,21 +3350,20 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>
                                     }
                                 }
 
-                                worker_v_unitigs(l_it_unitig, l_it_unitig_end, &t_v_out[i]);
-
-                                {
-                                    unique_lock<mutex> lock(mutex_joins);
-
-                                    for (const auto& p : t_v_out[i]) joins.insert(p.first, p.second);
-                                }
-
-                                t_v_out[i].clear();
+                                worker_v_unitigs(l_it_unitig, l_it_unitig_end, t);
                             }
                         }
                     );
                 }
 
                 for (auto& t : workers) t.join();
+
+                for (size_t t = 0; t < nb_threads; ++t){
+
+                    for (const auto& p : t_v_out[t]) joins.insert(p.first, p.second);
+
+                    t_v_out[t].clear();
+                }
             }
         }
     }
