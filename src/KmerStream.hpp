@@ -95,6 +95,52 @@ class ReadHasher {
             }
         }
 
+        void operator()(const vector<string>& v) {
+
+            for (const auto& p : v){
+
+                const size_t sl = p.length();
+
+                if (sl >= k){
+
+                    size_t i = 0, j = 0;
+
+                    bool last_valid = false;
+
+                    const char* s = p.c_str();
+
+                    while (j < sl) { // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
+
+                        const char c = s[j] & 0xDF;
+
+                        if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) {
+
+                            if (last_valid) {
+                                // s[i..j-1] was a valid k-mer k-mer, update
+                                hf.update(s[i],s[j]);
+                                ++i;
+                            }
+                            else if (i + k -1 == j) {
+
+                                hf.init(s+i); // start the k-mer at position i
+                                last_valid = true;
+                            }
+
+                            ++j;
+                        }
+                        else { // invalid character, restart
+
+                            ++j;
+                            i = j;
+                            last_valid = false;
+                        }
+
+                        if (last_valid) handle(hf.hash());
+                    }
+                }
+            }
+        }
+
         inline void handle(const uint64_t val) { sc(val); }
 
         inline void setQualityCutoff(const size_t q) {}
@@ -144,16 +190,19 @@ class ReadQualityHasher {
         // operate on hashes
         void operator()(const char* s, const size_t l, const char* q, const size_t ql) {
 
+            if (l < k) return;
+
             size_t i = 0, j = 0;
+
             bool last_valid = false;
 
-            if (l < k) return;
+            const char q_base_cut = (char) (q_base + q_cutoff);
 
             while (j < l) {
                 // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
                 const char c = s[j] & 0xDF;
 
-                if (((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) && (q[j] >= (char) (q_base+q_cutoff))) {
+                if (((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) && (q[j] >= q_base_cut)) {
 
                     if (last_valid) {
                         // s[i..j-1] was a valid k-mer k-mer, update
@@ -176,6 +225,55 @@ class ReadQualityHasher {
                 }
 
                 if (last_valid) handle(hf.hash());
+            }
+        }
+
+        void operator()(const vector<pair<string, string>>& v){
+
+            const char q_base_cut = (char) (q_base + q_cutoff);
+
+            for (const auto& p : v){
+
+                const size_t sl = p.first.length(), ql = p.second.length();
+
+                if ((sl == ql) && (sl >= k)){
+
+                    size_t i = 0, j = 0;
+
+                    bool last_valid = false;
+
+                    const char* s = p.first.c_str();
+                    const char* q = p.second.c_str();
+
+                    while (j < sl) {
+                        // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
+                        const char c = s[j] & 0xDF;
+
+                        if (((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) && (q[j] >= q_base_cut)) {
+
+                            if (last_valid) {
+                                // s[i..j-1] was a valid k-mer k-mer, update
+                                hf.update(s[i],s[j]);
+                                ++i;
+                            }
+                            else if (i + k - 1 == j) {
+
+                                hf.init(s + i); // start the k-mer at position i
+                                last_valid = true;
+                            }
+
+                            ++j; // move along
+                        }
+                        else {
+                            // invalid character, restart
+                            ++j;
+                            i = j;
+                            last_valid = false;
+                        }
+
+                        if (last_valid) handle(hf.hash());
+                    }
+                }
             }
         }
 
@@ -444,7 +542,7 @@ class KmerStream {
                                     stop = reading_function(readvs[t]);
                                 }
 
-                                for (const auto& r : readvs[t]) sps[t](r.first.c_str(), r.first.size(), r.second.c_str(), r.second.size());
+                                sps[t](readvs[t]);
 
                                 readvs[t].clear();
                             }
@@ -572,7 +670,7 @@ class KmerStream {
                                     stop = reading_function(readvs[t]);
                                 }
 
-                                for (const auto& r : readvs[t]) sps[t](r.c_str(), r.size(), nullptr, 0);
+                                sps[t](readvs[t]);
 
                                 readvs[t].clear();
                             }

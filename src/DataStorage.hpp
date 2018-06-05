@@ -60,6 +60,8 @@ class DataStorage {
 
     private:
 
+        size_t getUnitigColorsSize(const size_t nb_threads = 1) const;
+
         uint64_t seeds[256];
 
         size_t nb_seeds;

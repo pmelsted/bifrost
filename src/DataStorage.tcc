@@ -427,12 +427,12 @@ bool DataStorage<U>::joinUnitigColors(const UnitigColorMap<U>& um_dest, const Un
                 color_set_dest = &csd_rev;
             }
 
-            UnitigColors::const_iterator it = color_set_dest->begin(), it_end = color_set_dest->end();
+            UnitigColors::const_iterator it = color_set_dest->begin(um_dest), it_end = color_set_dest->end();
 
             if (it != it_end){
 
-                prev_color_id = it->getColorID(um_dest_km_sz);
-                prev_km_dist = it->getKmerPosition(um_dest_km_sz);
+                prev_km_dist = (*it).first;
+                prev_color_id = (*it).second;
 
                 new_um_dest.dist = prev_km_dist;
                 new_um_dest.len = 1;
@@ -443,8 +443,8 @@ bool DataStorage<U>::joinUnitigColors(const UnitigColorMap<U>& um_dest, const Un
             // Insert colors layer by layer
             for (; it != it_end; ++it){
 
-                const size_t color_id = it->getColorID(um_dest_km_sz);
-                const size_t km_dist = it->getKmerPosition(um_dest_km_sz);
+                const size_t km_dist = (*it).first;
+                const size_t color_id = (*it).second;
 
                 if ((color_id != prev_color_id) || (km_dist != prev_km_dist + 1)){
 
@@ -469,12 +469,12 @@ bool DataStorage<U>::joinUnitigColors(const UnitigColorMap<U>& um_dest, const Un
                 color_set_src = &css_rev;
             }
 
-            it = color_set_src->begin(), it_end = color_set_src->end();
+            it = color_set_src->begin(um_src), it_end = color_set_src->end();
 
             if (it != it_end){
 
-                prev_color_id = it->getColorID(um_src_km_sz);
-                prev_km_dist = it->getKmerPosition(um_src_km_sz);
+                prev_km_dist = (*it).first;
+                prev_color_id = (*it).second;
 
                 new_um_src.dist = prev_km_dist + um_dest.size;
                 new_um_src.len = 1;
@@ -485,8 +485,8 @@ bool DataStorage<U>::joinUnitigColors(const UnitigColorMap<U>& um_dest, const Un
             // Insert colors layer by layer
             for (; it != it_end; ++it){
 
-                const size_t color_id = it->getColorID(um_src_km_sz);
-                const size_t km_dist = it->getKmerPosition(um_src_km_sz);
+                const size_t km_dist = (*it).first;
+                const size_t color_id = (*it).second;
 
                 if ((color_id != prev_color_id) || (km_dist != prev_km_dist + 1)){
 
@@ -528,10 +528,10 @@ UnitigColors DataStorage<U>::getSubUnitigColors(const UnitigColorMap<U>& um) con
 
             UnitigColorMap<U> um_tmp(0, 1, um.len, um.strand);
 
-            for (UnitigColors::const_iterator it = cs->begin(), it_end = cs->end(); it != it_end; ++it){
+            for (UnitigColors::const_iterator it = cs->begin(um), it_end = cs->end(); it != it_end; ++it){
 
-                const size_t color_id = it->getColorID(um_km_sz);
-                const size_t km_dist = it->getKmerPosition(um_km_sz);
+                const size_t km_dist = (*it).first;
+                const size_t color_id = (*it).second;
 
                 if ((km_dist >= um.dist) && (km_dist < end)){
 
@@ -562,10 +562,10 @@ vector<string> DataStorage<U>::getSubUnitigColorNames(const UnitigColorMap<U>& u
             const size_t end = um.dist + um.len;
             const size_t um_km_sz = um.size - um.getCompactedDBG()->getK() + 1;
 
-            for (UnitigColors::const_iterator it = cs->begin(), it_end = cs->end(); it != it_end; ++it){
+            for (UnitigColors::const_iterator it = cs->begin(um), it_end = cs->end(); it != it_end; ++it){
 
-                const size_t color_id = it->getColorID(um_km_sz);
-                const size_t km_dist = it->getKmerPosition(um_km_sz);
+                const size_t km_dist = (*it).first;
+                const size_t color_id = (*it).second;
 
                 if ((km_dist >= um.dist) && (km_dist < end) && (color_id != prev_color_id)){
 
@@ -930,6 +930,40 @@ uint64_t DataStorage<U>::getHash(const UnitigColorMap<U>& um) const {
             if (it != overflow.end()) return *it;
         }
         else return head.hash(seeds[da_id - 1]) % nb_color_sets;
+    }
+
+    return 0;
+}
+
+template<typename U>
+size_t DataStorage<U>::getUnitigColorsSize(const size_t nb_threads) const {
+
+    if (color_sets != nullptr){
+
+        atomic<size_t> sz_in_bytes(0);
+
+        auto worker_function = [&sz_in_bytes, this](const size_t idx_start, const size_t idx_end){
+
+            size_t cpt = 0;
+
+            for (size_t i = idx_start; i < idx_end; ++i) cpt += color_sets[i].getSizeInBytes();
+
+            sz_in_bytes += cpt;
+        };
+
+        vector<thread> workers;
+
+        const size_t load_per_thread = nb_color_sets / nb_threads;
+
+        size_t t = 0;
+
+        for (; t < (nb_threads - 1) * load_per_thread; t += load_per_thread) workers.emplace_back(worker_function, t, t + load_per_thread);
+
+        workers.emplace_back(worker_function, t, nb_color_sets);
+
+        for (auto& t : workers) t.join();
+
+        return sz_in_bytes;
     }
 
     return 0;

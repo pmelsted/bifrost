@@ -177,7 +177,7 @@ void ColoredCDBG<U>::initColorSets(const CCDBG_Build_opt& opt, const size_t max_
         for (auto& t : workers) t.join();
     }
 
-    cout << "Number of unitigs not hashed is " << ds->overflow.size() << " on " << ds->nb_color_sets << " unitigs." << endl;
+    //cout << "Number of unitigs not hashed is " << ds->overflow.size() << " on " << ds->nb_color_sets << " unitigs." << endl;
 }
 
 template<typename U>
@@ -311,6 +311,9 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
 
         mutex mutex_file;
 
+        size_t prev_uc_sz = getCurrentRSS();
+        size_t last_file_id_color_comp = 0;
+
         while (next_file){
 
             stop = false;
@@ -344,6 +347,58 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
             workers.clear();
 
             for (size_t t = 0; t < nb_threads; ++t) reads_colors[t].clear();
+
+            const size_t curr_uc_sz = getCurrentRSS();
+
+            if ((curr_uc_sz - prev_uc_sz) >= 1073741824ULL){
+
+                const size_t chunk = 1000;
+
+                typename ColoredCDBG<U>::iterator g_a = this->begin();
+                typename ColoredCDBG<U>::iterator g_b = this->end();
+
+                mutex mutex_it;
+
+                for (size_t t = 0; t < nb_threads; ++t){
+
+                    workers.emplace_back(
+
+                        [&, t]{
+
+                            typename ColoredCDBG<U>::iterator l_a, l_b;
+
+                            while (true) {
+
+                                {
+                                    unique_lock<mutex> lock(mutex_it);
+
+                                    if (g_a == g_b) return;
+
+                                    l_a = g_a;
+                                    l_b = g_a;
+
+                                    for (size_t cpt = 0; (cpt < chunk) && (l_b != g_b); ++cpt, ++l_b){}
+
+                                    g_a = l_b;
+                                }
+
+                                while (l_a != l_b){
+
+                                    l_a->getData()->getUnitigColors(*l_a)->optimizeFullColors(*l_a, last_file_id_color_comp);
+                                    ++l_a;
+                                }
+                            }
+                        }
+                    );
+                }
+
+                for (auto& t : workers) t.join();
+
+                workers.clear();
+
+                prev_uc_sz = getCurrentRSS();
+                last_file_id_color_comp = prev_file_id;
+            }
         }
     }
 

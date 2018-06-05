@@ -9,8 +9,7 @@
 * **Graph cleaning**: short tip clipping, etc.
 * **No disk** usage (adapted for cluster architectures)
 * **Multi-threaded** and **SIMD** optimized
-* **k is the only input parameter**
-* **No dependency**
+* **No parameters to estimate** with other tools
 * **C++ API** available:
     * Associate **your data with vertices**
     * **Add** or **remove** (sub-)sequences or k-mers
@@ -24,17 +23,18 @@
     * [Clang](http://clang.llvm.org/) 3.5 or later
 * [Cmake](https://cmake.org/) 2.8.12 or later
 * [Zlib](https://zlib.net/)
+* [Jemalloc](https://github.com/jemalloc/jemalloc)
 
-All can be downloaded and installed by following the instructions on their respective websites. It is most likely all are available via a package manager for your operating system: 
+GCC/Clang, Cmake and Zlib are probably already installed on your computer (those are installed by default on most operating systems) but you probably need to install Jemalloc. All can be downloaded and installed by following the instructions on their respective websites. It is most likely all are available via a package manager for your operating system: 
 
 * Ubuntu/Debian:
 ```
-sudo apt-get install build-essential cmake zlib1g
+sudo apt-get install build-essential cmake zlib1g libjemalloc1 libjemalloc-dev
 ```
 * MacOS (with [Homebrew](https://brew.sh/)):
 ```
 brew install --with-toolchain llvm
-brew install cmake zlib
+brew install cmake zlib jemalloc
 ```
 
 ## Compilation and Installation
@@ -55,7 +55,10 @@ By default, the installation creates:
 * a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS)
 * a static library (*libbifrost.a*).
 
-Make sure that your environment variables (such as *LD_LIBRARY_PATH*) are set correctly. A typical example of environment variables not set correctly is when *libbifrost.so* or *libbifrost.a* cannot be found when executing the binary of Bifrost.
+Make sure that your environment variables (such as *LD_LIBRARY_PATH*) are set correctly. A typical example of environment variables not set correctly is when *libbifrost.so* or *libbifrost.a* cannot be found when executing the binary of Bifrost. In this case, assuming that *libbifrost.so* is located at the path */usr/local/lib/*, the following command should set the environment variable *LD_LIBRARY_PATH* correctly for the time of the session:
+```
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
+```
 
 The default maximum *k*-mer size supported is 31. To work with larger *k*, you must replace *MAX_KMER_SIZE* in *CMakeLists.txt* with a larger (appropriate) number, such as:
 ```

@@ -19,7 +19,7 @@
 #include <atomic>
 #include <mutex>
 
-//#include <jemalloc/jemalloc.h>
+#include <jemalloc/jemalloc.h>
 
 #include "BlockedBloomFilter.hpp"
 #include "Common.hpp"

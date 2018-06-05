@@ -174,7 +174,7 @@ void DataAccessor<U>::sub(DataAccessor<U>* data_dest, const UnitigColorMap<U>& u
     DataStorage<U>* ds = um_src.getCompactedDBG()->getData();
     UnitigColors cs = ds->getSubUnitigColors(um_src);
 
-    if (cs.size() != 0){
+    if (cs.size(um_src) != 0){
 
         const Kmer km = um_src.getMappedHead();
 
@@ -201,7 +201,7 @@ inline void DataAccessor<void>::sub(DataAccessor<void>* data_dest, const UnitigC
     DataStorage<void>* ds = um_src.getCompactedDBG()->getData();
     UnitigColors cs = ds->getSubUnitigColors(um_src);
 
-    if (cs.size() != 0){
+    if (cs.size(um_src) != 0){
 
         const Kmer km = um_src.getMappedHead();
 

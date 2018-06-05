@@ -6,6 +6,7 @@
 #include <cstring>
 #include <iostream>
 #include <stdint.h>
+#include <stdlib.h>
 #include <vector>
 
 /* TinyBitmap is a compressed bitmap that mimics the behavior of a CRoaring container.
@@ -39,7 +40,7 @@ class TinyBitmap {
 
                 if (invalid || o.invalid) return invalid && o.invalid;
 
-                return  (t_bmp == o.t_bmp) && (sz == o.sz) && (mode == o.mode) && (card == o.card) &&
+                return  (tiny_bmp == o.tiny_bmp) && (sz == o.sz) && (mode == o.mode) && (card == o.card) &&
                         (i == o.i) && (j == o.j) && (e == o.e) && (offset == o.offset) && (val == o.val);
             }
 
@@ -65,7 +66,7 @@ class TinyBitmap {
 
             bool invalid;
 
-            const TinyBitmap* t_bmp;
+            const uint16_t* tiny_bmp;
     };
 
     friend class TinyBitmapIterator;
@@ -77,17 +78,21 @@ class TinyBitmap {
         TinyBitmap();
         TinyBitmap(const TinyBitmap& o);
         TinyBitmap(TinyBitmap&& o);
+        TinyBitmap(uint16_t** o_ptr);
 
         ~TinyBitmap();
 
         TinyBitmap& operator=(const TinyBitmap& o);
         TinyBitmap& operator=(TinyBitmap&& o);
+        TinyBitmap& operator=(uint16_t** o_ptr);
 
         void empty();
 
         bool add(const uint32_t val);
         bool remove(const uint32_t val);
+
         bool contains(const uint32_t val) const;
+        bool containsRange(const uint32_t val_start, const uint32_t val_end) const;
 
         uint32_t maximum() const;
 
@@ -105,6 +110,14 @@ class TinyBitmap {
         const_iterator end() const;
 
         static bool test(const bool verbose = true);
+
+        inline uint16_t* detach() {
+
+            uint16_t* ret = tiny_bmp;
+            tiny_bmp = nullptr;
+
+            return ret;
+        }
 
     private:
 
@@ -127,6 +140,18 @@ class TinyBitmap {
             while (sizes[idx] < sz) ++idx;
 
             return sizes[idx];
+        }
+
+        static inline uint16_t rndup(uint16_t v) {
+
+            v--;
+            v |= v >> 1;
+            v |= v >> 2;
+            v |= v >> 4;
+            v |= v >> 8;
+            v++;
+
+            return v;
         }
 
         static const uint16_t sz_mask;

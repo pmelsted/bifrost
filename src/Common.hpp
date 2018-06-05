@@ -94,6 +94,18 @@ inline uint32_t rndup(uint32_t v) {
     return v;
 }
 
+inline uint16_t rndup(uint16_t v) {
+
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v++;
+
+    return v;
+}
+
 template<typename T> class wrapperData {
 
     public:

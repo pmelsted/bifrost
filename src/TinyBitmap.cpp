@@ -8,7 +8,13 @@ TinyBitmap::TinyBitmap(const TinyBitmap& o) : tiny_bmp(nullptr) {
 
         const uint16_t sz = o.getSize();
 
-        tiny_bmp = new uint16_t[sz];
+        const int aligned_alloc = posix_memalign(reinterpret_cast<void**>(&tiny_bmp), 8, sz * sizeof(uint16_t));
+
+        if (aligned_alloc != 0){
+
+            cerr << "TinyBitmap::TinyBitmap(): Aligned memory could not be allocated with error " << aligned_alloc << endl;
+            exit(1);
+        }
 
         std::copy(o.tiny_bmp, o.tiny_bmp + sz, tiny_bmp);
     }
@@ -18,6 +24,11 @@ TinyBitmap::TinyBitmap(TinyBitmap&& o) {
 
     tiny_bmp = o.tiny_bmp;
     o.tiny_bmp = nullptr;
+}
+
+TinyBitmap::TinyBitmap(uint16_t** o_ptr) : tiny_bmp(*o_ptr) {
+
+    *o_ptr = nullptr;
 }
 
 TinyBitmap& TinyBitmap::operator=(const TinyBitmap& o) {
@@ -30,7 +41,13 @@ TinyBitmap& TinyBitmap::operator=(const TinyBitmap& o) {
 
             const uint16_t sz = o.getSize();
 
-            tiny_bmp = new uint16_t[sz];
+            const int aligned_alloc = posix_memalign(reinterpret_cast<void**>(&tiny_bmp), 8, sz * sizeof(uint16_t));
+
+            if (aligned_alloc != 0){
+
+                cerr << "TinyBitmap::operator=(): Aligned memory could not be allocated with error " << aligned_alloc << endl;
+                exit(1);
+            }
 
             std::copy(o.tiny_bmp, o.tiny_bmp + sz, tiny_bmp);
         }
@@ -43,9 +60,21 @@ TinyBitmap& TinyBitmap::operator=(TinyBitmap&& o) {
 
     if (this != &o){
 
+        empty();
+
         tiny_bmp = o.tiny_bmp;
         o.tiny_bmp = nullptr;
     }
+
+    return *this;
+}
+
+TinyBitmap& TinyBitmap::operator=(uint16_t** o_ptr) {
+
+    empty();
+
+    tiny_bmp = *o_ptr;
+    *o_ptr = nullptr;
 
     return *this;
 }
@@ -56,21 +85,28 @@ void TinyBitmap::empty() {
 
     if (tiny_bmp != nullptr){
 
-        delete[] tiny_bmp;
+        free(tiny_bmp);
         tiny_bmp = nullptr;
     }
 }
 
 bool TinyBitmap::add(const uint32_t val){
 
-    //cout << "TinyBitmap::add(" << val << ")" << endl;
-
     const uint16_t val_div = val >> 16;
     const uint16_t val_mod = val & 0xFFFF;
 
     if (tiny_bmp == nullptr){
 
-        tiny_bmp = new uint16_t[sizes[0]](); // Size = 8, offset = 0; bmp_mode
+        const int aligned_alloc = posix_memalign(reinterpret_cast<void**>(&tiny_bmp), 8, sizes[0] * sizeof(uint16_t));
+
+        if (aligned_alloc != 0){
+
+            cerr << "TinyBitmap::add(): Aligned memory could not be allocated with error " << aligned_alloc << endl;
+            exit(1);
+        }
+
+        std::memset(tiny_bmp, 0, sizes[0] * sizeof(uint16_t));
+
         tiny_bmp[0] = (sizes[0] << 3) | bmp_mode | bits_16;
         tiny_bmp[2] = val_div;
     }
@@ -81,40 +117,30 @@ bool TinyBitmap::add(const uint32_t val){
     uint16_t mode = getMode();
     uint16_t cardinality = getCardinality();
 
-    //print();
-
     // Compute if inserting new value triggers an increase of the container size
     if (((mode == bmp_mode) && (val_mod >= ((sz - 3) << 4))) || ((mode != bmp_mode) && (cardinality >= (sz - 3 - (mode == rle_list_mode))))){
 
         // Means that in its current mode, container size must be increased to add a value
         // We need to compute if which mode has the smaller container size
 
-        bool inc = true;
-
         if ((mode != bmp_mode) && contains(val)) return true;
 
-        if (runOptimize() != 0){
+        runOptimize();
 
-            sz = getSize();
-            mode = getMode();
-            cardinality = getCardinality();
+        sz = getSize();
+        mode = getMode();
+        cardinality = getCardinality();
 
-            if (cardinality <= (sz - 5)) inc = false;
-        }
-
-        if (inc){
+        if ((mode != rle_list_mode) || (cardinality > (sz - 5))){
 
             const uint16_t nb_uint_bmp = getNextSize((std::max(val_mod, static_cast<const uint16_t>(maximum() & 0xFFFF)) >> 4) + 4);
 
             bool res;
 
-            //cout << "TinyBitmap::add(): max_val_mod = " << max_val_mod << endl;
-            //cout << "TinyBitmap::add(): nb_uint_bmp = " << nb_uint_bmp << endl;
-
             if (mode == rle_list_mode){
 
                 const uint16_t nb_val = size();
-                const uint16_t nb_val_rle_list = getNextSize(sz + 1);
+                const uint16_t nb_val_rle_list = getNextSize(getNextSize(sz) + 1);
                 const uint16_t nb_val_list = getNextSize(nb_val + 4);
                 const uint16_t nb_val_min = (nb_val > (0xFFFF - 48)) ? 0xFFFF : std::min(nb_val_rle_list, std::min(nb_val_list, nb_uint_bmp));
 
@@ -216,15 +242,22 @@ bool TinyBitmap::add(const uint32_t val){
             else imax = imid;
         }
 
-        //cout << "TinyBitmap::add(): tiny_bmp[imin] = " << tiny_bmp[imin] << endl;
-        //cout << "TinyBitmap::add(): tiny_bmp[imin+1] = " << tiny_bmp[imin+1] << endl;
-        //cout << "TinyBitmap::add(): val_mod = " << val_mod << endl;
-
         if ((val_mod < tiny_bmp[imin]) || (val_mod > tiny_bmp[imin + 1])){
 
             if (val_mod > tiny_bmp[imin + 1]){
 
-                if (val_mod == (tiny_bmp[imin + 1] + 1)) ++tiny_bmp[imin + 1];
+                const bool before_end = imin < (cardinality + 1);
+
+                if (val_mod == (tiny_bmp[imin + 1] + 1)){ // The run can be extended after its end
+
+                    if (before_end && (tiny_bmp[imin + 2] == val_mod + 1)){
+                        // The inserted value merges the gap between the current and next run, both runs can be merged
+                        std::memmove(&tiny_bmp[imin + 1], &tiny_bmp[imin + 3], (cardinality - imin) * sizeof(uint16_t)); // Shift values
+                        tiny_bmp[1] -= 2;
+                    }
+                    else ++tiny_bmp[imin + 1]; // Just extend the end of the run
+                }
+                else if (before_end && (val_mod == (tiny_bmp[imin + 2] - 1))) --tiny_bmp[imin + 2];
                 else {
 
                     std::memmove(&tiny_bmp[imin + 4], &tiny_bmp[imin + 2], (cardinality + 1 - imin) * sizeof(uint16_t)); // Shift values
@@ -234,7 +267,17 @@ bool TinyBitmap::add(const uint32_t val){
                     tiny_bmp[1] += 2; // Increase cardinality
                 }
             }
-            else if (val_mod == (tiny_bmp[imin] - 1)) --tiny_bmp[imin];
+            // val_mod < tiny_bmp[imin]
+            else if (val_mod == (tiny_bmp[imin] - 1)){
+
+                if ((imin > 3) && (tiny_bmp[imin - 1] == val_mod - 1)){
+                    // The inserted value merges the gap between the current and previous run, both runs can be merged
+                    std::memmove(&tiny_bmp[imin - 1], &tiny_bmp[imin + 1], (cardinality + 2 - imin) * sizeof(uint16_t)); // Shift values
+                    tiny_bmp[1] -= 2;
+                }
+                else --tiny_bmp[imin]; // Just extend the beginning of the run
+            }
+            else if ((imin > 3) && (val_mod == (tiny_bmp[imin - 1] + 1))) ++tiny_bmp[imin - 1];
             else {
 
                 std::memmove(&tiny_bmp[imin + 2], &tiny_bmp[imin], (cardinality + 3 - imin) * sizeof(uint16_t)); // Shift values
@@ -311,6 +354,100 @@ bool TinyBitmap::contains(const uint32_t val) const {
     return false;
 }
 
+bool TinyBitmap::containsRange(const uint32_t val_start, const uint32_t val_end) const {
+
+    // If not allocated or cardinality is 0, val is not present
+    if ((tiny_bmp == nullptr) || (val_end < val_start)) return false;
+    if (val_start == val_end) return contains(val_start);
+
+    const uint16_t offset = getOffset();
+    const uint16_t cardinality = getCardinality();
+
+    if ((cardinality == 0) || ((val_start >> 16) != offset) || ((val_end >> 16) != offset)) return false;
+
+    const uint16_t mode = getMode();
+
+    uint16_t val_start_mod = val_start & 0xFFFF;
+    const uint16_t val_end_mod = val_end & 0xFFFF;
+
+    // Bitmap mode
+    if (mode == bmp_mode){
+
+        if (val_end_mod < ((getSize() - 3) << 4)){ // If size of container is big enough to contain the values
+
+            if ((val_start_mod >> 4) == (val_end_mod >> 4)){ // If start value is on same slot as end value
+
+                const uint16_t mask = ((1 << (val_end_mod & 0xF)) - 1) - ((1 << (val_start_mod & 0xF)) - 1);
+
+                return ((tiny_bmp[(val_start_mod >> 4) + 3] & mask) == mask);
+            }
+            else {
+
+                const uint16_t mask_start = ~((1 << (val_start_mod & 0xF)) - 1);
+
+                if ((tiny_bmp[(val_start_mod >> 4) + 3] & mask_start) != mask_start) return false;
+
+                const uint16_t mask_end = ((1 << (val_end_mod & 0xF)) << 1) - 1;
+
+                if ((tiny_bmp[(val_end_mod >> 4) + 3] & mask_end) != mask_end) return false;
+
+                for (size_t i = (val_start_mod >> 4) + 4; i != (val_end_mod >> 4) + 3; ++i){
+
+                    if (tiny_bmp[i] != 0xFFFF) return false;
+                }
+
+                return true;
+            }
+        }
+    }
+    else if (mode == list_mode) {
+
+        uint16_t imid;
+
+        uint16_t imin = 3;
+        uint16_t imax = cardinality + 2;
+
+        while (imin < imax){
+
+            imid = (imin + imax) >> 1;
+
+            if (tiny_bmp[imid] < val_start_mod) imin = imid + 1;
+            else imax = imid;
+        }
+
+        if ((cardinality + 3 - imin) >= (val_end_mod - val_start_mod + 1)) {
+
+            while ((val_start_mod <= val_end_mod) && (imin < cardinality + 3) && (tiny_bmp[imin] == val_start_mod)){
+
+                ++imin;
+                ++val_start_mod;
+            }
+        }
+
+        return (val_start_mod > val_end_mod);
+    }
+    else {
+
+        uint16_t imid;
+
+        uint16_t imin = 3;
+        uint16_t imax = cardinality + 1;
+
+        while (imin < imax){
+
+            imid = (imin + imax) >> 1;
+            imid -= ((imid & 0x1) == 0);
+
+            if (tiny_bmp[imid + 1] < val_start_mod) imin = imid + 2;
+            else imax = imid;
+        }
+
+        return ((val_start_mod >= tiny_bmp[imin]) && (val_end_mod <= tiny_bmp[imin + 1]));
+    }
+
+    return false;
+}
+
 bool TinyBitmap::remove(const uint32_t val){
 
     // If not allocated or cardinality is 0, val is not present
@@ -379,14 +516,14 @@ bool TinyBitmap::remove(const uint32_t val){
 
             if ((val_mod == tiny_bmp[imin]) && (val_mod == tiny_bmp[imin + 1])){ // The run is the value to delete
 
-                std::memmove(&tiny_bmp[imin], &tiny_bmp[imin + 2], (cardinality + 3 - imin) * sizeof(uint16_t)); // Shift values
+                std::memmove(&tiny_bmp[imin], &tiny_bmp[imin + 2], (cardinality + 1 - imin) * sizeof(uint16_t)); // Shift values
                 tiny_bmp[1] -= 2;
             }
             else if (val_mod == tiny_bmp[imin]) ++tiny_bmp[imin];
             else if (val_mod == tiny_bmp[imin + 1]) --tiny_bmp[imin + 1];
-            else if ((cardinality + 2) <= getSize()){ // There is enough space to insert a new run
+            else if ((cardinality + 5) <= getSize()){ // There is enough space to insert a new run
 
-                std::memmove(&tiny_bmp[imin + 3], &tiny_bmp[imin + 1], (cardinality + 1 - imin) * sizeof(uint16_t)); // Shift values
+                std::memmove(&tiny_bmp[imin + 3], &tiny_bmp[imin + 1], (cardinality + 2 - imin) * sizeof(uint16_t)); // Shift values
 
                 tiny_bmp[imin + 1] = val_mod - 1; // Insert start run
                 tiny_bmp[imin + 2] = val_mod + 1; // Insert start run
@@ -513,16 +650,24 @@ size_t TinyBitmap::runOptimize() {
                 const uint16_t new_cardinality = nb_run << 1;
                 const uint16_t new_sz = getNextSize(new_cardinality + 3);
 
-                //cout << "TinyBitmap::runOptimize(): new_cardinality = " << new_cardinality << endl;
-
-                if ((new_sz < sz) && (new_sz <= sizes[nb_sizes - 1])){
+                if ((new_cardinality < cardinality)/*(new_sz < sz)*/ && (new_sz <= sizes[nb_sizes - 1])){
 
                     cardinality_cpy = cardinality;
                     prev_val_pres = 0xFFFF;
 
                     uint16_t k = 2;
 
-                    uint16_t* tiny_bmp_new = new uint16_t[new_sz]();
+                    uint16_t* tiny_bmp_new = nullptr;
+
+                    const int aligned_alloc = posix_memalign(reinterpret_cast<void**>(&tiny_bmp_new), 8, new_sz * sizeof(uint16_t));
+
+                    if (aligned_alloc != 0){
+
+                        cerr << "TinyBitmap::runOptimize(): Aligned memory could not be allocated with error " << aligned_alloc << endl;
+                        exit(1);
+                    }
+
+                    std::memset(tiny_bmp_new, 0, new_sz * sizeof(uint16_t));
 
                     for (uint16_t i = 3; (i != sz) && (cardinality_cpy != 0); ++i){
 
@@ -547,7 +692,8 @@ size_t TinyBitmap::runOptimize() {
                     tiny_bmp_new[1] = new_cardinality;
                     tiny_bmp_new[2] = getOffset();
 
-                    delete[] tiny_bmp;
+                    free(tiny_bmp);
+
                     tiny_bmp = tiny_bmp_new;
 
                     return sz - new_sz;
@@ -562,11 +708,21 @@ size_t TinyBitmap::runOptimize() {
                 const uint16_t new_cardinality = nb_run << 1;
                 const uint16_t new_sz = getNextSize(new_cardinality + 3);
 
-                if ((new_sz < sz) && (new_sz <= sizes[nb_sizes - 1])){
+                if ((new_cardinality < cardinality)/*(new_sz < sz)*/ && (new_sz <= sizes[nb_sizes - 1])){
 
                     uint16_t k = 4;
 
-                    uint16_t* tiny_bmp_new = new uint16_t[new_sz]();
+                    uint16_t* tiny_bmp_new = nullptr;
+
+                    const int aligned_alloc = posix_memalign(reinterpret_cast<void**>(&tiny_bmp_new), 8, new_sz * sizeof(uint16_t));
+
+                    if (aligned_alloc != 0){
+
+                        cerr << "TinyBitmap::runOptimize(): Aligned memory could not be allocated with error " << aligned_alloc << endl;
+                        exit(1);
+                    }
+
+                    std::memset(tiny_bmp_new, 0, new_sz * sizeof(uint16_t));
 
                     tiny_bmp_new[0] = (new_sz << 3) | rle_list_mode | bits_16;
                     tiny_bmp_new[1] = new_cardinality;
@@ -584,7 +740,8 @@ size_t TinyBitmap::runOptimize() {
 
                     tiny_bmp_new[k] = tiny_bmp[cardinality + 2];
 
-                    delete[] tiny_bmp;
+                    free(tiny_bmp);
+
                     tiny_bmp = tiny_bmp_new;
 
                     return sz - new_sz;
@@ -608,11 +765,19 @@ size_t TinyBitmap::shrinkSize() {
     if (mode == bmp_mode) new_sz = (static_cast<const uint16_t>(maximum() & 0xFFFF) >> 4) + 4;
     else new_sz = getCardinality() + 3;
 
-    uint16_t* new_t_bmp = new uint16_t[new_sz];
+    uint16_t* new_t_bmp = nullptr;
+
+    const int aligned_alloc = posix_memalign(reinterpret_cast<void**>(&new_t_bmp), 8, new_sz * sizeof(uint16_t));
+
+    if (aligned_alloc != 0){
+
+        cerr << "TinyBitmap::shrinkSize(): Aligned memory could not be allocated with error " << aligned_alloc << endl;
+        exit(1);
+    }
 
     std::copy(tiny_bmp, tiny_bmp + new_sz, new_t_bmp);
 
-    delete[] tiny_bmp;
+    free(tiny_bmp);
     tiny_bmp = new_t_bmp;
 
     tiny_bmp[0] = (tiny_bmp[0] & ~sz_mask) | (new_sz << 3);
@@ -664,7 +829,13 @@ bool TinyBitmap::read(istream& stream_in) {
 
         if (sz != 0){
 
-            tiny_bmp = new uint16_t[sz];
+            const int aligned_alloc = posix_memalign(reinterpret_cast<void**>(&tiny_bmp), 8, sz * sizeof(uint16_t));
+
+            if (aligned_alloc != 0){
+
+                cerr << "TinyBitmap::read(): Aligned memory could not be allocated with error " << aligned_alloc << endl;
+                exit(1);
+            }
 
             ret = stream_in.read(reinterpret_cast<char*>(&tiny_bmp), sz * sizeof(uint16_t)).fail();
         }
@@ -708,17 +879,37 @@ bool TinyBitmap::change_sz(const uint16_t sz_min) {
 
     if (is_allocated){
 
-        uint16_t* tiny_bmp_new = new uint16_t[new_sz]();
+        uint16_t* tiny_bmp_new = nullptr;
+
+        const int aligned_alloc = posix_memalign(reinterpret_cast<void**>(&tiny_bmp_new), 8, new_sz * sizeof(uint16_t));
+
+        if (aligned_alloc != 0){
+
+            cerr << "TinyBitmap::change_sz(): Aligned memory could not be allocated with error " << aligned_alloc << endl;
+            exit(1);
+        }
+
+        std::memset(tiny_bmp_new, 0, new_sz * sizeof(uint16_t));
 
         std::copy(tiny_bmp, tiny_bmp + (new_sz >= sz ? sz : sz_min), tiny_bmp_new);
-        delete[] tiny_bmp;
+
+        free(tiny_bmp);
 
         tiny_bmp = tiny_bmp_new;
         tiny_bmp[0] = (tiny_bmp[0] & ~sz_mask) | (new_sz << 3);
     }
     else {
 
-        tiny_bmp = new uint16_t[new_sz]();
+        const int aligned_alloc = posix_memalign(reinterpret_cast<void**>(&tiny_bmp), 8, new_sz * sizeof(uint16_t));
+
+        if (aligned_alloc != 0){
+
+            cerr << "TinyBitmap::change_sz(): Aligned memory could not be allocated with error " << aligned_alloc << endl;
+            exit(1);
+        }
+
+        std::memset(tiny_bmp, 0, new_sz * sizeof(uint16_t));
+
         tiny_bmp[0] = bmp_mode | (new_sz << 3);
     }
 
@@ -825,7 +1016,7 @@ bool TinyBitmap::switch_mode(const uint16_t sz_min, const uint16_t new_mode) {
         }
     }
 
-    if (tiny_bmp_new != nullptr) delete[] tiny_bmp_new;
+    if (tiny_bmp_new != nullptr) free(tiny_bmp_new);
 
     return true;
 }
@@ -846,6 +1037,35 @@ bool TinyBitmap::test(const bool verbose) {
 
     TinyBitmap t_bmp;
 
+    auto check_cardinality = [&](){
+
+        if ((t_bmp.tiny_bmp != nullptr) && (t_bmp.getMode() != bmp_mode) && (t_bmp.getCardinality() + 3 > t_bmp.getSize())){
+
+            cout << "TinyBitmap::test(): cardinality (" << t_bmp.getCardinality() << ") + 3 > sz (" << t_bmp.getSize() << ")" << endl;
+            t_bmp.print();
+            exit(1);
+        }
+    };
+
+    auto check_sorting = [&](){
+
+        if ((t_bmp.tiny_bmp != nullptr) && (t_bmp.getMode() != bmp_mode)){
+
+            for (size_t i = 4; i < t_bmp.getCardinality() + 3; ++i){
+
+                if (t_bmp.tiny_bmp[i] < t_bmp.tiny_bmp[i-1]){
+
+                    cout << "TinyBitmap::test(): Not sorted " << endl;
+
+                    t_bmp.print();
+                    exit(1);
+                }
+            }
+        }
+    };
+
+    const size_t nb_rounds = 10;
+
     if (verbose) cout << "TinyBitmap::test(): Adding values in sequential order from 0 to 65536-49" << endl;
 
     for (uint32_t i = 0; i != 65536-48; ++i){
@@ -855,6 +1075,9 @@ bool TinyBitmap::test(const bool verbose) {
             if (verbose) cerr << "TinyBitmap::test(): Error while adding values" << endl;
             return false;
         }
+
+        check_cardinality();
+        check_sorting();
     }
 
     if (verbose) cout << "TinyBitmap::test(): Iterating over the values" << endl;
@@ -867,6 +1090,9 @@ bool TinyBitmap::test(const bool verbose) {
 
         t_bmp.remove(i);
 
+        check_cardinality();
+        check_sorting();
+
         if (t_bmp.contains(i)){
 
             if (verbose) cerr << "TinyBitmap::test(): Error while removing values" << endl;
@@ -876,7 +1102,7 @@ bool TinyBitmap::test(const bool verbose) {
 
     t_bmp.empty();
 
-    for (size_t j = 0; j < 100; ++j){
+    for (size_t j = 0; j < nb_rounds; ++j){
 
         if (verbose) cout << "TinyBitmap::test(): Adding values in random order from 0 to 65536-49 (round " << j << ")" << endl;
 
@@ -893,6 +1119,9 @@ bool TinyBitmap::test(const bool verbose) {
                 if (verbose) cerr << "TinyBitmap::test(): Error while adding values" << endl;
                 return false;
             }
+
+            check_cardinality();
+            check_sorting();
         }
 
         if (verbose) cout << "TinyBitmap::test(): Iterating over the values" << endl;
@@ -906,6 +1135,9 @@ bool TinyBitmap::test(const bool verbose) {
         for (const auto val : val_added){
 
             t_bmp.remove(val);
+
+            check_cardinality();
+            check_sorting();
 
             if (t_bmp.contains(val)){
 
@@ -926,6 +1158,9 @@ bool TinyBitmap::test(const bool verbose) {
             if (verbose) cerr << "TinyBitmap::test(): Error while adding values" << endl;
             return false;
         }
+
+        check_cardinality();
+        check_sorting();
     }
 
     if (verbose) cout << "TinyBitmap::test(): Iterating over the values" << endl;
@@ -937,6 +1172,9 @@ bool TinyBitmap::test(const bool verbose) {
     for (uint32_t i = 65536; i != 65536 + 4096 - 3; ++i){
 
         t_bmp.remove(i);
+
+        check_cardinality();
+        check_sorting();
 
         if (t_bmp.contains(i)){
 
@@ -956,6 +1194,9 @@ bool TinyBitmap::test(const bool verbose) {
             if (verbose) cerr << "TinyBitmap::test(): Error while adding values" << endl;
             return false;
         }
+
+        check_cardinality();
+        check_sorting();
     }
 
     if (verbose) cout << "TinyBitmap::test(): Iterating over the values" << endl;
@@ -968,6 +1209,9 @@ bool TinyBitmap::test(const bool verbose) {
 
         t_bmp.remove(i);
 
+        check_cardinality();
+        check_sorting();
+
         if (t_bmp.contains(i)){
 
             if (verbose) cerr << "TinyBitmap::test(): Error while removing values" << endl;
@@ -977,7 +1221,7 @@ bool TinyBitmap::test(const bool verbose) {
 
     t_bmp.empty();
 
-    for (size_t j = 0; j < 100; ++j){
+    for (size_t j = 0; j < nb_rounds; ++j){
 
         if (verbose) cout << "TinyBitmap::test(): Adding values in random order (round " << j << ")" << endl;
 
@@ -994,6 +1238,9 @@ bool TinyBitmap::test(const bool verbose) {
                 if (verbose) cerr << "TinyBitmap::test(): Error while adding values" << endl;
                 return false;
             }
+
+            check_cardinality();
+            check_sorting();
         }
 
         if (verbose) cout << "TinyBitmap::test(): Iterating over the values" << endl;
@@ -1007,6 +1254,9 @@ bool TinyBitmap::test(const bool verbose) {
         for (const auto val : val_added){
 
             t_bmp.remove(val);
+
+            check_cardinality();
+            check_sorting();
 
             if (t_bmp.contains(val)){
 
@@ -1022,18 +1272,19 @@ bool TinyBitmap::test(const bool verbose) {
 }
 
 TinyBitmap::TinyBitmapIterator::TinyBitmapIterator() :  sz(0), mode(0), card(0), offset(0), i(0xFFFF), j(0xFFFF), e(0xFFFF),
-                                                        val(0xFFFFFFFF), invalid(true), t_bmp(nullptr) {}
+                                                        val(0xFFFFFFFF), invalid(true), tiny_bmp(nullptr) {}
 
-TinyBitmap::TinyBitmapIterator::TinyBitmapIterator(const TinyBitmap& t_bmp_, const bool start) :    sz(0), mode(0), card(0), offset(0), i(0xFFFF), j(0xFFFF),
-                                                                                                    e(0xFFFF), val(0xFFFFFFFF), invalid(true), t_bmp(&t_bmp_) {
+TinyBitmap::TinyBitmapIterator::TinyBitmapIterator(const TinyBitmap& t_bmp, const bool start) :    sz(0), mode(0), card(0), offset(0), i(0xFFFF), j(0xFFFF),
+                                                                                                    e(0xFFFF), val(0xFFFFFFFF), invalid(true),
+                                                                                                    tiny_bmp(start ? t_bmp.tiny_bmp : nullptr) {
 
-    if (start && (t_bmp != nullptr) && (t_bmp->tiny_bmp != nullptr)){
+    if (start){
 
-        sz = t_bmp->getSize();
-        mode = t_bmp->getMode();
-        card = t_bmp->getCardinality();
+        sz = t_bmp.getSize();
+        mode = t_bmp.getMode();
+        card = t_bmp.getCardinality();
 
-        offset = static_cast<uint32_t>(t_bmp->getOffset()) << 16;
+        offset = static_cast<uint32_t>(t_bmp.getOffset()) << 16;
 
         if (card != 0){
 
@@ -1045,7 +1296,7 @@ TinyBitmap::TinyBitmapIterator::TinyBitmapIterator(const TinyBitmap& t_bmp_, con
 
                 i = 3;
                 j = 4;
-                val = (offset | static_cast<uint32_t>(t_bmp->tiny_bmp[i])) - 1;
+                val = (offset | static_cast<uint32_t>(tiny_bmp[i])) - 1;
             }
         }
     }
@@ -1064,7 +1315,7 @@ TinyBitmap::TinyBitmapIterator& TinyBitmap::TinyBitmapIterator::operator++() {
 
             ++i;
             j = 0;
-            e = (i == sz) ? 0 : t_bmp->tiny_bmp[i];
+            e = (i == sz) ? 0 : tiny_bmp[i];
         }
 
         while ((i != sz) && (card != 0)){
@@ -1080,7 +1331,7 @@ TinyBitmap::TinyBitmapIterator& TinyBitmap::TinyBitmapIterator::operator++() {
             }
 
             ++i;
-            e = (i == sz) ? 0 : t_bmp->tiny_bmp[i];
+            e = (i == sz) ? 0 : tiny_bmp[i];
         }
 
         invalid = true;
@@ -1090,20 +1341,20 @@ TinyBitmap::TinyBitmapIterator& TinyBitmap::TinyBitmapIterator::operator++() {
         ++i;
 
         if (i >= card + 3) invalid = true;
-        else val = offset | t_bmp->tiny_bmp[i];
+        else val = offset | tiny_bmp[i];
     }
     else {
 
         ++val;
 
         if ((val & 0xFFFF0000) != offset) invalid = true;
-        else if ((val & 0xFFFF) > t_bmp->tiny_bmp[j]) {
+        else if ((val & 0xFFFF) > tiny_bmp[j]) {
 
             i += 2;
             j += 2;
 
             if (i >= card + 3) invalid = true;
-            else val = offset | t_bmp->tiny_bmp[i];
+            else val = offset | tiny_bmp[i];
         }
     }
 
@@ -1128,8 +1379,12 @@ const uint16_t TinyBitmap::rle_list_mode = 0x0004;
 const uint16_t TinyBitmap::bits_16 = 0x0000;
 const uint16_t TinyBitmap::bits_32 = 0x0001;
 
-const uint16_t TinyBitmap::sizes[] = {  8, 16, 32, 64, 96, 144, 216, 324,
+/*const uint16_t TinyBitmap::sizes[] = {  8, 16, 32, 64, 96, 144, 216, 324,
                                         486, 730, 1096, 1370, 1712, 2140, 2676, 3346,
+                                        4096, 0xFFFF };*/
+
+const uint16_t TinyBitmap::sizes[] = {  8, 16, 32, 64, 96, 160, 224, 320,
+                                        448, 768, 1024, 1280, 1792, 2048, 2560, 3072,
                                         4096, 0xFFFF };
 
 const uint16_t TinyBitmap::nb_sizes = 17;

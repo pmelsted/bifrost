@@ -8,6 +8,8 @@
 #include "CompactedDBG.hpp"
 #include "DataManager.hpp"
 
+#include "getRSS.h"
+
 /** @file src/ColoredCDBG.hpp
 * Interface for the Colored and Compacted de Bruijn graph API.
 * Code snippets using this interface are provided in test/snippets.hpp.
