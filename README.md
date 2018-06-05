@@ -175,12 +175,12 @@ in your C++ code. Then, use the following flags for compiling:
 
 and the following flags for linking:
 ```
--lbifrost -pthread -lz
+-lbifrost -ljemalloc -pthread -lz
 ```
 
 You can also link to the Bifrost static library (*libbifrost.a*) for better performance:
 ```
-<path_to_lib_folder>/libbifrost.a -pthread -lz
+<path_to_lib_folder>/libbifrost.a -ljemalloc -pthread -lz
 ```
 
 ### With colors (pre-alpha)
