@@ -55,17 +55,42 @@ By default, the installation creates:
 * a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS)
 * a static library (*libbifrost.a*).
 
-Make sure that your environment variables (such as *LD_LIBRARY_PATH*) are set correctly. A typical example of environment variables not set correctly is when *libbifrost.so* or *libbifrost.a* cannot be found when executing the binary of Bifrost. In this case, assuming that *libbifrost.so* is located at the path */usr/local/lib/*, the following command should set the environment variable *LD_LIBRARY_PATH* correctly for the time of the session:
-```
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
-```
-
 The default maximum *k*-mer size supported is 31. To work with larger *k*, you must replace *MAX_KMER_SIZE* in *CMakeLists.txt* with a larger (appropriate) number, such as:
 ```
 set( MAX_KMER_SIZE "64")
 ```
 
 In this case, the maximum *k* allowed is 63. Keep in mind that increasing *MAX_KMER_SIZE* increases Bifrost memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
+
+### Troubleshooting
+
+The following might happen when environment variables are not set correctly on your system:
+
+* compilation (`make`) fails because *jemalloc/jemalloc.h* is not found
+
+Make sure you installed correctly Jemalloc. Assuming that *jemalloc/jemalloc.h* is located at the path */usr/local/include/*, the following command set the environment variables *C_INCLUDE_PATH* and *CPLUS_INCLUDE_PATH* correctly for the time of the session:
+```
+export C_INCLUDE_PATH=$C_INCLUDE_PATH:/usr/local/include/
+export CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:/usr/local/include/
+```
+
+* linking (`make`) fails because the library *jemalloc* is not found
+
+Make sure you installed correctly Jemalloc. Assuming that *libjemalloc.so*/*libjemalloc.dylib*/*libjemalloc.a* is located at the path */usr/local/lib/*, the following command set the environment variables *LD_LIBRARY_PATH*, *LIBRARY_PATH* and *PATH* correctly for the time of the session:
+```
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
+export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/lib/
+export PATH=$PATH:/usr/local/lib/
+```
+
+* *libbifrost.so* or *libbifrost.a* cannot be found when executing the binary of Bifrost
+
+Assuming that *libbifrost.so*/*libbifrost.dylib*/*libbifrost.a* is located at the path */usr/local/lib/*, the following command set the environment variables *LD_LIBRARY_PATH*, *LIBRARY_PATH* and *PATH* correctly for the time of the session:
+```
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
+export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/lib/
+export PATH=$PATH:/usr/local/lib/
+```
 
 ## Binary usage:
 
