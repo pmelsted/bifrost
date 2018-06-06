@@ -227,7 +227,7 @@ export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/lib/
 export PATH=$PATH:/usr/local/lib/
 ```
 
-* *libbifrost.so* or *libbifrost.a* cannot be found when executing the binary of Bifrost
+* executing the binary of Bifrost fails because *libbifrost.so* or *libbifrost.a* is not found
 
 Assuming that *libbifrost.so*/*libbifrost.dylib*/*libbifrost.a* is located at the path */usr/local/lib/*, the following command set the environment variables *LD_LIBRARY_PATH*, *LIBRARY_PATH* and *PATH* correctly for the time of the session:
 ```
