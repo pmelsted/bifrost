@@ -220,7 +220,7 @@ export CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:/usr/local/include/
 
 * linking (`make`) fails because the library *jemalloc* is not found
 
-Make sure you installed correctly Jemalloc. Assuming that *libjemalloc*.(*so*/*dylib*/*a*) is located at the path */usr/local/lib/*, the following command set the environment variables *LD_LIBRARY_PATH*, *LIBRARY_PATH* and *PATH* correctly for the time of the session:
+Make sure you installed correctly Jemalloc. Assuming that *libjemalloc*.(*so*|*dylib*|*a*) is located at the path */usr/local/lib/*, the following command set the environment variables *LD_LIBRARY_PATH*, *LIBRARY_PATH* and *PATH* correctly for the time of the session:
 ```
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
 export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/lib/
@@ -229,7 +229,7 @@ export PATH=$PATH:/usr/local/lib/
 
 * executing the binary of Bifrost fails because *libbifrost.so* or *libbifrost.a* is not found
 
-Assuming that *libbifrost*.(*so*/*dylib*/*a*) is located at the path */usr/local/lib/*, the following command set the environment variables *LD_LIBRARY_PATH*, *LIBRARY_PATH* and *PATH* correctly for the time of the session:
+Assuming that *libbifrost*.(*so*|*dylib*|*a*) is located at the path */usr/local/lib/*, the following command set the environment variables *LD_LIBRARY_PATH*, *LIBRARY_PATH* and *PATH* correctly for the time of the session:
 ```
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
 export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/lib/
