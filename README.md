@@ -55,7 +55,7 @@ By default, the installation creates:
 * a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS)
 * a static library (*libbifrost.a*).
 
-See the section [Troubleshooting](#Troubleshooting) if you have any problems during the installation.
+See the section [Troubleshooting](#troubleshooting) if you have any problems during the installation.
 
 The default maximum *k*-mer size supported is 31. To work with larger *k*, you must replace *MAX_KMER_SIZE* in *CMakeLists.txt* with a larger (appropriate) number, such as:
 ```
