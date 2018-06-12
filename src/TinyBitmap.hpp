@@ -99,6 +99,11 @@ class TinyBitmap {
         bool write(ostream& stream_out) const;
         bool read(istream& stream_in);
 
+        inline void toArray(uint32_t* values) const {
+
+            for (const auto v : *this) *(values++) = v;
+        }
+
         size_t getSizeInBytes() const;
         size_t size() const;
         size_t size(uint32_t start_value, const uint32_t end_value) const;

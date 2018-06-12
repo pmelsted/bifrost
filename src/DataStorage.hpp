@@ -58,9 +58,9 @@ class DataStorage {
 
         UnitigColors* insert();
 
-    private:
-
         size_t getUnitigColorsSize(const size_t nb_threads = 1) const;
+
+    private:
 
         uint64_t seeds[256];
 

@@ -23,18 +23,17 @@
     * [Clang](http://clang.llvm.org/) 3.5 or later
 * [Cmake](https://cmake.org/) 2.8.12 or later
 * [Zlib](https://zlib.net/)
-* [Jemalloc](https://github.com/jemalloc/jemalloc)
 
-GCC/Clang, Cmake and Zlib are probably already installed on your computer (those are installed by default on most operating systems) but you probably need to install Jemalloc. All can be downloaded and installed by following the instructions on their respective websites. It is most likely all are available via a package manager for your operating system: 
+GCC/Clang, Cmake and Zlib are probably already installed on your computer (those are installed by default on most operating systems) but they can be downloaded and installed by following the instructions on their respective websites. It is most likely that all are available via a package manager for your operating system: 
 
 * Ubuntu/Debian:
 ```
-sudo apt-get install build-essential cmake zlib1g libjemalloc1 libjemalloc-dev
+sudo apt-get install build-essential cmake zlib1g
 ```
 * MacOS (with [Homebrew](https://brew.sh/)):
 ```
 brew install --with-toolchain llvm
-brew install cmake zlib jemalloc
+brew install cmake zlib
 ```
 
 ## Compilation and Installation
@@ -170,12 +169,12 @@ in your C++ code. Then, use the following flags for compiling:
 
 and the following flags for linking:
 ```
--lbifrost -ljemalloc -pthread -lz
+-lbifrost -pthread -lz
 ```
 
 You can also link to the Bifrost static library (*libbifrost.a*) for better performance:
 ```
-<path_to_lib_folder>/libbifrost.a -ljemalloc -pthread -lz
+<path_to_lib_folder>/libbifrost.a -pthread -lz
 ```
 
 ### With colors (pre-alpha)
@@ -208,21 +207,12 @@ Yes. First, run Bifrost with your read files only and output the unitigs to a FA
 
 The following might happen when environment variables are not set correctly on your system:
 
-* compilation (`make`) fails because *jemalloc/jemalloc.h* is not found
+* compilation (`make`) fails because some header files (*.h*) are not found
 
-Make sure you installed correctly Jemalloc. Assuming that *jemalloc/jemalloc.h* is located at the path */usr/local/include/*, the following command set the environment variables *C_INCLUDE_PATH* and *CPLUS_INCLUDE_PATH* correctly for the time of the session:
+Assuming the header files (*.h*) are located at the path */usr/local/include/*, the following command set the environment variables *C_INCLUDE_PATH* and *CPLUS_INCLUDE_PATH* correctly for the time of the session:
 ```
 export C_INCLUDE_PATH=$C_INCLUDE_PATH:/usr/local/include/
 export CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:/usr/local/include/
-```
-
-* linking (`make`) fails because the library *jemalloc* is not found
-
-Make sure you installed correctly Jemalloc. Assuming that *libjemalloc*.(*so*|*dylib*|*a*) is located at the path */usr/local/lib/*, the following command set the environment variables *LD_LIBRARY_PATH*, *LIBRARY_PATH* and *PATH* correctly for the time of the session:
-```
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
-export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/lib/
-export PATH=$PATH:/usr/local/lib/
 ```
 
 * executing the binary of Bifrost fails because *libbifrost.so* or *libbifrost.a* is not found

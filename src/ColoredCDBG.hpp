@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <random>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "CompactedDBG.hpp"

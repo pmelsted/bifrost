@@ -20,14 +20,16 @@ template<typename Unitig_data_t> class DataStorage;
 */
 class UnitigColors {
 
-        //Ensure that UnitigColors::setPtrBmp is always allocated with an 8 bytes alignment
-        struct alignas(8) Bitmap { Roaring r; };
+    //Ensure that UnitigColors::setPtrBmp is always allocated with an 8 bytes alignment
+    struct alignas(8) Bitmap { Roaring r; };
 
-        template<typename U> friend class ColoredCDBG;
-        template<typename U> friend class DataAccessor;
-        template<typename U> friend class DataStorage;
+    template<typename U> friend class ColoredCDBG;
+    template<typename U> friend class DataAccessor;
+    template<typename U> friend class DataStorage;
 
     public:
+
+        typedef pair<UnitigColors, size_t> SharedUnitigColors;
 
         /** @class UnitigColors_const_iterator
         * @brief See UnitigColors::const_iterator
@@ -60,17 +62,20 @@ class UnitigColors {
                 * @return a pair p of integers representing the position of a k-mer in the unitig (p.first)
                 * and the ID of the color associated with the k-mer at the given position (p.second).
                 */
-                pair<size_t, size_t> operator*() const;
+                inline pair<size_t, size_t> operator*() const {
+
+                    return make_pair(ck_id % um_sz, ck_id / um_sz);
+                }
 
                 /** Get the k-mer position of the k-mer visited by the iterator. It is equal to (*it).first.
                 * @return the k-mer position of the k-mer visited by the iterator. It is equal to (*it).first.
                 */
-                size_t getKmerPosition() const;
+                inline size_t getKmerPosition() const { return ck_id % um_sz; }
 
                 /** Get the color of the k-mer visited by the iterator. It is equal to (*it).second.
                 * @return the color of the k-mer visited by the iterator. It is equal to (*it).second.
                 */
-                size_t getColorID() const;
+                inline size_t getColorID() const { return ck_id / um_sz; }
 
                 /** Postfix increment operator: it iterates over the next k-mer of the unitig having the
                 * current color or the first k-mer having the next color (if all k-mers having the current
@@ -111,7 +116,7 @@ class UnitigColors {
                 size_t cs_sz;
                 size_t um_sz;
 
-                pair<size_t, size_t> ck_id;
+                uint64_t ck_id;
 
                 const Roaring empty_roar;
 
@@ -125,7 +130,7 @@ class UnitigColors {
 
                 inline bool isInvalid() const {
 
-                    return (((ck_id.first == 0xffffffffffffffff) && (ck_id.second == 0xffffffffffffffff)) || (it_setBits == cs_sz));
+                    return ((ck_id == 0xffffffffffffffff) || (it_setBits == cs_sz));
                 }
         };
 
@@ -146,6 +151,8 @@ class UnitigColors {
         */
         UnitigColors(const UnitigColors& o); // Copy constructor
 
+        UnitigColors(SharedUnitigColors& o);
+
         /** Move constructor. After the call to this constructor, the UnitigColors to move is empty:
         * its content has been transfered (moved) to a new UnitigColors.
         * @param o is the color set to move.
@@ -163,12 +170,27 @@ class UnitigColors {
         */
         UnitigColors& operator=(const UnitigColors& o);
 
+        UnitigColors& operator=(SharedUnitigColors& o);
+
         /** Move assignment operator. After the call to this operator, the UnitigColors to move is empty:
         * its content has been transfered (moved) to another UnitigColors.
         * @param o is the UnitigColors to move.
         * @return a reference to the current UnitigColors having (owning) the content of o.
         */
         UnitigColors& operator=(UnitigColors&& o);
+
+        /** Equality operator.
+        * @return a boolean indicating if two UnitigColors contains the same pairs (k-mer position, color).
+        */
+        bool operator==(const UnitigColors& o) const;
+
+        /** Inequality operator.
+        * @return a boolean indicating if two UnitigColors do not contain the same pairs (k-mer position, color).
+        */
+        inline bool operator!=(const UnitigColors& o) const {
+
+            return !operator==(o);
+        }
 
         /** Empty a UnitigColors of its content.
         */
@@ -261,7 +283,13 @@ class UnitigColors {
         * from the first color each time. Default is 0.
         * @return a boolean indicating if it was possible to optimize the memory usage of the UnitigColors.
         */
-        bool optimizeFullColors(const UnitigMapBase& um, const size_t color_start = 0);
+        bool optimizeFullColors(const UnitigMapBase& um);
+
+        //UnitigColors makeFullColors(const UnitigMapBase& um);
+
+        //inline UnitigColors* getFullColorsPtr() { return (isUnitigColors() ? getPtrUnitigColors() : nullptr); }
+
+        uint64_t hash(const size_t seed = 0) const;
 
     private:
 
@@ -272,16 +300,9 @@ class UnitigColors {
 
             const uintptr_t flag = setBits & flagMask;
 
-            if (flag == ptrUnitigColors){
-
-                UnitigColors* uc = getPtrUnitigColors();
-
-                uc[0].releaseMemory();
-                uc[1].releaseMemory();
-
-                delete[] uc;
-            }
+            if (flag == ptrUnitigColors) delete[] getPtrUnitigColors();
             else if (flag == ptrBitmap) delete getPtrBitmap();
+            else if (flag == ptrSharedUnitigColors) --(getPtrSharedUnitigColors()->second);
             else if (flag == localTinyBitmap){
 
                 uint16_t* setPtrTinyBmp = getPtrTinyBitmap();
@@ -319,6 +340,7 @@ class UnitigColors {
         inline bool isBitmap() const { return ((setBits & flagMask) == ptrBitmap); }
         inline bool isTinyBitmap() const { return ((setBits & flagMask) == localTinyBitmap); }
         inline bool isUnitigColors() const { return ((setBits & flagMask) == ptrUnitigColors); }
+        inline bool isSharedUnitigColors() const { return ((setBits & flagMask) == ptrSharedUnitigColors); }
 
         size_t size() const;
 
@@ -326,13 +348,40 @@ class UnitigColors {
 
         const_iterator begin(const size_t len_km_sz) const;
 
-        inline Bitmap* getPtrBitmap() const { return reinterpret_cast<Bitmap*>(setBits & pointerMask); }
-        inline const Bitmap* getConstPtrBitmap() const { return reinterpret_cast<const Bitmap*>(setBits & pointerMask); }
+        inline Bitmap* getPtrBitmap() const {
 
-        inline uint16_t* getPtrTinyBitmap() const { return reinterpret_cast<uint16_t*>(setBits & pointerMask); }
+            return reinterpret_cast<Bitmap*>(setBits & pointerMask);
+        }
 
-        inline UnitigColors* getPtrUnitigColors() const { return reinterpret_cast<UnitigColors*>(setBits & pointerMask); }
-        inline const UnitigColors* getConstPtrUnitigColors() const { return reinterpret_cast<const UnitigColors*>(setBits & pointerMask); }
+        inline const Bitmap* getConstPtrBitmap() const {
+
+            return reinterpret_cast<const Bitmap*>(setBits & pointerMask);
+        }
+
+        inline uint16_t* getPtrTinyBitmap() const {
+
+            return reinterpret_cast<uint16_t*>(setBits & pointerMask);
+        }
+
+        inline UnitigColors* getPtrUnitigColors() const {
+
+            return reinterpret_cast<UnitigColors*>(setBits & pointerMask);
+        }
+
+        inline const UnitigColors* getConstPtrUnitigColors() const {
+
+            return reinterpret_cast<const UnitigColors*>(setBits & pointerMask);
+        }
+
+        inline SharedUnitigColors* getPtrSharedUnitigColors() const {
+
+            return reinterpret_cast<SharedUnitigColors*>(setBits & pointerMask);
+        }
+
+        inline const SharedUnitigColors* getConstPtrSharedUnitigColors() const {
+
+            return reinterpret_cast<const SharedUnitigColors*>(setBits & pointerMask);
+        }
 
         static const size_t maxBitVectorIDs; // 64 bits - 3 bits for the color set type = 61
         static const size_t shiftMaskBits; // 3 bits
@@ -345,17 +394,27 @@ class UnitigColors {
         // Flag 4 - A pointer to an array of 2 UnitigColors:
         //          1 - Contains "full" colors -> color is present on ALL k-mers of the unitig
         //          2 - Contains colors for k-mers if NOT full colors
+        // Flag 5 - A pointer to a pair (UnitigColors, size_t) shared by multiple UnitigColors
 
         static const uintptr_t localTinyBitmap; // Flag 0
         static const uintptr_t localBitVector; // Flag 1
         static const uintptr_t localSingleInt; // Flag 2
         static const uintptr_t ptrBitmap; // Flag 3
         static const uintptr_t ptrUnitigColors; // Flag 4
+        static const uintptr_t ptrSharedUnitigColors; // Flag 5
 
         static const uintptr_t flagMask; // 0x7 (= 2^shiftMaskBits - 1)
         static const uintptr_t pointerMask; // 0xfffffffffffffff8 (= 2^64 - 1 - flagMask)
 
         uintptr_t setBits;
+};
+
+struct UnitigColorsHash {
+
+    size_t operator()(const UnitigColors& uc) const {
+
+        return uc.hash();
+    }
 };
 
 #endif

@@ -312,7 +312,6 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
         mutex mutex_file;
 
         size_t prev_uc_sz = getCurrentRSS();
-        size_t last_file_id_color_comp = 0;
 
         while (next_file){
 
@@ -350,7 +349,7 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
 
             const size_t curr_uc_sz = getCurrentRSS();
 
-            if ((curr_uc_sz - prev_uc_sz) >= 1073741824ULL){
+            if ((curr_uc_sz - prev_uc_sz) >= 1073741824ULL/*104857600ULL*/){
 
                 const size_t chunk = 1000;
 
@@ -384,7 +383,7 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
 
                                 while (l_a != l_b){
 
-                                    l_a->getData()->getUnitigColors(*l_a)->optimizeFullColors(*l_a, last_file_id_color_comp);
+                                    l_a->getData()->getUnitigColors(*l_a)->optimizeFullColors(*l_a);
                                     ++l_a;
                                 }
                             }
@@ -397,7 +396,6 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
                 workers.clear();
 
                 prev_uc_sz = getCurrentRSS();
-                last_file_id_color_comp = prev_file_id;
             }
         }
     }
@@ -407,6 +405,82 @@ void ColoredCDBG<U>::buildColorSets(const size_t nb_threads){
     delete[] cs_locks;
 
     //checkColors(ds->color_names);
+
+    /*const size_t sz_uc_before = ds->getUnitigColorsSize();
+
+    typedef std::unordered_map<uint64_t, pair<int64_t, UnitigColors::SharedUnitigColors*>> uc_unordered_map;
+
+    uc_unordered_map u_map;
+
+    for (auto& unitig : *this){
+
+        UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
+
+        UnitigColors uc_full = uc->makeFullColors(unitig);
+        UnitigColors* uc_full_array = uc_full.getFullColorsPtr();
+
+        if (uc_full_array[0].size() != 0){
+
+            pair<uc_unordered_map::iterator, bool> p = u_map.insert(make_pair(uc_full_array[0].hash(),
+                                                                              make_pair(0 - static_cast<int64_t>(uc_full_array[0].getSizeInBytes()),
+                                                                                        nullptr)));
+
+            p.first->second.first += static_cast<int64_t>(uc->getSizeInBytes());
+            p.first->second.first -= (static_cast<int64_t>(uc_full_array[1].getSizeInBytes() + 2 * sizeof(UnitigColors)));
+        }
+    }
+
+    size_t cpt_shared = 0, i = 0;
+
+    for (const auto& p : u_map) cpt_shared += (p.second.first > 0);
+
+    UnitigColors::SharedUnitigColors* shared_uc = new UnitigColors::SharedUnitigColors[cpt_shared];
+
+    for (auto& unitig : *this){
+
+        UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
+
+        UnitigColors uc_full = uc->makeFullColors(unitig);
+
+        UnitigColors* uc_full_array = uc_full.getFullColorsPtr();
+
+        if (uc_full_array[0].size() != 0){
+
+            uc_unordered_map::iterator it = u_map.find(uc_full_array[0].hash());
+
+            if (it->second.first > 0){ // If there is some sharing
+
+                if (it->second.second == nullptr){
+
+                    shared_uc[i].first = uc_full_array[0];
+                    shared_uc[i].second = 1;
+
+                    uc_full_array[0] = shared_uc[i];
+
+                    *uc = move(uc_full);
+
+                    it->second.second = &shared_uc[i];
+
+                    ++i;
+                }
+                else if (uc_full_array[0] == it->second.second->first) {
+
+                    uc_full_array[0] = *(it->second.second);
+
+                    *uc = move(uc_full);
+
+                    ++(it->second.second->second);
+                }
+            }
+        }
+    }
+
+   size_t sz_uc_after = ds->getUnitigColorsSize();
+
+   for (size_t j = 0; j < i; ++j) sz_uc_after += shared_uc[i].first.getSizeInBytes() + sizeof(size_t);
+
+   cout << "sz_uc_after = " << sz_uc_after << endl;
+   cout << "sz_uc_before = " << sz_uc_before << endl;*/
 
     /*size_t nb_unitigs = 0;
     size_t nb_neighbors_modified = 0;

@@ -36,7 +36,7 @@ struct UnitigMapBase {
     * @param length is the length of the mapping in k-mers (default is 1 k-mer).
     * @return an empty UnitigMapBase.
     */
-    UnitigMapBase(size_t length = 1);
+    UnitigMapBase(const size_t length = 1);
 
     /** UnitigMapBase constructor (isEmpty = false).
     * @param start is the start position of the mapping (0-based distance) from the start of the reference unitig.
