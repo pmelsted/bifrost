@@ -483,13 +483,9 @@ const_UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extrem
 
                     if (isShort){
 
-                        if (min_h_res.pos == unitig_id_pos){
+                        if (((min_h_res.pos == unitig_id_pos) || (min_h_res.pos == diff - unitig_id_pos)) && (v_kmers[unitig_id].first == km_rep)){
 
-                            if (v_kmers[unitig_id].first == km_rep) return const_UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, true, this);
-                        }
-                        else if ((min_h_res.pos == diff - unitig_id_pos) && (v_kmers[unitig_id].first == km_rep)){
-
-                            return const_UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, false, this);
+                            return const_UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, km == km_rep, this);
                         }
                     }
                     else {
@@ -607,13 +603,9 @@ UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extremities_
 
                     if (isShort){
 
-                        if (min_h_res.pos == unitig_id_pos){
+                        if (((min_h_res.pos == unitig_id_pos) || (min_h_res.pos == diff - unitig_id_pos)) && (v_kmers[unitig_id].first == km_rep)){
 
-                            if (v_kmers[unitig_id].first == km_rep) return UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, true, this);
-                        }
-                        else if ((min_h_res.pos == diff - unitig_id_pos) && (v_kmers[unitig_id].first == km_rep)){
-
-                            return UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, false, this);
+                            return UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, km == km_rep, this);
                         }
                     }
                     else {
@@ -747,7 +739,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& k
 
                             if (v_kmers[unitig_id].first == km_rep[idx]) {
 
-                                v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, min_h_res.pos == unitig_id_pos, this));
+                                v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, km_pred[idx] == km_rep[idx], this));
                             }
                             else {
 
@@ -755,7 +747,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& k
 
                                 if (v_kmers[unitig_id].first == km_rep[idx]) {
 
-                                    v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, min_h_res.pos == unitig_id_pos, this));
+                                    v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, km_pred[idx] == km_rep[idx], this));
                                 }
                             }
                         }
@@ -900,7 +892,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
 
                             if (v_um[idx].isEmpty && (v_kmers[unitig_id].first == km_rep[idx])){
 
-                                v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, min_h_res.pos == unitig_id_pos, this));
+                                v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, km_succ[idx] == km_rep[idx], this));
                                 if (++nb_found == limit) return v_um;
                             }
                             else {
@@ -909,7 +901,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
 
                                 if (v_um[idx].isEmpty && (v_kmers[unitig_id].first == km_rep[idx])){
 
-                                    v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, min_h_res.pos == unitig_id_pos, this));
+                                    v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, km_succ[idx] == km_rep[idx], this));
                                     if (++nb_found == limit) return v_um;
                                 }
                             }
