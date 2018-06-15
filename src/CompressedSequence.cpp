@@ -237,24 +237,23 @@ void CompressedSequence::setSequence(const CompressedSequence& o, const size_t s
     size_t r_index = reversed ? o.size() - start - 1 : start;
     size_t wi, wj, ri, rj;
 
-    for (size_t i = 0; i < length; i++) {
+    for (size_t i = 0; i < length; ++i) {
 
         wi = w_index >> 2;
         wj = (w_index & 0x3) << 1;
         ri = r_index >> 2;
         rj = (r_index & 0x3) << 1;
 
-        data[wi] &= ~(0x03 << wj); // clear bits
+        data[wi] &= ~(0x3 << wj); // clear bits
 
-        uint8_t nucl = (odata[ri] >> rj) & 0x03; // nucleotide stored in o
+        uint8_t nucl = (odata[ri] >> rj) & 0x3; // nucleotide stored in o
 
         if (reversed) nucl = 3-nucl; // reverse sequence
 
         data[wi] |= (nucl << wj);
-        w_index++;
+        ++w_index;
 
-        if (reversed) r_index--;
-        else r_index++;
+        reversed ? --r_index : ++r_index;
     }
     // new length?
     if (offset + length > size()) setSize(offset+length);
@@ -318,7 +317,7 @@ void CompressedSequence::setSequence(const char *s, const size_t length, const s
 
     unsigned char* data = const_cast<unsigned char*>(getPointer());
 
-    for (size_t index = offset; index < len; index++) {
+    for (size_t index = offset; index < len; ++index) {
 
         const size_t i = index >> 2;
         const size_t j = (index & 0x3) << 1;
@@ -369,7 +368,7 @@ string CompressedSequence::toString(const size_t offset, const size_t length) co
 
     string s(length, 0);
 
-    for (size_t index = offset; index < offset+length; index++) {
+    for (size_t index = offset; index < offset+length; ++index) {
 
         s[index-offset] = bases[(data[index >> 2] >> ((index & 0x3) << 1)) & 0x03];
     }
@@ -388,7 +387,7 @@ void CompressedSequence::toString(char *s, const size_t offset, const size_t len
 
     assert(offset+length <= size());
 
-    for (size_t index = offset; index < offset+length; index++) {
+    for (size_t index = offset; index < offset+length; ++index) {
 
         s[index-offset] = bases[(data[index >> 2] >> ((index & 0x3) << 1)) & 0x03];
     }
@@ -417,14 +416,14 @@ Kmer CompressedSequence::getKmer(const size_t offset) const {
 
         size_t i = offset >> 2, j = 0;
 
-        for (; j < nbytes - 1; i++, j++) km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)] = revBits[data[i]];
+        for (; j < nbytes - 1; ++i, ++j) km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)] = revBits[data[i]];
 
         unsigned char tmp_km = 0;
         unsigned char tmp_data = data[i];
 
-        for (i <<= 2; i < len; i++, tmp_data >>= 2) tmp_km = (tmp_km << 2) | (tmp_data & 0x3);
+        for (i <<= 2; i < len; ++i, tmp_data >>= 2) tmp_km = (tmp_km << 2) | (tmp_data & 0x3);
 
-        tmp_km <<= (4 - (Kmer::k & 0x3)) << 1;
+        tmp_km <<= ((4 - (Kmer::k & 0x3)) << 1) & 0x7;
         km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)] = tmp_km;
     }
     else { // Extraction 2 bits per 2 bits
@@ -435,12 +434,12 @@ Kmer CompressedSequence::getKmer(const size_t offset) const {
 
         uint64_t tmp_data = static_cast<uint64_t>(data[offset >> 2] >> ((offset & 0x3) << 1));
 
-        for (size_t i = offset; j < nlongs; j++){
+        for (size_t i = offset; j < nlongs; ++j){
 
             uint64_t tmp_km = 0;
             const size_t end = len < i + 32 ? len : i + 32;
 
-            for (; i != end; i++, tmp_data >>= 2){
+            for (; i != end; ++i, tmp_data >>= 2){
 
                 if ((i & 0x3) == 0) tmp_data = static_cast<uint64_t>(data[i >> 2]);
                 tmp_km = (tmp_km << 2) | (tmp_data & 0x3);
@@ -455,55 +454,6 @@ Kmer CompressedSequence::getKmer(const size_t offset) const {
     return km;
 }
 
-/*bool CompressedSequence::compareKmer(const size_t offset, const Kmer& km) const {
-
-    const unsigned char* data = getPointer();
-
-    const size_t len = offset + Kmer::k;
-
-    if (len > size()) return false;
-
-    if ((offset & 0x3) == 0){ // Comparison byte to byte is possible
-
-        const size_t nbytes = (Kmer::k + 3) / 4;
-
-        size_t i = offset >> 2, j = 0;
-
-        for (; j < nbytes - 1; i++, j++){
-
-            if (data[i] != revBits[km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)]]) return false;
-        }
-
-        unsigned char tmp_km = km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)];
-        unsigned char tmp_data = data[i];
-
-        for (i <<= 2; i < len; i++, tmp_km <<= 2, tmp_data >>= 2){
-
-            if ((tmp_data & 0x3) != (tmp_km >> 6)) return false;
-        }
-    }
-    else { //Comparison 2 bits per 2 bits
-
-        const size_t nlongs = (Kmer::k + 31) / 32;
-
-        uint64_t tmp_data = static_cast<uint64_t>(data[offset >> 2] >> ((offset & 0x3) << 1));
-
-        for (size_t i = offset, j = 0; j < nlongs; j++){
-
-            uint64_t tmp_km = km.longs[j];
-            const size_t end = len < i + 32 ? len : i + 32;
-
-            for (; i != end; i++, tmp_km <<= 2, tmp_data >>= 2){
-
-                if ((i & 0x3) == 0) tmp_data = static_cast<uint64_t>(data[i >> 2]);
-                if ((tmp_data & 0x3) != (tmp_km >> 62)) return false;
-            }
-        }
-    }
-
-    return true;
-}*/
-
 bool CompressedSequence::compareKmer(const size_t offset, const size_t length, const Kmer& km) const {
 
     const unsigned char* data = getPointer();
@@ -517,7 +467,7 @@ bool CompressedSequence::compareKmer(const size_t offset, const size_t length, c
 
         size_t i = offset >> 2, j = 0;
 
-        for (; j < nbytes - 1; i++, j++){
+        for (; j < nbytes - 1; ++i, ++j){
 
             if (data[i] != revBits[km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)]]) return false;
         }
@@ -525,7 +475,7 @@ bool CompressedSequence::compareKmer(const size_t offset, const size_t length, c
         unsigned char tmp_km = km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)];
         unsigned char tmp_data = data[i];
 
-        for (i <<= 2; i < pos_end; i++, tmp_km <<= 2, tmp_data >>= 2){
+        for (i <<= 2; i < pos_end; ++i, tmp_km <<= 2, tmp_data >>= 2){
 
             if ((tmp_data & 0x3) != (tmp_km >> 6)) return false;
         }
@@ -536,12 +486,12 @@ bool CompressedSequence::compareKmer(const size_t offset, const size_t length, c
 
         uint64_t tmp_data = static_cast<uint64_t>(data[offset >> 2] >> ((offset & 0x3) << 1));
 
-        for (size_t i = offset, j = 0; j < nlongs; j++){
+        for (size_t i = offset, j = 0; j < nlongs; ++j){
 
             uint64_t tmp_km = km.longs[j];
             const size_t end = pos_end < i + 32 ? pos_end : i + 32;
 
-            for (; i != end; i++, tmp_km <<= 2, tmp_data >>= 2){
+            for (; i != end; ++i, tmp_km <<= 2, tmp_data >>= 2){
 
                 if ((i & 0x3) == 0) tmp_data = static_cast<uint64_t>(data[i >> 2]);
                 if ((tmp_data & 0x3) != (tmp_km >> 62)) return false;
@@ -554,7 +504,7 @@ bool CompressedSequence::compareKmer(const size_t offset, const size_t length, c
 
 int64_t CompressedSequence::findKmer(const Kmer& km) const {
 
-    int k = Kmer::k;
+    const int k = Kmer::k;
     size_t sz = size();
 
     if (sz >= k){
@@ -566,11 +516,11 @@ int64_t CompressedSequence::findKmer(const Kmer& km) const {
 
             size_t i = k;
             const unsigned char* data = getPointer();
-            unsigned char tmp = data[i/4] >> (2 * (i % 4));
+            unsigned char tmp = data[i >> 2] >> ((i & 0x3) << 1);
 
-            for (; i < sz; i++, tmp >>= 2){
+            for (; i < sz; ++i, tmp >>= 2){
 
-                if (i%4 == 0) tmp = data[i/4];
+                if ((i & 0x3) == 0) tmp = data[i >> 2];
                 km_cs.selfForwardBase(bases[tmp & 0x3]);
 
                 if (km_cs == km) return i-k+1;
@@ -665,7 +615,7 @@ size_t CompressedSequence::bw_jump(const char *s, const size_t i, int pos, const
 
         unsigned char tmp = data[pos/4] >> (2 * (pos % 4));
 
-        for (; (i_cpy != -1) && (pos != cs_size); pos++, i_cpy--, tmp >>= 2) {
+        for (; (i_cpy != -1) && (pos != cs_size); ++pos, --i_cpy, tmp >>= 2) {
 
             if (pos%4 == 0) tmp = data[pos/4];
             if (s[i_cpy] != bases[3 - (tmp & 0x3)]) break;
@@ -678,7 +628,7 @@ size_t CompressedSequence::bw_jump(const char *s, const size_t i, int pos, const
         int idx_div = pos / 4;
         int idx_mod = 2 * (pos % 4);
 
-        for (; (i_cpy != -1) && (pos != -1); pos--, i_cpy--, idx_mod -= 2) {
+        for (; (i_cpy != -1) && (pos != -1); --pos, --i_cpy, idx_mod -= 2) {
 
             if (idx_mod == -2){
                 idx_div--;
