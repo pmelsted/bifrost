@@ -281,7 +281,7 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
         }
         else {
 
-            if ((opt.nb_unique_kmers == 0) || (opt.nb_non_unique_kmers == 0)){
+            if ((opt.nb_unique_kmers == 0) || (!opt.reference_mode && (opt.nb_non_unique_kmers == 0))){
 
                 KmerStream_Build_opt kms_opt;
 
@@ -296,7 +296,7 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
 
                 opt.nb_unique_kmers = max(1UL, kms.F0());
 
-                if (!opt.reference_mode) opt.nb_non_unique_kmers = max(1UL, opt.nb_unique_kmers - kms.f1());
+                if (!opt.reference_mode) opt.nb_non_unique_kmers = max(1UL, opt.nb_unique_kmers - min(opt.nb_unique_kmers, kms.f1()));
 
                 if (opt.verbose){
 

@@ -134,8 +134,8 @@ void Kmer::set_kmer(const char* s)  {
 
     for (size_t i = 0, j, l; i < k; ++i) {
 
-        j = 62 - ((i & 0x1f) << 1);
-        l = i >> 6;
+        j = 62 - ((i & 0x1F) << 1);
+        l = i >> 5;
 
         assert(*s != '\0');
 
@@ -481,7 +481,7 @@ void Minimizer::set_minimizer(const char *s)  {
     for (size_t i = 0, j, l; i < g; ++i) {
 
         j = 62 - ((i & 0x1f) << 1);
-        l = i >> 6;
+        l = i >> 5;
 
         const size_t x = ((*s) & 4) >> 1;
         longs[l] |= ((x + ((x ^ (*s & 2)) >> 1)) << j);
