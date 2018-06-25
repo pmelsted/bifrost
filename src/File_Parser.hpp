@@ -1,6 +1,8 @@
 #ifndef BFG_FILE_PARSER_HPP
 #define BFG_FILE_PARSER_HPP
 
+#include <sstream>
+
 #include "FASTX_Parser.hpp"
 #include "GFA_Parser.hpp"
 
@@ -126,6 +128,59 @@ class FileParser {
                     }
 
                     if (r.first != nullptr) seq = r.first->seq;
+                }
+
+                file_id = files_it;
+            }
+
+            return !invalid;
+        }
+
+        bool read(stringstream& ss, size_t& file_id){
+
+            if (!invalid){
+
+                bool new_file;
+
+                if (reading_fastx){
+
+                    const int ret = ff.read_next(ss, files_fastx_it, new_file);
+
+                    if (new_file || (ret == -1)){ // Need to open next file
+
+                        invalid = ((files_it + 1) >= files.size()); // Invalidate this object if no more file to read
+
+                        if (!invalid){ // If still some files to read
+
+                            ++files_it; //Increment iterator to next file to read
+
+                            // Check if next file to read is FASTA/FASTQ format
+                            reading_fastx = ((ret != -1) && (files[files_it] == files_fastx[files_fastx_it]));
+
+                            return read(ss, file_id); // We read the next line of the file
+                        }
+                    }
+                }
+                else {
+                    // Read first line of next GFA file, skip edge lines
+                    GFA_Parser::GFA_line r = gfap.read(files_gfa_it, new_file, true);
+
+                    if (new_file || ((r.first == nullptr) && (r.second == nullptr))){ // Need to open next file
+
+                        invalid = ((files_it + 1) >= files.size()); // Invalidate this object if no more file to read
+
+                        if (!invalid){ // If still some files to read
+
+                            ++files_it; //Increment iterator to next file to read
+
+                            // Check if next file to read is FASTA/FASTQ format
+                            reading_fastx = (files[files_it] == files_fastx[files_fastx_it]);
+
+                            return read(ss, file_id); // We read the next line of the file
+                        }
+                    }
+
+                    if (r.first != nullptr) ss << r.first->seq;
                 }
 
                 file_id = files_it;

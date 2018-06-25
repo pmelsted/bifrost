@@ -1,6 +1,6 @@
-/* auto-generated on Mon Jun  4 10:45:08 GMT 2018. Do not edit! */
+/* auto-generated on Fri Jun 15 14:49:07 GMT 2018. Do not edit! */
 #include "roaring.h"
-/* begin file ~/cpp/roaring.hh */
+/* begin file /home/wiz/Documents/my_git/CRoaring/cpp/roaring.hh */
 /*
 A C++ header for Roaring Bitmaps.
 */
@@ -131,9 +131,9 @@ class Roaring {
     }
 
     /**
-    * Check if all values from x to y are present
+    * Check if all values from x (included) to y (excluded) are present
     */
-    bool containsRange(uint32_t x, uint32_t y) const {
+    bool containsRange(const uint64_t x, const uint64_t y) const {
         return roaring_bitmap_contains_range(&roaring, x, y);
     }
 
@@ -675,8 +675,8 @@ inline RoaringSetBitForwardIterator &Roaring::end() const {
 }
 
 #endif /* INCLUDE_ROARING_HH_ */
-/* end file ~/cpp/roaring.hh */
-/* begin file ~/cpp/roaring64map.hh */
+/* end file /home/wiz/Documents/my_git/CRoaring/cpp/roaring.hh */
+/* begin file /home/wiz/Documents/my_git/CRoaring/cpp/roaring64map.hh */
 /*
 A C++ header for 64-bit Roaring Bitmaps, implemented by way of a map of many
 32-bit Roaring Bitmaps.
@@ -1638,4 +1638,4 @@ inline Roaring64MapSetBitForwardIterator Roaring64Map::end() const {
 }
 
 #endif /* INCLUDE_ROARING_64_MAP_HH_ */
-/* end file ~/cpp/roaring64map.hh */
+/* end file /home/wiz/Documents/my_git/CRoaring/cpp/roaring64map.hh */

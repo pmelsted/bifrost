@@ -120,7 +120,7 @@ void DataAccessor<U>::join(const UnitigColorMap<U>& um_dest, const UnitigColorMa
 
     if (cs_src != nullptr){
 
-        const uint64_t h_src = ds->getHash(um_src) % ds->nb_color_sets;
+        const uint64_t h_src = ds->getHash(um_src) % ds->nb_cs;
 
         ds->unitig_cs_link[h_src >> 6] &= ~(1ULL << (h_src & 0x3F));
     }
@@ -162,7 +162,7 @@ inline void DataAccessor<void>::join(const UnitigColorMap<void>& um_dest, const 
 
     if (cs_src != nullptr){
 
-        const uint64_t h_src = ds->getHash(um_src) % ds->nb_color_sets;
+        const uint64_t h_src = ds->getHash(um_src) % ds->nb_cs;
 
         ds->unitig_cs_link[h_src >> 6] &= ~(1ULL << (h_src & 0x3F));
     }

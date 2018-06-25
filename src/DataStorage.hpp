@@ -62,15 +62,18 @@ class DataStorage {
 
     private:
 
+        size_t nb_seeds;
+
+        size_t nb_cs;
+        size_t sz_cs;
+        size_t sz_free_cs;
+
+        size_t sz_shared_cs;
+
         uint64_t seeds[256];
 
-        size_t nb_seeds;
-        size_t nb_color_sets;
-
-        size_t nb_elem;
-        size_t nb_free_elem;
-
         UnitigColors* color_sets;
+        UnitigColors::SharedUnitigColors* shared_color_sets;
         atomic<uint64_t>* unitig_cs_link;
 
         U* data;

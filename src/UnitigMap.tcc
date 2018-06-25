@@ -347,6 +347,17 @@ void UnitigMap<U, G, is_const>::partialCopy(const UnitigMap<U, G, is_const>& o) 
 }
 
 template<typename U, typename G, bool is_const>
+void UnitigMap<U, G, is_const>::setFullCoverage() const {
+
+    if (!isEmpty){
+
+        if (isShort) cdbg->v_kmers[pos_unitig].second.ccov.setFull();
+        else if (isAbundant) cdbg->h_kmers_ccov.find(pos_unitig)->ccov.setFull();
+        else cdbg->v_unitigs[pos_unitig]->ccov.setFull();
+    }
+}
+
+template<typename U, typename G, bool is_const>
 UnitigMap<U, G, is_const>::UnitigMap(size_t p_unitig, size_t i, size_t l, size_t sz, bool short_, bool abundance, bool strd,
                                      CompactedDBG_ptr_t cdbg_) : UnitigMapBase(i, l, sz, strd), pos_unitig(p_unitig),
                                      isShort(short_), isAbundant(abundance), cdbg(cdbg_) {}

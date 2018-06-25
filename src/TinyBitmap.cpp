@@ -759,11 +759,7 @@ size_t TinyBitmap::shrinkSize() {
 
     const uint16_t sz = getSize();
     const uint16_t mode = getMode();
-
-    uint16_t new_sz;
-
-    if (mode == bmp_mode) new_sz = (static_cast<const uint16_t>(maximum() & 0xFFFF) >> 4) + 4;
-    else new_sz = getCardinality() + 3;
+    const uint16_t new_sz = (mode == bmp_mode) ? (static_cast<const uint16_t>(maximum() & 0xFFFF) >> 4) + 4 : getCardinality() + 3;
 
     uint16_t* new_t_bmp = nullptr;
 
@@ -794,15 +790,11 @@ bool TinyBitmap::write(ostream& stream_out) const {
     if (tiny_bmp == nullptr){
 
         header = bmp_mode | bits_16; // Size is 0
-
         ret = stream_out.write(reinterpret_cast<const char*>(&header), sizeof(uint16_t)).fail();
     }
     else {
 
-        uint16_t new_sz;
-
-        if (getMode() == bmp_mode) new_sz = (static_cast<const uint16_t>(maximum() & 0xFFFF) >> 4) + 4;
-        else new_sz = getCardinality() + 3;
+        const uint16_t new_sz = (getMode() == bmp_mode) ? (static_cast<const uint16_t>(maximum() & 0xFFFF) >> 4) + 4 : getCardinality() + 3;
 
         header = (tiny_bmp[0] & ~sz_mask) | (new_sz << 3);
 
@@ -825,7 +817,7 @@ bool TinyBitmap::read(istream& stream_in) {
 
     if (ret == false){
 
-        const uint16_t sz = ret >> 3;
+        const uint16_t sz = header >> 3;
 
         if (sz != 0){
 
@@ -837,7 +829,9 @@ bool TinyBitmap::read(istream& stream_in) {
                 exit(1);
             }
 
-            ret = stream_in.read(reinterpret_cast<char*>(&tiny_bmp), sz * sizeof(uint16_t)).fail();
+            ret = stream_in.read(reinterpret_cast<char*>(&tiny_bmp[1]), (sz - 1) * sizeof(uint16_t)).fail();
+
+            tiny_bmp[0] = header;
         }
     }
 

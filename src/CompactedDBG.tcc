@@ -21,37 +21,9 @@ static const uint8_t bits[256] = {
 };
 
 template<typename U, typename G>
-CompactedDBG<U, G>::CompactedDBG(int kmer_length, int minimizer_length) :   k_(kmer_length), g_(minimizer_length), invalid(false) {
+CompactedDBG<U, G>::CompactedDBG(const int kmer_length, const int minimizer_length) :   k_(kmer_length), g_(minimizer_length), invalid(false) {
 
-    if (kmer_length <= 0){
-
-        cerr << "CompactedDBG::setK(): Length k of k-mers cannot be less than or equal to 0" << endl;
-        invalid = true;
-    }
-
-    if (kmer_length >= MAX_KMER_SIZE){
-
-        cerr << "CompactedDBG::setK(): Length k of k-mers cannot exceed or be equal to " << MAX_KMER_SIZE << endl;
-        invalid = true;
-    }
-
-    if (minimizer_length <= 0){
-
-        cerr << "CompactedDBG::setK(): Length g of minimizers cannot be less than or equal to 0" << endl;
-        invalid = true;
-    }
-
-    if (minimizer_length >= MAX_KMER_SIZE){
-
-        cerr << "CompactedDBG::setK(): Length g of minimizers cannot exceed or be equal to " << MAX_KMER_SIZE << endl;
-        invalid = true;
-    }
-
-    if (!invalid){
-
-        Kmer::set_k(k_);
-        Minimizer::set_g(g_);
-    }
+    setKmerGmerLength(k_, g_);
 }
 
 template<typename U, typename G>
@@ -376,7 +348,7 @@ bool CompactedDBG<U, G>::simplify(const bool delete_short_isolated_unitigs, cons
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::write(const string output_filename, const size_t nb_threads, const bool GFA_output, const bool verbose) {
+bool CompactedDBG<U, G>::write(const string& output_filename, const size_t nb_threads, const bool GFA_output, const bool verbose) const {
 
     if (invalid){
 
@@ -413,7 +385,111 @@ bool CompactedDBG<U, G>::write(const string output_filename, const size_t nb_thr
 }
 
 template<typename U, typename G>
+bool CompactedDBG<U, G>::read(const string& input_filename, const bool verbose){
+
+    if (verbose) cout << endl << "CompactedDBG::read(): Reading graph from disk" << endl;
+
+    string s_ext = input_filename.substr(input_filename.find_last_of(".") + 1);
+
+    if ((s_ext == "gz")){
+
+        s_ext = s_ext.substr(s_ext.find_last_of(".") + 1);
+
+        if ((s_ext != "fasta") && (s_ext != "fa") && (s_ext != "gfa")) {
+
+            cerr << "CompactedDBG::read(): Input files must be in FASTA (*.fasta, *.fa, *.fasta.gz, *.fa.gz) or " <<
+            "GFA (*.gfa) format" << endl;
+            cerr << "CompactedDBG::read(): Erroneous file is " << input_filename << endl;
+
+            return false;
+        }
+    }
+    else if ((s_ext != "fasta") && (s_ext != "fa") && (s_ext != "gfa")) {
+
+        cerr << "CompactedDBG::read(): Input files must be in FASTA (*.fasta, *.fa, *.fasta.gz, *.fa.gz) or " <<
+        "GFA (*.gfa) format" << endl;
+        cerr << "CompactedDBG::read(): Erroneous file is " << input_filename << endl;
+
+        return false;
+    }
+
+    if (s_ext == "gfa"){
+
+        FILE* fp = fopen(input_filename.c_str(), "r");
+
+        if (fp == NULL) {
+
+            cerr << "CompactedDBG::read(): Could not open file " << input_filename << " for reading graph" << endl;
+            return false;
+        }
+
+        fclose(fp);
+
+        char buffer[4096];
+
+        ifstream graphfile_in(input_filename);
+        istream graph_in(graphfile_in.rdbuf());
+
+        graph_in.getline(buffer, 4096); // Read and discard header
+        graphfile_in.close();
+
+        const string header(buffer);
+
+        if (header[0] != 'H'){
+
+            cerr << "CompactedDBG::read(): An error occurred while reading input GFA file." << endl;
+            return false;
+        }
+
+        stringstream hs(&buffer[2]); // Skip the first 2 char. of the line "H\t"
+        string sub;
+
+        bool is_bfg_graph(false);
+
+        int k = INT_MAX;
+
+        while (hs.good()){ // Split line based on tabulation
+
+            getline(hs, sub, '\t');
+
+            const string tag = sub.substr(0, 5);
+
+            if (tag == "KL:Z:") k = atoi(sub.c_str() + 5);
+            else if (tag == "BG:Z:") is_bfg_graph = true;
+        }
+
+        if (is_bfg_graph) setKmerGmerLength(k, g_);
+
+        if (!invalid){
+
+            empty();
+            readGFA(input_filename);
+        }
+        else return false;
+    }
+    else {
+
+        empty();
+        readFASTA(input_filename);
+    }
+
+    CompressedCoverage::setFullCoverage(1);
+
+    for (auto& unitig : *this) unitig.setFullCoverage();
+
+    invalid = false;
+
+    return true;
+}
+
+template<typename U, typename G>
 const_UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extremities_only) const {
+
+    if (invalid){
+
+        cerr << "CompactedDBG::find(): Graph is invalid and cannot be searched" << endl;
+        return const_UnitigMap<U, G>();
+    }
 
     const Kmer km_twin = km.twin();
     const Kmer& km_rep = km < km_twin ? km : km_twin;
@@ -534,6 +610,12 @@ const_UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extrem
 
 template<typename U, typename G>
 UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extremities_only) {
+
+    if (invalid){
+
+        cerr << "CompactedDBG::find(): Graph is invalid and cannot be searched" << endl;
+        return UnitigMap<U, G>();
+    }
 
     const Kmer km_twin = km.twin();
     const Kmer& km_rep = km < km_twin ? km : km_twin;
@@ -1123,16 +1205,22 @@ bool CompactedDBG<U, G>::remove(const const_UnitigMap<U, G>& um, const bool verb
 template<typename U, typename G>
 typename CompactedDBG<U, G>::iterator CompactedDBG<U, G>::begin() {
 
+    if (invalid) return iterator();
+
     iterator it(this);
     ++it;
+
     return it;
 }
 
 template<typename U, typename G>
 typename CompactedDBG<U, G>::const_iterator CompactedDBG<U, G>::begin() const {
 
+    if (invalid) return const_iterator();
+
     const_iterator it(this);
     ++it;
+
     return it;
 }
 
@@ -3921,7 +4009,7 @@ size_t CompactedDBG<U, G>::removeUnitigs(bool rmIsolated, bool clipTips, vector<
 
                 if (!find(head.backwardBase(alpha[i]), true).isEmpty){
 
-                    nb_pred++;
+                    ++nb_pred;
                     if (clipTips) km = head.backwardBase(alpha[i]);
                 }
             }
@@ -3936,20 +4024,20 @@ size_t CompactedDBG<U, G>::removeUnitigs(bool rmIsolated, bool clipTips, vector<
 
                     if (!find(tail.forwardBase(alpha[i]), true).isEmpty){
 
-                        nb_succ++;
+                        ++nb_succ;
                         if (clipTips) km = tail.forwardBase(alpha[i]);
                     }
                 }
 
                 if ((rm_and_clip && ((nb_pred + nb_succ) <= lim)) || (!rm_and_clip && ((nb_pred + nb_succ) == lim))) { //Unitig is isolated
 
-                    removed++;
-                    v_unitigs_sz--;
+                    ++removed;
+                    --v_unitigs_sz;
 
                     if (j != v_unitigs_sz){
 
                         swapUnitigs(false, j, v_unitigs_sz),
-                        j--;
+                        --j;
                     }
 
                     if (clipTips && ((nb_pred + nb_succ) == lim)) v.push_back(km);
@@ -3958,7 +4046,7 @@ size_t CompactedDBG<U, G>::removeUnitigs(bool rmIsolated, bool clipTips, vector<
         }
     }
 
-    for (j = 0; j < v_kmers_sz; j++) {
+    for (j = 0; j < v_kmers_sz; ++j) {
 
         const pair<Kmer, CompressedCoverage_t<U>>& p = v_kmers[j];
 
@@ -3968,7 +4056,7 @@ size_t CompactedDBG<U, G>::removeUnitigs(bool rmIsolated, bool clipTips, vector<
 
             if (!find(p.first.backwardBase(alpha[i]), true).isEmpty){
 
-                nb_pred++;
+                ++nb_pred;
                 if (clipTips) km = p.first.backwardBase(alpha[i]);
             }
         }
@@ -3981,20 +4069,20 @@ size_t CompactedDBG<U, G>::removeUnitigs(bool rmIsolated, bool clipTips, vector<
 
                 if (!find(p.first.forwardBase(alpha[i]), true).isEmpty){
 
-                    nb_succ++;
+                    ++nb_succ;
                     if (clipTips) km = p.first.forwardBase(alpha[i]);
                 }
             }
 
             if ((rm_and_clip && ((nb_pred + nb_succ) <= lim)) || (!rm_and_clip && ((nb_pred + nb_succ) == lim))) { //Unitig is isolated
 
-                removed++;
-                v_kmers_sz--;
+                ++removed;
+                --v_kmers_sz;
 
                 if (j != v_kmers_sz){
 
                     swapUnitigs(true, j, v_kmers_sz),
-                    j--;
+                    --j;
                 }
 
                 if (clipTips && ((nb_pred + nb_succ) == lim)) v.push_back(km);
@@ -4039,10 +4127,10 @@ size_t CompactedDBG<U, G>::removeUnitigs(bool rmIsolated, bool clipTips, vector<
         }
     }
 
-    for (j = v_unitigs_sz; j < v_unitigs.size(); j++) deleteUnitig(false, false, j);
+    for (j = v_unitigs_sz; j < v_unitigs.size(); ++j) deleteUnitig(false, false, j);
     v_unitigs.resize(v_unitigs_sz);
 
-    for (j = v_kmers_sz; j < v_kmers.size(); j++) deleteUnitig(true, false, j);
+    for (j = v_kmers_sz; j < v_kmers.size(); ++j) deleteUnitig(true, false, j);
     v_kmers.resize(v_kmers_sz);
 
     for (typename h_kmers_ccov_t::iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it){
@@ -4054,7 +4142,7 @@ size_t CompactedDBG<U, G>::removeUnitigs(bool rmIsolated, bool clipTips, vector<
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::writeFASTA(string graphfilename) const {
+void CompactedDBG<U, G>::writeFASTA(const string& graphfilename) const {
 
     const size_t v_unitigs_sz = v_unitigs.size();
     const size_t v_kmers_sz = v_kmers.size();
@@ -4067,6 +4155,7 @@ void CompactedDBG<U, G>::writeFASTA(string graphfilename) const {
 
     graphfile.open(graphfilename.c_str());
     graph.rdbuf(graphfile.rdbuf());
+    graph.sync_with_stdio(false);
     assert(!graphfile.fail());
 
     for (size_t j = 0; j < v_unitigs_sz; ++j, ++i) {
@@ -4102,7 +4191,7 @@ typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::writeGFA_seque
         const string slabelA = std::to_string(labelA);
         const string data = unitig->getData()->serialize();
 
-        graph.write_sequence(slabelA, unitig->seq.size(), unitig->seq.toString(), data == "" ? data : string("DI:Z:" + data));
+        graph.write_sequence(slabelA, unitig->seq.size(), unitig->seq.toString(), data == "" ? data : string("DA:Z:" + data));
     }
 
     for (labelA = 1; labelA <= v_kmers_sz; ++labelA) {
@@ -4111,7 +4200,7 @@ typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::writeGFA_seque
         const string slabelA = std::to_string(labelA + v_unitigs_sz);
         const string data = p.second.getData()->serialize();
 
-        graph.write_sequence(slabelA, k_, p.first.toString(), data == "" ? data : string("DI:Z:" + data));
+        graph.write_sequence(slabelA, k_, p.first.toString(), data == "" ? data : string("DA:Z:" + data));
     }
 
     for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it) {
@@ -4121,7 +4210,7 @@ typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::writeGFA_seque
 
         idmap.insert(it.getKey(), id);
 
-        graph.write_sequence(slabelA, k_, it.getKey().toString(), data == "" ? data : string("DI:Z:" + data));
+        graph.write_sequence(slabelA, k_, it.getKey().toString(), data == "" ? data : string("DA:Z:" + data));
 
         ++id;
     }
@@ -4165,18 +4254,20 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::writeGFA_sequen
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::writeGFA(string graphfilename, const size_t nb_threads) const {
+void CompactedDBG<U, G>::writeGFA(const string& graphfilename, const size_t nb_threads) const {
 
     const size_t v_unitigs_sz = v_unitigs.size();
     const size_t v_kmers_sz = v_kmers.size();
 
     size_t i, labelA, labelB, id = v_unitigs_sz + v_kmers_sz + 1;
 
+    const string header_tag("BV:Z:" + string(BFG_VERSION) + "\t" + "KL:Z:" + to_string(k_));
+
     KmerHashTable<size_t> idmap(h_kmers_ccov.size());
 
     GFA_Parser graph(graphfilename);
 
-    graph.open_write(1);
+    graph.open_write(1, header_tag);
 
     writeGFA_sequence_<is_void<U>::value>(graph, idmap);
 
@@ -4470,6 +4561,39 @@ void CompactedDBG<U, G>::writeGFA(string graphfilename, const size_t nb_threads)
 }
 
 template<typename U, typename G>
+void CompactedDBG<U, G>::readGFA(const string& graphfilename) {
+
+    size_t graph_file_id = 0;
+
+    bool new_file_opened = false;
+
+    GFA_Parser graph(graphfilename);
+
+    graph.open_read();
+
+    GFA_Parser::GFA_line r = graph.read(graph_file_id, new_file_opened, true);
+
+    while ((r.first != nullptr) || (r.second != nullptr)){
+
+        if (r.first != nullptr) addUnitig(r.first->seq, (r.first->seq.length() == k_) ? v_kmers.size() : v_unitigs.size());
+
+        r = graph.read(graph_file_id, new_file_opened, true);
+    }
+}
+
+template<typename U, typename G>
+void CompactedDBG<U, G>::readFASTA(const string& graphfilename) {
+
+    size_t graph_file_id = 0;
+
+    string seq;
+
+    FastqFile ff(vector<string>(1, graphfilename));
+
+    while (ff.read_next(seq, graph_file_id) != -1) addUnitig(seq, (seq.length() == k_) ? v_kmers.size() : v_unitigs.size());
+}
+
+template<typename U, typename G>
 void CompactedDBG<U, G>::mapRead(const UnitigMap<U, G>& cc) {
 
     if (cc.isEmpty) return; // nothing maps, move on
@@ -4722,6 +4846,46 @@ size_t CompactedDBG<U, G>::joinTips(string filename_MBBF_uniq_kmers, const size_
     if (verbose) cout << "CompactedDBG<U, G>::joinTips(): " << nb_join << " unitigs have been joined using mercy k-mers" << endl;
 
     return nb_join;
+}
+
+template<typename U, typename G>
+void CompactedDBG<U, G>::setKmerGmerLength(const int kmer_length, const int minimizer_length){
+
+    if (kmer_length <= 0){
+
+        cerr << "CompactedDBG::CompactedDBG(): Length k of k-mers cannot be less than or equal to 0" << endl;
+        invalid = true;
+    }
+
+    if (kmer_length >= MAX_KMER_SIZE){
+
+        cerr << "CompactedDBG::CompactedDBG(): Length k of k-mers cannot exceed or be equal to " << MAX_KMER_SIZE << endl;
+        invalid = true;
+    }
+
+    if (minimizer_length <= 0){
+
+        cerr << "CompactedDBG::CompactedDBG(): Length g of minimizers cannot be less than or equal to 0" << endl;
+        invalid = true;
+    }
+
+    if (minimizer_length >= MAX_KMER_SIZE){
+
+        cerr << "CompactedDBG::CompactedDBG(): Length g of minimizers cannot exceed or be equal to " << MAX_KMER_SIZE << endl;
+        invalid = true;
+    }
+
+    if (minimizer_length > kmer_length - 2){
+
+        cerr << "CompactedDBG::CompactedDBG(): Length g of minimizers cannot exceed k - 2" << endl;
+        invalid = true;
+    }
+
+    if (!invalid){
+
+        Kmer::set_k(k_);
+        Minimizer::set_g(g_);
+    }
 }
 
 template<typename U, typename G>

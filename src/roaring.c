@@ -1,4 +1,4 @@
-/* auto-generated on Mon Jun  4 10:45:08 GMT 2018. Do not edit! */
+/* auto-generated on Fri Jun 15 14:49:07 GMT 2018. Do not edit! */
 #include "roaring.h"
 
 /* used for http://dmalloc.com/ Dmalloc - Debug Malloc Library */

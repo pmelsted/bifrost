@@ -296,23 +296,27 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         */
         ColoredCDBG& operator=(ColoredCDBG&& o);
 
-        /** Clear the graph: empty the graph and reset its parameters.
+        /** Clear the graph: remove unitigs, user data and colors + reset its parameters.
         */
         void clear();
+
+        /** Empty the graph: remove unitigs, user data and colors. Does not reset the parameters.
+        */
+        void empty();
 
         /** Build the Colored and compacted de Bruijn graph (only the unitigs).
         * A call to ColoredCDBG::mapColors is required afterwards to map colors to unitigs.
         * @param opt is a structure from which the members are parameters of this function. See CCDBG_Build_opt.
         * @return boolean indicating if the graph has been built successfully.
         */
-        bool build(const CCDBG_Build_opt& opt);
+        bool buildGraph(const CCDBG_Build_opt& opt);
 
         /** Map the colors to the unitigs. This is done by reading the input files and querying the graph.
         * If a color filename is provided in opt.filename_colors_in, colors are loaded from that file instead.
         * @param opt is a structure from which the members are parameters of this function. See CCDBG_Build_opt.
         * @return boolean indicating if the colors have been mapped successfully.
         */
-        bool mapColors(const CCDBG_Build_opt& opt);
+        bool buildColors(const CCDBG_Build_opt& opt);
 
         /** Write a colored and compacted de Bruijn graph to disk.
         * @param prefix_output_filename is a string which is the prefix of the filename for the two files that are
@@ -322,7 +326,18 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         * @param verbose is a boolean indicating if information message are printed during writing (true) or not (false).
         * @return a boolean indicating if the graph was successfully written.
         */
-        bool write(const string prefix_output_filename, const size_t nb_threads = 1, const bool verbose = false);
+        bool write(const string& prefix_output_filename, const size_t nb_threads = 1, const bool verbose = false) const;
+
+        /** Read a colored and compacted de Bruijn graph from disk. The graph (in GFA format) must have been produced
+        * by Bifrost.
+        * @param prefix_input_filename is a string which is the prefix of the filename for the two files that are
+        * going to be read from disk. Assuming the prefix is "XXX", two files "XXX.gfa" and "XXX.bfg_colors" will
+        * be read from disk.
+        * @param nb_threads is the number of threads that can be used to read the graph and its colors from disk.
+        * @param verbose is a boolean indicating if information messages are printed during reading (true) or not (false).
+        * @return a boolean indicating if the graph was successfully read.
+        */
+        bool read(const string& prefix_input_filename, const size_t nb_threads = 1, const bool verbose = false);
 
         /** Get the name of a color. As colors match the input files, the color names match the input filenames.
         * @return a string which is either a color name or an error message if the color ID is invalid or if the
@@ -339,8 +354,8 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
 
         void checkColors(const vector<string>& filename_seq_in) const;
 
-        void initColorSets(const CCDBG_Build_opt& opt, const size_t max_nb_hash = 31);
-        void buildColorSets(const size_t nb_threads);
+        void initUnitigColors(const CCDBG_Build_opt& opt, const size_t max_nb_hash = 31);
+        void buildUnitigColors(const size_t nb_threads);
 
         inline bool readColorSets(const CCDBG_Build_opt& opt){
 

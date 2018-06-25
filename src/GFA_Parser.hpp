@@ -19,11 +19,21 @@ class GFA_Parser {
 
         string id;
         string seq;
-        string opt;
         size_t len;
 
-        Sequence() : id(), seq("*"), len(0), opt("") {};
-        Sequence(const string& id_, const string& seq_, const size_t len_, const string opt_ = "") :  id(id_), seq(seq_), len(len_), opt(opt_) {};
+        vector<string> tags;
+
+        Sequence() : seq("*"), len(0) {};
+        Sequence(const string& id_, const string& seq_, const size_t len_) :  id(id_), seq(seq_), len(len_) {};
+
+        inline void clear() {
+
+            id.clear();
+            tags.clear();
+
+            seq = "*";
+            len = 0;
+        }
     };
 
     struct Edge {
@@ -49,6 +59,22 @@ class GFA_Parser {
              const string edge_id_ = "*") : edge_id(edge_id_),
              vertexA_id(vertexA_id_), pos_start_overlapA(pos_start_overlapA_), pos_end_overlapA(pos_end_overlapA_), strand_overlapA(strand_overlapA_),
              vertexB_id(vertexB_id_), pos_start_overlapB(pos_start_overlapB_), pos_end_overlapB(pos_end_overlapB_), strand_overlapB(strand_overlapB_) {};
+
+        inline void clear() {
+
+            vertexA_id.clear();
+            vertexB_id.clear();
+
+            edge_id = "*";
+
+            pos_start_overlapA = 0;
+            pos_end_overlapA = 0;
+            pos_start_overlapB = 0;
+            pos_end_overlapB = 0;
+
+            strand_overlapA = true;
+            strand_overlapB = true;
+        }
     };
 
     public:
@@ -64,18 +90,18 @@ class GFA_Parser {
         GFA_Parser(GFA_Parser&& o);
         GFA_Parser& operator=(GFA_Parser&& o);
 
-        bool open_write(const size_t version_GFA);
+        bool open_write(const size_t version_GFA = 1, const string tags_line_header = "");
         bool open_read();
 
         void close();
 
-        bool write_sequence(const string& id, const size_t len, const string seq = "*", const string opt = "");
+        bool write_sequence(const string& id, const size_t len, const string seq = "*", const string tags_line = "");
         bool write_edge(const string vertexA_id, const size_t pos_start_overlapA, const size_t pos_end_overlapA, const bool strand_overlapA,
                         const string vertexB_id, const size_t pos_start_overlapB, const size_t pos_end_overlapB, const bool strand_overlapB,
                         const string edge_id = "*");
 
-        const GFA_line read(size_t& file_id);
-        const GFA_line read(size_t& file_id, bool& new_file_opened, const bool skip_edges = false);
+        GFA_line read(size_t& file_id);
+        GFA_line read(size_t& file_id, bool& new_file_opened, const bool skip_edges = false);
 
     private:
 

@@ -266,7 +266,7 @@ class CompactedDBG {
         * @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
         * @param minimizer_length is the length g of minimizers (g < k) used in the graph.
         */
-        CompactedDBG(int kmer_length = DEFAULT_K, int minimizer_length = DEFAULT_G);
+        CompactedDBG(const int kmer_length = DEFAULT_K, const int minimizer_length = DEFAULT_G);
 
         /** Copy constructor (copy a compacted de Bruijn graph).
         * This function is expensive in terms of time and memory as the content of a compacted
@@ -331,7 +331,17 @@ class CompactedDBG {
         * @param verbose is a boolean indicating if information messages must be printed during the function execution.
         * @return boolean indicating if the graph has been written successfully.
         */
-        bool write(const string output_filename, const size_t nb_threads = 1, const bool GFA_output = true, const bool verbose = false);
+        bool write(const string& output_filename, const size_t nb_threads = 1, const bool GFA_output = true, const bool verbose = false) const;
+
+        /** Read a Compacted de Bruijn graph from disk (GFA1 or FASTA format).
+        * If the input GFA file has not been built by Bifrost or if the input is FASTA format, it is your responsibility to make sure
+        * that the graph is correctly compacted and to set correctly the parameters of the graph (such as the k-mer length) before the
+        * call to this function.
+        * @param input_filename is a string containing the name of the file from which the graph will be read.
+        * @param verbose is a boolean indicating if information messages must be printed during the function execution.
+        * @return boolean indicating if the graph has been read successfully.
+        */
+        bool read(const string& input_filename, const bool verbose = false);
 
         /** Find the unitig containing the queried k-mer in the Compacted de Bruijn graph.
         * @param km is the queried k-mer (see Kmer class). It does not need to be a canonical k-mer.
@@ -459,8 +469,11 @@ class CompactedDBG {
         size_t joinTips(string filename_MBBF_uniq_kmers, const size_t nb_threads = 1, const bool verbose = false);
         vector<Kmer> extractMercyKmers(BlockedBloomFilter& bf_uniq_km, const size_t nb_threads = 1, const bool verbose = false);
 
-        void writeGFA(string graphfilename, const size_t nb_threads = 1) const;
-        void writeFASTA(string graphfilename) const;
+        void writeGFA(const string& graphfilename, const size_t nb_threads = 1) const;
+        void writeFASTA(const string& graphfilename) const;
+
+        void readGFA(const string& graphfilename);
+        void readFASTA(const string& graphfilename);
 
         template<bool is_void>
         typename std::enable_if<!is_void, void>::type writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const;
@@ -469,6 +482,7 @@ class CompactedDBG {
 
         void mapRead(const UnitigMap<U, G>& cc);
 
+        void setKmerGmerLength(const int kmer_length, const int minimizer_length);
         void print() const;
 
 

@@ -128,6 +128,8 @@ class UnitigColors {
 
                 UnitigColors_const_iterator(const UnitigColors* cs_, const size_t len_unitig_km, const bool beg);
 
+                inline uint64_t get_ID() const { return ck_id; }
+
                 inline bool isInvalid() const {
 
                     return ((ck_id == 0xffffffffffffffff) || (it_setBits == cs_sz));
@@ -151,8 +153,6 @@ class UnitigColors {
         */
         UnitigColors(const UnitigColors& o); // Copy constructor
 
-        UnitigColors(SharedUnitigColors& o);
-
         /** Move constructor. After the call to this constructor, the UnitigColors to move is empty:
         * its content has been transfered (moved) to a new UnitigColors.
         * @param o is the color set to move.
@@ -170,8 +170,6 @@ class UnitigColors {
         */
         UnitigColors& operator=(const UnitigColors& o);
 
-        UnitigColors& operator=(SharedUnitigColors& o);
-
         /** Move assignment operator. After the call to this operator, the UnitigColors to move is empty:
         * its content has been transfered (moved) to another UnitigColors.
         * @param o is the UnitigColors to move.
@@ -179,9 +177,6 @@ class UnitigColors {
         */
         UnitigColors& operator=(UnitigColors&& o);
 
-        /** Equality operator.
-        * @return a boolean indicating if two UnitigColors contains the same pairs (k-mer position, color).
-        */
         bool operator==(const UnitigColors& o) const;
 
         /** Inequality operator.
@@ -247,7 +242,7 @@ class UnitigColors {
         * opened prior to the call of this function and it won't be closed by this function.
         * @return a boolean indicating if the write was successful.
         */
-        bool write(ostream& stream_out) const;
+        bool write(ostream& stream_out, const bool copy_UnitigColors = true) const;
 
         /** Read a UnitigColors from a stream.
         * @param stream_in is an in stream from which the UnitigColors must be read. It must be
@@ -278,20 +273,18 @@ class UnitigColors {
         /** If possible, decrease the memory usage of the UnitigColors by optimizing the memory for "full
         * colors" (a color is "full" when it is present on all k-mers of the reference unitig).
         * @param um is a UnitigMapBase object representing a mapping to a reference unitig.
-        * @param color_start is the minimum full color index for which the optimization must be applied.
-        * It allows to call the function iteratively without having to recompute the whole optimization
-        * from the first color each time. Default is 0.
         * @return a boolean indicating if it was possible to optimize the memory usage of the UnitigColors.
         */
         bool optimizeFullColors(const UnitigMapBase& um);
 
-        //UnitigColors makeFullColors(const UnitigMapBase& um);
-
-        //inline UnitigColors* getFullColorsPtr() { return (isUnitigColors() ? getPtrUnitigColors() : nullptr); }
-
         uint64_t hash(const size_t seed = 0) const;
 
     private:
+
+        UnitigColors(SharedUnitigColors& o);
+        UnitigColors(const UnitigColors& o, const SharedUnitigColors* old_ref_uc, const SharedUnitigColors* new_ref_uc);
+
+        UnitigColors& operator=(SharedUnitigColors& o);
 
         void add(const size_t color_id);
         bool contains(const size_t color_km_id) const;
@@ -302,7 +295,12 @@ class UnitigColors {
 
             if (flag == ptrUnitigColors) delete[] getPtrUnitigColors();
             else if (flag == ptrBitmap) delete getPtrBitmap();
-            else if (flag == ptrSharedUnitigColors) --(getPtrSharedUnitigColors()->second);
+            else if (flag == ptrSharedUnitigColors){
+
+                SharedUnitigColors* s_uc = getPtrSharedUnitigColors();
+
+                if (--(s_uc->second) == 0) s_uc->first.empty();
+            }
             else if (flag == localTinyBitmap){
 
                 uint16_t* setPtrTinyBmp = getPtrTinyBitmap();
@@ -335,6 +333,20 @@ class UnitigColors {
 
                 setBits = (reinterpret_cast<uintptr_t>(t_bmp.detach()) & pointerMask) | localTinyBitmap;
             }
+        }
+
+        UnitigColors makeFullColors(const UnitigMapBase& um) const;
+        UnitigColors getFullColors(const UnitigMapBase& um) const;
+        UnitigColors getNonFullColors(const UnitigMapBase& um, const UnitigColors& full_uc) const;
+
+        inline UnitigColors* getFullColorsPtr() {
+
+            return (isUnitigColors() ? getPtrUnitigColors() : nullptr);
+        }
+
+        inline const UnitigColors* getFullColorsPtr() const {
+
+            return (isUnitigColors() ? getPtrUnitigColors() : nullptr);
         }
 
         inline bool isBitmap() const { return ((setBits & flagMask) == ptrBitmap); }

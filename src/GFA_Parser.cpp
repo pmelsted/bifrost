@@ -87,7 +87,7 @@ GFA_Parser::~GFA_Parser() {
     close();
 }
 
-bool GFA_Parser::open_write(const size_t version_GFA) {
+bool GFA_Parser::open_write(const size_t version_GFA, const string tags_line_header) {
 
     if (graph_filenames.size() == 0){
 
@@ -116,10 +116,15 @@ bool GFA_Parser::open_write(const size_t version_GFA) {
 
     if (file_open_write){
 
-        graphfile_out.open(filename.c_str());
+        graphfile_out.open(filename.c_str(), ios_base::out);
         graph_out.rdbuf(graphfile_out.rdbuf());
+        graph_out.sync_with_stdio(false);
 
-        graph_out << "H\tVN:Z:" << (v_gfa == 1 ? "1" : "2") << ".0\n";
+        graph_out << "H\tVN:Z:" << (v_gfa == 1 ? "1" : "2") << ".0";
+
+        if (!tags_line_header.empty() && (tags_line_header != "")) graph_out << "\t" << tags_line_header;
+
+        graph_out << "\n";
     }
 
     return file_open_write;
@@ -137,29 +142,51 @@ bool GFA_Parser::open_read() {
 
         FILE* fp = fopen(filename.c_str(), "r");
 
-        if ((file_open_read = (fp != NULL)) == true) fclose(fp);
+        if (fp != NULL) fclose(fp);
         else cerr << "GFA_Parser::open_read(): Could not open file " << filename << " for reading" << endl;
-
-        if (file_open_read) {
-
-            graphfile_in.open(filename);
-            graph_in.rdbuf(graphfile_in.rdbuf());
-
-            graph_in.getline(buffer, buff_sz);
-
-            const string header(buffer);
-
-            if ((header != "H\tVN:Z:1.0") && (header != "H\tVN:Z:2.0")) {
-
-                cerr << "GFA_Parser::open_read(): Wrong GFA header or unsupported GFA format version " <<
-                "(GFA_Parser only supports version 1 and 2) in " << filename << endl;
-            }
-
-            close();
-        }
     }
 
     file_open_read = open(file_no);
+
+    return file_open_read;
+}
+
+bool GFA_Parser::open(const size_t idx_filename){
+
+    if (idx_filename < graph_filenames.size()){
+
+        FILE* fp = fopen(graph_filenames[idx_filename].c_str(), "r");
+
+        if ((file_open_read = (fp != NULL)) == true) fclose(fp);
+        else cerr << "GFA_Parser::open(): Could not open file " << graph_filenames[idx_filename] << " for reading" << endl;
+
+        if (file_open_read) {
+
+            graphfile_in.open(graph_filenames[idx_filename], ios_base::in);
+            graph_in.rdbuf(graphfile_in.rdbuf());
+            graph_in.sync_with_stdio(false);
+
+            graph_in.getline(buffer, buff_sz); // Read and discard header
+
+            const string header(buffer);
+
+            if (header[0] != 'H'){
+
+                cerr << "GFA_Parser::open(): Wrong GFA header in " << graph_filenames[idx_filename] << endl;
+                close();
+            }
+            else if (header.substr(0, 10) == "H\tVN:Z:1.0") v_gfa = 1;
+            else if (header.substr(0, 10) == "H\tVN:Z:2.0") v_gfa = 2;
+            else {
+
+                cerr << "GFA_Parser::open(): Unspecified GFA format version in " << graph_filenames[idx_filename] <<
+                ", version 1.0 is assumed by default." << endl;
+
+                v_gfa = 1;
+            }
+        }
+    }
+    else file_open_read = false;
 
     return file_open_read;
 }
@@ -178,7 +205,7 @@ void GFA_Parser::close(){
     }
 }
 
-bool GFA_Parser::write_sequence(const string& id, const size_t len, const string seq, const string opt){
+bool GFA_Parser::write_sequence(const string& id, const size_t len, const string seq, const string tags_line){
 
     if (file_open_write){
 
@@ -188,7 +215,7 @@ bool GFA_Parser::write_sequence(const string& id, const size_t len, const string
 
         graph_out << "\t" << seq;
 
-        if (opt != "") graph_out << "\t" << opt;
+        if (!tags_line.empty() && (tags_line != "")) graph_out << "\t" << tags_line;
 
         graph_out << "\n";
     }
@@ -259,7 +286,7 @@ bool GFA_Parser::write_edge(const string vertexA_id, const size_t pos_start_over
 //
 // file_id is an unsigned integer indicating the ID of the currently read file (first read file has ID 0
 // second has ID 1, etc.)
-const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
+GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
 
     if (file_open_read){
 
@@ -269,18 +296,22 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
 
             if (buffer[0] == 'S'){ // Segment line
 
-                stringstream ss(&buffer[2]); // Skip the first 2 char. of the line "S\t"
-                string substr;
+                char* buffer_tmp = &buffer[2];
+                char* prev_buffer_tmp = NULL;
 
-                while (ss.good()){ // Split line based on tabulation
+                const char* end_buffer = &buffer[strlen(buffer)];
 
-                    getline(ss, substr, '\t');
-                    line_fields.push_back(substr);
+                while ((prev_buffer_tmp = strchr(buffer_tmp, '\t')) != NULL){
+
+                    line_fields.push_back(string(buffer_tmp, prev_buffer_tmp - buffer_tmp));
+                    buffer_tmp = prev_buffer_tmp + 1;
                 }
+
+                if (end_buffer - buffer_tmp != 0) line_fields.push_back(string(buffer_tmp, end_buffer - buffer_tmp));
 
                 const size_t line_fields_sz = line_fields.size();
 
-                s = Sequence();
+                s.clear();
 
                 if (v_gfa == 1){ // GFA format version 1
 
@@ -290,10 +321,10 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
                         close();
                     }
 
-                    s.id = line_fields[0];
-                    s.seq = line_fields[1];
+                    s.id = move(line_fields[0]);
+                    s.seq = move(line_fields[1]);
 
-                    for (size_t i = 2; i < line_fields_sz; ++i) s.opt += "\t" + line_fields[i];
+                    for (size_t i = 2; i < line_fields_sz; ++i) s.tags.push_back(move(line_fields[i]));
                 }
                 else {
 
@@ -303,11 +334,11 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
                         close();
                     }
 
-                    s.id = line_fields[0];
+                    s.id = move(line_fields[0]);
                     s.len = sscanf(line_fields[1].c_str(), "%zu", &(s.len));
-                    s.seq = line_fields[2];
+                    s.seq = move(line_fields[2]);
 
-                    for (size_t i = 3; i < line_fields_sz; ++i) s.opt += "\t" + line_fields[i];
+                    for (size_t i = 3; i < line_fields_sz; ++i) s.tags.push_back(move(line_fields[i]));
                 }
 
                 file_id = file_no;
@@ -316,18 +347,22 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
             }
             else if ((v_gfa == 1) && (buffer[0] == 'L')){ // Link line, only GFA v1
 
-                stringstream ss(&buffer[2]); // Skip the first 2 char. of the line "L\t"
-                string substr;
+                char* buffer_tmp = &buffer[2];
+                char* prev_buffer_tmp = NULL;
 
-                while (ss.good()){ // Split line based on tabulation
+                const char* end_buffer = &buffer[strlen(buffer)];
 
-                    getline(ss, substr, '\t');
-                    line_fields.push_back(substr);
+                while ((prev_buffer_tmp = strchr(buffer_tmp, '\t')) != NULL){
+
+                    line_fields.push_back(string(buffer_tmp, prev_buffer_tmp - buffer_tmp));
+                    buffer_tmp = prev_buffer_tmp + 1;
                 }
+
+                if (end_buffer - buffer_tmp != 0) line_fields.push_back(string(buffer_tmp, end_buffer - buffer_tmp));
 
                 const size_t line_fields_sz = line_fields.size();
 
-                e = Edge();
+                e.clear();
 
                 if (line_fields_sz < 4){
 
@@ -335,8 +370,8 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
                     close();
                 }
 
-                e.vertexA_id = line_fields[0];
-                e.vertexB_id = line_fields[2];
+                e.vertexA_id = move(line_fields[0]);
+                e.vertexB_id = move(line_fields[2]);
 
                 if (line_fields[1] == "+") e.strand_overlapA = true;
                 else if (line_fields[1] == "-") e.strand_overlapA = false;
@@ -360,18 +395,22 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
             }
             else if ((v_gfa == 2) && (buffer[0] == 'E')){ // Edge line, only GFA v2
 
-                stringstream ss(&buffer[2]); // Skip the first 2 char. of the line "L\t"
-                string substr;
+                char* buffer_tmp = &buffer[2];
+                char* prev_buffer_tmp = NULL;
 
-                while (ss.good()){ // Split line based on tabulation
+                const char* end_buffer = &buffer[strlen(buffer)];
 
-                    getline(ss, substr, '\t');
-                    line_fields.push_back(substr);
+                while ((prev_buffer_tmp = strchr(buffer_tmp, '\t')) != NULL){
+
+                    line_fields.push_back(string(buffer_tmp, prev_buffer_tmp - buffer_tmp));
+                    buffer_tmp = prev_buffer_tmp + 1;
                 }
+
+                if (end_buffer - buffer_tmp != 0) line_fields.push_back(string(buffer_tmp, end_buffer - buffer_tmp));
 
                 const size_t line_fields_sz = line_fields.size();
 
-                e = Edge();
+                e.clear();
 
                 if (line_fields_sz < 8){
 
@@ -386,7 +425,7 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
                 e.strand_overlapA = (ca != '-');
 
                 if ((ca == '-') || (ca == '-')) e.vertexA_id = line_fields[1].substr(0, line_fields[1].length() - 1);
-                else e.vertexA_id = line_fields[1];
+                else e.vertexA_id = move(line_fields[1]);
 
                 sscanf(line_fields[2].c_str(), "%zu", &(e.pos_start_overlapA));
                 sscanf(line_fields[3].c_str(), "%zu", &(e.pos_end_overlapA));
@@ -396,7 +435,7 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
                 e.strand_overlapB = (cb != '-');
 
                 if ((cb == '-') || (cb == '-')) e.vertexB_id = line_fields[4].substr(0, line_fields[4].length() - 1);
-                else e.vertexB_id = line_fields[4];
+                else e.vertexB_id = move(line_fields[4]);
 
                 sscanf(line_fields[5].c_str(), "%zu", &(e.pos_start_overlapB));
                 sscanf(line_fields[6].c_str(), "%zu", &(e.pos_end_overlapB));
@@ -449,7 +488,7 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
 // file_id is an unsigned integer indicating the ID of the currently read file (first read file has ID 0, second ID 1, etc.)
 // skip_edges is a boolean indicating if Edge lines should be ignored (true) or not (false) while reading
 
-const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_opened, const bool skip_edges) {
+GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_opened, const bool skip_edges) {
 
     new_file_opened = false;
 
@@ -461,18 +500,22 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_open
 
             if (buffer[0] == 'S'){ // Segment line
 
-                stringstream ss(&buffer[2]); // Skip the first 2 char. of the line "S\t"
-                string substr;
+                char* buffer_tmp = &buffer[2];
+                char* prev_buffer_tmp = NULL;
 
-                while (ss.good()){ // Split line based on tabulation
+                const char* end_buffer = &buffer[strlen(buffer)];
 
-                    getline(ss, substr, '\t');
-                    line_fields.push_back(substr);
+                while ((prev_buffer_tmp = strchr(buffer_tmp, '\t')) != NULL){
+
+                    line_fields.push_back(string(buffer_tmp, prev_buffer_tmp - buffer_tmp));
+                    buffer_tmp = prev_buffer_tmp + 1;
                 }
+
+                if (end_buffer - buffer_tmp != 0) line_fields.push_back(string(buffer_tmp, end_buffer - buffer_tmp));
 
                 const size_t line_fields_sz = line_fields.size();
 
-                s = Sequence();
+                s.clear();
 
                 if (v_gfa == 1){ // GFA format version 1
 
@@ -482,10 +525,10 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_open
                         close();
                     }
 
-                    s.id = line_fields[0];
-                    s.seq = line_fields[1];
+                    s.id = move(line_fields[0]);
+                    s.seq = move(line_fields[1]);
 
-                    for (size_t i = 2; i < line_fields_sz; ++i) s.opt += "\t" + line_fields[i];
+                    for (size_t i = 2; i < line_fields_sz; ++i) s.tags.push_back(move(line_fields[i]));
                 }
                 else {
 
@@ -495,11 +538,11 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_open
                         close();
                     }
 
-                    s.id = line_fields[0];
+                    s.id = move(line_fields[0]);
                     s.len = sscanf(line_fields[1].c_str(), "%zu", &(s.len));
-                    s.seq = line_fields[2];
+                    s.seq = move(line_fields[2]);
 
-                    for (size_t i = 3; i < line_fields_sz; ++i) s.opt += "\t" + line_fields[i];
+                    for (size_t i = 3; i < line_fields_sz; ++i) s.tags.push_back(move(line_fields[i]));
                 }
 
                 file_id = file_no;
@@ -510,18 +553,22 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_open
 
                 if ((v_gfa == 1) && (buffer[0] == 'L')){ // Link line, only GFA v1
 
-                    stringstream ss(&buffer[2]); // Skip the first 2 char. of the line "L\t"
-                    string substr;
+                    char* buffer_tmp = &buffer[2];
+                    char* prev_buffer_tmp = NULL;
 
-                    while (ss.good()){ // Split line based on tabulation
+                    const char* end_buffer = &buffer[strlen(buffer)];
 
-                        getline(ss, substr, '\t');
-                        line_fields.push_back(substr);
+                    while ((prev_buffer_tmp = strchr(buffer_tmp, '\t')) != NULL){
+
+                        line_fields.push_back(string(buffer_tmp, prev_buffer_tmp - buffer_tmp));
+                        buffer_tmp = prev_buffer_tmp + 1;
                     }
+
+                    if (end_buffer - buffer_tmp != 0) line_fields.push_back(string(buffer_tmp, end_buffer - buffer_tmp));
 
                     const size_t line_fields_sz = line_fields.size();
 
-                    e = Edge();
+                    e.clear();
 
                     if (line_fields_sz < 4){
 
@@ -529,8 +576,8 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_open
                         close();
                     }
 
-                    e.vertexA_id = line_fields[0];
-                    e.vertexB_id = line_fields[2];
+                    e.vertexA_id = move(line_fields[0]);
+                    e.vertexB_id = move(line_fields[2]);
 
                     if (line_fields[1] == "+") e.strand_overlapA = true;
                     else if (line_fields[1] == "-") e.strand_overlapA = false;
@@ -554,18 +601,22 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_open
                 }
                 else if ((v_gfa == 2) && (buffer[0] == 'E')){ // Edge line, only GFA v2
 
-                    stringstream ss(&buffer[2]); // Skip the first 2 char. of the line "L\t"
-                    string substr;
+                    char* buffer_tmp = &buffer[2];
+                    char* prev_buffer_tmp = NULL;
 
-                    while (ss.good()){ // Split line based on tabulation
+                    const char* end_buffer = &buffer[strlen(buffer)];
 
-                        getline(ss, substr, '\t');
-                        line_fields.push_back(substr);
+                    while ((prev_buffer_tmp = strchr(buffer_tmp, '\t')) != NULL){
+
+                        line_fields.push_back(string(buffer_tmp, prev_buffer_tmp - buffer_tmp));
+                        buffer_tmp = prev_buffer_tmp + 1;
                     }
+
+                    if (end_buffer - buffer_tmp != 0) line_fields.push_back(string(buffer_tmp, end_buffer - buffer_tmp));
 
                     const size_t line_fields_sz = line_fields.size();
 
-                    e = Edge();
+                    e.clear();
 
                     if (line_fields_sz < 8){
 
@@ -573,14 +624,14 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_open
                         close();
                     }
 
-                    e.edge_id = line_fields[0];
+                    e.edge_id = move(line_fields[0]);
 
                     const char ca = line_fields[1][line_fields[1].length() - 1]; // Last char. of line_fields[1];
 
                     e.strand_overlapA = (ca != '-');
 
                     if ((ca == '-') || (ca == '-')) e.vertexA_id = line_fields[1].substr(0, line_fields[1].length() - 1);
-                    else e.vertexA_id = line_fields[1];
+                    else e.vertexA_id = move(line_fields[1]);
 
                     sscanf(line_fields[2].c_str(), "%zu", &(e.pos_start_overlapA));
                     sscanf(line_fields[3].c_str(), "%zu", &(e.pos_end_overlapA));
@@ -590,7 +641,7 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_open
                     e.strand_overlapB = (cb != '-');
 
                     if ((cb == '-') || (cb == '-')) e.vertexB_id = line_fields[4].substr(0, line_fields[4].length() - 1);
-                    else e.vertexB_id = line_fields[4];
+                    else e.vertexB_id = move(line_fields[4]);
 
                     sscanf(line_fields[5].c_str(), "%zu", &(e.pos_start_overlapB));
                     sscanf(line_fields[6].c_str(), "%zu", &(e.pos_end_overlapB));
@@ -627,38 +678,4 @@ const GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_open
     file_id = file_no;
 
     return make_pair(nullptr, nullptr);
-}
-
-bool GFA_Parser::open(const size_t idx_filename){
-
-    if (idx_filename < graph_filenames.size()){
-
-        FILE* fp = fopen(graph_filenames[idx_filename].c_str(), "r");
-
-        if ((file_open_read = (fp != NULL)) == true) fclose(fp);
-        else cerr << "GFA_Parser::open(): Could not open file " << graph_filenames[idx_filename] << " for reading" << endl;
-
-        if (file_open_read) {
-
-            graphfile_in.open(graph_filenames[idx_filename]);
-            graph_in.rdbuf(graphfile_in.rdbuf());
-
-            graph_in.getline(buffer, buff_sz); // Read and discard header
-
-            const string header(buffer);
-
-            if (header == "H\tVN:Z:1.0") v_gfa = 1;
-            else if (header == "H\tVN:Z:2.0") v_gfa = 2;
-            else {
-
-                cerr << "GFA_Parser::open(): Wrong GFA header or unsupported GFA format version " <<
-                "(GFA_Parser only supports version 1 and 2) in " << graph_filenames[idx_filename] << endl;
-
-                close();
-            }
-        }
-    }
-    else file_open_read = false;
-
-    return file_open_read;
 }

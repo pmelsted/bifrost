@@ -12,7 +12,7 @@
 * **No parameters to estimate** with other tools
 * **C++ API** available:
     * Associate **your data with vertices**
-    * **Add** or **remove** (sub-)sequences or k-mers
+    * **Add** or **remove** (sub-)sequences / *k*-mers / colors
     * **Find unitigs** containing **queried k-mers**
 
 ## Requirements

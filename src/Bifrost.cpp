@@ -360,9 +360,9 @@ int main(int argc, char **argv){
 
                 ColoredCDBG<> cdbg(opt.k, opt.g);
 
-                cdbg.build(opt);
+                cdbg.buildGraph(opt);
                 cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                cdbg.mapColors(opt);
+                cdbg.buildColors(opt);
                 cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
             }
             else {

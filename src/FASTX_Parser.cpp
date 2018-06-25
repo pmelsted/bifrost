@@ -7,6 +7,8 @@ FastqFile::FastqFile(const vector<string> files) : kseq(NULL), fnames(files), fi
     fnit = fnames.begin();
     fp = gzopen(fnit->c_str(), "r");
     kseq = kseq_init(fp);
+
+    std::ios::sync_with_stdio(false);
 }
 
 FastqFile::FastqFile(FastqFile&& o) : fp(o.fp), kseq(o.kseq), fnames(o.fnames), file_no(o.file_no) {
@@ -110,6 +112,29 @@ int FastqFile::read_next(string &seq, size_t& id, bool& next_file_opened) {
     next_file_opened = false;
 
     if (r >= 0) seq.assign(kseq->seq.s);
+    else if (r == -1) {
+
+        open_next();
+
+        if (fnit != fnames.end()){
+
+            id = file_no;
+            next_file_opened = true;
+
+            return 0;
+        }
+    }
+
+    return r;
+}
+
+int FastqFile::read_next(stringstream& ss, size_t& id, bool& next_file_opened) {
+
+    const int r = kseq_read(kseq);
+
+    next_file_opened = false;
+
+    if (r >= 0) ss << kseq->seq.s;
     else if (r == -1) {
 
         open_next();

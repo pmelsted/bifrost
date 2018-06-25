@@ -27,11 +27,51 @@ UnitigColors::UnitigColors(const UnitigColors& o) {
     }
     else if (flag == ptrSharedUnitigColors){
 
-        SharedUnitigColors* s_uc = o.getPtrSharedUnitigColors();
+        const SharedUnitigColors* s_uc = o.getConstPtrSharedUnitigColors();
 
-        ++(s_uc->second);
+        *this = s_uc->first;
+    }
+    else if (flag == localTinyBitmap){
 
-        setBits = (reinterpret_cast<uintptr_t>(s_uc) & pointerMask) | ptrSharedUnitigColors;
+        uint16_t* setPtrTinyBmp = o.getPtrTinyBitmap();
+        TinyBitmap t_bmp(&setPtrTinyBmp);
+        TinyBitmap t_bmp_cpy(t_bmp);
+
+        t_bmp.detach();
+
+        setBits = (reinterpret_cast<uintptr_t>(t_bmp_cpy.detach()) & pointerMask) | localTinyBitmap;
+    }
+    else setBits = o.setBits;
+}
+
+UnitigColors::UnitigColors(const UnitigColors& o, const SharedUnitigColors* old_ref_uc, const SharedUnitigColors* new_ref_uc){
+
+    const uintptr_t flag = o.setBits & flagMask;
+
+    if (flag == ptrUnitigColors){
+
+        const UnitigColors* uc_o = o.getConstPtrUnitigColors();
+
+        UnitigColors* setPtrUC = new UnitigColors[2];
+
+        new (&setPtrUC[0]) UnitigColors(uc_o[0], old_ref_uc, new_ref_uc);
+        new (&setPtrUC[1]) UnitigColors(uc_o[1], old_ref_uc, new_ref_uc);
+
+        setBits = (reinterpret_cast<uintptr_t>(setPtrUC) & pointerMask) | ptrUnitigColors;
+    }
+    else if (flag == ptrBitmap){
+
+        Bitmap* setPtrBmp = new Bitmap;
+
+        setPtrBmp->r = o.getConstPtrBitmap()->r;
+
+        setBits = (reinterpret_cast<uintptr_t>(setPtrBmp) & pointerMask) | ptrBitmap;
+    }
+    else if (flag == ptrSharedUnitigColors){
+
+        const uintptr_t ptr = reinterpret_cast<uintptr_t>(new_ref_uc) + (o.getPtrSharedUnitigColors() - old_ref_uc);
+
+        setBits = (ptr & pointerMask) | ptrSharedUnitigColors;
     }
     else if (flag == localTinyBitmap){
 
@@ -105,11 +145,9 @@ UnitigColors& UnitigColors::operator=(const UnitigColors& o){
         }
         else if (flag == ptrSharedUnitigColors){
 
-            SharedUnitigColors* s_uc = o.getPtrSharedUnitigColors();
+            const SharedUnitigColors* s_uc = o.getConstPtrSharedUnitigColors();
 
-            ++(s_uc->second);
-
-            setBits = (reinterpret_cast<uintptr_t>(s_uc) & pointerMask) | ptrSharedUnitigColors;
+            *this = s_uc->first;
         }
         else if (flag == localTinyBitmap){
 
@@ -156,15 +194,14 @@ UnitigColors& UnitigColors::operator=(UnitigColors&& o){
 bool UnitigColors::operator==(const UnitigColors& o) const {
 
     if (size() != o.size()) return false;
+    if (isUnitigColors() != o.isUnitigColors()) return false;
 
-    const UnitigMapBase um(0, 1, Kmer::k, true);
-
-    UnitigColors::const_iterator it = begin(um), it_end = end();
-    UnitigColors::const_iterator o_it = o.begin(um), o_it_end = o.end();
+    UnitigColors::const_iterator it(begin(1)), o_it(o.begin(1));
+    const UnitigColors::const_iterator it_end(end()), o_it_end(o.end());
 
     for (; (it != it_end) && (o_it != o_it_end); ++it, ++o_it){
 
-        if (*it != *o_it) return false;
+        if (it.get_ID() != o_it.get_ID()) return false;
     }
 
     return ((it == it_end) && (o_it == o_it_end));
@@ -633,7 +670,7 @@ bool UnitigColors::contains(const UnitigMapBase& um, const size_t color_id) cons
     size_t color_id_start = um_km_sz * color_id + um.dist;
     const size_t color_id_end = color_id_start + std::min(um_km_sz - um.dist, um.len);
 
-    if (flag == ptrBitmap) return getConstPtrBitmap()->r.containsRange(color_id_start, color_id_end - 1);
+    if (flag == ptrBitmap) return getConstPtrBitmap()->r.containsRange(color_id_start, color_id_end);
 
     if (flag == localTinyBitmap){
 
@@ -864,69 +901,58 @@ size_t UnitigColors::size() const { //Private
 
 uint64_t UnitigColors::hash(const size_t seed) const {
 
-    const uintptr_t flag = setBits & flagMask;
+    uint64_t h = 17;
 
-    uint64_t h = 0;
+    if ((setBits & flagMask) == ptrUnitigColors){ //FNV hashing (stands for Fowler/Noll/Vo)
 
-    if (flag == ptrUnitigColors){
+        const UnitigColors* uc = getConstPtrUnitigColors();
 
-        const UnitigColors* uc = getPtrUnitigColors();
+        const uint64_t h1 = uc[1].hash(seed);
 
-        h = uc[0].hash(seed) + uc[1].hash(seed);
+        const unsigned char* p = (unsigned char*) &h1;
+
+        h = uc[0].hash(seed);
+
+        for (size_t i = 0; i < sizeof(uint64_t); ++i) h = (h ^ p[i]) * 1099511628211ULL;
+
+        return h;
     }
-    else if (flag == ptrSharedUnitigColors) h = getConstPtrSharedUnitigColors()->first.hash(seed);
-    else if (flag == localTinyBitmap){
 
-        uint16_t* setPtrTinyBmp = getPtrTinyBitmap();
+    uint64_t buffer[64] = {0};
 
-        TinyBitmap t_bmp(&setPtrTinyBmp);
+    const size_t nb_bytes_buffer = 64 * sizeof(uint64_t);
+    const size_t nb_bits_buffer = nb_bytes_buffer * 8;
 
-        const size_t t_bmp_sz = t_bmp.size();
+    UnitigColors::const_iterator it(begin(1));
+    const UnitigColors::const_iterator it_end(end());
 
-        uint32_t* values = new uint32_t[t_bmp_sz];
+    if (it != it_end){
 
-        t_bmp.toArray(values);
+        const size_t nb_empty_buffer = it.get_ID() >> 12;
 
-        h = (uint64_t)XXH64((const void *)values, t_bmp_sz * sizeof(uint32_t), seed);
+        size_t up_bound = (nb_empty_buffer * nb_bits_buffer) + nb_bits_buffer;
 
-        delete[] values;
+        if (nb_empty_buffer != 0){
 
-        t_bmp.detach();
-    }
-    else if (flag == ptrBitmap){
+            const uint64_t h_empty = (uint64_t)XXH64((const void *)buffer, nb_bytes_buffer, seed);
 
-        const Bitmap* bmp = getConstPtrBitmap();
-
-        const size_t bmp_sz = bmp->r.cardinality();
-
-        uint32_t* values = new uint32_t[bmp_sz];
-
-        bmp->r.toUint32Array(values);
-
-        h = (uint64_t)XXH64((const void *)values, bmp_sz * sizeof(uint32_t), seed);
-
-        delete[] values;
-    }
-    else if (flag == localBitVector){
-
-        uint32_t values[maxBitVectorIDs];
-
-        uintptr_t setBits_tmp = setBits >> shiftMaskBits;
-
-        size_t sz = 0;
-
-        for (uint32_t i = 0; setBits_tmp != 0; ++i, setBits_tmp >>= 1) {
-
-            if (setBits_tmp & 0x1) values[sz++] = i;
+            // https://commons.apache.org/proper/commons-lang/apidocs/org/apache/commons/lang3/builder/HashCodeBuilder.html
+            for (size_t i = 0; i < nb_empty_buffer; ++it) h = h * 37 + h_empty;
         }
 
-        h = (uint64_t)XXH64((const void *)values, sz * sizeof(uint32_t), seed);
-    }
-    else {
+        while (it != it_end) {
 
-        const uint32_t single_val = setBits >> shiftMaskBits;
+            while ((it != it_end) && (it.get_ID() < up_bound)){
 
-        h = (uint64_t)XXH64((const void *)&single_val, sizeof(uint32_t), seed);
+                buffer[(it.get_ID() & 0xFFF) >> 6] |= 1ULL << (it.get_ID() & 0x3F);
+                ++it;
+            }
+
+            h = h * 37 + (uint64_t)XXH64((const void *)buffer, nb_bytes_buffer, seed);
+            up_bound += nb_bits_buffer;
+
+            std::memset(buffer, 0, nb_bytes_buffer);
+        }
     }
 
     return h;
@@ -938,63 +964,22 @@ bool UnitigColors::optimizeFullColors(const UnitigMapBase& um){
 
     if ((um.size > Kmer::k) && (flag != localBitVector) && (flag != localSingleInt)){
 
-        const size_t len_um_km = um.size - Kmer::k + 1;
+        UnitigColors full_uc(getFullColors(um));
+        UnitigColors non_full_uc(getNonFullColors(um, full_uc));
 
-        size_t prev_color_ID = 0xFFFFFFFFFFFFFFFF;
+        if ((full_uc.getSizeInBytes() + non_full_uc.getSizeInBytes() + sizeof(UnitigColors)) < getSizeInBytes()){
 
-        UnitigColors* uc = nullptr;
+            empty();
 
-        UnitigColors new_uc;
+            UnitigColors* uc = new UnitigColors[2];
 
-        UnitigColors::const_iterator it, it_end;
+            uc[0] = move(full_uc);
+            uc[1] = move(non_full_uc);
 
-        if (flag == ptrUnitigColors){
+            setBits = (reinterpret_cast<uintptr_t>(uc) & pointerMask) | ptrUnitigColors;
 
-            const UnitigColors* this_uc = getConstPtrUnitigColors();
+            shrinkSize();
 
-            it = this_uc[1].begin(um);
-            it_end = this_uc[1].end();
-
-            new_uc = *this;
-            uc = new_uc.getPtrUnitigColors();
-        }
-        else {
-
-            it = begin(um);
-            it_end = end();
-
-            uc = new UnitigColors[2];
-            uc[1] = *this;
-        }
-
-        size_t count = 0;
-
-        for (; it != it_end; ++it, ++count){
-
-            if (it.getColorID() != prev_color_ID){
-
-                if (count == len_um_km){
-
-                    uc[0].add(prev_color_ID);
-                    uc[1].remove(um, prev_color_ID);
-                }
-
-                count = 0;
-                prev_color_ID = it.getColorID();
-            }
-        }
-
-        if (count == len_um_km){
-
-            uc[0].add(prev_color_ID);
-            uc[1].remove(um, prev_color_ID);
-        }
-
-        new_uc.setBits = (reinterpret_cast<uintptr_t>(uc) & pointerMask) | ptrUnitigColors;
-
-        if (new_uc.getSizeInBytes() < getSizeInBytes()){
-
-            *this = move(new_uc);
             return true;
         }
     }
@@ -1002,68 +987,71 @@ bool UnitigColors::optimizeFullColors(const UnitigMapBase& um){
     return false;
 }
 
-/*UnitigColors UnitigColors::makeFullColors(const UnitigMapBase& um){
+UnitigColors UnitigColors::makeFullColors(const UnitigMapBase& um) const {
 
     const uintptr_t flag = setBits & flagMask;
+
+    UnitigColors full_uc(getFullColors(um));
+    UnitigColors non_full_uc(getNonFullColors(um, full_uc));
+    UnitigColors new_uc;
+
+    UnitigColors* uc = new UnitigColors[2];
+
+    uc[0] = move(full_uc);
+    uc[1] = move(non_full_uc);
+
+    new_uc.setBits = (reinterpret_cast<uintptr_t>(uc) & pointerMask) | ptrUnitigColors;
+
+    new_uc.shrinkSize();
+
+    return new_uc;
+}
+
+UnitigColors UnitigColors::getNonFullColors(const UnitigMapBase& um, const UnitigColors& full_uc) const {
+
+    UnitigColors non_full_uc(((setBits & flagMask) == ptrUnitigColors) ? getConstPtrUnitigColors()[1] : *this);
+
+    UnitigColors::const_iterator it_f(full_uc.begin(1));
+    const UnitigColors::const_iterator it_f_end(full_uc.end());
+
+    while (it_f != it_f_end){
+
+        non_full_uc.remove(um, it_f.get_ID());
+        ++it_f;
+    }
+
+    return non_full_uc;
+}
+
+UnitigColors UnitigColors::getFullColors(const UnitigMapBase& um) const {
 
     const size_t len_um_km = um.size - Kmer::k + 1;
 
     size_t prev_color_ID = 0xFFFFFFFFFFFFFFFF;
-
-    UnitigColors* uc = nullptr;
+    size_t count = 0;
 
     UnitigColors new_uc;
 
-    UnitigColors::const_iterator it, it_end;
-
-    if (flag == ptrUnitigColors){
-
-        const UnitigColors* this_uc = getConstPtrUnitigColors();
-
-        it = this_uc[1].begin(um);
-        it_end = this_uc[1].end();
-
-        new_uc = *this;
-        uc = new_uc.getPtrUnitigColors();
-    }
-    else {
-
-        it = begin(um);
-        it_end = end();
-
-        uc = new UnitigColors[2];
-        uc[1] = *this;
-    }
-
-    size_t count = 0;
+    UnitigColors::const_iterator it(begin(um));
+    const UnitigColors::const_iterator it_end(end());
 
     for (; it != it_end; ++it, ++count){
 
         if (it.getColorID() != prev_color_ID){
 
-            if (count == len_um_km){
-
-                uc[0].add(prev_color_ID);
-                uc[1].remove(um, prev_color_ID);
-            }
+            if (count == len_um_km) new_uc.add(prev_color_ID);
 
             count = 0;
             prev_color_ID = it.getColorID();
         }
     }
 
-    if (count == len_um_km){
-
-        uc[0].add(prev_color_ID);
-        uc[1].remove(um, prev_color_ID);
-    }
-
-    new_uc.setBits = (reinterpret_cast<uintptr_t>(uc) & pointerMask) | ptrUnitigColors;
+    if (count == len_um_km) new_uc.add(prev_color_ID);
 
     return new_uc;
-}*/
+}
 
-bool UnitigColors::write(ostream& stream_out) const {
+bool UnitigColors::write(ostream& stream_out, const bool copy_UnitigColors) const {
 
     if (stream_out.good()){
 
@@ -1075,15 +1063,20 @@ bool UnitigColors::write(ostream& stream_out) const {
 
             const UnitigColors* uc = getConstPtrUnitigColors();
 
-            bool ret = uc[0].write(stream_out);
+            const bool ret = uc[0].write(stream_out, copy_UnitigColors);
 
-            return (ret ? uc[1].write(stream_out) : ret);
+            return (ret ? uc[1].write(stream_out, copy_UnitigColors) : ret);
+        }
+        else if (flag == ptrSharedUnitigColors){
+
+            if (copy_UnitigColors) getConstPtrSharedUnitigColors()->first.write(stream_out, copy_UnitigColors);
+            else stream_out.write(reinterpret_cast<const char*>(&flag), sizeof(uintptr_t));
         }
         else if (flag == ptrBitmap){
 
             const uint32_t expected_sz = getConstPtrBitmap()->r.getSizeInBytes();
 
-            const uintptr_t flag_expected_sz = (static_cast<uintptr_t>(expected_sz) << 32) | flag;
+            const uintptr_t flag_expected_sz = (static_cast<uintptr_t>(expected_sz) << shiftMaskBits) | flag;
 
             char* serialized = new char[expected_sz];
 
@@ -1126,21 +1119,25 @@ bool UnitigColors::read(istream& stream_in) {
 
             UnitigColors* setPtrUC = new UnitigColors[2];
 
-            setPtrUC[0].read(stream_in);
-            setPtrUC[1].read(stream_in);
+            bool ret = setPtrUC[0].read(stream_in);
+
+            if (ret) ret = setPtrUC[1].read(stream_in);
 
             setBits = (reinterpret_cast<uintptr_t>(setPtrUC) & pointerMask) | ptrUnitigColors;
+
+            return ret;
         }
         else if (flag == ptrBitmap){
 
-            const uint32_t expected_sz = static_cast<uint32_t>(setBits >> 32);
-
-            char* serialized = new char[expected_sz];
-            stream_in.read(serialized, expected_sz);
-
             Bitmap* setPtrBmp = new Bitmap;
 
-            setPtrBmp->r = std::move(Roaring::read(serialized));
+            const uint32_t expected_sz = static_cast<uint32_t>(setBits >> shiftMaskBits);
+
+            char* serialized = new char[expected_sz];
+
+            stream_in.read(serialized, expected_sz);
+
+            setPtrBmp->r = Roaring::read(serialized);
 
             setBits = (reinterpret_cast<uintptr_t>(setPtrBmp) & pointerMask) | ptrBitmap;
 
@@ -1200,7 +1197,8 @@ UnitigColors UnitigColors::reverse(const UnitigMapBase& um) const {
     else {
         const size_t len_unitig_km = um.size - Kmer::k + 1;
 
-        UnitigColors::const_iterator it = begin(um), it_end = end();
+        UnitigColors::const_iterator it(begin(um));
+        const UnitigColors::const_iterator it_end(end());
 
         for (; it != it_end; ++it){
 
