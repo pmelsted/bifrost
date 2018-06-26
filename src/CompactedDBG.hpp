@@ -434,8 +434,8 @@ class CompactedDBG {
         bool bwStepBBF(Kmer km, Kmer& front, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;
         bool fwStepBBF(Kmer km, Kmer& end, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;
 
-        UnitigMap<U, G> findUnitig(const Kmer& km, const string& s, size_t pos);
-        UnitigMap<U, G> findUnitig(const Kmer& km, const string& s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h);
+        UnitigMap<U, G> findUnitig(const Kmer& km, const char* s, size_t pos);
+        UnitigMap<U, G> findUnitig(const Kmer& km, const char* s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h);
 
         bool addUnitig(const string& str_unitig, const size_t id_unitig);
         void deleteUnitig(const bool isShort, const bool isAbundant, const size_t id_unitig);

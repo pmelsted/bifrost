@@ -87,7 +87,7 @@ class KmerHashIterator {
 
                     const char c = s[j] & 0xDF; // mask lowercase bit
 
-                    if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) j--;
+                    if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) --j;
                     else {
 
                         p_.second += j - p_.second + 1;

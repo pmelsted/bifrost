@@ -77,7 +77,7 @@ class minHashIterator {
 
             ++p; // advance to next k-mer
 
-            if (p >= n-k+1 /*|| s[p+k-1] == 0*/) {
+            if (p >= n-k+1) {
                 // out of bounds
                 invalid = true;
                 return *this;

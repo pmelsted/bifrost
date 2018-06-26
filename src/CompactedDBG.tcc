@@ -1266,6 +1266,8 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt) {
     size_t pos_read = k_ - 1;
     size_t nb_seq = 0;
 
+    const size_t max_len_seq = 1000;
+
     const bool multi_threaded = (opt.nb_threads != 1);
 
     atomic<uint64_t> num_kmers(0), num_ins(0);
@@ -1273,14 +1275,16 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt) {
     FileParser fp(opt.filename_in);
 
     // Main worker thread
-    auto worker_function = [&](const vector<string>& readv) {
+    auto worker_function = [&](const char* seq_buf, const size_t seq_buf_sz) {
 
         uint64_t l_num_kmers = 0, l_num_ins = 0;
 
-        for (const auto& x : readv) { // for each input
+        const char* str = seq_buf;
+        const char* str_end = &seq_buf[seq_buf_sz];
 
-            const char* str = x.c_str();
-            const int len = x.length();
+        while (str < str_end) { // for each input
+
+            const int len = strlen(str);
 
             KmerHashIterator<RepHash> it_kmer_h(str, len, k_), it_kmer_h_end;
             minHashIterator<RepHash> it_min(str, len, k_, g_, RepHash(), true);
@@ -1304,6 +1308,8 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt) {
                 else if (bf_tmp.insert(p_.first, min_hr, multi_threaded)) ++l_num_ins;
                 else bf.insert(p_.first, min_hr, multi_threaded);
             }
+
+            str += len + 1;
         }
 
         // atomic adds
@@ -1311,17 +1317,24 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt) {
         num_ins += l_num_ins;
     };
 
-    auto reading_function = [&](vector<string>& readv) {
+    auto reading_function = [&](char* seq_buf, size_t& seq_buf_sz) {
 
         size_t reads_now = 0;
+
+        const char* s_str = s.c_str();
+
+        seq_buf_sz = 0;
 
         while ((pos_read < len_read) && (reads_now < opt.read_chunksize)){
 
             pos_read -= k_ - 1;
 
-            readv.emplace_back(s.substr(pos_read, 1000));
+            strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], max_len_seq);
 
-            pos_read += 1000;
+            seq_buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
+            pos_read += max_len_seq;
+
+            seq_buf[seq_buf_sz - 1] = '\0';
 
             ++reads_now;
         }
@@ -1330,12 +1343,13 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt) {
 
             if (fp.read(s, file_id)) {
 
-                ++nb_seq;
-
                 len_read = s.length();
                 pos_read = len_read;
+                s_str = s.c_str();
 
-                if (len_read > 1000){
+                std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+
+                if (len_read > max_len_seq){
 
                     pos_read = k_ - 1;
 
@@ -1343,29 +1357,26 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt) {
 
                         pos_read -= k_ - 1;
 
-                        readv.emplace_back(s.substr(pos_read, 1000));
+                        strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], max_len_seq);
 
-                        pos_read += 1000;
+                        seq_buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
+                        pos_read += max_len_seq;
+
+                        seq_buf[seq_buf_sz - 1] = '\0';
 
                         ++reads_now;
                     }
                 }
                 else {
 
-                    readv.emplace_back(s);
+                    strcpy(&seq_buf[seq_buf_sz], s.c_str());
 
+                    seq_buf_sz += len_read + 1;
                     ++reads_now;
                 }
             }
-            else {
-
-                for (auto& s : readv) std::transform(s.begin(), s.end(), s.begin(), ::toupper);
-
-                return true;
-            }
+            else return true;
         }
-
-        for (auto& s : readv) std::transform(s.begin(), s.end(), s.begin(), ::toupper);
 
         return false;
     };
@@ -1374,15 +1385,19 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt) {
         bool stop = false;
 
         vector<thread> workers; // need to keep track of threads so we can join them
-        vector<vector<string>> readvs(opt.nb_threads);
 
         mutex mutex_file;
 
-        for (size_t i = 0; i < opt.nb_threads; ++i){
+        const size_t thread_seq_buf_sz = opt.read_chunksize * (max_len_seq + 1);
+
+        char* buffer_seq = new char[opt.nb_threads * thread_seq_buf_sz];
+        size_t* buffer_seq_sz = new size_t[opt.nb_threads];
+
+        for (size_t t = 0; t < opt.nb_threads; ++t){
 
             workers.emplace_back(
 
-                [&, i]{
+                [&, t]{
 
                     while (true) {
 
@@ -1391,18 +1406,19 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt) {
 
                             if (stop) return;
 
-                            stop = reading_function(readvs[i]);
+                            stop = reading_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t]);
                         }
 
-                        worker_function(readvs[i]);
-
-                        readvs[i].clear();
+                        worker_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t]);
                     }
                 }
             );
         }
 
         for (auto& t : workers) t.join();
+
+        delete[] buffer_seq;
+        delete[] buffer_seq_sz;
     }
 
     fp.close();
@@ -1452,6 +1468,8 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
     size_t len_read = 0;
     size_t pos_read = k_ - 1;
 
+    const size_t max_len_seq = 1000;
+
     tiny_vector<Kmer, 2>* fp_candidate = nullptr;
 
     KmerHashTable<bool> ignored_km_tips;
@@ -1475,7 +1493,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
         for (auto& lck : locks_fp) lck.clear();
     }
 
-    auto worker_function = [&](const vector<string>& readv, const size_t thread_id) {
+    auto worker_function = [&](const char* seq_buf, const size_t seq_buf_sz, const size_t thread_id) {
 
         vector<Kmer> l_ignored_km_tips;
 
@@ -1486,12 +1504,15 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
         Kmer km;
         RepHash rep;
 
-        for (const auto& x : readv) {
+        const char* str = seq_buf;
+        const char* str_end = &seq_buf[seq_buf_sz];
 
-            const char* s_x = x.c_str();
+        while (str < str_end) { // for each input
 
-            KmerHashIterator<RepHash> it_kmer_h(s_x, x.length(), k_), it_kmer_h_end;
-            minHashIterator<RepHash> it_min(s_x, x.length(), k_, g_, rep, true);
+            const int len = strlen(str);
+
+            KmerHashIterator<RepHash> it_kmer_h(str, len, k_), it_kmer_h_end;
+            minHashIterator<RepHash> it_min(str, len, k_, g_, rep, true);
 
             for (int last_pos_km = -2; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min) {
 
@@ -1499,7 +1520,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
 
                 if (p_.second != last_pos_km + 1){ // If one or more k-mer were jumped because contained non-ACGT char.
 
-                    km = Kmer(&s_x[p_.second]);
+                    km = Kmer(&str[p_.second]);
 
                     it_min += (last_pos_km == -2 ? p_.second : (p_.second - last_pos_km) - 1);
                     it_min_h = it_min.getHash();
@@ -1508,7 +1529,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
                 }
                 else {
 
-                    km.selfForwardBase(s_x[p_.second + k_ - 1]);
+                    km.selfForwardBase(str[p_.second + k_ - 1]);
 
                     it_min_h = it_min.getHash();
                     if (it_min_h != last_it_min_h) block_bf = bf.getBlock(it_min_h);
@@ -1523,7 +1544,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
 
                     while (locks_unitig[thread_id].test_and_set(std::memory_order_acquire));
 
-                    const UnitigMap<U, G> um = findUnitig(km, x, p_.second);
+                    const UnitigMap<U, G> um = findUnitig(km, str, p_.second);
 
                     if (um.isEmpty) { // kmer did not map, push into queue for next unitig generation round
 
@@ -1565,7 +1586,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
                         }
                         else {
 
-                            const size_t len_match_km = 1 + cstrMatch(&s_x[p_.second + k_], &(newseq.c_str()[pos_match + k_]));
+                            const size_t len_match_km = 1 + cstrMatch(&str[p_.second + k_], &(newseq.c_str()[pos_match + k_]));
 
                             addUnitigSequenceBBF(km, newseq, pos_match, len_match_km, locks_mapping, locks_unitig, thread_id);
 
@@ -1587,6 +1608,8 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
                     }
                 }
             }
+
+            str += len + 1;
         }
 
         while (lock_ignored_km_tips.test_and_set(std::memory_order_acquire));
@@ -1596,17 +1619,24 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
         lock_ignored_km_tips.clear(std::memory_order_release);
     };
 
-    auto reading_function = [&](vector<string>& readv) {
+    auto reading_function = [&](char* seq_buf, size_t& seq_buf_sz) {
 
         size_t reads_now = 0;
+
+        const char* s_str = s.c_str();
+
+        seq_buf_sz = 0;
 
         while ((pos_read < len_read) && (reads_now < opt.read_chunksize)){
 
             pos_read -= k_ - 1;
 
-            readv.emplace_back(s.substr(pos_read, 1000));
+            strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], max_len_seq);
 
-            pos_read += 1000;
+            seq_buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
+            pos_read += max_len_seq;
+
+            seq_buf[seq_buf_sz - 1] = '\0';
 
             ++reads_now;
         }
@@ -1617,8 +1647,11 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
 
                 len_read = s.length();
                 pos_read = len_read;
+                s_str = s.c_str();
 
-                if (len_read > 1000){
+                std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+
+                if (len_read > max_len_seq){
 
                     pos_read = k_ - 1;
 
@@ -1626,29 +1659,26 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
 
                         pos_read -= k_ - 1;
 
-                        readv.emplace_back(s.substr(pos_read, 1000));
+                        strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], max_len_seq);
 
-                        pos_read += 1000;
+                        seq_buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
+                        pos_read += max_len_seq;
+
+                        seq_buf[seq_buf_sz - 1] = '\0';
 
                         ++reads_now;
                     }
                 }
                 else {
 
-                    readv.emplace_back(s);
+                    strcpy(&seq_buf[seq_buf_sz], s.c_str());
 
+                    seq_buf_sz += len_read + 1;
                     ++reads_now;
                 }
             }
-            else {
-
-                for (auto& s : readv) std::transform(s.begin(), s.end(), s.begin(), ::toupper);
-
-                return true;
-            }
+            else return true;
         }
-
-        for (auto& s : readv) std::transform(s.begin(), s.end(), s.begin(), ::toupper);
 
         return false;
     };
@@ -1659,17 +1689,21 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
         size_t round = 0;
 
         vector<thread> workers; // need to keep track of threads so we can join them
-        vector<vector<string>> reads(opt.nb_threads);
 
         mutex mutex_file;
 
+        const size_t thread_seq_buf_sz = opt.read_chunksize * (max_len_seq + 1);
+
+        char* buffer_seq = new char[opt.nb_threads * thread_seq_buf_sz];
+        size_t* buffer_seq_sz = new size_t[opt.nb_threads];
+
         if (opt.verbose) cout << "CompactedDBG::construct(): Extract approximate unitigs" << endl;
 
-        for (size_t i = 0; i < opt.nb_threads; ++i){
+        for (size_t t = 0; t < opt.nb_threads; ++t){
 
             workers.emplace_back(
 
-                [&, i]{
+                [&, t]{
 
                     while (true) {
 
@@ -1682,18 +1716,19 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
 
                             //if (opt.verbose) cout << "CompactedDBG::construct(): Reading round " << round << endl;
 
-                            stop = reading_function(reads[i]);
+                            stop = reading_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t]);
                         }
 
-                        worker_function(reads[i], i);
-
-                        reads[i].clear();
+                        worker_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t], t);
                     }
                 }
             );
         }
 
         for (auto& t : workers) t.join();
+
+        delete[] buffer_seq;
+        delete[] buffer_seq_sz;
     }
 
     fp.close();
@@ -2289,7 +2324,7 @@ bool CompactedDBG<U, G>::fwStepBBF(Kmer km, Kmer& end, char& c, bool& has_no_nei
 // post: cc contains either the reference to the unitig position
 //       or empty if none found
 template<typename U, typename G>
-UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const Kmer& km, const string& s, size_t pos) {
+UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const Kmer& km, const char* s, size_t pos) {
 
     // need to check if we find it right away, need to treat this common case
     const UnitigMap<U, G> cc = find(km);
@@ -2300,10 +2335,10 @@ UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const Kmer& km, const string& s, 
         size_t km_dist = cc.dist;
         size_t jlen = 0;
 
-        if (cc.strand) jlen = seq.jump(s.c_str(), pos, cc.dist, false) - k_ + 1;
+        if (cc.strand) jlen = seq.jump(s, pos, cc.dist, false) - k_ + 1;
         else {
 
-            jlen = seq.jump(s.c_str(), pos, cc.dist + k_ - 1, true) - k_ + 1; // match s_fw to comp(seq)_bw
+            jlen = seq.jump(s, pos, cc.dist + k_ - 1, true) - k_ + 1; // match s_fw to comp(seq)_bw
             km_dist -= jlen - 1;
         }
 
@@ -2314,7 +2349,7 @@ UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const Kmer& km, const string& s, 
 }
 
 template<typename U, typename G>
-UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const Kmer& km, const string& s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h) {
+UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const Kmer& km, const char* s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h) {
 
     // need to check if we find it right away, need to treat this common case
     const UnitigMap<U, G> cc = find(km, it_min_h);
@@ -2325,10 +2360,10 @@ UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const Kmer& km, const string& s, 
         size_t km_dist = cc.dist;
         size_t jlen = 0;
 
-        if (cc.strand) jlen = seq.jump(s.c_str(), pos, cc.dist, false) - k_ + 1;
+        if (cc.strand) jlen = seq.jump(s, pos, cc.dist, false) - k_ + 1;
         else {
 
-            jlen = seq.jump(s.c_str(), pos, cc.dist + k_ - 1, true) - k_ + 1; // match s_fw to comp(seq)_bw
+            jlen = seq.jump(s, pos, cc.dist + k_ - 1, true) - k_ + 1; // match s_fw to comp(seq)_bw
             km_dist -= jlen - 1;
         }
 

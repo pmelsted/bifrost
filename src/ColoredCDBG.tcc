@@ -4,7 +4,7 @@
 template<typename U>
 ColoredCDBG<U>::ColoredCDBG(int kmer_length, int minimizer_length) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(kmer_length, minimizer_length){
 
-    invalid = CompactedDBG<DataAccessor<U>, DataStorage<U>>::isInvalid();
+    invalid = this->isInvalid();
 }
 
 template<typename U>
@@ -18,7 +18,7 @@ void ColoredCDBG<U>::clear(){
 
     invalid = true;
 
-    CompactedDBG<DataAccessor<U>, DataStorage<U>>::getData()->clear();
+    this->getData()->clear();
     CompactedDBG<DataAccessor<U>, DataStorage<U>>::clear();
 }
 
@@ -27,7 +27,7 @@ void ColoredCDBG<U>::empty(){
 
     invalid = true;
 
-    CompactedDBG<DataAccessor<U>, DataStorage<U>>::getData()->empty();
+    this->getData()->empty();
     CompactedDBG<DataAccessor<U>, DataStorage<U>>::empty();
 }
 
@@ -63,7 +63,7 @@ bool ColoredCDBG<U>::buildGraph(const CCDBG_Build_opt& opt){
 
         CDBG_Build_opt opt_ = opt.getCDBG_Build_opt();
 
-        invalid = !CompactedDBG<DataAccessor<U>, DataStorage<U>>::build(opt_);
+        invalid = !this->build(opt_);
     }
     else cerr << "ColoredCDBG::buildGraph(): Graph is invalid and cannot be built." << endl;
 
@@ -92,7 +92,7 @@ bool ColoredCDBG<U>::write(const string& prefix_output_filename, const size_t nb
 
     if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::write(prefix_output_filename, nb_threads, true, verbose)) return false; // Write graph
 
-    return CompactedDBG<DataAccessor<U>, DataStorage<U>>::getData()->write(prefix_output_filename, nb_threads, verbose); // Write colors
+    return this->getData()->write(prefix_output_filename, nb_threads, verbose); // Write colors
 }
 
 template<typename U>
@@ -104,7 +104,7 @@ bool ColoredCDBG<U>::read(const string& prefix_input_filename, const size_t nb_t
 
     if (verbose) cout << "ColoredCDBG::read(): Reading colors." << endl;
 
-    if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::getData()->read(prefix_input_filename + ".bfg_colors", verbose)) return false; // Read colors
+    if (!this->getData()->read(prefix_input_filename + ".bfg_colors", verbose)) return false; // Read colors
 
     if (verbose) cout << "ColoredCDBG::read(): Joining unitigs to their color sets." << endl;
 
@@ -331,6 +331,7 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
     const size_t nb_locks = nb_threads * 1024;
     const size_t chunk_size = 64;
+    const size_t max_len_seq = 1000;
 
     size_t prev_file_id = 0;
 
@@ -343,12 +344,18 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
     for (size_t i = 0; i < nb_locks; ++i) cs_locks[i].clear();
 
     // Main worker thread
-    auto worker_function = [&](const vector<pair<string, size_t>>& v_read_color) {
+    auto worker_function = [&](const char* seq_buf, const size_t seq_buf_sz, const size_t* col_buf) {
 
-        // for each input
-        for (const auto& read_color : v_read_color) {
+        const char* str = seq_buf;
+        const char* str_end = &seq_buf[seq_buf_sz];
 
-            for (KmerIterator it_km(read_color.first.c_str()), it_km_end; it_km != it_km_end; ++it_km) {
+        size_t c_id = 0;
+
+        while (str < str_end) { // for each input
+
+            const int len = strlen(str);
+
+            for (KmerIterator it_km(str), it_km_end; it_km != it_km_end; ++it_km) {
 
                 UnitigColorMap<U> um = this->find(it_km->first);
 
@@ -356,7 +363,7 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
                     if (um.strand || (um.dist != 0)){
 
-                        um.len = 1 + um.lcp(read_color.first.c_str(), it_km->second + k_, um.strand ? um.dist + k_ : um.dist - 1, !um.strand);
+                        um.len = 1 + um.lcp(str, it_km->second + k_, um.strand ? um.dist + k_ : um.dist - 1, !um.strand);
 
                         if ((um.size != k_) && !um.strand) um.dist -= um.len - 1;
 
@@ -368,11 +375,14 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
                     while (cs_locks[id_lock].test_and_set(std::memory_order_acquire)); // Set the corresponding lock
 
-                    uc->add(um, read_color.second);
+                    uc->add(um, col_buf[c_id]);
 
                     cs_locks[id_lock].clear(std::memory_order_release);
                 }
             }
+
+            str += len + 1;
+            ++c_id;
         }
     };
 
@@ -381,18 +391,26 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
     string s;
 
-    auto reading_function = [&](vector<pair<string, size_t>>& v_read_color) {
+    auto reading_function = [&](char* seq_buf, size_t& seq_buf_sz, size_t* col_buf) {
 
         size_t reads_now = 0;
         size_t file_id = prev_file_id;
+
+        const char* s_str = s.c_str();
+
+        seq_buf_sz = 0;
 
         while ((pos_read < len_read) && (reads_now < chunk_size)){
 
             pos_read -= k_ - 1;
 
-            v_read_color.emplace_back(make_pair(s.substr(pos_read, 1000), file_id));
+            strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], max_len_seq);
 
-            pos_read += 1000;
+            seq_buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
+            pos_read += max_len_seq;
+
+            seq_buf[seq_buf_sz - 1] = '\0';
+            col_buf[reads_now] = file_id;
 
             ++reads_now;
         }
@@ -403,8 +421,11 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
                 len_read = s.length();
                 pos_read = len_read;
+                s_str = s.c_str();
 
-                if (len_read > 1000){
+                std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+
+                if (len_read > max_len_seq){
 
                     pos_read = k_ - 1;
 
@@ -412,16 +433,24 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
                         pos_read -= k_ - 1;
 
-                        v_read_color.emplace_back(make_pair(s.substr(pos_read, 1000), file_id));
+                        strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], max_len_seq);
 
-                        pos_read += 1000;
+                        seq_buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
+                        pos_read += max_len_seq;
+
+                        seq_buf[seq_buf_sz - 1] = '\0';
+                        col_buf[reads_now] = file_id;
 
                         ++reads_now;
                     }
                 }
                 else {
 
-                    v_read_color.emplace_back(make_pair(s, file_id));
+                    strcpy(&seq_buf[seq_buf_sz], s.c_str());
+                    col_buf[reads_now] = file_id;
+
+                    seq_buf_sz += len_read + 1;
+
                     ++reads_now;
                 }
             }
@@ -429,13 +458,9 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
                 next_file = false;
 
-                for (auto& p : v_read_color) std::transform(p.first.begin(), p.first.end(), p.first.begin(), ::toupper);
-
                 return true;
             }
         }
-
-        for (auto& p : v_read_color) std::transform(p.first.begin(), p.first.end(), p.first.begin(), ::toupper);
 
         const bool ret = (file_id != prev_file_id);
 
@@ -449,11 +474,16 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
         bool stop = false;
 
         vector<thread> workers; // need to keep track of threads so we can join them
-        vector<vector<pair<string, size_t>>> reads_colors(nb_threads);
 
         mutex mutex_file;
 
         size_t prev_uc_sz = getCurrentRSS();
+
+        const size_t thread_seq_buf_sz = chunk_size * (max_len_seq + 1);
+
+        char* buffer_seq = new char[nb_threads * thread_seq_buf_sz];
+        size_t* buffer_seq_sz = new size_t[nb_threads];
+        size_t* buffer_col = new size_t[nb_threads * chunk_size];
 
         while (next_file){
 
@@ -472,11 +502,10 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
                                 if (stop) return;
 
-                                stop = reading_function(reads_colors[t]);
+                                stop = reading_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t], &buffer_col[t * chunk_size]);
                             }
 
-                            worker_function(reads_colors[t]);
-                            reads_colors[t].clear();
+                            worker_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t], &buffer_col[t * chunk_size]);
                         }
                     }
                 );
@@ -485,8 +514,6 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
             for (auto& t : workers) t.join();
 
             workers.clear();
-
-            for (size_t t = 0; t < nb_threads; ++t) reads_colors[t].clear();
 
             const size_t curr_uc_sz = getCurrentRSS();
 
@@ -539,6 +566,10 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
                 prev_uc_sz = getCurrentRSS();
             }
         }
+
+        delete[] buffer_seq;
+        delete[] buffer_seq_sz;
+        delete[] buffer_col;
     }
 
     fp.close();
