@@ -1347,6 +1347,8 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt) {
                 pos_read = len_read;
                 s_str = s.c_str();
 
+                ++nb_seq;
+
                 std::transform(s.begin(), s.end(), s.begin(), ::toupper);
 
                 if (len_read > max_len_seq){
@@ -1369,7 +1371,7 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt) {
                 }
                 else {
 
-                    strcpy(&seq_buf[seq_buf_sz], s.c_str());
+                    strcpy(&seq_buf[seq_buf_sz], s_str);
 
                     seq_buf_sz += len_read + 1;
                     ++reads_now;
@@ -1671,7 +1673,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
                 }
                 else {
 
-                    strcpy(&seq_buf[seq_buf_sz], s.c_str());
+                    strcpy(&seq_buf[seq_buf_sz], s_str);
 
                     seq_buf_sz += len_read + 1;
                     ++reads_now;

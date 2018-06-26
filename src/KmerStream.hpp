@@ -95,11 +95,14 @@ class ReadHasher {
             }
         }
 
-        void operator()(const vector<string>& v) {
+        void operator()(const char* seq_buf, const size_t seq_buf_sz) {
 
-            for (const auto& p : v){
+            const char* str = seq_buf;
+            const char* str_end = &seq_buf[seq_buf_sz];
 
-                const size_t sl = p.length();
+            while (str < str_end) { // for each input
+
+                const int sl = strlen(str);
 
                 if (sl >= k){
 
@@ -107,22 +110,20 @@ class ReadHasher {
 
                     bool last_valid = false;
 
-                    const char* s = p.c_str();
-
                     while (j < sl) { // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
 
-                        const char c = s[j] & 0xDF;
+                        const char c = str[j] & 0xDF;
 
                         if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) {
 
                             if (last_valid) {
                                 // s[i..j-1] was a valid k-mer k-mer, update
-                                hf.update(s[i],s[j]);
+                                hf.update(str[i], str[j]);
                                 ++i;
                             }
                             else if (i + k -1 == j) {
 
-                                hf.init(s+i); // start the k-mer at position i
+                                hf.init(str + i); // start the k-mer at position i
                                 last_valid = true;
                             }
 
@@ -138,6 +139,8 @@ class ReadHasher {
                         if (last_valid) handle(hf.hash());
                     }
                 }
+
+                str += sl + 1;
             }
         }
 
@@ -228,37 +231,38 @@ class ReadQualityHasher {
             }
         }
 
-        void operator()(const vector<pair<string, string>>& v){
+        void operator()(const char* seq_buf, const char* qual_buf, const size_t buf_sz) {
 
             const char q_base_cut = (char) (q_base + q_cutoff);
 
-            for (const auto& p : v){
+            const char* str = seq_buf;
+            const char* q_str = qual_buf;
+            const char* str_end = &seq_buf[buf_sz];
 
-                const size_t sl = p.first.length(), ql = p.second.length();
+            while (str < str_end) { // for each input
 
-                if ((sl == ql) && (sl >= k)){
+                const int sl = strlen(str);
+
+                if (sl >= k){
 
                     size_t i = 0, j = 0;
 
                     bool last_valid = false;
 
-                    const char* s = p.first.c_str();
-                    const char* q = p.second.c_str();
-
                     while (j < sl) {
                         // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
-                        const char c = s[j] & 0xDF;
+                        const char c = str[j] & 0xDF;
 
-                        if (((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) && (q[j] >= q_base_cut)) {
+                        if (((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) && (q_str[j] >= q_base_cut)) {
 
                             if (last_valid) {
                                 // s[i..j-1] was a valid k-mer k-mer, update
-                                hf.update(s[i],s[j]);
+                                hf.update(str[i], str[j]);
                                 ++i;
                             }
                             else if (i + k - 1 == j) {
 
-                                hf.init(s + i); // start the k-mer at position i
+                                hf.init(str + i); // start the k-mer at position i
                                 last_valid = true;
                             }
 
@@ -274,6 +278,9 @@ class ReadQualityHasher {
                         if (last_valid) handle(hf.hash());
                     }
                 }
+
+                str += sl + 1;
+                q_str += sl + 1;
             }
         }
 
@@ -449,9 +456,10 @@ class KmerStream {
         void RunThreadedFastqStream() {
 
             size_t file_id = 0;
-
             size_t pos_read = k - 1;
             size_t len_read = 0;
+
+            const size_t max_len_seq = 1000;
 
             string seq, qual;
 
@@ -459,17 +467,27 @@ class KmerStream {
 
             FileParser fp(files_with_quality);
 
-            auto reading_function = [&](vector<pair<string, string>>& readv) {
+            auto reading_function = [&](char* seq_buf, char* qual_buf, size_t& buf_sz) {
 
                 size_t reads_now = 0;
+
+                const char* s_str = seq.c_str();
+                const char* q_str = qual.c_str();
+
+                buf_sz = 0;
 
                 while ((pos_read < len_read) && (reads_now < chunksize)){
 
                     pos_read -= k - 1;
 
-                    readv.push_back(make_pair(seq.substr(pos_read, 1000), qual.substr(pos_read, 1000)));
+                    strncpy(&seq_buf[buf_sz], &s_str[pos_read], max_len_seq);
+                    strncpy(&qual_buf[buf_sz], &q_str[pos_read], max_len_seq);
 
-                    pos_read += 1000;
+                    buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
+                    pos_read += max_len_seq;
+
+                    seq_buf[buf_sz - 1] = '\0';
+                    qual_buf[buf_sz - 1] = '\0';
 
                     ++reads_now;
                 }
@@ -483,7 +501,12 @@ class KmerStream {
                         len_read = seq.length();
                         pos_read = len_read;
 
-                        if (len_read > 1000){
+                        s_str = seq.c_str();
+                        q_str = qual.c_str();
+
+                        std::transform(seq.begin(), seq.end(), seq.begin(), ::toupper);
+
+                        if (len_read > max_len_seq){
 
                             pos_read = k - 1;
 
@@ -491,40 +514,45 @@ class KmerStream {
 
                                 pos_read -= k - 1;
 
-                                readv.push_back(make_pair(seq.substr(pos_read, 1000), qual.substr(pos_read, 1000)));
+                                strncpy(&seq_buf[buf_sz], &s_str[pos_read], max_len_seq);
+                                strncpy(&qual_buf[buf_sz], &q_str[pos_read], max_len_seq);
 
-                                pos_read += 1000;
+                                buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
+                                pos_read += max_len_seq;
+
+                                seq_buf[buf_sz - 1] = '\0';
+                                qual_buf[buf_sz - 1] = '\0';
 
                                 ++reads_now;
                             }
                         }
                         else {
 
-                            readv.push_back(make_pair(seq, qual));
+                            strcpy(&seq_buf[buf_sz], s_str);
+                            strcpy(&qual_buf[buf_sz], q_str);
 
+                            buf_sz += len_read + 1;
                             ++reads_now;
                         }
                     }
-                    else {
-
-                        for (auto& p : readv) std::transform(p.first.begin(), p.first.end(), p.first.begin(), ::toupper);
-
-                        return true;
-                    }
+                    else return true;
                 }
-
-                for (auto& p : readv) std::transform(p.first.begin(), p.first.end(), p.first.begin(), ::toupper);
 
                 return false;
             };
 
             {
                 vector<thread> workers; // need to keep track of threads so we can join them
-                vector<vector<pair<string, string>>> readvs(nb_threads);
 
                 bool stop = false;
 
                 mutex mutex_file;
+
+                const size_t thread_seq_buf_sz = chunksize * (max_len_seq + 1);
+
+                char* buffer_seq = new char[nb_threads * thread_seq_buf_sz];
+                char* buffer_qual = new char[nb_threads * thread_seq_buf_sz];
+                size_t* buffer_sz = new size_t[nb_threads];
 
                 for (size_t t = 0; t < nb_threads; ++t){
 
@@ -539,18 +567,20 @@ class KmerStream {
 
                                     if (stop) return;
 
-                                    stop = reading_function(readvs[t]);
+                                    stop = reading_function(&buffer_seq[t * thread_seq_buf_sz], &buffer_qual[t * thread_seq_buf_sz], buffer_sz[t]);
                                 }
 
-                                sps[t](readvs[t]);
-
-                                readvs[t].clear();
+                                sps[t](&buffer_seq[t * thread_seq_buf_sz], &buffer_qual[t * thread_seq_buf_sz], buffer_sz[t]);
                             }
                         }
                     );
                 }
 
                 for (auto& t : workers) t.join();
+
+                delete[] buffer_seq;
+                delete[] buffer_qual;
+                delete[] buffer_sz;
             }
 
             fp.close();
@@ -579,39 +609,50 @@ class KmerStream {
         void RunThreadedFastaStream() {
 
             size_t file_id = 0;
-
             size_t pos_read = k - 1;
             size_t len_read = 0;
 
-            string seq;
+            const size_t max_len_seq = 1000;
 
             vector<ReadHasher> sps(nb_threads, rsh);
 
             FileParser fp(files_no_quality);
 
-            auto reading_function = [&](vector<string>& readv) {
+            string s;
+
+            auto reading_function = [&](char* seq_buf, size_t& seq_buf_sz) {
 
                 size_t reads_now = 0;
+
+                const char* s_str = s.c_str();
+
+                seq_buf_sz = 0;
 
                 while ((pos_read < len_read) && (reads_now < chunksize)){
 
                     pos_read -= k - 1;
 
-                    readv.emplace_back(seq.substr(pos_read, 1000));
+                    strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], max_len_seq);
 
-                    pos_read += 1000;
+                    seq_buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
+                    pos_read += max_len_seq;
+
+                    seq_buf[seq_buf_sz - 1] = '\0';
 
                     ++reads_now;
                 }
 
                 while (reads_now < chunksize) {
 
-                    if (fp.read(seq, file_id)) {
+                    if (fp.read(s, file_id)) {
 
-                        len_read = seq.length();
+                        len_read = s.length();
                         pos_read = len_read;
+                        s_str = s.c_str();
 
-                        if (len_read > 1000){
+                        std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+
+                        if (len_read > max_len_seq){
 
                             pos_read = k - 1;
 
@@ -619,40 +660,41 @@ class KmerStream {
 
                                 pos_read -= k - 1;
 
-                                readv.emplace_back(seq.substr(pos_read, 1000));
+                                strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], max_len_seq);
 
-                                pos_read += 1000;
+                                seq_buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
+                                pos_read += max_len_seq;
+
+                                seq_buf[seq_buf_sz - 1] = '\0';
 
                                 ++reads_now;
                             }
                         }
                         else {
 
-                            readv.emplace_back(seq);
+                            strcpy(&seq_buf[seq_buf_sz], s.c_str());
 
+                            seq_buf_sz += len_read + 1;
                             ++reads_now;
                         }
                     }
-                    else {
-
-                        for (auto& s : readv) std::transform(s.begin(), s.end(), s.begin(), ::toupper);
-
-                        return true;
-                    }
+                    else return true;
                 }
-
-                for (auto& s : readv) std::transform(s.begin(), s.end(), s.begin(), ::toupper);
 
                 return false;
             };
 
             {
                 vector<thread> workers; // need to keep track of threads so we can join them
-                vector<vector<string>> readvs(nb_threads);
+
+                mutex mutex_file;
 
                 bool stop = false;
 
-                mutex mutex_file;
+                const size_t thread_seq_buf_sz = chunksize * (max_len_seq + 1);
+
+                char* buffer_seq = new char[nb_threads * thread_seq_buf_sz];
+                size_t* buffer_seq_sz = new size_t[nb_threads];
 
                 for (size_t t = 0; t != nb_threads; ++t){
 
@@ -667,18 +709,19 @@ class KmerStream {
 
                                     if (stop) return;
 
-                                    stop = reading_function(readvs[t]);
+                                    stop = reading_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t]);
                                 }
 
-                                sps[t](readvs[t]);
-
-                                readvs[t].clear();
+                                sps[t](&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t]);
                             }
                         }
                     );
                 }
 
                 for (auto& t : workers) t.join();
+
+                delete[] buffer_seq;
+                delete[] buffer_seq_sz;
             }
 
             fp.close();

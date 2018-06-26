@@ -446,7 +446,7 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
                 }
                 else {
 
-                    strcpy(&seq_buf[seq_buf_sz], s.c_str());
+                    strcpy(&seq_buf[seq_buf_sz], s_str);
                     col_buf[reads_now] = file_id;
 
                     seq_buf_sz += len_read + 1;
