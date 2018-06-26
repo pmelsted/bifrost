@@ -1084,7 +1084,7 @@ bool CompactedDBG<U, G>::add(const string& seq, const bool verbose){
     for (KmerIterator it_km(seq.c_str()), it_km_end; it_km != it_km_end; ++it_km) { //non-ACGT char. are discarded
 
         const std::pair<Kmer, int>& p = *it_km;
-        const UnitigMap<U, G> cm = findUnitig(p.first, seq, p.second);
+        const UnitigMap<U, G> cm = findUnitig(p.first, seq.c_str(), p.second);
 
         if (cm.isEmpty){
 
