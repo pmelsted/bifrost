@@ -1261,12 +1261,12 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt) {
 
     string s;
 
-    size_t file_id = 0;
     size_t len_read = 0;
-    size_t pos_read = k_ - 1;
+    size_t pos_read = 0;
     size_t nb_seq = 0;
 
-    const size_t max_len_seq = 1000;
+    const size_t max_len_seq = 1024;
+    const size_t thread_seq_buf_sz = opt.read_chunksize * max_len_seq;
 
     const bool multi_threaded = (opt.nb_threads != 1);
 
@@ -1275,16 +1275,18 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt) {
     FileParser fp(opt.filename_in);
 
     // Main worker thread
-    auto worker_function = [&](const char* seq_buf, const size_t seq_buf_sz) {
+    auto worker_function = [&](char* seq_buf, const size_t seq_buf_sz) {
 
         uint64_t l_num_kmers = 0, l_num_ins = 0;
 
-        const char* str = seq_buf;
+        char* str = seq_buf;
         const char* str_end = &seq_buf[seq_buf_sz];
 
         while (str < str_end) { // for each input
 
             const int len = strlen(str);
+
+            for (char* s = str; s != &str[len]; ++s) *s &= 0xDF; // Put characters in upper case
 
             KmerHashIterator<RepHash> it_kmer_h(str, len, k_), it_kmer_h_end;
             minHashIterator<RepHash> it_min(str, len, k_, g_, RepHash(), true);
@@ -1319,62 +1321,47 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt) {
 
     auto reading_function = [&](char* seq_buf, size_t& seq_buf_sz) {
 
-        size_t reads_now = 0;
+        size_t file_id = 0;
+
+        const size_t sz_buf = thread_seq_buf_sz - k_;
 
         const char* s_str = s.c_str();
 
         seq_buf_sz = 0;
 
-        while ((pos_read < len_read) && (reads_now < opt.read_chunksize)){
+        while (seq_buf_sz < sz_buf) {
 
-            pos_read -= k_ - 1;
+            const bool new_reading = (pos_read >= len_read);
 
-            strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], max_len_seq);
+            if (!new_reading || fp.read(s, file_id)) {
 
-            seq_buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
-            pos_read += max_len_seq;
+                nb_seq += new_reading;
 
-            seq_buf[seq_buf_sz - 1] = '\0';
-
-            ++reads_now;
-        }
-
-        while (reads_now < opt.read_chunksize) {
-
-            if (fp.read(s, file_id)) {
-
+                pos_read = (new_reading ? 0 : pos_read);
                 len_read = s.length();
-                pos_read = len_read;
+
                 s_str = s.c_str();
 
-                ++nb_seq;
+                if (len_read >= k_){
 
-                std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+                    if ((thread_seq_buf_sz - seq_buf_sz - 1) < (len_read - pos_read)){
 
-                if (len_read > max_len_seq){
+                        strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], thread_seq_buf_sz - seq_buf_sz - 1);
 
-                    pos_read = k_ - 1;
+                        seq_buf[thread_seq_buf_sz - 1] = '\0';
 
-                    while ((pos_read < len_read) && (reads_now < opt.read_chunksize)){
+                        pos_read += sz_buf - seq_buf_sz;
+                        seq_buf_sz = thread_seq_buf_sz;
 
-                        pos_read -= k_ - 1;
-
-                        strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], max_len_seq);
-
-                        seq_buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
-                        pos_read += max_len_seq;
-
-                        seq_buf[seq_buf_sz - 1] = '\0';
-
-                        ++reads_now;
+                        break;
                     }
-                }
-                else {
+                    else {
 
-                    strcpy(&seq_buf[seq_buf_sz], s_str);
+                        strcpy(&seq_buf[seq_buf_sz], &s_str[pos_read]);
 
-                    seq_buf_sz += len_read + 1;
-                    ++reads_now;
+                        seq_buf_sz += (len_read - pos_read) + 1;
+                        pos_read = len_read;
+                    }
                 }
             }
             else return true;
@@ -1390,10 +1377,8 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt) {
 
         mutex mutex_file;
 
-        const size_t thread_seq_buf_sz = opt.read_chunksize * (max_len_seq + 1);
-
-        char* buffer_seq = new char[opt.nb_threads * thread_seq_buf_sz];
-        size_t* buffer_seq_sz = new size_t[opt.nb_threads];
+        char* buffer_seq = new char[opt.nb_threads * thread_seq_buf_sz]();
+        size_t* buffer_seq_sz = new size_t[opt.nb_threads]();
 
         for (size_t t = 0; t < opt.nb_threads; ++t){
 
@@ -1466,11 +1451,11 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
 
     string s;
 
-    size_t file_id = 0;
     size_t len_read = 0;
-    size_t pos_read = k_ - 1;
+    size_t pos_read = 0;
 
-    const size_t max_len_seq = 1000;
+    const size_t max_len_seq = 1024;
+    const size_t thread_seq_buf_sz = opt.read_chunksize * max_len_seq;
 
     tiny_vector<Kmer, 2>* fp_candidate = nullptr;
 
@@ -1495,7 +1480,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
         for (auto& lck : locks_fp) lck.clear();
     }
 
-    auto worker_function = [&](const char* seq_buf, const size_t seq_buf_sz, const size_t thread_id) {
+    auto worker_function = [&](char* seq_buf, const size_t seq_buf_sz, const size_t thread_id) {
 
         vector<Kmer> l_ignored_km_tips;
 
@@ -1506,109 +1491,122 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
         Kmer km;
         RepHash rep;
 
-        const char* str = seq_buf;
+        char* str = seq_buf;
         const char* str_end = &seq_buf[seq_buf_sz];
 
         while (str < str_end) { // for each input
 
             const int len = strlen(str);
 
-            KmerHashIterator<RepHash> it_kmer_h(str, len, k_), it_kmer_h_end;
-            minHashIterator<RepHash> it_min(str, len, k_, g_, rep, true);
+            for (char* s = str; s != &str[len]; ++s) *s &= 0xDF;
 
-            for (int last_pos_km = -2; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min) {
+            for (size_t i = 0; i < len - k_ + 1; i += max_len_seq - k_ + 1){
 
-                std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
+                const int curr_len = min(len - i, max_len_seq);
+                const char saved_char = str[i + curr_len];
+                const char* str_tmp = &str[i];
 
-                if (p_.second != last_pos_km + 1){ // If one or more k-mer were jumped because contained non-ACGT char.
+                str[i + curr_len] = '\0';
 
-                    km = Kmer(&str[p_.second]);
+                KmerHashIterator<RepHash> it_kmer_h(str_tmp, curr_len, k_), it_kmer_h_end;
+                minHashIterator<RepHash> it_min(str_tmp, curr_len, k_, g_, rep, true);
 
-                    it_min += (last_pos_km == -2 ? p_.second : (p_.second - last_pos_km) - 1);
-                    it_min_h = it_min.getHash();
+                for (int last_pos_km = -2; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min) {
 
-                    block_bf = bf.getBlock(it_min_h);
-                }
-                else {
+                    std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
 
-                    km.selfForwardBase(str[p_.second + k_ - 1]);
+                    if (p_.second != last_pos_km + 1){ // If one or more k-mer were jumped because contained non-ACGT char.
 
-                    it_min_h = it_min.getHash();
-                    if (it_min_h != last_it_min_h) block_bf = bf.getBlock(it_min_h);
-                }
+                        km = Kmer(&str_tmp[p_.second]);
 
-                last_pos_km = p_.second;
-                last_it_min_h = it_min_h;
+                        it_min += (last_pos_km == -2 ? p_.second : (p_.second - last_pos_km) - 1);
+                        it_min_h = it_min.getHash();
 
-                const size_t r = bf.contains_block(p_.first, it_min_h, block_bf);
-
-                if (r != 0){
-
-                    while (locks_unitig[thread_id].test_and_set(std::memory_order_acquire));
-
-                    const UnitigMap<U, G> um = findUnitig(km, str, p_.second);
-
-                    if (um.isEmpty) { // kmer did not map, push into queue for next unitig generation round
-
-                        locks_unitig[thread_id].clear(std::memory_order_release);
-
-                        bool isIsolated = false;
-
-                        string newseq;
-
-                        const size_t pos_match = findUnitigSequenceBBF(km, newseq, isIsolated, l_ignored_km_tips); //Build unitig from Bloom filter
-
-                        if (!opt.reference_mode && isIsolated){ // According to the BF, k-mer is isolated in the graph and is a potential false positive
-
-                            const uint64_t block = (r == 1 ? block_bf.first : block_bf.second);
-                            const uint64_t id_lock = block % nb_locks;
-                            const Kmer km_rep = km.rep();
-
-                            tiny_vector<Kmer, 2>& v = fp_candidate[block];
-
-                            size_t i = 0;
-
-                            while (locks_fp[id_lock].test_and_set(std::memory_order_acquire));
-
-                            for (; i < v.size(); ++i){ // Search list of fp candidate for k-mer
-
-                                if (v[i] == km_rep) break;
-                            }
-
-                            if (i >= v.size()) v.push_back(km_rep);
-                            else {
-
-                                v.remove(i);
-
-                                addUnitigSequenceBBF(km, newseq, pos_match, 1, locks_mapping, locks_unitig, thread_id);
-                                addUnitigSequenceBBF(km, newseq, pos_match, 1, locks_mapping, locks_unitig, thread_id);
-                            }
-
-                            locks_fp[id_lock].clear(std::memory_order_release);
-                        }
-                        else {
-
-                            const size_t len_match_km = 1 + cstrMatch(&str[p_.second + k_], &(newseq.c_str()[pos_match + k_]));
-
-                            addUnitigSequenceBBF(km, newseq, pos_match, len_match_km, locks_mapping, locks_unitig, thread_id);
-
-                            it_kmer_h += len_match_km - 1;
-                        }
+                        block_bf = bf.getBlock(it_min_h);
                     }
                     else {
 
-                        const uint64_t id_lock = um.pos_unitig % nb_locks;
+                        km.selfForwardBase(str_tmp[p_.second + k_ - 1]);
 
-                        while (locks_mapping[id_lock].test_and_set(std::memory_order_acquire));
+                        it_min_h = it_min.getHash();
+                        if (it_min_h != last_it_min_h) block_bf = bf.getBlock(it_min_h);
+                    }
 
-                        mapRead(um);
+                    last_pos_km = p_.second;
+                    last_it_min_h = it_min_h;
 
-                        locks_mapping[id_lock].clear(std::memory_order_release);
-                        locks_unitig[thread_id].clear(std::memory_order_release);
+                    const size_t r = bf.contains_block(p_.first, it_min_h, block_bf);
 
-                        it_kmer_h += um.len - 1;
+                    if (r != 0){
+
+                        while (locks_unitig[thread_id].test_and_set(std::memory_order_acquire));
+
+                        const UnitigMap<U, G> um = findUnitig(km, str_tmp, p_.second);
+
+                        if (um.isEmpty) { // kmer did not map, push into queue for next unitig generation round
+
+                            locks_unitig[thread_id].clear(std::memory_order_release);
+
+                            bool isIsolated = false;
+
+                            string newseq;
+
+                            const size_t pos_match = findUnitigSequenceBBF(km, newseq, isIsolated, l_ignored_km_tips); //Build unitig from Bloom filter
+
+                            if (!opt.reference_mode && isIsolated){ // According to the BF, k-mer is isolated in the graph and is a potential false positive
+
+                                const uint64_t block = (r == 1 ? block_bf.first : block_bf.second);
+                                const uint64_t id_lock = block % nb_locks;
+                                const Kmer km_rep = km.rep();
+
+                                tiny_vector<Kmer, 2>& v = fp_candidate[block];
+
+                                size_t i = 0;
+
+                                while (locks_fp[id_lock].test_and_set(std::memory_order_acquire));
+
+                                for (; i < v.size(); ++i){ // Search list of fp candidate for k-mer
+
+                                    if (v[i] == km_rep) break;
+                                }
+
+                                if (i >= v.size()) v.push_back(km_rep);
+                                else {
+
+                                    v.remove(i);
+
+                                    addUnitigSequenceBBF(km, newseq, pos_match, 1, locks_mapping, locks_unitig, thread_id);
+                                    addUnitigSequenceBBF(km, newseq, pos_match, 1, locks_mapping, locks_unitig, thread_id);
+                                }
+
+                                locks_fp[id_lock].clear(std::memory_order_release);
+                            }
+                            else {
+
+                                const size_t len_match_km = 1 + cstrMatch(&str_tmp[p_.second + k_], &(newseq.c_str()[pos_match + k_]));
+
+                                addUnitigSequenceBBF(km, newseq, pos_match, len_match_km, locks_mapping, locks_unitig, thread_id);
+
+                                it_kmer_h += len_match_km - 1;
+                            }
+                        }
+                        else {
+
+                            const uint64_t id_lock = um.pos_unitig % nb_locks;
+
+                            while (locks_mapping[id_lock].test_and_set(std::memory_order_acquire));
+
+                            mapRead(um);
+
+                            locks_mapping[id_lock].clear(std::memory_order_release);
+                            locks_unitig[thread_id].clear(std::memory_order_release);
+
+                            it_kmer_h += um.len - 1;
+                        }
                     }
                 }
+
+                str[i + curr_len] = saved_char;
             }
 
             str += len + 1;
@@ -1623,60 +1621,45 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
 
     auto reading_function = [&](char* seq_buf, size_t& seq_buf_sz) {
 
-        size_t reads_now = 0;
+        size_t file_id = 0;
+
+        const size_t sz_buf = thread_seq_buf_sz - k_;
 
         const char* s_str = s.c_str();
 
         seq_buf_sz = 0;
 
-        while ((pos_read < len_read) && (reads_now < opt.read_chunksize)){
+        while (seq_buf_sz < sz_buf) {
 
-            pos_read -= k_ - 1;
+            const bool new_reading = (pos_read >= len_read);
 
-            strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], max_len_seq);
+            if (!new_reading || fp.read(s, file_id)) {
 
-            seq_buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
-            pos_read += max_len_seq;
-
-            seq_buf[seq_buf_sz - 1] = '\0';
-
-            ++reads_now;
-        }
-
-        while (reads_now < opt.read_chunksize) {
-
-            if (fp.read(s, file_id)) {
-
+                pos_read = (new_reading ? 0 : pos_read);
                 len_read = s.length();
-                pos_read = len_read;
+
                 s_str = s.c_str();
 
-                std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+                if (len_read >= k_){
 
-                if (len_read > max_len_seq){
+                    if ((thread_seq_buf_sz - seq_buf_sz - 1) < (len_read - pos_read)){
 
-                    pos_read = k_ - 1;
+                        strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], thread_seq_buf_sz - seq_buf_sz - 1);
 
-                    while ((pos_read < len_read) && (reads_now < opt.read_chunksize)){
+                        seq_buf[thread_seq_buf_sz - 1] = '\0';
 
-                        pos_read -= k_ - 1;
+                        pos_read += sz_buf - seq_buf_sz;
+                        seq_buf_sz = thread_seq_buf_sz;
 
-                        strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], max_len_seq);
-
-                        seq_buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
-                        pos_read += max_len_seq;
-
-                        seq_buf[seq_buf_sz - 1] = '\0';
-
-                        ++reads_now;
+                        break;
                     }
-                }
-                else {
+                    else {
 
-                    strcpy(&seq_buf[seq_buf_sz], s_str);
+                        strcpy(&seq_buf[seq_buf_sz], &s_str[pos_read]);
 
-                    seq_buf_sz += len_read + 1;
-                    ++reads_now;
+                        seq_buf_sz += (len_read - pos_read) + 1;
+                        pos_read = len_read;
+                    }
                 }
             }
             else return true;
@@ -1693,8 +1676,6 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
         vector<thread> workers; // need to keep track of threads so we can join them
 
         mutex mutex_file;
-
-        const size_t thread_seq_buf_sz = opt.read_chunksize * (max_len_seq + 1);
 
         char* buffer_seq = new char[opt.nb_threads * thread_seq_buf_sz];
         size_t* buffer_seq_sz = new size_t[opt.nb_threads];
@@ -1715,8 +1696,6 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
                             if (stop) return;
 
                             ++round;
-
-                            //if (opt.verbose) cout << "CompactedDBG::construct(): Reading round " << round << endl;
 
                             stop = reading_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t]);
                         }
@@ -4193,6 +4172,7 @@ void CompactedDBG<U, G>::writeFASTA(const string& graphfilename) const {
     graphfile.open(graphfilename.c_str());
     graph.rdbuf(graphfile.rdbuf());
     graph.sync_with_stdio(false);
+
     assert(!graphfile.fail());
 
     for (size_t j = 0; j < v_unitigs_sz; ++j, ++i) {

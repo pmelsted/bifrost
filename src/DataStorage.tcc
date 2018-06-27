@@ -744,7 +744,7 @@ bool DataStorage<U>::write(const string prefix_output_filename, const size_t nb_
 
     colorsfile_out.open(out.c_str(), ios_base::out | ios_base::binary);
     colors_out.rdbuf(colorsfile_out.rdbuf());
-    colors_out.sync_with_stdio(false);
+    //colors_out.sync_with_stdio(false);
 
     const size_t format_version = BFG_COLOREDCDBG_FORMAT_VERSION;
     const size_t overflow_sz = overflow.size();

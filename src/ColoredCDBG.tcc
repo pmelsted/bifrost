@@ -331,11 +331,17 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
     const size_t nb_locks = nb_threads * 1024;
     const size_t chunk_size = 64;
-    const size_t max_len_seq = 1000;
+    const size_t max_len_seq = 1024;
+    const size_t thread_seq_buf_sz = chunk_size * max_len_seq;
 
     size_t prev_file_id = 0;
 
+    size_t pos_read = 0;
+    size_t len_read = 0;
+
     bool next_file = true;
+
+    string s;
 
     FileParser fp(ds->color_names);
 
@@ -344,9 +350,9 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
     for (size_t i = 0; i < nb_locks; ++i) cs_locks[i].clear();
 
     // Main worker thread
-    auto worker_function = [&](const char* seq_buf, const size_t seq_buf_sz, const size_t* col_buf) {
+    auto worker_function = [&](char* seq_buf, const size_t seq_buf_sz, const size_t* col_buf) {
 
-        const char* str = seq_buf;
+        char* str = seq_buf;
         const char* str_end = &seq_buf[seq_buf_sz];
 
         size_t c_id = 0;
@@ -355,30 +361,43 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
             const int len = strlen(str);
 
-            for (KmerIterator it_km(str), it_km_end; it_km != it_km_end; ++it_km) {
+            for (char* s = str; s != &str[len]; ++s) *s &= 0xDF;
 
-                UnitigColorMap<U> um = this->find(it_km->first);
+            for (size_t i = 0; i < len - k_ + 1; i += max_len_seq - k_ + 1){
 
-                if (!um.isEmpty) {
+                const int curr_len = min(len - i, max_len_seq);
+                const char saved_char = str[i + curr_len];
+                const char* str_tmp = &str[i];
 
-                    if (um.strand || (um.dist != 0)){
+                str[i + curr_len] = '\0';
 
-                        um.len = 1 + um.lcp(str, it_km->second + k_, um.strand ? um.dist + k_ : um.dist - 1, !um.strand);
+                for (KmerIterator it_km(str_tmp), it_km_end; it_km != it_km_end; ++it_km) {
 
-                        if ((um.size != k_) && !um.strand) um.dist -= um.len - 1;
+                    UnitigColorMap<U> um = this->find(it_km->first);
 
-                        it_km += um.len - 1;
+                    if (!um.isEmpty) {
+
+                        if (um.strand || (um.dist != 0)){
+
+                            um.len = 1 + um.lcp(str_tmp, it_km->second + k_, um.strand ? um.dist + k_ : um.dist - 1, !um.strand);
+
+                            if ((um.size != k_) && !um.strand) um.dist -= um.len - 1;
+
+                            it_km += um.len - 1;
+                        }
+
+                        const uint64_t id_lock = ds->getHash(um) % nb_locks;
+                        UnitigColors* uc = ds->getUnitigColors(um);
+
+                        while (cs_locks[id_lock].test_and_set(std::memory_order_acquire)); // Set the corresponding lock
+
+                        uc->add(um, col_buf[c_id]);
+
+                        cs_locks[id_lock].clear(std::memory_order_release);
                     }
-
-                    const uint64_t id_lock = ds->getHash(um) % nb_locks;
-                    UnitigColors* uc = ds->getUnitigColors(um);
-
-                    while (cs_locks[id_lock].test_and_set(std::memory_order_acquire)); // Set the corresponding lock
-
-                    uc->add(um, col_buf[c_id]);
-
-                    cs_locks[id_lock].clear(std::memory_order_release);
                 }
+
+                str[i + curr_len] = saved_char;
             }
 
             str += len + 1;
@@ -386,72 +405,51 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
         }
     };
 
-    size_t pos_read = k_ - 1;
-    size_t len_read = 0;
-
-    string s;
-
     auto reading_function = [&](char* seq_buf, size_t& seq_buf_sz, size_t* col_buf) {
 
-        size_t reads_now = 0;
         size_t file_id = prev_file_id;
+        size_t i = 0;
+
+        const size_t sz_buf = thread_seq_buf_sz - k_;
 
         const char* s_str = s.c_str();
 
         seq_buf_sz = 0;
 
-        while ((pos_read < len_read) && (reads_now < chunk_size)){
+        while (seq_buf_sz < sz_buf) {
 
-            pos_read -= k_ - 1;
+            const bool new_reading = (pos_read >= len_read);
 
-            strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], max_len_seq);
+            if (!new_reading || fp.read(s, file_id)) {
 
-            seq_buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
-            pos_read += max_len_seq;
-
-            seq_buf[seq_buf_sz - 1] = '\0';
-            col_buf[reads_now] = file_id;
-
-            ++reads_now;
-        }
-
-        while (reads_now < chunk_size) {
-
-            if (fp.read(s, file_id)) {
-
+                pos_read = (new_reading ? 0 : pos_read);
                 len_read = s.length();
-                pos_read = len_read;
+
                 s_str = s.c_str();
 
-                std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+                if (len_read >= k_){
 
-                if (len_read > max_len_seq){
+                    if ((thread_seq_buf_sz - seq_buf_sz - 1) < (len_read - pos_read)){
 
-                    pos_read = k_ - 1;
+                        strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], thread_seq_buf_sz - seq_buf_sz - 1);
 
-                    while ((pos_read < len_read) && (reads_now < chunk_size)){
+                        seq_buf[thread_seq_buf_sz - 1] = '\0';
+                        col_buf[i++] = file_id;
 
-                        pos_read -= k_ - 1;
+                        pos_read += sz_buf - seq_buf_sz;
+                        seq_buf_sz = thread_seq_buf_sz;
 
-                        strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], max_len_seq);
-
-                        seq_buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
-                        pos_read += max_len_seq;
-
-                        seq_buf[seq_buf_sz - 1] = '\0';
-                        col_buf[reads_now] = file_id;
-
-                        ++reads_now;
+                        break;
                     }
-                }
-                else {
+                    else {
 
-                    strcpy(&seq_buf[seq_buf_sz], s_str);
-                    col_buf[reads_now] = file_id;
+                        strcpy(&seq_buf[seq_buf_sz], &s_str[pos_read]);
 
-                    seq_buf_sz += len_read + 1;
+                        col_buf[i++] = file_id;
 
-                    ++reads_now;
+                        seq_buf_sz += (len_read - pos_read) + 1;
+                        pos_read = len_read;
+                    }
                 }
             }
             else {
@@ -478,8 +476,6 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
         mutex mutex_file;
 
         size_t prev_uc_sz = getCurrentRSS();
-
-        const size_t thread_seq_buf_sz = chunk_size * (max_len_seq + 1);
 
         char* buffer_seq = new char[nb_threads * thread_seq_buf_sz];
         size_t* buffer_seq_sz = new size_t[nb_threads];

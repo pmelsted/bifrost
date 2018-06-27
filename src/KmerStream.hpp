@@ -455,11 +455,11 @@ class KmerStream {
 
         void RunThreadedFastqStream() {
 
-            size_t file_id = 0;
-            size_t pos_read = k - 1;
+            size_t pos_read = 0;
             size_t len_read = 0;
 
-            const size_t max_len_seq = 1000;
+            const size_t max_len_seq = 1024;
+            const size_t thread_seq_buf_sz = chunksize * max_len_seq;
 
             string seq, qual;
 
@@ -469,70 +469,51 @@ class KmerStream {
 
             auto reading_function = [&](char* seq_buf, char* qual_buf, size_t& buf_sz) {
 
-                size_t reads_now = 0;
+                size_t file_id = 0;
+
+                const size_t seq_buf_sz = thread_seq_buf_sz - k;
 
                 const char* s_str = seq.c_str();
                 const char* q_str = qual.c_str();
 
                 buf_sz = 0;
 
-                while ((pos_read < len_read) && (reads_now < chunksize)){
+                while (buf_sz < seq_buf_sz) {
 
-                    pos_read -= k - 1;
+                    const bool new_reading = (pos_read >= len_read);
 
-                    strncpy(&seq_buf[buf_sz], &s_str[pos_read], max_len_seq);
-                    strncpy(&qual_buf[buf_sz], &q_str[pos_read], max_len_seq);
+                    if (!new_reading || fp.read(seq, file_id)) {
 
-                    buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
-                    pos_read += max_len_seq;
+                        if (new_reading) qual = fp.getQualityScoreString();
 
-                    seq_buf[buf_sz - 1] = '\0';
-                    qual_buf[buf_sz - 1] = '\0';
-
-                    ++reads_now;
-                }
-
-                while (reads_now < chunksize) {
-
-                    if (fp.read(seq, file_id)) {
-
-                        qual = fp.getQualityScoreString();
-
+                        pos_read = (new_reading ? 0 : pos_read);
                         len_read = seq.length();
-                        pos_read = len_read;
 
                         s_str = seq.c_str();
                         q_str = qual.c_str();
 
-                        std::transform(seq.begin(), seq.end(), seq.begin(), ::toupper);
+                        if (len_read >= k){
 
-                        if (len_read > max_len_seq){
+                            if ((thread_seq_buf_sz - buf_sz - 1) < (len_read - pos_read)){
 
-                            pos_read = k - 1;
+                                strncpy(&seq_buf[buf_sz], &s_str[pos_read], thread_seq_buf_sz - buf_sz - 1);
+                                strncpy(&qual_buf[buf_sz], &q_str[pos_read], thread_seq_buf_sz - buf_sz - 1);
 
-                            while ((pos_read < len_read) && (reads_now < chunksize)){
+                                seq_buf[thread_seq_buf_sz - 1] = '\0';
 
-                                pos_read -= k - 1;
+                                pos_read += seq_buf_sz - buf_sz;
+                                buf_sz = thread_seq_buf_sz;
 
-                                strncpy(&seq_buf[buf_sz], &s_str[pos_read], max_len_seq);
-                                strncpy(&qual_buf[buf_sz], &q_str[pos_read], max_len_seq);
-
-                                buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
-                                pos_read += max_len_seq;
-
-                                seq_buf[buf_sz - 1] = '\0';
-                                qual_buf[buf_sz - 1] = '\0';
-
-                                ++reads_now;
+                                break;
                             }
-                        }
-                        else {
+                            else {
 
-                            strcpy(&seq_buf[buf_sz], s_str);
-                            strcpy(&qual_buf[buf_sz], q_str);
+                                strcpy(&seq_buf[buf_sz], &s_str[pos_read]);
+                                strcpy(&qual_buf[buf_sz], &q_str[pos_read]);
 
-                            buf_sz += len_read + 1;
-                            ++reads_now;
+                                buf_sz += (len_read - pos_read) + 1;
+                                pos_read = len_read;
+                            }
                         }
                     }
                     else return true;
@@ -547,8 +528,6 @@ class KmerStream {
                 bool stop = false;
 
                 mutex mutex_file;
-
-                const size_t thread_seq_buf_sz = chunksize * (max_len_seq + 1);
 
                 char* buffer_seq = new char[nb_threads * thread_seq_buf_sz];
                 char* buffer_qual = new char[nb_threads * thread_seq_buf_sz];
@@ -569,6 +548,8 @@ class KmerStream {
 
                                     stop = reading_function(&buffer_seq[t * thread_seq_buf_sz], &buffer_qual[t * thread_seq_buf_sz], buffer_sz[t]);
                                 }
+
+                                for (char* s = &buffer_seq[t * thread_seq_buf_sz]; s != &buffer_seq[(t + 1) * thread_seq_buf_sz]; ++s) *s &= 0xDF;
 
                                 sps[t](&buffer_seq[t * thread_seq_buf_sz], &buffer_qual[t * thread_seq_buf_sz], buffer_sz[t]);
                             }
@@ -608,11 +589,11 @@ class KmerStream {
 
         void RunThreadedFastaStream() {
 
-            size_t file_id = 0;
-            size_t pos_read = k - 1;
+            size_t pos_read = 0;
             size_t len_read = 0;
 
-            const size_t max_len_seq = 1000;
+            const size_t max_len_seq = 1024;
+            const size_t thread_seq_buf_sz = chunksize * max_len_seq;
 
             vector<ReadHasher> sps(nb_threads, rsh);
 
@@ -622,60 +603,45 @@ class KmerStream {
 
             auto reading_function = [&](char* seq_buf, size_t& seq_buf_sz) {
 
-                size_t reads_now = 0;
+                size_t file_id = 0;
+
+                const size_t sz_buf = thread_seq_buf_sz - k;
 
                 const char* s_str = s.c_str();
 
                 seq_buf_sz = 0;
 
-                while ((pos_read < len_read) && (reads_now < chunksize)){
+                while (seq_buf_sz < sz_buf) {
 
-                    pos_read -= k - 1;
+                    const bool new_reading = (pos_read >= len_read);
 
-                    strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], max_len_seq);
+                    if (!new_reading || fp.read(s, file_id)) {
 
-                    seq_buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
-                    pos_read += max_len_seq;
-
-                    seq_buf[seq_buf_sz - 1] = '\0';
-
-                    ++reads_now;
-                }
-
-                while (reads_now < chunksize) {
-
-                    if (fp.read(s, file_id)) {
-
+                        pos_read = (new_reading ? 0 : pos_read);
                         len_read = s.length();
-                        pos_read = len_read;
+
                         s_str = s.c_str();
 
-                        std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+                        if (len_read >= k){
 
-                        if (len_read > max_len_seq){
+                            if ((thread_seq_buf_sz - seq_buf_sz - 1) < (len_read - pos_read)){
 
-                            pos_read = k - 1;
+                                strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], thread_seq_buf_sz - seq_buf_sz - 1);
 
-                            while ((pos_read < len_read) && (reads_now < chunksize)){
+                                seq_buf[thread_seq_buf_sz - 1] = '\0';
 
-                                pos_read -= k - 1;
+                                pos_read += sz_buf - seq_buf_sz;
+                                seq_buf_sz = thread_seq_buf_sz;
 
-                                strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], max_len_seq);
-
-                                seq_buf_sz += (pos_read + max_len_seq > len_read ? len_read - pos_read : max_len_seq) + 1;
-                                pos_read += max_len_seq;
-
-                                seq_buf[seq_buf_sz - 1] = '\0';
-
-                                ++reads_now;
+                                break;
                             }
-                        }
-                        else {
+                            else {
 
-                            strcpy(&seq_buf[seq_buf_sz], s.c_str());
+                                strcpy(&seq_buf[seq_buf_sz], &s_str[pos_read]);
 
-                            seq_buf_sz += len_read + 1;
-                            ++reads_now;
+                                seq_buf_sz += (len_read - pos_read) + 1;
+                                pos_read = len_read;
+                            }
                         }
                     }
                     else return true;
@@ -690,8 +656,6 @@ class KmerStream {
                 mutex mutex_file;
 
                 bool stop = false;
-
-                const size_t thread_seq_buf_sz = chunksize * (max_len_seq + 1);
 
                 char* buffer_seq = new char[nb_threads * thread_seq_buf_sz];
                 size_t* buffer_seq_sz = new size_t[nb_threads];
@@ -711,6 +675,8 @@ class KmerStream {
 
                                     stop = reading_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t]);
                                 }
+
+                                for (char* s = &buffer_seq[t * thread_seq_buf_sz]; s != &buffer_seq[(t + 1) * thread_seq_buf_sz]; ++s) *s &= 0xDF;
 
                                 sps[t](&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t]);
                             }

@@ -40,6 +40,25 @@ class minHashIterator {
 
         minHashIterator() : s(NULL), n(0), k(0), g(0), hf(HF(0)), invalid(true), nh(false) {}
 
+        /*minHashIterator(minHashIterator&& o) : s(o.s), n(o.n), k(o.k), g(o.g), hf(o.hf), invalid(o.invalid), nh(o.nh), p(o.p) {
+
+            v = move(o.v);
+        }
+
+        minHashIterator& operator=(minHashIterator&& o){
+
+            s = o.s;
+            n = o.n;
+            k = o.k;
+            g = o.g;
+            hf = o.hf;
+            invalid = o.invalid;
+            nh = o.nh;
+            p = o.p;
+
+            v = move(o.v);
+        }*/
+
         void seed(HF &ohf) {
             hf = ohf;
             invalid=true;
