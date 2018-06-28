@@ -62,7 +62,7 @@ class CompressedSequence {
         CompressedSequence rev() const;
 
         size_t jump(const char *s, const size_t i, int pos, const bool reversed) const;
-        size_t bw_jump(const char *s, const size_t i, int pos, const bool reversed) const;
+        //size_t bw_jump(const char *s, const size_t i, int pos, const bool reversed) const;
 
         int64_t findKmer(const Kmer& km) const;
 

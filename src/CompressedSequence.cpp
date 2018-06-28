@@ -432,7 +432,7 @@ Kmer CompressedSequence::getKmer(const size_t offset) const {
 
         size_t j = 0;
 
-        uint64_t tmp_data = static_cast<uint64_t>(data[offset >> 2] >> ((offset & 0x3) << 1));
+        /*uint64_t tmp_data = static_cast<uint64_t>(data[offset >> 2] >> ((offset & 0x3) << 1));
 
         for (size_t i = offset; j < nlongs; ++j){
 
@@ -444,6 +444,16 @@ Kmer CompressedSequence::getKmer(const size_t offset) const {
                 if ((i & 0x3) == 0) tmp_data = static_cast<uint64_t>(data[i >> 2]);
                 tmp_km = (tmp_km << 2) | (tmp_data & 0x3);
             }
+
+            km.longs[j] = tmp_km;
+        }*/
+
+        for (size_t i = offset; j < nlongs; ++j){
+
+            uint64_t tmp_km = 0;
+            const size_t end = len < i + 32 ? len : i + 32;
+
+            for (; i != end; ++i) tmp_km = (tmp_km << 2) | ((data[i >> 2] >> ((i & 0x3) << 1)) & 0x3);
 
             km.longs[j] = tmp_km;
         }
@@ -484,7 +494,7 @@ bool CompressedSequence::compareKmer(const size_t offset, const size_t length, c
 
         const size_t nlongs = (length + 31) / 32;
 
-        uint64_t tmp_data = static_cast<uint64_t>(data[offset >> 2] >> ((offset & 0x3) << 1));
+        /*uint64_t tmp_data = static_cast<uint64_t>(data[offset >> 2] >> ((offset & 0x3) << 1));
 
         for (size_t i = offset, j = 0; j < nlongs; ++j){
 
@@ -495,6 +505,16 @@ bool CompressedSequence::compareKmer(const size_t offset, const size_t length, c
 
                 if ((i & 0x3) == 0) tmp_data = static_cast<uint64_t>(data[i >> 2]);
                 if ((tmp_data & 0x3) != (tmp_km >> 62)) return false;
+            }
+        }*/
+
+        for (size_t i = offset, j = 0; j < nlongs; ++j){
+
+            const size_t end = pos_end < i + 32 ? pos_end : i + 32;
+
+            for (uint64_t tmp_km = km.longs[j]; i != end; ++i, tmp_km <<= 2){
+
+                if (((data[i >> 2] >> ((i & 0x3) << 1)) & 0x3) != (tmp_km >> 62)) return false;
             }
         }
     }
@@ -550,7 +570,7 @@ CompressedSequence CompressedSequence::rev() const {
 //         s[i...i+j-1] == cs._data[pos...pos+j-1], 0 <= j <= min(s.length-i, cs._length-pos)
 //       else
 //         reverse_complement(s[i...i+j-1]) == cs._data[pos-j+1...pos], 0 <= j <= min(s.length-i, pos+1)
-size_t CompressedSequence::jump(const char *s, const size_t i, int pos, const bool reversed) const {
+/*size_t CompressedSequence::jump(const char *s, const size_t i, int pos, const bool reversed) const {
 
     assert(i >= 0);
     assert(i < strlen(s));
@@ -594,9 +614,40 @@ size_t CompressedSequence::jump(const char *s, const size_t i, int pos, const bo
     }
 
     return i_cpy - i;
+}*/
+
+size_t CompressedSequence::jump(const char *s, const size_t i, int pos, const bool reversed) const {
+
+    assert(i >= 0);
+    assert(i < strlen(s));
+    assert(pos >= -1);
+    assert(0 <= size() - pos); // this prevents -1 <= _length from giving false
+
+    const unsigned char* data = getPointer();
+
+    const char* s_tmp = &s[i];
+
+    if (reversed){
+
+        for (; (*s_tmp != '\0') && (pos != -1); --pos, ++s_tmp) {
+
+            if (*s_tmp != bases[3 - ((data[pos >> 2] >> ((pos & 0x3) << 1)) & 0x03)]) break;
+        }
+    }
+    else {
+
+        const size_t cs_size = size();
+
+        for (; (*s_tmp != '\0') && (pos < cs_size); ++pos, ++s_tmp) {
+
+            if (*s_tmp != bases[(data[pos >> 2] >> ((pos & 0x3) << 1)) & 0x3]) break;
+        }
+    }
+
+    return s_tmp - &s[i];
 }
 
-size_t CompressedSequence::bw_jump(const char *s, const size_t i, int pos, const bool reversed) const {
+/*size_t CompressedSequence::bw_jump(const char *s, const size_t i, int pos, const bool reversed) const {
 
     assert(i >= 0);
     assert(i < strlen(s));
@@ -640,7 +691,7 @@ size_t CompressedSequence::bw_jump(const char *s, const size_t i, int pos, const
     }
 
     return i - i_cpy;
-}
+}*/
 
 void CompressedSequence::clear() {
 
