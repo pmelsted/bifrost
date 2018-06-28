@@ -502,7 +502,7 @@ const_UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extrem
 
     const int diff = k_ - g_;
 
-    char km_tmp[k_ + 1];
+    char km_tmp[MAX_KMER_SIZE];
     km.toString(km_tmp); // Set k-mer to look-up in string version
 
     preAllocMinHashIterator<RepHash> it_min(km_tmp, k_, k_, g_, RepHash(), true);
@@ -628,7 +628,7 @@ UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extremities_
 
     const int diff = k_ - g_;
 
-    char km_tmp[k_ + 1];
+    char km_tmp[MAX_KMER_SIZE];
     km.toString(km_tmp); // Set k-mer to look-up in string version
 
     preAllocMinHashIterator<RepHash> it_min(km_tmp, k_, k_, g_, RepHash(), true);
@@ -750,7 +750,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& k
 
     const int diff = k_ - g_;
 
-    char km_tmp[k_ + 1];
+    char km_tmp[MAX_KMER_SIZE];
     km_pred[0].toString(km_tmp); // Set k-mer to look-up in string version
 
     preAllocMinHashIterator<RepHash> it_min(km_tmp, k_, k_, g_, RepHash(), true);
@@ -904,7 +904,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
 
     const int diff = k_ - g_;
 
-    char km_tmp[k_ + 1];
+    char km_tmp[MAX_KMER_SIZE];
     km_succ[0].toString(km_tmp); // Set k-mer to look-up in string version
 
     preAllocMinHashIterator<RepHash> it_min(km_tmp, k_, k_, g_, RepHash(), true);
@@ -1932,7 +1932,7 @@ bool CompactedDBG<U, G>::bwStepBBF(Kmer km, Kmer& front, char& c, bool& has_no_n
     size_t i, j = -1, j_tmp;
     size_t nb_neigh = 0;
 
-    char km_tmp[k_ + 1];
+    char km_tmp[MAX_KMER_SIZE];
 
     front.backwardBase('A').toString(km_tmp);
 
@@ -2121,7 +2121,7 @@ bool CompactedDBG<U, G>::fwStepBBF(Kmer km, Kmer& end, char& c, bool& has_no_nei
     size_t i, j = -1, j_tmp;
     size_t nb_neigh = 0;
 
-    char km_tmp[k_ + 1];
+    char km_tmp[MAX_KMER_SIZE];
 
     end.forwardBase('A').toString(km_tmp);
 
@@ -2370,7 +2370,7 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 
     char* c_str = const_cast<char*>(str_unitig.c_str());
 
-    char km_tmp[k_ + 1];
+    char km_tmp[MAX_KMER_SIZE];
 
     Kmer km_rep;
 
@@ -4630,7 +4630,7 @@ vector<Kmer> CompactedDBG<U, G>::extractMercyKmers(BlockedBloomFilter& bf_uniq_k
 
     size_t i, j;
 
-    char km_tmp[k_ + 1];
+    char km_tmp[MAX_KMER_SIZE];
 
     KmerHashTable<uint8_t> tips;
 
