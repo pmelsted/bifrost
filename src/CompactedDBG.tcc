@@ -1363,6 +1363,7 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt) {
                         pos_read = len_read;
                     }
                 }
+                else pos_read = len_read;
             }
             else return true;
         }
@@ -1661,6 +1662,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
                         pos_read = len_read;
                     }
                 }
+                else pos_read = len_read;
             }
             else return true;
         }

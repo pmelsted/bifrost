@@ -515,6 +515,7 @@ class KmerStream {
                                 pos_read = len_read;
                             }
                         }
+                        else pos_read = len_read;
                     }
                     else return true;
                 }
@@ -643,6 +644,7 @@ class KmerStream {
                                 pos_read = len_read;
                             }
                         }
+                        else pos_read = len_read;
                     }
                     else return true;
                 }

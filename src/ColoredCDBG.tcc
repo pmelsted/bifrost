@@ -451,6 +451,7 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
                         pos_read = len_read;
                     }
                 }
+                else pos_read = len_read;
             }
             else {
 
