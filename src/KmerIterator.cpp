@@ -12,9 +12,9 @@
 //       OR *iter is the next valid pair of kmer and location
 KmerIterator& KmerIterator::operator++() {
 
-    int pos_ = p_.second;
-
     if (!invalid_) {
+
+        const int pos_ = p_.second;
 
         if (s_[pos_ + Kmer::k] == 0) invalid_ = true;
         else find_next(pos_, pos_ + Kmer::k - 1, true);
@@ -43,6 +43,24 @@ KmerIterator& KmerIterator::operator+=(const int length){
     return *this;
 }
 
+/*KmerIterator& KmerIterator::operator+=(const int length){
+
+    if (!invalid_ && (length != 0)){
+
+        if (length == 1) return operator++();
+
+        size_t curr_pos_end = p_.second + Kmer::k;
+        const size_t next_pos_end = curr_pos_end + length;
+
+        while ((curr_pos_end < next_pos_end) && (s_[curr_pos_end] != 0)) ++curr_pos_end;
+
+        if (s_[curr_pos_end] == 0) invalid_ = true;
+        else find_next(next_pos_end - Kmer::k - 1, next_pos_end - Kmer::k - 1, false);
+    }
+
+    return *this;
+}*/
+
 // use:  val = (a == b);
 // pre:
 // post: (val == true) if a and b are both exhausted
@@ -51,7 +69,7 @@ KmerIterator& KmerIterator::operator+=(const int length){
 bool KmerIterator::operator==(const KmerIterator& o) {
 
     if (invalid_  || o.invalid_) return invalid_ && o.invalid_;
-    else return (s_ == o.s_) && (p_.second == o.p_.second);
+    return (s_ == o.s_) && (p_.second == o.p_.second);
 }
 
 
@@ -96,15 +114,15 @@ void KmerIterator::find_next(size_t i, size_t j, bool last_valid) {
     ++i;
     ++j;
 
-    while (s_[j] != 0) {
+    /*while (s_[j] != 0) {
 
-        char c = s_[j] & 0xDF; // mask lowercase bit
+        const char c = s_[j] & 0xDF; // mask lowercase bit
 
-        if (c == 'A' || c == 'C' || c == 'G' || c == 'T') {
+        if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) {
 
             if (last_valid) {
 
-                p_.first = p_.first.forwardBase(c);
+                p_.first.selfForwardBase(c);
                 break; // default case,
             }
             else if (i + Kmer::k - 1 == j) {
@@ -124,5 +142,46 @@ void KmerIterator::find_next(size_t i, size_t j, bool last_valid) {
     }
 
     if (i+Kmer::k-1 == j && s_[j] != 0) p_.second = i;
-    else invalid_ = true;
+    else invalid_ = true;*/
+
+    if (last_valid){
+
+        const char c = s_[j] & 0xDF;
+
+        if (c == 0) invalid_ = true;
+        else if ((c != 'A') && (c != 'C') && (c != 'G') && (c != 'T')){
+
+            i = ++j;
+            last_valid = false;
+        }
+        else {
+
+            p_.first.selfForwardBase(c);
+            p_.second = i;
+        }
+    }
+
+    if (!last_valid){
+
+        while (s_[j] != 0) {
+
+            const char c = s_[j] & 0xDF; // mask lowercase bit
+
+            ++j;
+
+            if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) {
+
+                if (i + Kmer::k == j) {
+
+                    p_.first = Kmer(s_+i);
+                    p_.second = i;
+
+                    return;
+                }
+            }
+            else i = j;
+        }
+
+        invalid_ = true;
+    }
 }

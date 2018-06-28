@@ -16,13 +16,14 @@ class KmerIterator : public std::iterator<std::input_iterator_tag, std::pair<Kme
 
     public:
 
-        KmerIterator() : s_(NULL), p_(), invalid_(true) {}
+        KmerIterator() : s_(nullptr), p_(), invalid_(true) {}
         KmerIterator(const char *s) : s_(s), p_(), invalid_(false) { find_next(-1,-1,false);}
         KmerIterator(const KmerIterator& o) : s_(o.s_), p_(o.p_), invalid_(o.invalid_) {}
 
         KmerIterator& operator++();
-        KmerIterator& operator+=(const int length);
         KmerIterator operator++(int);
+        KmerIterator& operator+=(const int length);
+
         void raise(Kmer& km, Kmer& rep);
 
         bool operator==(const KmerIterator& o);
@@ -47,24 +48,55 @@ class KmerHashIterator {
 
         KmerHashIterator(const char* _s, const int _length, const int _k) : s(_s), n(_length), k(_k), hf(HF(_k)), p_(0,-1), invalid(true) {
 
-            if ((_s != NULL) || (n >= k)) {
+            if ((_s != nullptr) || (n >= k)) {
 
                 invalid = false;
-                operator++();
+                p_.second = 0;
+                init();
             }
         }
 
-        KmerHashIterator() : s(NULL), n(0), k(0), hf(HF(0)), p_(0,-1), invalid(true) {}
+        KmerHashIterator() : s(nullptr), n(0), k(0), hf(HF(0)), p_(0,-1), invalid(true) {}
 
         KmerHashIterator(const KmerHashIterator& o) : s(o.s), n(o.n), k(o.k), hf(o.hf), p_(o.p_), invalid(o.invalid) {}
 
-        bool operator==(const KmerHashIterator& o) {
+        inline bool operator==(const KmerHashIterator& o) {
 
             if (invalid || o.invalid) return invalid && o.invalid;
-            return s==o.s && n==o.n && k==o.k && p_.first==o.p_.first && p_.second==o.p_.second;
+            return (s == o.s) && (n == o.n) && (k == o.k) && (p_ == o.p_);
         }
 
         bool operator!=(const KmerHashIterator& o) { return !this->operator==(o); }
+
+        inline void init() {
+
+            if (!invalid){
+
+                int j = p_.second + k - 1;
+
+                while (j >= p_.second) {
+
+                    const char c = s[j] & 0xDF; // mask lowercase bit
+
+                    if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) --j;
+                    else {
+
+                        p_.second = j + 1;
+                        j += k;
+
+                        if (p_.second >= n - k + 1) { // out of bounds
+
+                            invalid = true;
+                            p_ = {0,-1};
+                            return;
+                        }
+                    }
+                }
+
+                hf.init(&s[p_.second]);
+                p_.first = hf.hash();
+            }
+        }
 
         KmerHashIterator& operator++() {
 
@@ -75,79 +107,24 @@ class KmerHashIterator {
             if (p_.second >= n - k + 1) { // out of bounds
 
                 invalid = true;
-                p_ = std::make_pair(0,-1);
-                return *this;
-            }
-
-            int j = p_.second + k - 1;
-
-            if (p_.second == 0){
-
-                while (j >= p_.second) {
-
-                    const char c = s[j] & 0xDF; // mask lowercase bit
-
-                    if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) --j;
-                    else {
-
-                        p_.second += j - p_.second + 1;
-
-                        if (p_.second >= n - k + 1) { // out of bounds
-
-                            invalid = true;
-                            p_ = std::make_pair(0,-1);
-                            return *this;
-                        }
-
-                        j = p_.second + k - 1;
-                    }
-                }
-
-                hf.init(&s[p_.second]);
+                p_ = {0, -1};
             }
             else {
 
-                char c = s[j] & 0xDF; // mask lowercase bit
+                const int j = p_.second + k - 1;
+                const char c = s[j] & 0xDF; // mask lowercase bit
 
-                if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) hf.update(s[j-k], s[j]);
+                if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')){
+
+                    hf.update(s[j-k], s[j]);
+                    p_.first = hf.hash();
+                }
                 else {
 
-                    p_.second += k;
-
-                    if (p_.second >= n - k + 1) { // out of bounds
-
-                        invalid = true;
-                        p_ = std::make_pair(0,-1);
-                        return *this;
-                    }
-
-                    j = p_.second + k - 1;
-
-                    while (j >= p_.second) {
-
-                        c = s[j] & 0xDF; // mask lowercase bit
-
-                        if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) j--;
-                        else {
-
-                            p_.second += j - p_.second + 1;
-
-                            if (p_.second >= n - k + 1) { // out of bounds
-
-                                invalid = true;
-                                p_ = std::make_pair(0,-1);
-                                return *this;
-                            }
-
-                            j = p_.second + k - 1;
-                        }
-                    }
-
-                    hf.init(&s[p_.second]);
+                    p_.second = j + 1;
+                    init();
                 }
             }
-
-            p_.first = hf.hash();
 
             return *this;
         }
@@ -170,9 +147,9 @@ class KmerHashIterator {
             return *this;
         }
 
-        std::pair<uint64_t, int>& operator*() { return p_; }
+        inline std::pair<uint64_t, int>& operator*() { return p_; }
 
-        std::pair<uint64_t, int>* operator->() { return &(operator*()); }
+        inline std::pair<uint64_t, int>* operator->() { return &p_; }
 
         const char *s; // K-mers are from a sequence s
         int n; // Length of sequence s
