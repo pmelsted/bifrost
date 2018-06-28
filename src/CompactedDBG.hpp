@@ -6,6 +6,7 @@
 #include <cstring>
 #include <ctime>
 #include <cstdio>
+#include <climits>
 #include <functional>
 #include <getopt.h>
 #include <iostream>
