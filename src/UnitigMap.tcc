@@ -57,7 +57,7 @@ size_t UnitigMap<U, G, is_const>::lcp(const char* s, const size_t pos_s, const s
 
         if (pos_um_seq >= Kmer::k) return 0;
 
-        char km_str[Kmer::k + 1];
+        char km_str[MAX_KMER_SIZE];
 
         const Kmer km = isShort ? cdbg->v_kmers[pos_unitig].first : cdbg->h_kmers_ccov.find(pos_unitig).getKey();
 

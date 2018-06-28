@@ -513,7 +513,7 @@ const_UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extrem
     while (it_it_min != it_it_min_end){
 
         const minHashResult& min_h_res = *it_it_min;
-        Minimizer minz = Minimizer(&km_tmp[min_h_res.pos]).rep();
+        Minimizer minz(Minimizer(&km_tmp[min_h_res.pos]).rep());
         hmap_min_unitigs_t::const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
 
         mhr = min_h_res;
@@ -639,7 +639,7 @@ UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extremities_
     while (it_it_min != it_it_min_end){
 
         const minHashResult& min_h_res = *it_it_min;
-        Minimizer minz = Minimizer(&km_tmp[min_h_res.pos]).rep();
+        Minimizer minz(Minimizer(&km_tmp[min_h_res.pos]).rep());
         hmap_min_unitigs_t::const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
 
         mhr = min_h_res;
@@ -763,7 +763,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& k
     while (it_it_min != it_it_min_end){
 
         const minHashResult& min_h_res = *it_it_min;
-        Minimizer minz = Minimizer(&km_tmp[min_h_res.pos]).rep();
+        Minimizer minz(Minimizer(&km_tmp[min_h_res.pos]).rep());
         hmap_min_unitigs_t::const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
 
         mhr = min_h_res;
@@ -915,7 +915,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
     while (it_it_min != it_it_min_end){
 
         const minHashResult& min_h_res = *it_it_min;
-        Minimizer minz = Minimizer(&km_tmp[min_h_res.pos]).rep();
+        Minimizer minz(Minimizer(&km_tmp[min_h_res.pos]).rep());
         hmap_min_unitigs_t::const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
 
         mhr = min_h_res;
@@ -1913,7 +1913,7 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(Kmer km, string& s, bool& isIso
         reverse(bw_s.begin(), bw_s.end());
     }
 
-    char tmp[Kmer::k + 1];
+    char tmp[MAX_KMER_SIZE];
 
     km.toString(tmp);
 
@@ -2515,7 +2515,7 @@ void CompactedDBG<U, G>::deleteUnitig(const bool isShort, const bool isAbundant,
 
     if (isAbundant){
 
-        char km_str[k_ + 1];
+        char km_str[MAX_KMER_SIZE];
 
         const Kmer km = h_kmers_ccov.find(id_unitig).getKey();
 
