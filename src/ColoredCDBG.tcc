@@ -333,6 +333,7 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
     const size_t chunk_size = 64;
     const size_t max_len_seq = 1024;
     const size_t thread_seq_buf_sz = chunk_size * max_len_seq;
+    const size_t thread_col_buf_sz = (thread_seq_buf_sz / (k_ + 1)) + 1;
 
     size_t prev_file_id = 0;
 
@@ -480,7 +481,7 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
         char* buffer_seq = new char[nb_threads * thread_seq_buf_sz];
         size_t* buffer_seq_sz = new size_t[nb_threads];
-        size_t* buffer_col = new size_t[nb_threads * chunk_size];
+        size_t* buffer_col = new size_t[nb_threads * thread_col_buf_sz];
 
         while (next_file){
 
@@ -499,10 +500,10 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
                                 if (stop) return;
 
-                                stop = reading_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t], &buffer_col[t * chunk_size]);
+                                stop = reading_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t], &buffer_col[t * thread_col_buf_sz]);
                             }
 
-                            worker_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t], &buffer_col[t * chunk_size]);
+                            worker_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t], &buffer_col[t * thread_col_buf_sz]);
                         }
                     }
                 );
