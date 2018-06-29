@@ -234,27 +234,35 @@ void CompressedSequence::setSequence(const CompressedSequence& o, const size_t s
     const unsigned char *odata = o.getPointer();
 
     size_t w_index = offset;
-    size_t r_index = reversed ? o.size() - start - 1 : start;
-    size_t wi, wj, ri, rj;
+    size_t wi, wj, r_index;
 
-    for (size_t i = 0; i < length; ++i) {
+    if (reversed){
 
-        wi = w_index >> 2;
-        wj = (w_index & 0x3) << 1;
-        ri = r_index >> 2;
-        rj = (r_index & 0x3) << 1;
+        r_index = o.size() - start - 1;
 
-        data[wi] &= ~(0x3 << wj); // clear bits
+        for (size_t i = 0; i < length; ++i, ++w_index, --r_index) {
 
-        uint8_t nucl = (odata[ri] >> rj) & 0x3; // nucleotide stored in o
+            wi = w_index >> 2;
+            wj = (w_index & 0x3) << 1;
 
-        if (reversed) nucl = 3-nucl; // reverse sequence
-
-        data[wi] |= (nucl << wj);
-        ++w_index;
-
-        reversed ? --r_index : ++r_index;
+            data[wi] &= ~(0x3 << wj); // clear bits
+            data[wi] |= (3 - ((odata[r_index >> 2] >> ((r_index & 0x3) << 1)) & 0x3)) << wj;
+        }
     }
+    else {
+
+        r_index = start;
+
+        for (size_t i = 0; i < length; ++i, ++w_index, ++r_index) {
+
+            wi = w_index >> 2;
+            wj = (w_index & 0x3) << 1;
+
+            data[wi] &= ~(0x3 << wj); // clear bits
+            data[wi] |= ((odata[r_index >> 2] >> ((r_index & 0x3) << 1)) & 0x3) << wj;
+        }
+    }
+
     // new length?
     if (offset + length > size()) setSize(offset+length);
 }

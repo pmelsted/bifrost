@@ -291,7 +291,7 @@ pair<size_t, size_t> CompressedCoverage::lowCoverageInfo() const {
 
     for(size_t i=0; i<sz; ++i) {
 
-        size_t cov = covAt(i);
+        const size_t cov = covAt(i);
 
         if (cov < cov_full) {
 

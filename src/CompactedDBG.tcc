@@ -1688,8 +1688,6 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
     {
         bool stop = false;
 
-        size_t round = 0;
-
         vector<thread> workers; // need to keep track of threads so we can join them
 
         mutex mutex_file;
@@ -1711,8 +1709,6 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
                             unique_lock<mutex> lock(mutex_file);
 
                             if (stop) return;
-
-                            ++round;
 
                             stop = reading_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t]);
                         }
