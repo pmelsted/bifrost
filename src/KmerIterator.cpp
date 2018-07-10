@@ -129,14 +129,6 @@ void KmerIterator::find_next(size_t i, size_t j, bool last_valid) {
             p_.first.selfForwardBase(c);
             p_.second = i;
         }
-
-        /*invalid_ = (c == 0);
-        last_valid = ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T'));
-        p_.second = i;
-
-        p_.first.selfForwardBase(c);
-
-        if (last_valid) i = ++j;*/
     }
 
     if (!last_valid){

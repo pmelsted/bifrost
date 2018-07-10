@@ -577,7 +577,7 @@ bool DataStorage<U>::joinUnitigColors(const UnitigColorMap<U>& um_dest, const Un
 }
 
 template<typename U>
-UnitigColors DataStorage<U>::getSubUnitigColors(const UnitigColorMap<U>& um) const {
+UnitigColors DataStorage<U>::getSubUnitigColors(const const_UnitigColorMap<U>& um) const {
 
     UnitigColors new_cs;
 
@@ -612,7 +612,7 @@ UnitigColors DataStorage<U>::getSubUnitigColors(const UnitigColorMap<U>& um) con
 }
 
 template<typename U>
-vector<string> DataStorage<U>::getSubUnitigColorNames(const UnitigColorMap<U>& um) const {
+vector<string> DataStorage<U>::getSubUnitigColorNames(const const_UnitigColorMap<U>& um) const {
 
     vector<string> v_out;
 

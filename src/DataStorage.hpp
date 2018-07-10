@@ -12,8 +12,8 @@ template<typename Unitig_data_t> class ColoredCDBG;
 template<typename Unitig_data_t> class DataAccessor;
 template<typename Unitig_data_t> class DataStorage;
 
-template<typename U> using UnitigColorMap = UnitigMap<DataAccessor<U>, DataStorage<U>>;
-template<typename U> using const_UnitigColorMap = const_UnitigMap<DataAccessor<U>, DataStorage<U>>;
+template<typename U = void> using UnitigColorMap = UnitigMap<DataAccessor<U>, DataStorage<U>>;
+template<typename U = void> using const_UnitigColorMap = const_UnitigMap<DataAccessor<U>, DataStorage<U>>;
 
 template<typename Unitig_data_t = void>
 class DataStorage {
@@ -46,8 +46,8 @@ class DataStorage {
         const UnitigColors* getUnitigColors(const const_UnitigColorMap<U>& um) const;
         UnitigColors* getUnitigColors(const UnitigColorMap<U>& um);
 
-        UnitigColors getSubUnitigColors(const UnitigColorMap<U>& um) const;
-        vector<string> getSubUnitigColorNames(const UnitigColorMap<U>& um) const;
+        UnitigColors getSubUnitigColors(const const_UnitigColorMap<U>& um) const;
+        vector<string> getSubUnitigColorNames(const const_UnitigColorMap<U>& um) const;
 
         bool write(const string prefix_output_filename, const size_t nb_threads, const bool verbose = false) const;
         bool read(const string& filename_colors, bool verbose = false);
