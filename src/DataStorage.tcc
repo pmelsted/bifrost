@@ -590,7 +590,7 @@ UnitigColors DataStorage<U>::getSubUnitigColors(const const_UnitigColorMap<U>& u
             const size_t end = um.dist + um.len;
             const size_t um_km_sz = um.size - um.getCompactedDBG()->getK() + 1;
 
-            UnitigColorMap<U> um_tmp(0, 1, um.len, um.strand);
+            UnitigColorMap<U> um_tmp(0, 1, um.len + um.getCompactedDBG()->getK() - 1, um.strand);
 
             UnitigColors::const_iterator it(cs->begin(um));
             const UnitigColors::const_iterator it_end(cs->end());
