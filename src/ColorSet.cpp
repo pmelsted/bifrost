@@ -332,7 +332,7 @@ void UnitigColors::add(const UnitigMapBase& um, const size_t color_id) {
             flag = setBits & flagMask;
         }
 
-        if (flag == localTinyBitmap) {
+        /*if (flag == localTinyBitmap) {
 
             bool add_ok = true;
 
@@ -352,11 +352,14 @@ void UnitigColors::add(const UnitigMapBase& um, const size_t color_id) {
 
                 uint32_t range_start = *it, range_end = *it;
 
-                for (++it; it != it_end; ++it){
+                if (it != it_end) ++it;
+
+                while (it != it_end){
 
                     const uint32_t val = *it;
 
                     ++range_end;
+                    ++it;
 
                     if (val != range_end) {
 
@@ -381,6 +384,48 @@ void UnitigColors::add(const UnitigMapBase& um, const size_t color_id) {
             Bitmap* bitmap = getPtrBitmap();
 
             bitmap->r.addRange(color_id_start, color_id_end);
+            bitmap->r.runOptimize();
+        }*/
+
+        if (flag == localTinyBitmap) {
+
+            bool add_ok = true;
+
+            uint16_t* setPtrTinyBmp = getPtrTinyBitmap();
+
+            TinyBitmap t_bmp(&setPtrTinyBmp);
+
+            while ((color_id_start < color_id_end) && add_ok) color_id_start += (add_ok = t_bmp.add(color_id_start));
+
+            if (add_ok) setBits = (reinterpret_cast<uintptr_t>(t_bmp.detach()) & pointerMask) | localTinyBitmap;
+            else {
+
+                const size_t sz_t_bmp = t_bmp.size();
+
+                uint32_t* values = new uint32_t[sz_t_bmp];
+
+                size_t i = 0;
+
+                Bitmap* setPtrBmp = new Bitmap;
+
+                for (TinyBitmap::const_iterator it = t_bmp.begin(), it_end = t_bmp.end(); it != it_end; ++it, ++i) values[i] = *it;
+
+                t_bmp.empty();
+                setPtrBmp->r.addMany(sz_t_bmp, values);
+
+                setBits = (reinterpret_cast<uintptr_t>(setPtrBmp) & pointerMask) | ptrBitmap;
+                flag = ptrBitmap;
+
+                delete[] values;
+            }
+        }
+
+        if (flag == ptrBitmap) {
+
+            Bitmap* bitmap = getPtrBitmap();
+
+            for (; color_id_start < color_id_end; ++color_id_start) bitmap->r.add(color_id_start);
+
             bitmap->r.runOptimize();
         }
     }
@@ -473,7 +518,7 @@ void UnitigColors::add(const size_t color_id) { // PRIVATE
             flag = setBits & flagMask;
         }
 
-        if (flag == localTinyBitmap) {
+        /*if (flag == localTinyBitmap) {
 
             uint16_t* setPtrTinyBmp = getPtrTinyBitmap();
 
@@ -489,11 +534,14 @@ void UnitigColors::add(const size_t color_id) { // PRIVATE
 
                 uint32_t range_start = *it, range_end = *it;
 
-                for (++it; it != it_end; ++it){
+                if (it != it_end) ++it;
+
+                while (it != it_end){
 
                     const uint32_t val = *it;
 
                     ++range_end;
+                    ++it;
 
                     if (val != range_end) {
 
@@ -510,6 +558,38 @@ void UnitigColors::add(const size_t color_id) { // PRIVATE
 
                 setBits = (reinterpret_cast<uintptr_t>(setPtrBmp) & pointerMask) | ptrBitmap;
                 flag = ptrBitmap;
+            }
+        }
+
+        if (flag == ptrBitmap) getPtrBitmap()->r.add(color_id); // flag == ptrBitmap
+        */
+
+        if (flag == localTinyBitmap) {
+
+            uint16_t* setPtrTinyBmp = getPtrTinyBitmap();
+
+            TinyBitmap t_bmp(&setPtrTinyBmp);
+
+            if (t_bmp.add(color_id)) setBits = (reinterpret_cast<uintptr_t>(t_bmp.detach()) & pointerMask) | localTinyBitmap;
+            else {
+
+                const size_t sz_t_bmp = t_bmp.size();
+
+                uint32_t* values = new uint32_t[sz_t_bmp];
+
+                size_t i = 0;
+
+                Bitmap* setPtrBmp = new Bitmap;
+
+                for (TinyBitmap::const_iterator it = t_bmp.begin(), it_end = t_bmp.end(); it != it_end; ++it, ++i) values[i] = *it;
+
+                t_bmp.empty();
+                setPtrBmp->r.addMany(sz_t_bmp, values);
+
+                setBits = (reinterpret_cast<uintptr_t>(setPtrBmp) & pointerMask) | ptrBitmap;
+                flag = ptrBitmap;
+
+                delete[] values;
             }
         }
 

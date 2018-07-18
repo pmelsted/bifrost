@@ -10,8 +10,8 @@
 * interface are provided in snippets/test.cpp.
 */
 
-template<typename U = void> using UnitigColorMap = UnitigMap<DataAccessor<U>, DataStorage<U>>;
-template<typename U = void> using const_UnitigColorMap = const_UnitigMap<DataAccessor<U>, DataStorage<U>>;
+template<typename U> using UnitigColorMap = UnitigMap<DataAccessor<U>, DataStorage<U>>;
+template<typename U> using const_UnitigColorMap = const_UnitigMap<DataAccessor<U>, DataStorage<U>>;
 
 /** @class DataAccessor
 * @brief Interface to access the colors and the data associated with a unitig of a ColoredCDBG.

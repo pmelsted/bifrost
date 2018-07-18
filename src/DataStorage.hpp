@@ -12,8 +12,8 @@ template<typename Unitig_data_t> class ColoredCDBG;
 template<typename Unitig_data_t> class DataAccessor;
 template<typename Unitig_data_t> class DataStorage;
 
-template<typename U = void> using UnitigColorMap = UnitigMap<DataAccessor<U>, DataStorage<U>>;
-template<typename U = void> using const_UnitigColorMap = const_UnitigMap<DataAccessor<U>, DataStorage<U>>;
+template<typename U> using UnitigColorMap = UnitigMap<DataAccessor<U>, DataStorage<U>>;
+template<typename U> using const_UnitigColorMap = const_UnitigMap<DataAccessor<U>, DataStorage<U>>;
 
 template<typename Unitig_data_t = void>
 class DataStorage {
