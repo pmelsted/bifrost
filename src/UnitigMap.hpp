@@ -80,12 +80,12 @@ struct UnitigMapBase {
 * const UnitigMap<void, void, true> um_5; // No unitig data, no graph data, constant AND its content IS constant
 * UnitigMap<myUnitigData, myGraphData> um_6; // Unitig data of type myUnitigData for each unitig, graph data of type myGraphData, not constant
 
-* CompactedDBG<>* cdbg_ptr_1 = um_1.getCompactedDBG(); // Associated CompactedDBG can be modified from the UnitigMap
-* CompactedDBG<>* cdbg_ptr_2 = um_2.getCompactedDBG(); // Associated CompactedDBG can be modified from the UnitigMap
-* CompactedDBG<>* cdbg_ptr_3 = um_3.getCompactedDBG(); // Associated CompactedDBG can be modified from the UnitigMap
-* const CompactedDBG<>* cdbg_ptr_4 = um_4.getCompactedDBG(); // Associated CompactedDBG cannot be modified from the UnitigMap
-* const CompactedDBG<>* cdbg_ptr_5 = um_5.getCompactedDBG(); // Associated CompactedDBG cannot be modified from the UnitigMap
-* CompactedDBG<myUnitigData, myGraphData>* cdbg_ptr_6 = um_6.getCompactedDBG(); // Associated CompactedDBG can be modified from the UnitigMap
+* CompactedDBG<>* cdbg_ptr_1 = um_1.getGraph(); // Associated CompactedDBG can be modified from the UnitigMap
+* CompactedDBG<>* cdbg_ptr_2 = um_2.getGraph(); // Associated CompactedDBG can be modified from the UnitigMap
+* CompactedDBG<>* cdbg_ptr_3 = um_3.getGraph(); // Associated CompactedDBG can be modified from the UnitigMap
+* const CompactedDBG<>* cdbg_ptr_4 = um_4.getGraph(); // Associated CompactedDBG cannot be modified from the UnitigMap
+* const CompactedDBG<>* cdbg_ptr_5 = um_5.getGraph(); // Associated CompactedDBG cannot be modified from the UnitigMap
+* CompactedDBG<myUnitigData, myGraphData>* cdbg_ptr_6 = um_6.getGraph(); // Associated CompactedDBG can be modified from the UnitigMap
 * \endcode
 */
 template<typename Unitig_data_t = void, typename Graph_data_t = void, bool is_const = false>
@@ -229,7 +229,7 @@ class UnitigMap : public UnitigMapBase {
         * If the mapping is empty, a nullptr pointer is returned. The pointer is a constant pointer
         * if the UnitigMap is constant (UnitigMap<U, G, true>).
         */
-        inline CompactedDBG_ptr_t getCompactedDBG() const { return cdbg; }
+        inline CompactedDBG_ptr_t getGraph() const { return cdbg; }
 
         operator UnitigMap<U, G, true>() const {
 

@@ -207,7 +207,7 @@ bool UnitigColors::operator==(const UnitigColors& o) const {
     return ((it == it_end) && (o_it == o_it_end));
 }
 
-void UnitigColors::empty(){
+void UnitigColors::clear(){
 
     releaseMemory();
     setBits = localBitVector;
@@ -260,7 +260,7 @@ void UnitigColors::add(const UnitigMapBase& um, const size_t color_id) {
 
             *this = s_uc->first;
 
-            if (--(s_uc->second) == 0) s_uc->first.empty();
+            if (--(s_uc->second) == 0) s_uc->first.clear();
 
             flag = setBits & flagMask;
         }
@@ -282,7 +282,7 @@ void UnitigColors::add(const UnitigMapBase& um, const size_t color_id) {
 
                     Bitmap* setPtrBmp = new Bitmap;
 
-                    t_bmp.empty();
+                    t_bmp.clear();
                     setPtrBmp->r.add(setBits_tmp);
 
                     setBits = (reinterpret_cast<uintptr_t>(setPtrBmp) & pointerMask) | ptrBitmap;
@@ -318,7 +318,7 @@ void UnitigColors::add(const UnitigMapBase& um, const size_t color_id) {
 
                     Bitmap* setPtrBmp = new Bitmap;
 
-                    t_bmp.empty();
+                    t_bmp.clear();
 
                     for (size_t i = 0; setBits_tmp_cr != 0; ++i, setBits_tmp_cr >>= 1) {
 
@@ -372,7 +372,7 @@ void UnitigColors::add(const UnitigMapBase& um, const size_t color_id) {
 
                 setPtrBmp->r.addRange(range_start, range_end + 1);
 
-                t_bmp.empty();
+                t_bmp.clear();
 
                 setBits = (reinterpret_cast<uintptr_t>(setPtrBmp) & pointerMask) | ptrBitmap;
                 flag = ptrBitmap;
@@ -410,7 +410,7 @@ void UnitigColors::add(const UnitigMapBase& um, const size_t color_id) {
 
                 for (TinyBitmap::const_iterator it = t_bmp.begin(), it_end = t_bmp.end(); it != it_end; ++it, ++i) values[i] = *it;
 
-                t_bmp.empty();
+                t_bmp.clear();
                 setPtrBmp->r.addMany(sz_t_bmp, values);
 
                 setBits = (reinterpret_cast<uintptr_t>(setPtrBmp) & pointerMask) | ptrBitmap;
@@ -449,7 +449,7 @@ void UnitigColors::add(const size_t color_id) { // PRIVATE
 
             *this = s_uc->first;
 
-            if (--(s_uc->second) == 0) s_uc->first.empty();
+            if (--(s_uc->second) == 0) s_uc->first.clear();
 
             flag = setBits & flagMask;
         }
@@ -471,7 +471,7 @@ void UnitigColors::add(const size_t color_id) { // PRIVATE
 
                     Bitmap* setPtrBmp = new Bitmap;
 
-                    t_bmp.empty();
+                    t_bmp.clear();
                     setPtrBmp->r.add(setBits_tmp);
 
                     setBits = (reinterpret_cast<uintptr_t>(setPtrBmp) & pointerMask) | ptrBitmap;
@@ -504,7 +504,7 @@ void UnitigColors::add(const size_t color_id) { // PRIVATE
 
                     Bitmap* setPtrBmp = new Bitmap;
 
-                    t_bmp.empty();
+                    t_bmp.clear();
 
                     for (size_t i = 0; setBits_tmp_cr != 0; ++i, setBits_tmp_cr >>= 1) {
 
@@ -554,7 +554,7 @@ void UnitigColors::add(const size_t color_id) { // PRIVATE
 
                 setPtrBmp->r.addRange(range_start, range_end + 1);
 
-                t_bmp.empty();
+                t_bmp.clear();
 
                 setBits = (reinterpret_cast<uintptr_t>(setPtrBmp) & pointerMask) | ptrBitmap;
                 flag = ptrBitmap;
@@ -583,7 +583,7 @@ void UnitigColors::add(const size_t color_id) { // PRIVATE
 
                 for (TinyBitmap::const_iterator it = t_bmp.begin(), it_end = t_bmp.end(); it != it_end; ++it, ++i) values[i] = *it;
 
-                t_bmp.empty();
+                t_bmp.clear();
                 setPtrBmp->r.addMany(sz_t_bmp, values);
 
                 setBits = (reinterpret_cast<uintptr_t>(setPtrBmp) & pointerMask) | ptrBitmap;
@@ -638,7 +638,7 @@ void UnitigColors::remove(const UnitigMapBase& um, const size_t color_id) {
 
         *this = s_uc->first;
 
-        if (--(s_uc->second) == 0) s_uc->first.empty();
+        if (--(s_uc->second) == 0) s_uc->first.clear();
 
         flag = setBits & flagMask;
     }
@@ -677,7 +677,7 @@ void UnitigColors::remove(const UnitigMapBase& um, const size_t color_id) {
             if (card == 0){
 
                 setBits = (reinterpret_cast<uintptr_t>(t_bmp.detach()) & pointerMask) | localTinyBitmap;
-                empty();
+                clear();
             }
             else if (card == 1){
 
@@ -685,7 +685,7 @@ void UnitigColors::remove(const UnitigMapBase& um, const size_t color_id) {
 
                 setBits = (reinterpret_cast<uintptr_t>(t_bmp.detach()) & pointerMask) | localTinyBitmap;
 
-                empty();
+                clear();
                 add(color_id);
             }
             else if ((card <= maxBitVectorIDs) && (t_bmp.maximum() < maxBitVectorIDs)){
@@ -712,7 +712,7 @@ void UnitigColors::remove(const UnitigMapBase& um, const size_t color_id) {
 
             for (TinyBitmap::const_iterator it = t_bmp.begin(), it_end = t_bmp.end(); it != it_end; ++it, ++i) values[i] = *it;
 
-            t_bmp.empty();
+            t_bmp.clear();
             setPtrBmp->r.addMany(sz_t_bmp, values);
 
             setBits = (reinterpret_cast<uintptr_t>(setPtrBmp) & pointerMask) | ptrBitmap;
@@ -730,14 +730,14 @@ void UnitigColors::remove(const UnitigMapBase& um, const size_t color_id) {
 
         const size_t card = bitmap->r.cardinality();
 
-        if (card == 0) empty();
+        if (card == 0) clear();
         else if (card == 1){
 
             uint32_t color_id;
 
             bitmap->r.select(0, &color_id);
 
-            empty();
+            clear();
             add(color_id);
         }
         else if ((card <= maxBitVectorIDs) && (bitmap->r.maximum() < maxBitVectorIDs)){
@@ -1070,7 +1070,7 @@ bool UnitigColors::optimizeFullColors(const UnitigMapBase& um){
 
         if ((full_uc.getSizeInBytes() + non_full_uc.getSizeInBytes() + sizeof(UnitigColors)) < getSizeInBytes()){
 
-            empty();
+            clear();
 
             UnitigColors* uc = new UnitigColors[2];
 
@@ -1210,7 +1210,7 @@ bool UnitigColors::read(istream& stream_in) {
 
     if (stream_in.good()){
 
-        empty();
+        clear();
 
         stream_in.read(reinterpret_cast<char*>(&setBits), sizeof(uintptr_t));
 
@@ -1293,7 +1293,7 @@ UnitigColors UnitigColors::reverse(const UnitigMapBase& um) const {
     }
     else if ((setBits & flagMask) == ptrSharedUnitigColors){
 
-        new_cs = move(getConstPtrSharedUnitigColors()->first.reverse(um));
+        new_cs = getConstPtrSharedUnitigColors()->first.reverse(um);
     }
     else {
         const size_t len_unitig_km = um.size - Kmer::k + 1;

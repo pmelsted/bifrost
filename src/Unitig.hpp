@@ -45,7 +45,7 @@ class Unitig {
             __sync_add_and_fetch(&coveragesum, end - start + 1);
         }
 
-        inline size_t numKmers() const { return seq.size( ) -Kmer::k + 1; }
+        inline size_t numKmers() const { return seq.size( ) - Kmer::k + 1; }
         inline size_t length() const { return seq.size(); }
 
         /** Return a constant pointer to the data associated with the unitig.

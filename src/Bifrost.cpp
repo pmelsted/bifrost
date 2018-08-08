@@ -344,10 +344,6 @@ int main(int argc, char **argv){
     if (argc < 2) PrintUsage();
     else {
 
-        /*ColoredCDBG<> ccdbg;
-
-        ccdbg.read("/home/wiz/Documents/my_git/bfgraph/build/test", 4, true);*/
-
         CCDBG_Build_opt opt;
 
         opt.reference_mode = false; // We dont know yet if we want colors or not

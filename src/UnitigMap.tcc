@@ -271,7 +271,7 @@ template<typename U, typename G, bool is_const>
 template<bool is_void>
 typename std::enable_if<!is_void, void>::type UnitigMap<U, G, is_const>::mergeData_(const UnitigMap<U, G, is_const>& um) const {
 
-    U::join(*this, um);
+    if (!isEmpty) getData_<false>()->concat(*this, um);
 }
 
 template<typename U, typename G, bool is_const>
@@ -291,7 +291,7 @@ typename std::enable_if<!is_void, Unitig<U>>::type UnitigMap<U, G, is_const>::sp
 
     Unitig<U> unitig;
 
-    U::sub(&(unitig.data), *this, last_split);
+    unitig.data.extract(*this, last_split);
 
     return unitig;
 }

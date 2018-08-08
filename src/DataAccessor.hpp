@@ -30,6 +30,13 @@ class DataAccessor : public CDBG_Data_t<DataAccessor<Unitig_data_t>, DataStorage
         */
         DataAccessor(const uint8_t id = 0);
 
+        /** Clear the colors and data associated with a colored unitig.
+        * This function clears the k-mer color sets (of type UnitigColors) associated with the reference
+        * unitig of the input parameter um (of type UnitigColorMap). It also clears the associated data
+        * if there are some.
+        */
+        void clear(const UnitigColorMap<U>& um);
+
         /** Get the unitig data.
         * @param um is a constant reference to a const_UnitigColorMap object for which the reference unitig
         * used in the mapping is associated to the current DataAccessor object.
@@ -74,34 +81,45 @@ class DataAccessor : public CDBG_Data_t<DataAccessor<Unitig_data_t>, DataStorage
         */
         vector<string> getSubUnitigColorNames(const const_UnitigColorMap<U>& um) const;
 
-        /** Join data and colors of two colored unitigs (each represented with a UnitigColorMap given
-        * as parameter) which are going to be concatenated. Specifically, if A is the unitig represented
-        * by parameter um_dest and B is the unitig represented by parameter um_src then, A will become the
-        * concatenation of itself with B (A = AB) and B will be removed.
-        * @param um_dest is a UnitigColorMap object representing a colored unitig (and its data) to which
+        /**
+        * Join data and colors of two colored unitigs which are going to be concatenated. Specifically, if A is the reference unitig
+        * of the UnitigColorMap um_dest and B is the reference unitig of the UnitigColorMap um_src, then after the call to
+        * this function, unitigs A and B will be removed and a unitig C = AB will be added to the graph. If um_dest.strand = false,
+        * then the reverse-complement of A is going to be used in the concatenation. Reciprocally, if um_src.strand = false,
+        * then the reverse-complement of B is going to be used in the concatenation.
+        * @param um_dest is a UnitigColorMap object representing a unitig (the reference sequence of the mapping) to which
         * another unitig is going to be appended.
-        * @param um_src is a UnitigColorMap object representing a colored unitig (and its data) that will
-        * be appended at the end of the unitig represented by parameter um_dest.
+        * @param um_src is a UnitigColorMap object representing a unitig (and its data) that will be appended at the end of
+        * the unitig represented by parameter um_dest.
         */
-        static void join(const UnitigColorMap<U>& um_dest, const UnitigColorMap<U>& um_src);
+        void concat(const UnitigColorMap<U>& um_dest, const UnitigColorMap<U>& um_src);
 
-        /** Extract data and colors from a colored unitig A to be associated with a colored unitig B which is a sub-unitig of A.
-        * Unitig B is defined as a mapping to A given by the input UnitigColorMap object um_src.
-        * Hence, B = A[um_src.dist, um_src.dist + um_src.len + k - 1] or B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1])
-        * if um_src.strand == false (B is extracted from the reverse-complement of A). Unitig A is deleted from the graph and B is
-        * inserted in the graph (along with their data and colors) ONLY AFTER this function, called with input parameter
-        * last_extraction == true, returns. Note that this method is static.
-        * @param data_dest is a pointer to a newly constructed object that is filled in with data of type Unitig_data_t to associate
-        * with unitig B.
-        * @param um_src is a UnitigColorMap object representing the mapping to a colored unitig A from which a new colored unitig B
-        * will be extracted, i.e, B = A[um_src.dist, um_src.dist + um_src.len + k - 1] or
-        * B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1]) if um_src.strand == false.
+        /**
+        * Merge the data and colors of a sub-unitig B to the data and colors of a sub-unitig A.
+        * The object calling this function represents the data associated with the reference unitig of um_dest.
+        * The two unitigs A and B are NOT guaranteed to be from the same graph. The data of each unitig can be accessed
+        * through the UnitigMap::getData.
+        * @param um_dest is a UnitigColorMap object representing a sub-unitig (the mapped sequence of the mapping) A. The object
+        * calling this function represents the data associated with the reference unitig of um_dest.
+        * @param um_src is a UnitigColorMap object representing a sub-unitig (the mapped sequence of the mapping) for which the
+        * data must be merged with the data of sub-unitig B (given by parameter um_dest).
+        */
+        void merge(const UnitigColorMap<U>& um_dest, const const_UnitigColorMap<U>& um_src);
+
+        /** Extract data and colors corresponding to a sub-unitig of a unitig A. The extracted sub-unitig, called B in the following, is defined
+        * as a mapping to A given by the input UnitigColorMap object um_src. Hence, B = A[um_src.dist, um_src.dist + um_src.len + k - 1]
+        * or B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1]) if um_src.strand == false (B is reverse-complemented). After this
+        * function returns, unitig A is deleted from the graph and B is inserted in the graph (along with their data and colors) IF the
+        * input parameter last_extraction == true.
+        * @param um_src is a UnitigColorMap object representing the mapping to a colored unitig A from which a new colored unitig B will be
+        * extracted, i.e, B = A[um_src.dist, um_src.dist + um_src.len + k - 1] or B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1])
+        * if um_src.strand == false.
         * @param last_extraction is a boolean indicating if this is the last call to this function on the reference unitig A used for the
         * mapping given by um_src. If last_extraction is true, the reference unitig A of um_src will be removed from the graph right after
-        * this function returns. Also, all unitigs B extracted from the reference unitig A, along with their data and colors, will be inserted
-        * in the graph.
+        * this function returns. Also, all unitigs B extracted from the reference unitig A, along with their data and colors, will be
+        * inserted in the graph.
         */
-        static void sub(DataAccessor<Unitig_data_t>* data_dest, const UnitigColorMap<U>& um_src, const bool last_extraction);
+        void extract(const UnitigColorMap<U>& um_src, const bool last_extraction);
 
         /** Serialize the data to a string. This function is used when the graph is written to disk in GFA format.
         * If the returned string is not empty, the string is appended to an optional field of the Segment line matching the unitig
@@ -113,6 +131,7 @@ class DataAccessor : public CDBG_Data_t<DataAccessor<Unitig_data_t>, DataStorage
     private:
 
         inline uint8_t get() const { return da_id; }
+
         inline void set(const uint8_t id) { da_id = id; }
 
         uint8_t da_id;

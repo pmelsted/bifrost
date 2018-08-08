@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <string>
 #include <sys/stat.h>
+#include <unordered_set>
 #include <vector>
 
 #include <thread>
@@ -155,7 +156,7 @@ struct CDBG_Build_opt {
 
 /** @typedef const_UnitigMap
 * @brief const_UnitigMap is a constant UnitigMap. The main difference in its usage with a UnitigMap object
-* is when you call the method UnitigMap::getCompactedDBG(): with a const_UnitigMap, this method returns
+* is when you call the method UnitigMap::getGraph(): with a const_UnitigMap, this method returns
 * a pointer to a constant CompactedDBG (you can't modify it).
 */
 template<typename U, typename G> using const_UnitigMap = UnitigMap<U, G, true>;
@@ -163,24 +164,30 @@ template<typename U, typename G> using const_UnitigMap = UnitigMap<U, G, true>;
 /** @class CDBG_Data_t
 * @brief If data are to be associated with the unitigs of the compacted de Bruijn graph, those data
 * must be wrapped into a class that inherits from the abstract class CDBG_Data_t. Otherwise it will
-* not compile. To associate data of type myUnitigData to unitigs, class myUnitigData must be declared as follows:
+* not compile. To associate data of type "MyUnitigData" to unitigs, class MyUnitigData must be declared
+* as follows:
 * \code{.cpp}
-* class myUnitigData : public CDBG_Data_t<myUnitigData, myGraphData> { ... };
+* class MyUnitigData : public CDBG_Data_t<MyUnitigData, MyGraphData> { ... };
 * ...
-* CompactedCDBG<myUnitigData, myGraphData> cdbg;
+* CompactedCDBG<MyUnitigData, MyGraphData> cdbg;
 * \endcode
-* CDBG_Data_t has two template parameters: the type of unitig data and the type of graph data. Indeed, if class myUnitigData
-* is going to be used in combination with class myGraphData for a CompactedDBG, myUnitigData must be "aware" of myGraphData
-* for the parameters of its mandatory functions (see below). If no graph data is used, you don't have to specify it:
+* An object of type MyUnitigData represents an instanciation of user data associated to one
+* unitig of the graph.
+* CDBG_Data_t has two template parameters: the type of unitig data ("MyUnitigData") and the type of
+* graph data ("MyGraphData"). Indeed, if class MyUnitigData is going to be used in combination with
+* class MyGraphData for a CompactedDBG, MyUnitigData must "know" the type MyGraphData for the parameters
+* of its (mandatory) functions. If no graph data is used, you do not have to specify the template
+* parameter MyGraphData or you can void it:
 * \code{.cpp}
-* class myUnitigData : public CDBG_Data_t<myUnitigData> { ... };
-* class myUnitigData : public CDBG_Data_t<myUnitigData, void> { ... }; // Equivalent to previous notation
+* class MyUnitigData : public CDBG_Data_t<MyUnitigData> { ... };
+* class MyUnitigData : public CDBG_Data_t<MyUnitigData, void> { ... }; // Equivalent to previous notation
 * ...
-* CompactedCDBG<myUnitigData> cdbg;
+* CompactedCDBG<MyUnitigData> cdbg;
 * \endcode
-* Because CDBG_Data_t is an abstract class, methods CDBG_Data_t::join, CDBG_Data_t::split and CDBG_Data_t::serialize
-* must be implemented in your wrapper. IMPORTANT: If you don't overload those methods, default ones that have no effects
-* will be applied!
+* Because CDBG_Data_t is an abstract class, all the methods from the base class (CDBG_Data_t) must be
+* implemented in your wrapper (the derived class, aka MyUnitigData in this example). IMPORTANT: If you do
+* not implement those methods in your class, default ones that have no effect will be applied. Do not
+* forget to implement copy and move constructors/destructors as well as copy and move assignment operators.
 * An example of using such a structure is shown in snippets/test.cpp.
 */
 template<typename Unitig_data_t, typename Graph_data_t = void> //Curiously Recurring Template Pattern (CRTP)
@@ -188,24 +195,46 @@ class CDBG_Data_t {
 
     public:
 
-        /** Join data of two unitigs (each represented with a UnitigMap given as parameter) which are going to be concatenated.
-        * Specifically, if A is the unitig represented by parameter um_dest and B is the unitig represented by parameter um_src
-        * then, after the call to this function, A will become the concatenation of itself with B (A = AB) and B will be removed.
-        * Be careful that if um_dest.strand = false, then the reverse-complement of A is going to be used in the concatenation.
-        * Reciprocally, if um_src.strand = false, then the reverse-complement of B is going to be used in the concatenation.
-        * The data of each unitig can be accessed through the method UnitigMap::getData(). Note that this method is static.
-        * @param um_dest is a UnitigMap object representing a unitig (and its data) to which another unitig is going to be appended.
-        * @param um_src is a UnitigMap object representing a unitig (and its data) that will be appended at the end of the unitig
-        * represented by parameter um_dest.
+        /**
+        * Clear the data associated with a unitig.
+        * @param um_dest is a UnitigMap object representing a unitig (the reference sequence of um_dest) for which the data must be
+        * cleared. The object calling this function represents the data associated with the reference unitig of um_dest.
         */
-        static void join(const UnitigMap<Unitig_data_t, Graph_data_t>& um_dest, const UnitigMap<Unitig_data_t, Graph_data_t>& um_src){}
+        void clear(const UnitigMap<Unitig_data_t, Graph_data_t>& um_dest){}
 
-        /** Extract data from a unitig A to be associated with a unitig B which is a sub-unitig of A. Unitig B is defined as a
-        * mapping to A given by the input UnitigMap object um_src. Hence, B = A[um_src.dist, um_src.dist + um_src.len + k - 1]
-        * or B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1]) if um_src.strand == false (B is extracted from the
-        * reverse-complement of A). Unitig A is deleted from the graph and B is inserted in the graph (along with their data)
-        * ONLY AFTER this function, called with input parameter last_extraction == true, returns. Note that this method is static.
-        * @param new_data is a pointer to a newly constructed object that you can fill in with new data to associate with unitig B.
+        /**
+        * Join data of two unitigs which are going to be concatenated.
+        * Specifically, if A is the reference unitig of the UnitigMap um_dest and B is the reference unitig of the UnitigMap um_src,
+        * then after this function returns, unitigs A amd B will be removed and a unitig C = AB will be added to the graph.
+        * The object calling this function represents the data associated with the new unitig C = AB. If um_dest.strand = false,
+        * then the reverse-complement of A is going to be used in the concatenation. Reciprocally, if um_src.strand = false, then
+        * the reverse-complement of B is going to be used in the concatenation. The two unitigs A and B are guaranteed to be from the
+        * same graph. The data of each unitig can be accessed through the UnitigMap::getData.
+        * @param um_dest is a UnitigMap object representing a unitig (the reference sequence of the mapping) to which another unitig
+        * is going to be appended. The object calling this function represents the data associated with the reference unitig of um_dest.
+        * @param um_src is a UnitigMap object representing a unitig (the reference sequence of the mapping) that will be appended
+        * at the end of the unitig represented by parameter um_dest.
+        */
+        void concat(const UnitigMap<Unitig_data_t, Graph_data_t>& um_dest, const UnitigMap<Unitig_data_t, Graph_data_t>& um_src){}
+
+        /**
+        * Merge the data of a sub-unitig B to the data of a sub-unitig A.
+        * The object calling this function represents the data associated with the reference unitig of um_dest.
+        * The two unitigs A and B are NOT guaranteed to be from the same graph. The data of each unitig can be accessed through the
+        * UnitigMap::getData.
+        * @param um_dest is a UnitigMap object representing a sub-unitig (the mapped sequence of the mapping) A. The object calling this
+        * function represents the data associated with the reference unitig of um_dest.
+        * @param um_src is a UnitigMap object representing a sub-unitig (the mapped sequence of the mapping) for which the data must be
+        * merged with the data of sub-unitig B (given by parameter um_dest).
+        */
+        void merge(const UnitigMap<Unitig_data_t, Graph_data_t>& um_dest, const const_UnitigMap<Unitig_data_t, Graph_data_t>& um_src){}
+
+        /**
+        * Extract data corresponding to a sub-unitig of a unitig A. The extracted sub-unitig, called B in the following, is defined
+        * as a mapping to A given by the input UnitigMap object um_src. Hence, B = A[um_src.dist, um_src.dist + um_src.len + k - 1]
+        * or B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1]) if um_src.strand == false (B is reverse-complemented).
+        * After the function returns, unitig A is deleted from the graph and B is inserted in the graph (along with their data) IF the
+        * input parameter last_extraction == true. The object calling this function represents the data to associate with sub-unitig B.
         * @param um_src is a UnitigMap object representing the mapping to a unitig A from which a new unitig B will be extracted, i.e,
         * B = A[um_src.dist, um_src.dist + um_src.len + k - 1] or B = rev(A[um_src.dist, um_src.dist + um_src.len + k - 1]) if
         * um_src.strand == false.
@@ -214,9 +243,10 @@ class CDBG_Data_t {
         * after this function returns. Also, all unitigs B extracted from the reference unitig A, along with their data, will be inserted
         * in the graph.
         */
-        static void sub(Unitig_data_t* new_data, const UnitigMap<Unitig_data_t, Graph_data_t>& um_src, bool last_extraction){}
+        void extract(const UnitigMap<Unitig_data_t, Graph_data_t>& um_src, bool last_extraction){}
 
-        /** Serialize the data to a string. This function is used when the graph is written to disk in GFA format.
+        /**
+        * Serialize the data to a string. This function is used when the graph is written to disk in GFA format.
         * If the returned string is not empty, the string is appended to an optional field of the Segment line matching the unitig
         * of this data. If the returned string is empty, no optional field or string are appended to the Segment line matching the
         * unitig of this data.
@@ -233,17 +263,20 @@ class CDBG_Data_t {
 * CompactedDBG<> cdbg_1; // No unitig data, no graph data
 * CompactedDBG<void> cdbg_2; // Equivalent to previous notation
 * CompactedDBG<void, void> cdbg_3; // Equivalent to previous notation
-* CompactedDBG<myUnitigData> cdbg_4; // An object of type myUnitigData will be associated with each unitig, no graph data
-* CompactedDBG<myUnitigData, void> cdbg_5; // Equivalent to previous notation
-* CompactedDBG<void, myGraphData> cdbg_6; // No unitig data, an object of type myGraphData will be associated with the graph
-* CompactedDBG<myUnitigData, myGraphData> cdbg_7; // Unitig data of type myUnitigData for each unitig, graph data of type myGraphData
+* CompactedDBG<MyUnitigData> cdbg_4; // An object of type MyUnitigData will be associated with each unitig, no graph data
+* CompactedDBG<MyUnitigData, void> cdbg_5; // Equivalent to previous notation
+* CompactedDBG<void, MyGraphData> cdbg_6; // No unitig data, an object of type MyGraphData will be associated with the graph
+* CompactedDBG<MyUnitigData, MyGraphData> cdbg_7; // Unitig data of type MyUnitigData for each unitig, graph data of type MyGraphData
 * \endcode
 * If data are to be associated with the unitigs, these data must be wrapped into a class that inherits from the abstract class
 * CDBG_Data_t, such as in:
 * \code{.cpp}
-* class myUnitigData : public CDBG_Data_t<myUnitigData> { ... };
-* CompactedDBG<myUnitigData> cdbg;
+* class MyUnitigData : public CDBG_Data_t<MyUnitigData> { ... };
+* CompactedDBG<MyUnitigData> cdbg;
 * \endcode
+* Because CDBG_Data_t is an abstract class, all the methods from the base class (CDBG_Data_t) must be
+* implemented in your wrapper (the derived class, aka MyUnitigData in this example). IMPORTANT: If you do
+* not implement those methods in your class, default ones that have no effect will be applied.
 */
 template<typename Unitig_data_t = void, typename Graph_data_t = void>
 class CompactedDBG {
@@ -303,13 +336,34 @@ class CompactedDBG {
         */
         CompactedDBG<U, G>& operator=(CompactedDBG&& o);
 
+        /** Addition assignment operator (merge a compacted de Bruijn graph).
+        * After merging, all unitigs of o have been added to and compacted with the current compacted de Bruijn graph (this).
+        * If the unitigs of o had data of type "MyUnitigData" associated, they have been added to the current compacted
+        * de Bruijn graph using the functions of the class MyUnitigData which are in base class CDBG_Data_t<MyUnitigData>.
+        * This function is similar to CompactedDBG::merge except that it uses only one thread while CompactedDBG::merge can
+        * work with multiple threads (number of threads provided as a parameter).
+        * Note that if multiple compacted de Bruijn graphs have to be merged, it is more efficient to call CompactedDBG::merge
+        * with a vector of CompactedDBG as input.
+        * @param o is a constant reference to the compacted de Bruijn graph to merge.
+        * @return a reference to the current compacted de Bruijn after merging.
+        */
+        CompactedDBG<U, G>& operator+=(const CompactedDBG& o);
+
+        /** Equality operator.
+        * @return a boolean indicating if two compacted de Bruijn graphs have the same unitigs (does not compare the data
+        * associated with the unitigs).
+        */
+        bool operator==(const CompactedDBG& o) const;
+
+        /** Inequality operator.
+        * @return a boolean indicating if two compacted de Bruijn graphs have different unitigs (does not compare the data
+        * associated with the unitigs).
+        */
+        inline bool operator!=(const CompactedDBG& o) const;
+
         /** Clear the graph: empty the graph and reset its parameters.
         */
         void clear();
-
-        /** Empty the graph (does not reset its parameters).
-        */
-        void empty();
 
         /** Build the Compacted de Bruijn graph.
         * @param opt is a structure from which the members are parameters of this function. See CDBG_Build_opt.
@@ -378,6 +432,32 @@ class CompactedDBG {
         */
         bool remove(const const_UnitigMap<U, G>& um, const bool verbose = false);
 
+        /** Merge a compacted de Bruijn graph.
+        * After merging, all unitigs of o have been added to and compacted with the current compacted de Bruijn graph (this).
+        * If the unitigs of o had data of type "MyUnitigData" associated, they have been added to the current compacted
+        * de Bruijn graph using the functions of the class MyUnitigData which are also present in its base class
+        * CDBG_Data_t<MyUnitigData>.
+        * Note that if multiple compacted de Bruijn graphs have to be merged, it is more efficient to call CompactedDBG::merge
+        * with a vector of CompactedDBG as input.
+        * @param o is a constant reference to the compacted de Bruijn graph to merge.
+        * @param nb_threads is an integer indicating how many threads can be used during the merging.
+        * @param verbose is a boolean indicating if information messages must be printed during the execution of the function.
+        * @return a boolean indicating if the graph has been successfully merged.
+        */
+        bool merge(const CompactedDBG& o, const size_t nb_threads = 1, const bool verbose = false);
+
+        /** Merge multiple compacted de Bruijn graphs.
+        * After merging, all unitigs of the compacted de Bruijn graphs have been added to and compacted
+        * with the current compacted de Bruijn graph (this). If the unitigs had data of type "MyUnitigData"
+        * associated, they have been added to the current compacted de Bruijn graph using the functions of the
+        * class MyUnitigData which are also present in its base class CCDBG_Data_t<MyUnitigData>.
+        * @param v is a constant reference to a vector of colored and compacted de Bruijn graphs to merge.
+        * @param nb_threads is an integer indicating how many threads can be used during the merging.
+        * @param verbose is a boolean indicating if information messages must be printed during the execution of the function.
+        * @return a boolean indicating if the graphs have been successfully merged.
+        */
+        bool merge(const vector<CompactedDBG>& v, const size_t nb_threads = 1, const bool verbose = false);
+
         /** Create an iterator to the first unitig of the Compacted de Bruijn graph (unitigs are NOT sorted lexicographically).
         * @return an iterator to the first unitig of the graph.
         */
@@ -423,6 +503,11 @@ class CompactedDBG {
         */
         inline const G* getData() const { return data.getData(); }
 
+    protected:
+
+        bool mergeUnitigs(const CompactedDBG<U, G>& o, const bool verbose = false);
+        bool mergeData(const CompactedDBG<U, G>& o, const size_t nb_threads = 1, const bool verbose = false);
+
     private:
 
         bool filter(const CDBG_Build_opt& opt);
@@ -439,12 +524,33 @@ class CompactedDBG {
         UnitigMap<U, G> findUnitig(const Kmer& km, const char* s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h);
 
         bool addUnitig(const string& str_unitig, const size_t id_unitig);
-        void deleteUnitig(const bool isShort, const bool isAbundant, const size_t id_unitig);
+        bool addUnitig(const string& str_unitig, const size_t id_unitig, const size_t id_unitig_r, const size_t is_short_r);
         void swapUnitigs(const bool isShort, const size_t id_a, const size_t id_b);
-        template<bool is_void> typename std::enable_if<!is_void, bool>::type splitUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
-                                                                                          size_t& v_unitigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp);
-        template<bool is_void> typename std::enable_if<is_void, bool>::type splitUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
-                                                                                         size_t& v_unitigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp);
+        bool mergeUnitig(const string& seq, const bool verbose = false);
+
+        template<bool is_void>
+        inline typename std::enable_if<!is_void, void>::type mergeData_(const UnitigMap<U, G>& a, const const_UnitigMap<U, G>& b){
+
+            a.getData()->merge(a, b);
+        }
+
+        template<bool is_void>
+        inline typename std::enable_if<is_void, void>::type mergeData_(const UnitigMap<U, G>& a, const const_UnitigMap<U, G>& b) {}
+
+        template<bool is_void>
+        typename std::enable_if<!is_void, void>::type deleteUnitig_(const bool isShort, const bool isAbundant,
+                                                                    const size_t id_unitig, const bool delete_data = true);
+
+        template<bool is_void>
+        typename std::enable_if<is_void, void>::type deleteUnitig_( const bool isShort, const bool isAbundant,
+                                                                    const size_t id_unitig, const bool delete_data = true);
+
+        template<bool is_void>
+        typename std::enable_if<!is_void, bool>::type splitUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
+                                                                   size_t& v_unitigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp);
+        template<bool is_void>
+        typename std::enable_if<is_void, bool>::type splitUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
+                                                                  size_t& v_unitigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp);
 
         UnitigMap<U, G> find(const Kmer& km, const preAllocMinHashIterator<RepHash>& it_min_h);
         vector<const_UnitigMap<U, G>> findPredecessors(const Kmer& km, const bool extremities_only = false) const;
@@ -457,6 +563,7 @@ class CompactedDBG {
         }
 
         pair<size_t, size_t> splitAllUnitigs();
+
         template<bool is_void>
         typename std::enable_if<!is_void, size_t>::type joinUnitigs_(vector<Kmer>* v_joins = nullptr, const size_t nb_threads = 1);
         template<bool is_void>

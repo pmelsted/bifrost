@@ -8,7 +8,7 @@ template<typename U, typename G, bool is_const>
 neighborIterator<U, G, is_const>::neighborIterator() : i(4), is_fw(true), cdbg(nullptr) {}
 
 template<typename U, typename G, bool is_const>
-neighborIterator<U, G, is_const>::neighborIterator(const UnitigMap<U, G, is_const>& um_, const bool is_forward_) : i(-1), is_fw(is_forward_), cdbg(um_.getCompactedDBG()) {
+neighborIterator<U, G, is_const>::neighborIterator(const UnitigMap<U, G, is_const>& um_, const bool is_forward_) : i(-1), is_fw(is_forward_), cdbg(um_.getGraph()) {
 
     if (um_.isEmpty || (cdbg == nullptr) || cdbg->invalid) i = 4;
     else {

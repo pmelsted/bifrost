@@ -350,8 +350,6 @@ std::string Kmer::toString() const {
 // post: The Kmer size has been set to k
 void Kmer::set_k(const unsigned int _k) {
 
-    if(_k == k) return; // ok to call more than once
-
     assert(_k < MAX_K);
     assert(_k > 0);
 

@@ -23,15 +23,6 @@ void ColoredCDBG<U>::clear(){
 }
 
 template<typename U>
-void ColoredCDBG<U>::empty(){
-
-    invalid = true;
-
-    this->getData()->empty();
-    CompactedDBG<DataAccessor<U>, DataStorage<U>>::empty();
-}
-
-template<typename U>
 ColoredCDBG<U>& ColoredCDBG<U>::operator=(const ColoredCDBG& o) {
 
     CompactedDBG<DataAccessor<U>, DataStorage<U>>::operator=(o);
@@ -54,6 +45,130 @@ ColoredCDBG<U>& ColoredCDBG<U>::operator=(ColoredCDBG&& o) {
     }
 
     return *this;
+}
+
+template<typename U>
+ColoredCDBG<U>& ColoredCDBG<U>::operator+=(const ColoredCDBG& o) {
+
+    if (this != &o) merge(o, 1, false);
+
+    return *this;
+}
+
+template<typename U>
+bool ColoredCDBG<U>::merge(const ColoredCDBG& o, const size_t nb_threads, const bool verbose){
+
+    bool ret = true;
+
+    if (invalid){
+
+         if (verbose) cerr << "ColoredCDBG::merge(): Current graph is invalid." << endl;
+         ret = false;
+    }
+
+    if (o.invalid){
+
+         if (verbose) cerr << "ColoredCDBG::merge(): Graph to merge is invalid." << endl;
+         ret = false;
+    }
+
+    if (this->k_ != o.k_){
+
+         if (verbose) cerr << "ColoredCDBG::merge(): The graphs to merge do not have the same k-mer length." << endl;
+         ret = false;
+    }
+
+    if (this->g_ != o.g_){
+
+         if (verbose) cerr << "ColoredCDBG::merge(): The graphs to merge do not have the same minimizer length." << endl;
+         ret = false;
+    }
+
+    if (this == &o){
+
+         if (verbose) cerr << "ColoredCDBG::merge(): Cannot merge graph with itself." << endl;
+         ret = false;
+    }
+
+    if (ret){
+
+        ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::mergeUnitigs(o, verbose);
+
+        if (ret){
+
+            resizeDataUC(o, nb_threads);
+
+            for (size_t i = 0; i < o.getNbColors(); ++i) this->getData()->color_names.push_back(o.getColorName(i));
+
+            return CompactedDBG<DataAccessor<U>, DataStorage<U>>::mergeData(o, nb_threads, verbose);
+        }
+    }
+
+    return false;
+}
+
+template<typename U>
+bool ColoredCDBG<U>::merge(const vector<ColoredCDBG>& v, const size_t nb_threads, const bool verbose){
+
+    bool ret = true;
+
+    if (invalid){
+
+         if (verbose) cerr << "ColoredCDBG::merge(): Current graph is invalid." << endl;
+         ret = false;
+    }
+
+    for (const auto& ccdbg : v){
+
+        if (ccdbg.invalid){
+
+             if (verbose) cerr << "ColoredCDBG::merge(): One of the graph to merge is invalid." << endl;
+             ret = false;
+        }
+
+        if (this->k_ != ccdbg.k_){
+
+             if (verbose) cerr << "ColoredCDBG::merge(): The graphs to merge do not have the same k-mer length." << endl;
+             ret = false;
+        }
+
+        if (this->g_ != ccdbg.g_){
+
+             if (verbose) cerr << "ColoredCDBG::merge(): The graphs to merge do not have the same minimizer length." << endl;
+             ret = false;
+        }
+
+        if (this == &ccdbg){
+
+             if (verbose) cerr << "ColoredCDBG::merge(): Cannot merge graph with itself." << endl;
+             ret = false;
+        }
+    }
+
+    if (ret){
+
+        for (const auto& ccdbg : v){
+
+            ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::mergeUnitigs(ccdbg, verbose);
+
+            if (ret) resizeDataUC(ccdbg, nb_threads);
+            else break;
+        }
+
+        if (ret){
+
+            for (const auto& ccdbg : v){
+
+                for (size_t i = 0; i < ccdbg.getNbColors(); ++i) this->getData()->color_names.push_back(ccdbg.getColorName(i));
+
+                if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::mergeData(ccdbg, nb_threads, verbose)) return false;
+            }
+
+            return true;
+        }
+    }
+
+    return false;
 }
 
 template<typename U>
@@ -230,94 +345,182 @@ bool ColoredCDBG<U>::read(const string& prefix_input_filename, const size_t nb_t
 template<typename U>
 void ColoredCDBG<U>::initUnitigColors(const CCDBG_Build_opt& opt, const size_t max_nb_hash){
 
-    size_t last_empty_pos = 0;
-
-    mutex mutex_cs_overflow;
-
     DataStorage<U>* ds = this->getData();
-    DataStorage<U> new_ds = DataStorage<U>(max_nb_hash, this->size(), opt.filename_seq_in);
+    DataStorage<U> new_ds(max_nb_hash, this->size(), opt.filename_seq_in);
 
     *ds = move(new_ds);
 
-    auto worker_function = [&](typename ColoredCDBG<U>::iterator a, typename ColoredCDBG<U>::iterator b){
+    const size_t chunk = 1000;
 
-        int i;
+    vector<thread> workers; // need to keep track of threads so we can join them
 
-        uint64_t h_v, id_link_mod;
+    typename ColoredCDBG<U>::iterator g_a = this->begin();
+    typename ColoredCDBG<U>::iterator g_b = this->end();
 
-        for (auto& unitig = a; unitig != b; ++unitig){
+    mutex mutex_it;
 
-            const Kmer head = unitig->getUnitigHead();
+    for (size_t t = 0; t < opt.nb_threads; ++t){
 
-            for (i = 0; i < max_nb_hash; ++i){
+        workers.emplace_back(
 
-                h_v = head.hash(ds->seeds[i]) % ds->nb_cs; // Hash to which we can possibly put our colorset for current kmer
-                id_link_mod = 1ULL << (h_v & 0x3F);
+            [&, t]{
 
-                if ((ds->unitig_cs_link[h_v >> 6].fetch_or(id_link_mod) & id_link_mod) == 0) break;
-            }
+                typename ColoredCDBG<U>::iterator l_a, l_b;
 
-            if (i == max_nb_hash){ // IF we couldn't find a hash matching an unoccupied color set for current k-mer
+                while (true) {
 
-                unique_lock<mutex> lock(mutex_cs_overflow);
+                    {
+                        unique_lock<mutex> lock(mutex_it);
 
-                while (true){
+                        if (g_a == g_b) return;
 
-                    id_link_mod = 1ULL << (last_empty_pos & 0x3F);
+                        l_a = g_a;
+                        l_b = g_a;
 
-                    if ((ds->unitig_cs_link[last_empty_pos >> 6].fetch_or(id_link_mod) & id_link_mod) == 0) break;
+                        for (size_t cpt = 0; (cpt < chunk) && (l_b != g_b); ++cpt, ++l_b){}
 
-                    last_empty_pos = ((last_empty_pos + 1) == ds->nb_cs ? 0 : last_empty_pos + 1);
-                }
+                        g_a = l_b;
+                    }
 
-                ds->overflow.insert(head, last_empty_pos); // Insertion
-            }
+                    for (auto& it_unitig = l_a; it_unitig != l_b; ++it_unitig) {
 
-            *(unitig->getData()) = DataAccessor<U>(static_cast<uint8_t>(i == max_nb_hash ? 0 : i + 1));
-        }
-    };
-
-    {
-        const size_t chunk = 1000;
-
-        vector<thread> workers; // need to keep track of threads so we can join them
-
-        typename ColoredCDBG<U>::iterator g_a = this->begin();
-        typename ColoredCDBG<U>::iterator g_b = this->end();
-
-        mutex mutex_it;
-
-        for (size_t t = 0; t < opt.nb_threads; ++t){
-
-            workers.emplace_back(
-
-                [&, t]{
-
-                    typename ColoredCDBG<U>::iterator l_a, l_b;
-
-                    while (true) {
-
-                        {
-                            unique_lock<mutex> lock(mutex_it);
-
-                            if (g_a == g_b) return;
-
-                            l_a = g_a;
-                            l_b = g_a;
-
-                            for (size_t cpt = 0; (cpt < chunk) && (l_b != g_b); ++cpt, ++l_b){}
-
-                            g_a = l_b;
-                        }
-
-                        worker_function(l_a, l_b);
+                        *(it_unitig->getData()) = ds->insert(*it_unitig).first;
                     }
                 }
-            );
-        }
-
-        for (auto& t : workers) t.join();
+            }
+        );
     }
+
+    for (auto& t : workers) t.join();
+
+    //cout << "Number of unitigs not hashed is " << ds->overflow.size() << " on " << ds->nb_cs << " unitigs." << endl;
+}
+
+template<typename U>
+void ColoredCDBG<U>::resizeDataUC(const ColoredCDBG& o, const size_t nb_threads, const size_t max_nb_hash){
+
+    DataStorage<U>* ds = this->getData();
+
+    DataStorage<U> new_ds(max_nb_hash, this->size(), ds->color_names);
+
+    const size_t chunk = 100;
+
+    vector<thread> workers; // need to keep track of threads so we can join them
+
+    typename ColoredCDBG<U>::iterator g_a = this->begin();
+    typename ColoredCDBG<U>::iterator g_b = this->end();
+
+    mutex mutex_it;
+
+    for (size_t t = 0; t < nb_threads; ++t){
+
+        workers.emplace_back(
+
+            [&, t]{
+
+                typename ColoredCDBG<U>::iterator l_a, l_b;
+
+                while (true) {
+
+                    {
+                        unique_lock<mutex> lock(mutex_it);
+
+                        if (g_a == g_b) return;
+
+                        l_a = g_a;
+                        l_b = g_a;
+
+                        for (size_t cpt = 0; (cpt < chunk) && (l_b != g_b); ++cpt, ++l_b){}
+
+                        g_a = l_b;
+                    }
+
+                    for (auto& it_unitig = l_a; it_unitig != l_b; ++it_unitig) {
+
+                        UnitigColors* uc = ds->getUnitigColors(*it_unitig);
+                        U* data = ds->getData(*it_unitig);
+
+                        if ((uc != nullptr) || (data != nullptr)){
+
+                            const pair<DataAccessor<U>, pair<UnitigColors*, U*>> p  = new_ds.insert(*it_unitig);
+
+                            *(it_unitig->getData()) = p.first;
+
+                            if (uc != nullptr) *(p.second.first) = move(*uc);
+                            if (data != nullptr) *(p.second.second) = move(*data);
+                        }
+                    }
+                }
+            }
+        );
+    }
+
+    for (auto& t : workers) t.join();
+
+    *ds = move(new_ds);
+
+    //cout << "Number of unitigs not hashed is " << ds->overflow.size() << " on " << ds->nb_cs << " unitigs." << endl;
+}
+
+template<>
+inline void ColoredCDBG<void>::resizeDataUC(const ColoredCDBG& o, const size_t nb_threads, const size_t max_nb_hash){
+
+    DataStorage<void>* ds = this->getData();
+
+    DataStorage<void> new_ds(max_nb_hash, this->size(), ds->color_names);
+
+    const size_t chunk = 100;
+
+    vector<thread> workers; // need to keep track of threads so we can join them
+
+    typename ColoredCDBG<void>::iterator g_a = this->begin();
+    typename ColoredCDBG<void>::iterator g_b = this->end();
+
+    mutex mutex_it;
+
+    for (size_t t = 0; t < nb_threads; ++t){
+
+        workers.emplace_back(
+
+            [&, t]{
+
+                typename ColoredCDBG<void>::iterator l_a, l_b;
+
+                while (true) {
+
+                    {
+                        unique_lock<mutex> lock(mutex_it);
+
+                        if (g_a == g_b) return;
+
+                        l_a = g_a;
+                        l_b = g_a;
+
+                        for (size_t cpt = 0; (cpt < chunk) && (l_b != g_b); ++cpt, ++l_b){}
+
+                        g_a = l_b;
+                    }
+
+                    for (auto& it_unitig = l_a; it_unitig != l_b; ++it_unitig) {
+
+                        UnitigColors* uc = ds->getUnitigColors(*it_unitig);
+
+                        if (uc != nullptr){
+
+                            const pair<DataAccessor<void>, pair<UnitigColors*, void*>> p  = new_ds.insert(*it_unitig);
+
+                            *(it_unitig->getData()) = p.first;
+                            *(p.second.first) = move(*uc);
+                        }
+                    }
+                }
+            }
+        );
+    }
+
+    for (auto& t : workers) t.join();
+
+    *ds = move(new_ds);
 
     //cout << "Number of unitigs not hashed is " << ds->overflow.size() << " on " << ds->nb_cs << " unitigs." << endl;
 }
@@ -762,7 +965,7 @@ string ColoredCDBG<U>::getColorName(const size_t color_id) const {
     if (invalid){
 
         cerr << "ColoredCDBG::getColorName(): Graph is invalid or colors are not yet mapped to unitigs." << endl;
-        return string("ColoredCDBG::getColorName(): Graph is invalid or colors are not yet mapped to unitigs.");
+        return string();
     }
 
     const DataStorage<U>* ds = this->getData();
@@ -772,10 +975,22 @@ string ColoredCDBG<U>::getColorName(const size_t color_id) const {
         cerr << "ColoredCDBG::getColorName(): Color ID " << color_id << " is invalid, graph only has " <<
         ds->color_names.size() << " colors." << endl;
 
-        return string("ColoredCDBG::getColorName(): Given color ID is invalid.");
+        return string();
     }
 
     return ds->color_names[color_id];
+}
+
+template<typename U>
+vector<string> ColoredCDBG<U>::getColorNames() const {
+
+    if (invalid){
+
+        cerr << "ColoredCDBG::getColorNames(): Graph is invalid or colors are not yet mapped to unitigs." << endl;
+        return vector<string>();
+    }
+
+    return this->getData()->color_names;
 }
 
 template<typename U>
@@ -842,7 +1057,9 @@ void ColoredCDBG<U>::checkColors(const vector<string>& filename_seq_in) const {
 
                 cerr << "ColoredCDBG::checkColors(): Current color is " << i << ": " << filename_seq_in[i] << endl;
                 cerr << "ColoredCDBG::checkColors(): K-mer " << km.toString() << " for color " << i << ": " << filename_seq_in[i] << endl;
-                cerr << "ColoredCDBG::checkColors(): Full unitig: " << ucm.toString() << endl;
+                cerr << "ColoredCDBG::checkColors(): Size unitig: " << ucm.size << endl;
+                cerr << "ColoredCDBG::checkColors(): Mapping position: " << ucm.dist << endl;
+                cerr << "ColoredCDBG::checkColors(): Mapping strand: " << ucm.strand << endl;
                 cerr << "ColoredCDBG::checkColors(): Present in graph: " << color_pres_graph << endl;
                 cerr << "ColoredCDBG::checkColors(): Present in hash table: " << color_pres_hasht << endl;
 

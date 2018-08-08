@@ -189,7 +189,7 @@ class UnitigColors {
 
         /** Empty a UnitigColors of its content.
         */
-        void empty();
+        void clear();
 
         /** Check if a UnitigColors is empty (no colors).
         * @return a boolean indicating if the UnitigColors is empty.
@@ -299,14 +299,14 @@ class UnitigColors {
 
                 SharedUnitigColors* s_uc = getPtrSharedUnitigColors();
 
-                if (--(s_uc->second) == 0) s_uc->first.empty();
+                if (--(s_uc->second) == 0) s_uc->first.clear();
             }
             else if (flag == localTinyBitmap){
 
                 uint16_t* setPtrTinyBmp = getPtrTinyBitmap();
                 TinyBitmap t_bmp(&setPtrTinyBmp);
 
-                t_bmp.empty();
+                t_bmp.clear();
             }
 
             setBits = localBitVector;

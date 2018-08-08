@@ -35,7 +35,7 @@ TinyBitmap& TinyBitmap::operator=(const TinyBitmap& o) {
 
     if (this != &o){
 
-        empty();
+        clear();
 
         if (o.tiny_bmp != nullptr){
 
@@ -60,7 +60,7 @@ TinyBitmap& TinyBitmap::operator=(TinyBitmap&& o) {
 
     if (this != &o){
 
-        empty();
+        clear();
 
         tiny_bmp = o.tiny_bmp;
         o.tiny_bmp = nullptr;
@@ -71,7 +71,7 @@ TinyBitmap& TinyBitmap::operator=(TinyBitmap&& o) {
 
 TinyBitmap& TinyBitmap::operator=(uint16_t** o_ptr) {
 
-    empty();
+    clear();
 
     tiny_bmp = *o_ptr;
     *o_ptr = nullptr;
@@ -79,9 +79,9 @@ TinyBitmap& TinyBitmap::operator=(uint16_t** o_ptr) {
     return *this;
 }
 
-TinyBitmap::~TinyBitmap() { empty(); }
+TinyBitmap::~TinyBitmap() { clear(); }
 
-void TinyBitmap::empty() {
+void TinyBitmap::clear() {
 
     if (tiny_bmp != nullptr){
 
@@ -544,7 +544,7 @@ bool TinyBitmap::remove(const uint32_t val){
         }
     }
 
-    if (tiny_bmp[1] == 0) empty();
+    if (tiny_bmp[1] == 0) clear();
     else if (try_decrease_sz){ // Can only be bmp_mode || list_mode
 
         const uint16_t nb_uint_bmp = getNextSize((static_cast<const uint16_t>(maximum() & 0xFFFF) >> 4) + 4);
@@ -809,7 +809,7 @@ bool TinyBitmap::write(ostream& stream_out) const {
 
 bool TinyBitmap::read(istream& stream_in) {
 
-    empty();
+    clear();
 
     uint16_t header;
 
@@ -1094,7 +1094,7 @@ bool TinyBitmap::test(const bool verbose) {
         }
     }
 
-    t_bmp.empty();
+    t_bmp.clear();
 
     for (size_t j = 0; j < nb_rounds; ++j){
 
@@ -1140,7 +1140,7 @@ bool TinyBitmap::test(const bool verbose) {
             }
         }
 
-        t_bmp.empty();
+        t_bmp.clear();
     }
 
     if (verbose) cout << "TinyBitmap::test(): Adding values in sequential order from 65536 to 65536 + 4096 - 3" << endl;
@@ -1177,7 +1177,7 @@ bool TinyBitmap::test(const bool verbose) {
         }
     }
 
-    t_bmp.empty();
+    t_bmp.clear();
 
     if (verbose) cout << "TinyBitmap::test(): Adding values in reverse sequential order from 65536 + 4096 - 4 to 65536" << endl;
 
@@ -1213,7 +1213,7 @@ bool TinyBitmap::test(const bool verbose) {
         }
     }
 
-    t_bmp.empty();
+    t_bmp.clear();
 
     for (size_t j = 0; j < nb_rounds; ++j){
 
@@ -1259,7 +1259,7 @@ bool TinyBitmap::test(const bool verbose) {
             }
         }
 
-        t_bmp.empty();
+        t_bmp.clear();
     }
 
     return true;

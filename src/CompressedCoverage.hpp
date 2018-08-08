@@ -39,6 +39,8 @@ class CompressedCoverage {
         CompressedCoverage& operator=(const CompressedCoverage& o); // Copy assignment
         CompressedCoverage& operator=(CompressedCoverage&& o); // Move assignment
 
+        inline void clear() { releasePointer(); };
+
         void initialize(const size_t sz, const bool full);
 
         void cover(size_t start, size_t end);

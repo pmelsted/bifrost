@@ -86,7 +86,7 @@ class TinyBitmap {
         TinyBitmap& operator=(TinyBitmap&& o);
         TinyBitmap& operator=(uint16_t** o_ptr);
 
-        void empty();
+        void clear();
 
         bool add(const uint32_t val);
         bool remove(const uint32_t val);

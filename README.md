@@ -1,6 +1,6 @@
 # Bifrost
 
-### Highly Parallel and Memory Efficient Construction of a Colored Compacted de Bruijn Graph
+### Highly parallel construction and indexing of colored and compacted de Bruijn graphs
 
 * **Build**, **index** and **color** the compacted de Bruijn graph
 * **No need to build the uncompacted** de Bruijn graph
@@ -115,7 +115,7 @@ If you want to input assembled genomes, use the `-r` parameter and no filtering 
 
 By default, Bifrost produces a compacted de Bruijn graph without colors.
 
-### With colors (pre-alpha)
+### With colors (alpha)
 
 Colors are used to annotate k-mers with the set of genomes/samples in which they occur. Producing a colored and compacted de Bruijn graph using Bifrost is a two steps process:
 
@@ -184,6 +184,19 @@ As a pre-alpha version, the ColoredCDBG API might be unstable and change in the 
 ```
 #include <bifrost/ColoredCDBG.hpp>
 ```
+
+### Changelog
+
+* **08-07-2018**
+	* Add de Bruijn graphs merging functions (`CompactedDBG::merge()` and `ColoredCDBG::merge()`) and addition assignment operators (`CompactedDBG::operator+=()` and `ColoredCDBG::operator+=()`, same as `merge()` but uses only one thread).
+	* Add de Bruijn graphs comparison functions `CompactedDBG::operator==()`, `CompactedDBG::operator!=()`, `ColoredCDBG::operator==()` and `ColoredCDBG::operator!=()`.
+	* Delete `CompactedDBG::empty()` and `ColoredCDBG::empty()` to be consistent with STD containers (those functions were emptying the graph of its content while `empty()` of STD containers returns whether the container is empty). Now, to empty the graph, use `CompactedDBG::clear()` and `ColoredCDBG::clear()`.
+    * Major changes in the abstract class `CDBG_Data_t` and `CCDBG_Data_t`:
+    	* All the functions are now **non**-static.
+    	* Function `join()` is renamed `concat()` and works a bit differently (have a look at the doc). Quickly, `join()` was concatenating two unitigs A and B such that the result was A=AB and B was deleted from the graph. Now, `concat()` deletes A and B from the graph and adds a new unitig C=AB.
+    	* Function `sub()` is renamed `extract()`.
+    	* Add the functions `merge()` and `clear()` which **must** be overloaded too in the derived class of `CDBG_Data_t` and `CCDBG_Data_t`.
+    * Bugfix with graph reading from disk and concatenating UnitigColors.
 
 ## FAQ
 

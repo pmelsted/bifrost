@@ -20,7 +20,7 @@ CompressedCoverage::CompressedCoverage(size_t sz, bool full) {
 // post:
 CompressedCoverage::~CompressedCoverage() {
 
-    releasePointer();
+    clear();
 }
 
 CompressedCoverage::CompressedCoverage(const CompressedCoverage& o) {
