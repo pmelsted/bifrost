@@ -7,64 +7,74 @@
 
 using namespace std;
 
-// Boolean class indicating if its associated unitig was traversed (b=true) or not (b=false)
-// The class inherits from CCDBG_Data_t<myBool> to be used with ColoredCDBG and from CDBG_Data_t<myBool>
-// to be used with CompactedDBG
+// Boolean class indicating if its associated unitig was "visited", "seen" or none of those two.
+// The class inherits from CCDBG_Data_t<MyBool> to be used with ColoredCDBG and from
+// CDBG_Data_t<MyBool> to be used with CompactedDBG.
 
-class myBool : public CCDBG_Data_t<myBool>, CDBG_Data_t<myBool> {
+class MyBool : public CCDBG_Data_t<MyBool>, CDBG_Data_t<MyBool> {
 
     public:
 
-        myBool() : b(NOT_VISITED_SEEN) {} // Initiate the boolean to "not visited"
+        MyBool() : b(NOT_VISITED_SEEN) {} // Initiate the boolean to "not visited"
 
-        // Join method for ColoredCDBG
-        static void join(const UnitigColorMap<myBool>& um_dest, const UnitigColorMap<myBool>& um_src){
+        // Clear method for CompactedDBG
+        void clear(const UnitigMap<MyBool>& um_dest){
 
-            // When joining the unitig matching um_src to the unitig matching um_dest,
-            // we set um_dest to "not visited" because it will be a new unitig in the graph.
-
-            DataAccessor<myBool>* da = um_dest.getData(); // Get DataAccessor from unitig matching um_dest
-            myBool* data = da->getData(um_dest); // Get boolean from DataAccessor
-
-            data->set_not_seen_visited(); // Set the unitig to "not visited"
+        	set_not_seen_visited(); // Set the new unitig to "not seen nor visited"
         }
 
-        // Sub method for ColoredCDBG
-        static void sub(myBool* data_dest, const UnitigColors& uc_dest, const UnitigMapBase& um_dest,
-                        const UnitigColorMap<myBool>& um_src, const bool last_extraction) {
+         // Clear method for CompactedDBG
+        void clear(const UnitigColorMap<MyBool>& um_dest){
 
-            // This function creates a new unitig which is a sub-unitig from um_src
-            // The new unitig created is set to "not visited" as a measure of precaution
-            // (it is already initialed by default to "not visited" in the constructor)
-
-            data_dest->set_not_seen_visited();
+        	set_not_seen_visited(); // Set the new unitig to "not seen nor visited"
         }
 
-        // Join method for CompactedDBG
-        static void join(const UnitigMap<myBool>& um_dest, const UnitigMap<myBool>& um_src){
+        // Concatenation method for ColoredCDBG
+        void concat(const UnitigColorMap<MyBool>& um_dest, const UnitigColorMap<MyBool>& um_src){
 
-            // When joining the unitig matching um_src to the unitig matching um_dest,
-            // we set um_dest to "not visited" because it will be a new unitig in the graph.
+            // When concatenating the reference unitig of um_src to the reference unitig of um_dest,
+            // we set the boolean of the new unitig to "not visited" because it will be a new unitig.
 
-            myBool* data = um_dest.getData(); // Get boolean directly from unitig matching um_dest
-
-            data->set_not_seen_visited(); // Set the unitig to "not visited"
+            set_not_seen_visited(); // Set the new unitig to "not seen nor visited"
         }
 
-        // Sub method for CompactedDBG
-        static void sub(myBool* data_dest, const UnitigMap<myBool>& um_src, bool last_extraction){
+        // Concatenation method for ColoredCDBG
+        void concat(const UnitigMap<MyBool>& um_dest, const UnitigMap<MyBool>& um_src){
 
-            // This function creates a new unitig which is a sub-unitig from um_src
-            // The new unitig created is set to "not visited" as a measure of precaution
-            // (it is already initialed by default to "not visited" in the constructor)
+            // When concatenating the reference unitig of um_src to the reference unitig of um_dest,
+            // we set the boolean of the new unitig to "not visited" because it will be a new unitig.
 
-            data_dest->set_not_seen_visited();
+            set_not_seen_visited(); // Set the new unitig to "not seen nor visited"
         }
 
-        void toString() const {
+        // Extraction method for ColoredCDBG
+        void extract(const UnitigColors* uc_dest, const UnitigColorMap<MyBool>& um_src, const bool last_extraction) {
 
-            cout << "Unitig visited = " << (is_visited() ? "true" : "false") << endl;
-            cout << "Unitig seen = " << (is_seen() ? "true" : "false") << endl;
+            // This function creates a new unitig which is a sub-unitig from the reference unitig of um_src.
+            // The new unitig created is set to "not seen nor visited" as a measure of precaution (it is already
+            // initiated by default to "not visited" in the constructor)
+
+            set_not_seen_visited(); // Set the new unitig to "not seen nor visited"
+        }
+
+        // Extraction method for ColoredCDBG
+        void extract(const UnitigMap<MyBool>& um_src, bool last_extraction) {
+
+            // This function creates a new unitig which is a sub-unitig from the reference unitig of um_src.
+            // The new unitig created is set to "not seen nor visited" as a measure of precaution (it is already
+            // initiated by default to "not visited" in the constructor)
+
+            set_not_seen_visited(); // Set the new unitig to "not seen nor visited"
+        }
+
+        // Methods MyBool::merge() and MyBool
+
+        string toString() const {
+
+            if (is_visited()) return string("visited");
+            if (is_seen()) return string("seen");
+
+            return string("Not seen nor visited");
         }
 
         inline void set_visited() { b = VISITED; } // Set the boolean to "visited"
@@ -72,10 +82,10 @@ class myBool : public CCDBG_Data_t<myBool>, CDBG_Data_t<myBool> {
         inline void set_not_seen_visited() { b = NOT_VISITED_SEEN; } // Set the boolean to "not seen and not visited"
 
         inline bool is_visited() const { return (b == VISITED); } // return if the boolean is "visited"
-        inline bool is_not_visited() const { return (b != VISITED); } // return if the boolean is "not visited"
+        inline bool is_not_visited() const { return !is_visited(); } // return if the boolean is "not visited"
 
         inline bool is_seen() const { return (b == SEEN); } // return if the boolean is "seen"
-        inline bool is_not_seen() const { return (b != SEEN); } // return if the boolean is "not seen"
+        inline bool is_not_seen() const { return !is_seen(); } // return if the boolean is "not seen"
 
     private:
 
@@ -86,69 +96,90 @@ class myBool : public CCDBG_Data_t<myBool>, CDBG_Data_t<myBool> {
         uint8_t b;
 };
 
-void cleanMarking(const unordered_set<UnitigColorMap<myBool>, UnitigMapHash<DataAccessor<myBool>, DataStorage<myBool>, false>>& set_km_seen){
+void clearMarking(const unordered_set<UnitigColorMap<MyBool>, UnitigMapHash<DataAccessor<MyBool>, DataStorage<MyBool>>>& set_km_seen){
 
-    unordered_set<UnitigColorMap<myBool>, UnitigMapHash<DataAccessor<myBool>, DataStorage<myBool>, false>>::const_iterator it, it_end;
+    for (const auto& ucm : set_km_seen){
 
-    for (it = set_km_seen.begin(), it_end = set_km_seen.end(); it != it_end; ++it){
+        DataAccessor<MyBool>* da_ucm = ucm.getData();
+        MyBool* data_ucm = da_ucm->getData(ucm);
 
-        const UnitigColorMap<myBool> ucm = *it;
-
-        DataAccessor<myBool>* da_ucm = ucm.getData();
-        myBool* data_ucm = da_ucm->getData(ucm);
-
-        data_ucm->set_not_seen_visited();
+        data_ucm->clear(ucm);
     }
 }
 
-void cleanMarking(ColoredCDBG<myBool>& ccdbg){
+void clearMarking(ColoredCDBG<MyBool>& ccdbg){
 
-    for (auto& unitig : ccdbg){
+    for (const auto& unitig : ccdbg){
 
-        DataAccessor<myBool>* da_ucm = unitig.getData();
-        myBool* data_ucm = da_ucm->getData(unitig);
+        DataAccessor<MyBool>* da_ucm = unitig.getData();
+        MyBool* data_ucm = da_ucm->getData(unitig);
 
-        data_ucm->set_not_seen_visited();
+        data_ucm->clear(unitig);
     }
 }
 
-void BFS_Recursive(const UnitigColorMap<myBool>& ucm){
+void BFS_Recursive(const UnitigColorMap<MyBool>& ucm){
 
-    for (auto& successor : ucm.getSuccessors()){ // Iterate over successors of a unitig
+    DataAccessor<MyBool>* da = ucm.getData(); // Get DataAccessor from unitig
+    MyBool* data = da->getData(ucm); // Get boolean from DataAccessor
 
-        DataAccessor<myBool>* da = successor.getData(); // Get DataAccessor from unitig successor
-        myBool* data = da->getData(successor); // Get boolean from DataAccessor
+    if (data->is_not_visited() && data->is_not_seen()){
 
-        if (data->is_not_visited()){ // If boolean indicates the unitig was not visited
+	    data->set_visited(); // Set boolean to indicate unitig was visited
 
-            data->set_visited(); // Set boolean to indicate unitig was visited
-        }
-    }
+	    for (auto& successor : ucm.getSuccessors()){ // Iterate over successors of a unitig
 
-    for (auto& predecessor : ucm.getPredecessors()){ // Iterate over predecessors of a unitig
+	        DataAccessor<MyBool>* da_succ = successor.getData(); // Get DataAccessor from unitig successor
+	        MyBool* data_succ = da_succ->getData(successor); // Get boolean from DataAccessor
 
-        DataAccessor<myBool>* da = predecessor.getData(); // Get DataAccessor from unitig predecessor
-        myBool* data = da->getData(predecessor); // Get boolean from DataAccessor
+	        if (data_succ->is_not_visited()) data_succ->set_seen(); // Set boolean to indicate unitig was seen (visited but not traversed yet)
+	    }
 
-        if (data->is_not_visited()){ // If boolean indicates the unitig was not visited
+	    for (auto& predecessor : ucm.getPredecessors()){ // Iterate over predecessors of a unitig
 
-            data->set_visited(); // Set boolean to indicate unitig was visited
-        }
-    }
+	        DataAccessor<MyBool>* da_pred = predecessor.getData(); // Get DataAccessor from unitig predecessor
+	        MyBool* data_pred = da_pred->getData(predecessor); // Get boolean from DataAccessor
 
-    // Traverse successors
-    for (auto& successor : ucm.getSuccessors()) BFS_Recursive(successor);
-    // Traverse predecessors
-    for (auto& predecessor : ucm.getPredecessors()) BFS_Recursive(predecessor);
+	        if (data_pred->is_not_visited()) data_pred->set_seen(); // Set boolean to indicate unitig was visited (visited but not traversed yet)
+	    }
+
+	    // Traverse successors
+	    for (auto& successor : ucm.getSuccessors()){
+
+	        DataAccessor<MyBool>* da_succ = successor.getData(); // Get DataAccessor from unitig successor
+	        MyBool* data_succ = da_succ->getData(successor); // Get boolean from DataAccessor
+
+	    	if (data_succ->is_seen()){
+
+	    		data_succ->set_not_seen_visited();
+
+	    		BFS_Recursive(successor);
+	    	}
+	    }
+
+	    // Traverse predecessors
+	    for (auto& predecessor : ucm.getSuccessors()){
+
+	        DataAccessor<MyBool>* da_pred = predecessor.getData(); // Get DataAccessor from unitig predecessor
+	        MyBool* data_pred = da_pred->getData(predecessor); // Get boolean from DataAccessor
+
+	    	if (data_pred->is_seen()){
+
+	    		data_pred->set_not_seen_visited();
+
+	    		BFS_Recursive(predecessor);
+	    	}
+	    }
+	}
 }
 
-void BFS_Iterative(const UnitigColorMap<myBool>& ucm){
+void BFS_Iterative(const UnitigColorMap<MyBool>& ucm){
 
-    queue<UnitigColorMap<myBool>> q; // Create queue of unitig to traverse
-    UnitigColorMap<myBool> ucm_tmp(ucm); // Create a non-const local copy of unitig given in parameter
+    queue<UnitigColorMap<MyBool>> q; // Create queue of unitig to traverse
+    UnitigColorMap<MyBool> ucm_tmp(ucm); // Create a non-const local copy of unitig given in parameter
 
-    DataAccessor<myBool>* da = ucm_tmp.getData(); // Get DataAccessor from unitig
-    myBool* data = da->getData(ucm_tmp); // Get boolean from DataAccessor
+    DataAccessor<MyBool>* da = ucm_tmp.getData(); // Get DataAccessor from unitig
+    MyBool* data = da->getData(ucm_tmp); // Get boolean from DataAccessor
 
     data->set_visited(); // Set boolean to indicate unitig was visited
 
@@ -158,12 +189,12 @@ void BFS_Iterative(const UnitigColorMap<myBool>& ucm){
 
         ucm_tmp = q.front(); // Get unitig at the front of the queue
 
-        q.pop(); // Delete unitig on the top of the stock from the stack
+        q.pop(); // Delete unitig at the front of the queue
 
         for (auto& successor : ucm_tmp.getSuccessors()){ // Traverse successors
 
-            DataAccessor<myBool>* da_succ = successor.getData(); // Get DataAccessor from successor
-            myBool* data_succ = da_succ->getData(successor); // Get boolean from DataAccessor
+            DataAccessor<MyBool>* da_succ = successor.getData(); // Get DataAccessor from successor
+            MyBool* data_succ = da_succ->getData(successor); // Get boolean from DataAccessor
 
             if (data_succ->is_not_visited()){ // If boolean indicates the successor was not visited
 
@@ -176,8 +207,8 @@ void BFS_Iterative(const UnitigColorMap<myBool>& ucm){
         // Traverse predecessors
         for (auto& predecessor : ucm_tmp.getPredecessors()){
 
-            DataAccessor<myBool>* da_pred = predecessor.getData(); // Get DataAccessor from predecessor
-            myBool* data_pred = da_pred->getData(predecessor); // Get boolean from DataAccessor
+            DataAccessor<MyBool>* da_pred = predecessor.getData(); // Get DataAccessor from predecessor
+            MyBool* data_pred = da_pred->getData(predecessor); // Get boolean from DataAccessor
 
             if (data_pred->is_not_visited()){ // If boolean indicates the predecessor was not visited
 
@@ -189,39 +220,24 @@ void BFS_Iterative(const UnitigColorMap<myBool>& ucm){
     }
 }
 
-void DFS_Recursive(const UnitigColorMap<myBool>& ucm){
+void DFS_Recursive(const UnitigColorMap<MyBool>& ucm){
 
-    for (auto& successor : ucm.getSuccessors()){ // Iterate over successors of a unitig
+    DataAccessor<MyBool>* da = ucm.getData(); // Get DataAccessor from unitig
+    MyBool* data = da->getData(ucm); // Get boolean from DataAccessor
 
-        DataAccessor<myBool>* da = successor.getData(); // Get DataAccessor from unitig successor
-        myBool* data = da->getData(successor); // Get boolean from DataAccessor
+    if (data->is_not_visited()){
 
-        if (data->is_not_visited()){ // If boolean indicates the unitig was not visited
+	    data->set_visited(); // Set boolean to indicate unitig was visited
 
-            data->set_visited(); // Set boolean to indicate unitig was visited
-
-            DFS_Recursive(successor); // Traverse neighbors of successor
-        }
-    }
-
-    for (auto& predecessor : ucm.getPredecessors()){ // Iterate over predecessors of a unitig
-
-        DataAccessor<myBool>* da = predecessor.getData(); // Get DataAccessor from unitig predecessor
-        myBool* data = da->getData(predecessor); // Get boolean from DataAccessor
-
-        if (data->is_not_visited()){ // If boolean indicates the unitig was not visited
-
-            data->set_visited(); // Set boolean to indicate unitig was visited
-
-            DFS_Recursive(predecessor); // Traverse neighbors of predecessor
-        }
-    }
+	    for (auto& successor : ucm.getSuccessors()) DFS_Recursive(successor); // Traverse neighbors of successor
+	    for (auto& predecessor : ucm.getPredecessors()) DFS_Recursive(predecessor); // Traverse neighbors of predecessor
+	}
 }
 
-void DFS_Iterative(const UnitigColorMap<myBool>& ucm){
+void DFS_Iterative(const UnitigColorMap<MyBool>& ucm){
 
-    stack<UnitigColorMap<myBool>> stck; // Create stack of unitig to traverse
-    UnitigColorMap<myBool> ucm_tmp(ucm); // Create a non-const local copy of unitig given in parameter
+    stack<UnitigColorMap<MyBool>> stck; // Create stack of unitig to traverse
+    UnitigColorMap<MyBool> ucm_tmp(ucm); // Create a non-const local copy of unitig given in parameter
 
     stck.push(ucm_tmp); // Push first unitig to traverse on the stack
 
@@ -229,10 +245,10 @@ void DFS_Iterative(const UnitigColorMap<myBool>& ucm){
 
         ucm_tmp = stck.top(); // Get the unitig on top of the stack
 
-        stck.pop(); // Delete unitig on the top of the stock from the stack
+        stck.pop(); // Delete unitig on the top of the stack
 
-        DataAccessor<myBool>* da = ucm_tmp.getData(); // Get DataAccessor from unitig
-        myBool* data = da->getData(ucm_tmp); // Get boolean from DataAccessor
+        DataAccessor<MyBool>* da = ucm_tmp.getData(); // Get DataAccessor from unitig
+        MyBool* data = da->getData(ucm_tmp); // Get boolean from DataAccessor
 
         if (data->is_not_visited()){ // If boolean indicates the unitig was not visited
 
@@ -250,36 +266,25 @@ void DFS_Iterative(const UnitigColorMap<myBool>& ucm){
 // or recursive (false) way. Recursive version is limited to small components because of
 // the stack size (recursive calls are piling up variables on your stack) which is not
 // the case of the iterative version. Default is iterative.
-void Traverse(ColoredCDBG<myBool>& ccdbg, const bool DFS = true, const bool iterative = true){
+void traverse(ColoredCDBG<MyBool>& ccdbg, const bool DFS = true, const bool iterative = true){
 
     for (auto& unitig : ccdbg){ // Iterate over unitigs of a colored de Bruijn graph
 
-        DataAccessor<myBool>* da = unitig.getData(); // Get DataAccessor from unitig
-        myBool* data = da->getData(unitig); // Get boolean from DataAccessor
-
-        if (data->is_not_visited()){ // If boolean indicates the unitig was not visited
-
-            if (iterative) DFS ? DFS_Iterative(unitig) : BFS_Iterative(unitig); // Traverse neighbors of unitig in an iterative manner
-            else {
-
-                data->set_visited(); // Set boolean to indicate unitig was visited
-
-                DFS ? DFS_Recursive(unitig) : BFS_Recursive(unitig); // Traverse neighbors of unitig in a recursive manner
-            }
-        }
+        if (iterative) DFS ? DFS_Iterative(unitig) : BFS_Iterative(unitig); // Traverse neighbors of unitig in an iterative manner
+        else DFS ? DFS_Recursive(unitig) : BFS_Recursive(unitig); // Traverse neighbors of unitig in a recursive manner
     }
 
-    cleanMarking(ccdbg);
+    clearMarking(ccdbg);
 }
 
-size_t getNbConnectedComponent(ColoredCDBG<myBool>& ccdbg){
+size_t getNbConnectedComponent(ColoredCDBG<MyBool>& ccdbg){
 
     size_t nb_cc = 0; // Number of connected components
 
     for (auto& unitig : ccdbg){ // Iterate over unitigs of a colored de Bruijn graph
 
-        DataAccessor<myBool>* da = unitig.getData(); // Get DataAccessor from unitig
-        myBool* data = da->getData(unitig); // Get boolean from DataAccessor
+        DataAccessor<MyBool>* da = unitig.getData(); // Get DataAccessor from unitig
+        MyBool* data = da->getData(unitig); // Get boolean from DataAccessor
 
         if (data->is_not_visited()){ // If boolean indicates the unitig was not visited
 
@@ -289,112 +294,92 @@ size_t getNbConnectedComponent(ColoredCDBG<myBool>& ccdbg){
         }
     }
 
-    cleanMarking(ccdbg);
+    clearMarking(ccdbg);
 
     return nb_cc;
 }
 
-void getCoreGraph(const ColoredCDBG<myBool>& cdbg_in, CompactedDBG<myBool>& cdbg_out){
+pair<UnitigColorMap<MyBool>, UnitigColorMap<MyBool>> extractSuperBubble(const UnitigColorMap<MyBool>& s){
 
-    size_t nb_colors = cdbg_in.getNbColors(); // Number of colors used in the graph
+    vector<UnitigColorMap<MyBool>> vertices_visit;
 
-    for (const auto& unitig : cdbg_in){ // Iterate over unitigs of the colored de Bruijn graph
+    pair<UnitigColorMap<MyBool>, UnitigColorMap<MyBool>> p;
 
-        // For each k-mer in the unitig
-        for (size_t i = 0; i <= unitig.size - static_cast<size_t>(cdbg_in.getK()); ++i){
+    unordered_set<UnitigColorMap<MyBool>, UnitigMapHash<DataAccessor<MyBool>, DataStorage<MyBool>>> set_km_seen;
 
-            const const_UnitigColorMap<myBool> ucm = unitig.getKmerMapping(i); // Get the mapping for this k-mer
-            const UnitigColors* uc = ucm.getData()->getUnitigColors(ucm); // Get the color set associated with this unitig
-
-            bool isCore = true; // Is the k-mer a core k-mer (has all colors, default is yes)?
-
-            for (size_t color_id = 0; (color_id != nb_colors) && isCore; ++color_id) isCore = uc->contains(ucm, color_id);
-
-            // If k-mer is core, add it to a new compacted de Bruijn graph
-            if (isCore) cdbg_out.add(unitig.getUnitigKmer(i).toString());
-        }
-    }
-}
-
-pair<UnitigColorMap<myBool>, UnitigColorMap<myBool>> extractSuperBubble(ColoredCDBG<myBool>& ccdbg, const UnitigColorMap<myBool>& s){
-
-    vector<UnitigColorMap<myBool>> vertices_visit;
-
-    pair<UnitigColorMap<myBool>, UnitigColorMap<myBool>> p;
-
-    unordered_set<UnitigColorMap<myBool>, UnitigMapHash<DataAccessor<myBool>, DataStorage<myBool>, false>> set_km_seen;
-
-    UnitigColorMap<myBool> v(s);
+    UnitigColorMap<MyBool> v(s);
 
     vertices_visit.push_back(v);
 
-    while (!vertices_visit.empty()){
+    while (!vertices_visit.empty()){ // While there are vertices to visit
 
-        v = vertices_visit.back();
+        v = vertices_visit.back(); // Pick arbitrary vertex in the set
 
-        vertices_visit.pop_back();
+        vertices_visit.pop_back(); // Delete that vertex from the set
 
-        DataAccessor<myBool>* da = v.getData(); // Get DataAccessor from unitig
-        myBool* data = da->getData(v); // Get boolean from DataAccessor
+        DataAccessor<MyBool>* da = v.getData(); // Get DataAccessor from unitig
+        MyBool* data = da->getData(v); // Get boolean from DataAccessor
+
+        //cout << v.getUnitigHead().toString() << " - " << data->toString() << endl;
 
         data->set_visited(); // Set boolean to indicate unitig was visited
         set_km_seen.insert(v);
 
-        size_t nb_succ = 0;
+        if (!v.getSuccessors().hasSuccessors()){ // Unitig is no successor, it is a tip
 
-        for (const auto& u : v.getSuccessors()) ++nb_succ;
-
-        if (nb_succ == 0){ // Unitig is a tip
-
-            cleanMarking(set_km_seen);
+            clearMarking(set_km_seen);
             return p;
         }
 
         for (auto& u : v.getSuccessors()){
 
-            if (u == s){ // Cycle
+            if (u == s){ // Cycle including s
 
-                cleanMarking(set_km_seen);
+                clearMarking(set_km_seen);
                 return p;
             }
 
-            DataAccessor<myBool>* da_u = u.getData(); // Get DataAccessor from successor
-            myBool* bool_u = da_u->getData(u); // Get boolean from DataAccessor
+            DataAccessor<MyBool>* da_u = u.getData(); // Get DataAccessor from successor
+            MyBool* bool_u = da_u->getData(u); // Get boolean from DataAccessor
 
-            bool_u->set_seen(); // Set boolean to indicate unitig was seen
-            set_km_seen.insert(u);
+            if (bool_u->is_not_visited()){
 
-            bool all_predecessor_visited = true;
+	            bool_u->set_seen(); // Set boolean to indicate unitig was seen
+	            set_km_seen.insert(u);
 
-            for (const auto& predecessor : u.getPredecessors()){
+	            bool all_predecessor_visited = true;
 
-                const DataAccessor<myBool>* da_pred = predecessor.getData();
-                const myBool* data_pred = da_pred->getData(predecessor);
+	            for (const auto& predecessor : u.getPredecessors()){
 
-                if (data_pred->is_not_visited()){
+	                const DataAccessor<MyBool>* da_pred = predecessor.getData();
+	                const MyBool* data_pred = da_pred->getData(predecessor);
 
-                    all_predecessor_visited = false;
-                    break;
-                }
-            }
+	                if (data_pred->is_not_visited()){
 
-            if (all_predecessor_visited) vertices_visit.push_back(u);
+	                    all_predecessor_visited = false;
+	                    break;
+	                }
+	            }
+
+	            if (all_predecessor_visited) vertices_visit.push_back(u);
+        	}
+        	else {
+
+                clearMarking(set_km_seen);
+                return p;
+        	}
         }
 
         if (vertices_visit.size() == 1){
 
             bool not_seen = true;
 
-            unordered_set<UnitigColorMap<myBool>, UnitigMapHash<DataAccessor<myBool>, DataStorage<myBool>, false>>::const_iterator it, it_end;
-
-            for (it = set_km_seen.begin(), it_end = set_km_seen.end(); it != it_end; ++it){
-
-                const const_UnitigColorMap<myBool> cucm = *it;
+            for (const auto& cucm : set_km_seen){
 
                 if (cucm != vertices_visit[0]){
 
-                    const DataAccessor<myBool>* da_cucm = cucm.getData();
-                    const myBool* data_cucm = da_cucm->getData(cucm);
+                    const DataAccessor<MyBool>* da_cucm = cucm.getData();
+                    const MyBool* data_cucm = da_cucm->getData(cucm);
 
                     if (data_cucm->is_seen()){
 
@@ -410,7 +395,7 @@ pair<UnitigColorMap<myBool>, UnitigColorMap<myBool>> extractSuperBubble(ColoredC
 
                     if (successor == s){ // cycle
 
-                        cleanMarking(set_km_seen);
+                        clearMarking(set_km_seen);
                         return p;
                     }
                 }
@@ -418,13 +403,13 @@ pair<UnitigColorMap<myBool>, UnitigColorMap<myBool>> extractSuperBubble(ColoredC
                 p.first = s;
                 p.second = vertices_visit[0];
 
-                cleanMarking(set_km_seen);
+                clearMarking(set_km_seen);
                 return p;
             }
         }
     }
 
-    cleanMarking(set_km_seen);
+    clearMarking(set_km_seen);
     return p;
 }
 
@@ -433,76 +418,51 @@ int main(int argc, char *argv[])
 
     if (argc != 1){
 
-        ColoredCDBG<myBool> ccdbg(31); // Create a new (empty) colored dBG of 31-mers
-        CCDBG_Build_opt opt;
-
-        opt.nb_threads = 4; // Use 4 threads when possible
-        opt.verbose = true; // Print messages during execution
+    	ColoredCDBG<MyBool> ccdbg;
 
         // Read input filenames
-        for (int i = 1; i != argc; ++i) opt.filename_seq_in.push_back(string(argv[i]));
+        const string filename_prefix(argv[1]);
 
-        // Check if input files can be opened
-        for (vector<string>::const_iterator it = opt.filename_seq_in.begin(); it != opt.filename_seq_in.end(); ++it){
+        cout << "=== Reading graph ===" << endl;
 
-            FILE* fp = fopen(it->c_str(), "r");
+        if (ccdbg.read(filename_prefix, 4)){
 
-            if (fp == NULL) {
+	        cout << "=== Traversing graph: Depth First Search ===" << endl;
 
-                cerr << "Could not open input FASTA/FASTQ file " << *it << endl;
-                exit(1);
-            }
-            else fclose(fp);
-        }
+	        traverse(ccdbg, true);
 
-        cout << "=== Building graph ===" << endl;
+	        cout << "=== Traversing graph: Breadth First Search ===" << endl;
 
-        ccdbg.build(opt);
+	        traverse(ccdbg, false);
 
-        cout << "=== Mapping colors to unitigs ===" << endl;
+	        cout << "=== Computing number of connected components ===" << endl;
 
-        ccdbg.mapColors(opt);
+	        const size_t nb_cc = getNbConnectedComponent(ccdbg);
 
-        cout << "=== Traversing graph: Depth First Search ===" << endl;
+	        cout << nb_cc << " connected components found" << endl;
 
-        Traverse(ccdbg, true);
+	        cout << "=== Computing super bubbles ===" << endl;
 
-        cout << "=== Traversing graph: Breadth First Search ===" << endl;
+	        size_t nb_super_bubble = 0;
+	        size_t nb_unitig_processed = 0;
 
-        Traverse(ccdbg, false);
+	        for (const auto& unitig : ccdbg){
 
-        cout << "=== Computing number of connected components ===" << endl;
+	            const pair<UnitigColorMap<MyBool>, UnitigColorMap<MyBool>> p = extractSuperBubble(unitig);
 
-        const size_t nb_cc = getNbConnectedComponent(ccdbg);
+	            if (!p.first.isEmpty && !p.second.isEmpty) ++nb_super_bubble;
 
-        cout << nb_cc << " connected components found" << endl;
+	            ++nb_unitig_processed;
 
-        cout << "=== Computing super bubbles ===" << endl;
+	            if (nb_unitig_processed % 100000 == 0){
 
-        size_t nb_super_bubble = 0;
-        size_t nb_unitig_processed = 0;
+	                cout << "Processed " << nb_unitig_processed << " unitigs: " << nb_super_bubble << " super bubbles so far" << endl;
+	            }
+	        }
 
-        for (const auto& unitig : ccdbg){
-
-            const pair<UnitigColorMap<myBool>, UnitigColorMap<myBool>> p = extractSuperBubble(ccdbg, unitig);
-
-            if (!p.first.isEmpty && !p.second.isEmpty) ++nb_super_bubble;
-
-            ++nb_unitig_processed;
-
-            if (nb_unitig_processed % 100000 == 0){
-
-                cout << "Processed " << nb_unitig_processed << " unitigs: " << nb_super_bubble << " super bubbles so far" << endl;
-            }
-        }
-
-        cout << nb_super_bubble << " super bubbles found ===" << endl;
-
-        cout << "=== Extracting core graph ===" << endl;
-
-        CompactedDBG<myBool> cdbg(31);
-
-        getCoreGraph(ccdbg, cdbg);
+	        cout << nb_super_bubble << " super bubbles found" << endl;
+    	}
+    	else cerr << "Invalid graph filename prefix provided" << endl;
     }
-    else cerr << "No input FASTA/FASTQ file(s) provided" << endl;
+    else cerr << "No input graph filename prefix provided" << endl;
 }
