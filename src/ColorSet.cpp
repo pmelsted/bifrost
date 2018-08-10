@@ -191,12 +191,27 @@ UnitigColors& UnitigColors::operator=(UnitigColors&& o){
     return *this;
 }
 
-bool UnitigColors::operator==(const UnitigColors& o) const {
+/*bool UnitigColors::operator==(const UnitigColors& o) const {
 
     if (size() != o.size()) return false;
     if (isUnitigColors() != o.isUnitigColors()) return false;
 
     UnitigColors::const_iterator it(begin(1)), o_it(o.begin(1));
+    const UnitigColors::const_iterator it_end(end()), o_it_end(o.end());
+
+    for (; (it != it_end) && (o_it != o_it_end); ++it, ++o_it){
+
+        if (it.get_ID() != o_it.get_ID()) return false;
+    }
+
+    return ((it == it_end) && (o_it == o_it_end));
+}*/
+
+bool UnitigColors::isEqual(const UnitigMapBase& um, const UnitigColors& o, const UnitigMapBase& um_o) const {
+
+    if (size() != o.size()) return false;
+
+    UnitigColors::const_iterator it(begin(um)), o_it(o.begin(um_o));
     const UnitigColors::const_iterator it_end(end()), o_it_end(o.end());
 
     for (; (it != it_end) && (o_it != o_it_end); ++it, ++o_it){

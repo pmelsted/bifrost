@@ -56,6 +56,50 @@ ColoredCDBG<U>& ColoredCDBG<U>::operator+=(const ColoredCDBG& o) {
 }
 
 template<typename U>
+bool ColoredCDBG<U>::operator==(const ColoredCDBG& o) const {
+
+    if (!invalid && !this->invalid && !o.invalid && (this->k_ == o.k_) && (this->size() == o.size())){
+
+        for (const auto& unitig : *this){
+
+            const_UnitigColorMap<U> unitig_o(o.find(unitig.getUnitigHead(), true));
+
+            if (unitig_o.isEmpty) return false;
+            else {
+
+                unitig_o.dist = 0;
+                unitig_o.len = unitig_o.size - this->k_ + 1;
+
+                const string unitig_o_str = unitig_o.strand ? unitig_o.toString() : reverse_complement(unitig_o.toString());
+
+                if (unitig_o_str != unitig.toString()) return false;
+                else {
+
+                    const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
+                    const UnitigColors* uc_o = unitig_o.getData()->getUnitigColors(unitig_o);
+
+                    if ((uc != nullptr) && (uc_o != nullptr)){
+
+                        if (!uc->isEqual(unitig, *uc_o, unitig_o)) return false;
+                    }
+                    else if ((uc != nullptr) != (uc_o != nullptr)) return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+template<typename U>
+inline bool ColoredCDBG<U>::operator!=(const ColoredCDBG& o) const {
+
+    return !operator==(o);
+}
+
+template<typename U>
 bool ColoredCDBG<U>::merge(const ColoredCDBG& o, const size_t nb_threads, const bool verbose){
 
     bool ret = true;

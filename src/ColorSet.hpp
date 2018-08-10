@@ -177,19 +177,22 @@ class UnitigColors {
         */
         UnitigColors& operator=(UnitigColors&& o);
 
-        bool operator==(const UnitigColors& o) const;
-
-        /** Inequality operator.
-        * @return a boolean indicating if two UnitigColors do not contain the same pairs (k-mer position, color).
-        */
-        inline bool operator!=(const UnitigColors& o) const {
-
-            return !operator==(o);
-        }
+        //bool operator==(const UnitigColors& o) const;
+        // inline bool operator!=(const UnitigColors& o) const { return !operator==(o);
 
         /** Empty a UnitigColors of its content.
         */
         void clear();
+
+        /** Check if two UnitigColors are equal.
+        * @param um is a UnitigMapBase object representing the reference unitig to which the current
+        * UnitigColors calling this function (this) is associated.
+        * @param o is the UnitigColors to compare to the current UnitigColors calling this function (this).
+        * @param um_o is a UnitigMapBase object representing the reference unitig to which the input
+        * UnitigColors o (parameter) is associated.
+        * @return a boolean indicating whether the two UnitigColors are equal.
+        */
+        bool isEqual(const UnitigMapBase& um, const UnitigColors& o, const UnitigMapBase& um_o) const;
 
         /** Check if a UnitigColors is empty (no colors).
         * @return a boolean indicating if the UnitigColors is empty.

@@ -318,6 +318,18 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         */
         ColoredCDBG& operator=(ColoredCDBG&& o);
 
+        /** Equality operator.
+        * @return a boolean indicating if two compacted de Bruijn graphs have the same colored unitigs (does not
+        * compare the data associated with the unitigs).
+        */
+        bool operator==(const ColoredCDBG& o) const;
+
+        /** Inequality operator.
+        * @return a boolean indicating if two compacted de Bruijn graphs have different colored unitigs (does not
+        * compare the data associated with the unitigs).
+        */
+        inline bool operator!=(const ColoredCDBG& o) const;
+
         /** Addition assignment operator (merge a colored cdBG).
         * After merging, all unitigs and colors of o have been added to and compacted with the current colored
         * and compacted de Bruijn graph (this). If the unitigs of o had data of type "MyUnitigData" associated,
