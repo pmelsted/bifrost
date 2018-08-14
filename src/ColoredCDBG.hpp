@@ -224,7 +224,7 @@ class CCDBG_Data_t {
         * @param um_src is a UnitigColorMap object representing a sub-unitig (the mapped sequence of the mapping) for which the
         * data must be merged with the data of sub-unitig B (given by parameter um_dest).
         */
-        void merge(const UnitigColors& uc_dest, const UnitigColorMap<U>& um_dest, const const_UnitigColorMap<U>& um_src){}
+        void merge(const UnitigColorMap<U>& um_dest, const const_UnitigColorMap<U>& um_src){}
 
         /** Extract data corresponding to a sub-unitig of a unitig A. The extracted sub-unitig, called B in the following, is defined
         * as a mapping to A given by the input UnitigColorMap object um_src. Hence, B = A[um_src.dist, um_src.dist + um_src.len + k - 1]
