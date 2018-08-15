@@ -1100,6 +1100,8 @@ uint64_t DataStorage<U>::getHash(const UnitigColorMap<U>& um) const {
 template<typename U>
 pair<DataAccessor<U>, UnitigColors*> DataStorage<U>::insert_(const Kmer head, const size_t unitig_sz, const bool force_overflow) {
 
+    if (color_sets == nullptr) return {DataAccessor<U>(0), nullptr};
+
     uint64_t i, pos, id_link_mod;
 
     for (i = (force_overflow ? nb_seeds : 0); i < nb_seeds; ++i){
@@ -1157,6 +1159,8 @@ pair<DataAccessor<U>, UnitigColors*> DataStorage<U>::insert_(const Kmer head, co
 template<typename U>
 pair<DataAccessor<U>, pair<UnitigColors*, U*>> DataStorage<U>::insert(const Kmer head, const size_t unitig_sz, const bool force_overflow) {
 
+    if ((color_sets == nullptr) && (data == nullptr)) return {DataAccessor<U>(0), {nullptr, nullptr}};
+
     const pair<DataAccessor<U>, UnitigColors*> p(insert_(head, unitig_sz, force_overflow));
 
     return {p.first, {p.second, &data[p.second - color_sets]}};
@@ -1164,6 +1168,8 @@ pair<DataAccessor<U>, pair<UnitigColors*, U*>> DataStorage<U>::insert(const Kmer
 
 template<>
 inline pair<DataAccessor<void>, pair<UnitigColors*, void*>> DataStorage<void>::insert(const Kmer head, const size_t unitig_sz, const bool force_overflow) {
+
+    if ((color_sets == nullptr) && (data == nullptr)) return {DataAccessor<void>(0), {nullptr, nullptr}};
 
     const pair<DataAccessor<void>, UnitigColors*> p(insert_(head, unitig_sz, force_overflow));
 
@@ -1173,6 +1179,8 @@ inline pair<DataAccessor<void>, pair<UnitigColors*, void*>> DataStorage<void>::i
 template<typename U>
 pair<DataAccessor<U>, pair<UnitigColors*, U*>> DataStorage<U>::insert(const UnitigColorMap<U>& um, const bool force_overflow) {
 
+    if ((color_sets == nullptr) && (data == nullptr)) return {DataAccessor<U>(0), {nullptr, nullptr}};
+
     const Kmer head(um.getMappedHead());
     const pair<DataAccessor<U>, UnitigColors*> p(insert_(head, um.len + um.getGraph()->getK() - 1, force_overflow));
 
@@ -1181,6 +1189,8 @@ pair<DataAccessor<U>, pair<UnitigColors*, U*>> DataStorage<U>::insert(const Unit
 
 template<>
 inline pair<DataAccessor<void>, pair<UnitigColors*, void*>> DataStorage<void>::insert(const UnitigColorMap<void>& um, const bool force_overflow) {
+
+    if ((color_sets == nullptr) && (data == nullptr)) return {DataAccessor<void>(0), {nullptr, nullptr}};
 
     const Kmer head(um.getMappedHead());
     const pair<DataAccessor<void>, UnitigColors*> p(insert_(head, um.len + um.getGraph()->getK() - 1, force_overflow));
