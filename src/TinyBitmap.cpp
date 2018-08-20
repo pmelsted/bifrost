@@ -884,7 +884,6 @@ bool TinyBitmap::change_sz(const uint16_t sz_min) {
         }
 
         std::memset(tiny_bmp_new, 0, new_sz * sizeof(uint16_t));
-
         std::copy(tiny_bmp, tiny_bmp + (new_sz >= sz ? sz : sz_min), tiny_bmp_new);
 
         free(tiny_bmp);

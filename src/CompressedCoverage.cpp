@@ -96,7 +96,25 @@ void CompressedCoverage::initialize(const size_t sz, const bool full) {
     }
 
     assert(sz == size());
+}
 
+void CompressedCoverage::initialize(const size_t sz, const size_t init_cov) {
+
+    if (sz <= size_limit) asBits = tagMask | (sizeMask & (sz << 2)) | (localCoverageMask << 8);
+    else {
+
+        const uint8_t cov_max_8bits = static_cast<uint8_t>(init_cov);
+        const uint8_t cov_full_8bits = cov_max_8bits | (cov_max_8bits << 2) | (cov_max_8bits << 4) | (cov_max_8bits << 6);
+
+        asPointer = new uint8_t[8 + round_to_bytes(sz)];
+
+        *(get32Pointer()) = sz;
+        *(get32Pointer() + 1) = (init_cov == cov_full) ? 0 : sz;
+
+        memset(asPointer + 8, cov_full_8bits, round_to_bytes(sz)); // 0 out array allocated
+    }
+
+    assert(sz == size());
 }
 
 // use:  cc.releasePointer();
@@ -219,12 +237,8 @@ void CompressedCoverage::cover(size_t start, size_t end) {
         for (uintptr_t val_tmp; start <= end; start += 2, s <<= 2, val >>= 2) {
 
             val_tmp = val & 0x3;
-
-            if (val_tmp < cov_full) {
-
-                val_tmp = (val_tmp + 1) << start;
-                asBits = (asBits & ~s) | val_tmp;
-            }
+            val_tmp = (val_tmp + (val_tmp < cov_full)) << start;
+            asBits = (asBits & ~s) | val_tmp;
         }
 
         if (isFull()) asBits = fullMask | (size() << 32);
@@ -233,30 +247,80 @@ void CompressedCoverage::cover(size_t start, size_t end) {
 
         const uint8_t s = 0x3;
         uint8_t* ptr = get8Pointer() + 8;
-        size_t fillednow = 0;
-        size_t index, pos;
+        size_t filled = 0;
 
-        uint8_t val;
+        for (uint8_t val; start <= end; ++start) {
 
-        for (; start <= end; ++start) {
+            const size_t index = start >> 2; // start / 4
+            const size_t pos = 2 * (start & 0x3); // 2 * (start % 4)
 
-            index = start >> 2; // start / 4
-            pos = 2 * (start & 0x3); // 2 * (start % 4)
             val = (ptr[index] >> pos) & 0x3; //(ptr[index] & (s << pos)) >> pos;
 
             if (val < cov_full) {
 
                 ++val;
-                if (val == cov_full) ++fillednow;
-                val <<= pos;
+                filled += (val == cov_full);
 
-                ptr[index] = (ptr[index] & ~(s << pos)) | val;
+                ptr[index] = (ptr[index] & ~(s << pos)) | (val << pos);
             }
         }
 
         // Decrease filledcounter
-        if (fillednow > 0) *(get32Pointer() + 1) -= fillednow;
+        if (filled > 0) *(get32Pointer() + 1) -= filled;
         if (isFull()) releasePointer();
+    }
+}
+
+void CompressedCoverage::uncover(size_t start, size_t end) {
+
+    if (end < start) std::swap(start, end);
+
+    assert(end < size());
+
+    if ((asBits & fullMask) == fullMask) initialize(size(), cov_full);
+
+    if ((asBits & tagMask) == tagMask) { // local array
+
+        uintptr_t s = 0x3;
+        uintptr_t val = asBits;
+
+        start = 8 + 2 * start;
+        end = 8 + 2 * end;
+
+        s <<= start;
+        val >>= start;
+
+        for (uintptr_t val_tmp; start <= end; start += 2, s <<= 2, val >>= 2) {
+
+            val_tmp = val & 0x3;
+            val_tmp = (val_tmp - (val_tmp > 0)) << start;
+            asBits = (asBits & ~s) | val_tmp;
+        }
+    }
+    else {
+
+        const uint8_t s = 0x3;
+        uint8_t* ptr = get8Pointer() + 8;
+        size_t unfilled = 0;
+
+        for (uint8_t val; start <= end; ++start) {
+
+            const size_t index = start >> 2; // start / 4
+            const size_t pos = 2 * (start & 0x3); // 2 * (start % 4)
+
+            val = (ptr[index] >> pos) & 0x3; // (ptr[index] & (s << pos)) >> pos;
+
+            if (val > 0) {
+
+                unfilled += (val == cov_full);
+                --val;
+
+                ptr[index] = (ptr[index] & ~(s << pos)) | (val << pos);
+            }
+        }
+
+        // Decrease filledcounter
+        if (unfilled > 0) *(get32Pointer() + 1) += unfilled;
     }
 }
 
@@ -272,6 +336,7 @@ uint8_t CompressedCoverage::covAt(const size_t index) const {
 
         const uint8_t* ptr = get8Pointer() + 8;
         const size_t pos = 2 * (index & 0x03);
+
         return (ptr[index >> 2] & (0x03 << pos)) >> pos;
     }
 }
@@ -283,24 +348,22 @@ uint8_t CompressedCoverage::covAt(const size_t index) const {
 //       sum is the sum of these low coverages
 pair<size_t, size_t> CompressedCoverage::lowCoverageInfo() const {
 
-    if (isFull()) return make_pair(0,0);
+    if (isFull()) return {0, 0};
 
-    size_t sz = size();
+    const size_t sz = size();
+
     size_t low = 0;
     size_t sum = 0;
 
-    for(size_t i=0; i<sz; ++i) {
+    for (size_t i=0; i<sz; ++i) {
 
         const size_t cov = covAt(i);
 
-        if (cov < cov_full) {
-
-            ++low;
-            sum += cov;
-        }
+        low += (cov < cov_full);
+        sum += (cov < cov_full) * cov;
     }
 
-    return make_pair(low, sum);
+    return {low, sum};
 }
 
 
@@ -328,7 +391,7 @@ vector<pair<int, int>> CompressedCoverage::splittingVector() const {
 
         while ((b < sz) && (covAt(b) >= cov_full)) ++b;
 
-        v.push_back(make_pair(a,b));
+        v.push_back({a,b});
 
         a = b;
     }

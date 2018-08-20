@@ -63,7 +63,7 @@ class DataStorage {
         bool read(const string& filename_colors, bool verbose = false);
 
         bool addUnitigColors(const UnitigColorMap<U>& um_dest, const const_UnitigColorMap<U>& um_src);
-        UnitigColors joinUnitigColors(const const_UnitigColorMap<U>& um_dest, const const_UnitigColorMap<U>& um_src);
+        UnitigColors joinUnitigColors(const const_UnitigColorMap<U>& um_dest, const const_UnitigColorMap<U>& um_src) const;
 
         inline size_t getNbColors() const { return color_names.size(); }
 
@@ -103,7 +103,7 @@ class DataStorage {
 
         unordered_map<pair<Kmer, size_t>, size_t> overflow;
 
-        mutex mutex_overflow;
+        mutable mutex mutex_overflow;
 
         vector<string> color_names;
 };

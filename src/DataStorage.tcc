@@ -372,6 +372,8 @@ const UnitigColors* DataStorage<U>::getUnitigColors(const const_UnitigColorMap<U
 
         if (da_id == 0){
 
+            unique_lock<mutex> lock(mutex_overflow);
+
             unordered_map<pair<Kmer, size_t>, size_t>::const_iterator it = overflow.find({head, um.size});
             if (it != overflow.end()) return &color_sets[it->second];
         }
@@ -391,6 +393,8 @@ UnitigColors* DataStorage<U>::getUnitigColors(const UnitigColorMap<U>& um) {
 
         if (da_id == 0){
 
+            unique_lock<mutex> lock(mutex_overflow);
+
             unordered_map<pair<Kmer, size_t>, size_t>::iterator it = overflow.find({head, um.size});
             if (it != overflow.end()) return &color_sets[it->second];
         }
@@ -409,6 +413,8 @@ const U* DataStorage<U>::getData(const const_UnitigColorMap<U>& um) const {
         const uint8_t da_id = um.getData()->get();
 
         if (da_id == 0){
+
+            unique_lock<mutex> lock(mutex_overflow);
 
             unordered_map<pair<Kmer, size_t>, size_t>::const_iterator it = overflow.find({head, um.size});
             if (it != overflow.end()) return &data[it->second];
@@ -433,6 +439,8 @@ U* DataStorage<U>::getData(const UnitigColorMap<U>& um) {
         const uint8_t da_id = um.getData()->get();
 
         if (da_id == 0){
+
+            unique_lock<mutex> lock(mutex_overflow);
 
             unordered_map<pair<Kmer, size_t>, size_t>::iterator it = overflow.find({head, um.size});
             if (it != overflow.end()) return &data[it->second];
@@ -461,20 +469,44 @@ UnitigColors DataStorage<U>::getSubUnitigColors(const const_UnitigColorMap<U>& u
 
             const size_t end = um.dist + um.len;
             const size_t um_km_sz = um.size - um.getGraph()->getK() + 1;
+            const size_t nb_colors = um.getGraph()->getData()->color_names.size();
 
             UnitigColorMap<U> um_tmp(0, 1, um.len + um.getGraph()->getK() - 1, um.strand);
 
-            UnitigColors::const_iterator it(cs->begin(um));
-            const UnitigColors::const_iterator it_end(cs->end());
+            if ((um.len * nb_colors * 16) < cs->size(um)){
 
-            for (; it != it_end; ++it){
+                for (size_t colorID = 0; colorID < nb_colors; ++colorID){
 
-                const size_t km_dist = it.getKmerPosition();
+                    for (size_t km_dist = um.dist; km_dist < end; ++km_dist){
 
-                if ((km_dist >= um.dist) && (km_dist < end)){
+                        if (cs->contains(colorID * um_km_sz + km_dist)){
 
-                    um_tmp.dist = um.strand ? (km_dist - um.dist) : (um.dist + um.len - km_dist - 1);
-                    new_cs.add(um_tmp, it.getColorID());
+                            um_tmp.dist = um.strand ? (km_dist - um.dist) : (um.dist + um.len - km_dist - 1);
+                            new_cs.add(um_tmp, colorID);
+                        }
+                    }
+                }
+            }
+            else {
+
+                UnitigColors::const_iterator it(cs->begin(um));
+                const UnitigColors::const_iterator it_end(cs->end());
+
+                while (it != it_end){
+
+                    const size_t km_dist = it.getKmerPosition();
+
+                    if (km_dist < end){
+
+                        if (km_dist >= um.dist){
+
+                            um_tmp.dist = um.strand ? (km_dist - um.dist) : (um.dist + um.len - km_dist - 1);
+                            new_cs.add(um_tmp, it.getColorID());
+                        }
+
+                        ++it;
+                    }
+                    else it.nextColor();
                 }
             }
         }
@@ -822,23 +854,53 @@ bool DataStorage<U>::addUnitigColors(const UnitigColorMap<U>& um_dest, const con
         if ((cs_dest != nullptr) && (cs_src != nullptr)){
 
             const size_t pos_end_src = um_src.dist + um_src.len;
-            const size_t nb_colors_dest = um_dest.getGraph()->getData()->color_names.size() - um_src.getGraph()->getData()->color_names.size();
+            const size_t nb_colors_src = um_src.getGraph()->getData()->color_names.size();
+            const size_t nb_colors_dest = um_dest.getGraph()->getData()->color_names.size() - nb_colors_src;
 
             UnitigColorMap<U> um_tmp(0, 1, um_dest.size, um_dest.strand);
 
-            UnitigColors::const_iterator it(cs_src->begin(um_src));
-            const UnitigColors::const_iterator it_end(cs_src->end());
+            //unique_lock<mutex> lock(mutex_overflow);
 
-            for (; it != it_end; ++it){
+            if ((um_src.len * nb_colors_src * 16) < cs_src->size(um_src)){
 
-                const size_t km_dist = it.getKmerPosition();
+                const size_t sz_km_src = um_src.size - Kmer::k + 1;
 
-                if ((km_dist >= um_src.dist) && (km_dist < pos_end_src)){
+                for (size_t colorID = 0; colorID < nb_colors_src; ++colorID){
 
-                    if (um_dest.strand != um_src.strand) um_tmp.dist = (um_src.len - 1 - (km_dist - um_src.dist)) + um_dest.dist;
-                    else um_tmp.dist = (km_dist - um_src.dist) + um_dest.dist;
+                    for (size_t km_dist = um_src.dist; km_dist < pos_end_src; ++km_dist){
 
-                    cs_dest->add(um_tmp, it.getColorID() + nb_colors_dest);
+                        if (cs_src->contains(colorID * sz_km_src + km_dist)){
+
+                            if (um_dest.strand != um_src.strand) um_tmp.dist = (um_src.len - 1 - (km_dist - um_src.dist)) + um_dest.dist;
+                            else um_tmp.dist = (km_dist - um_src.dist) + um_dest.dist;
+
+                            cs_dest->add(um_tmp, colorID + nb_colors_dest);
+                        }
+                    }
+                }
+            }
+            else {
+
+                UnitigColors::const_iterator it(cs_src->begin(um_src));
+                const UnitigColors::const_iterator it_end(cs_src->end());
+
+                while (it != it_end){
+
+                    const size_t km_dist = it.getKmerPosition();
+
+                    if (km_dist < pos_end_src){
+
+                        if (km_dist >= um_src.dist){
+
+                            if (um_dest.strand != um_src.strand) um_tmp.dist = (um_src.len - 1 - (km_dist - um_src.dist)) + um_dest.dist;
+                            else um_tmp.dist = (km_dist - um_src.dist) + um_dest.dist;
+
+                            cs_dest->add(um_tmp, it.getColorID() + nb_colors_dest);
+                        }
+
+                        ++it;
+                    }
+                    else it.nextColor();
                 }
             }
         }
@@ -848,7 +910,7 @@ bool DataStorage<U>::addUnitigColors(const UnitigColorMap<U>& um_dest, const con
 }
 
 template<typename U>
-UnitigColors DataStorage<U>::joinUnitigColors(const const_UnitigColorMap<U>& um_dest, const const_UnitigColorMap<U>& um_src) {
+UnitigColors DataStorage<U>::joinUnitigColors(const const_UnitigColorMap<U>& um_dest, const const_UnitigColorMap<U>& um_src) const {
 
     UnitigColors new_cs;
 
@@ -977,6 +1039,8 @@ void DataStorage<U>::remove(const UnitigColorMap<U>& um) {
 
         if (da_id == 0){
 
+            unique_lock<mutex> lock(mutex_overflow);
+
             unordered_map<pair<Kmer, size_t>, size_t>::iterator it = overflow.find({head, um.size});
 
             if (it != overflow.end()){
@@ -1017,6 +1081,8 @@ inline void DataStorage<void>::remove(const UnitigColorMap<void>& um) {
         const uint8_t da_id = um.getData()->get();
 
         if (da_id == 0){
+
+            unique_lock<mutex> lock(mutex_overflow);
 
             unordered_map<pair<Kmer, size_t>, size_t>::iterator it = overflow.find({head, um.size});
 
@@ -1088,6 +1154,8 @@ uint64_t DataStorage<U>::getHash(const UnitigColorMap<U>& um) const {
 
         if (da_id == 0){
 
+            unique_lock<mutex> lock(mutex_overflow);
+
             unordered_map<pair<Kmer, size_t>, size_t>::const_iterator it = overflow.find({head, um.size});
             if (it != overflow.end()) return it->second;
         }
@@ -1151,6 +1219,7 @@ pair<DataAccessor<U>, UnitigColors*> DataStorage<U>::insert_(const Kmer head, co
         pos = pos_empty_cs;
 
         overflow.insert({{head, unitig_sz}, pos}); // Insertion
+
     }
 
     return {DataAccessor<U>(static_cast<uint8_t>(i == nb_seeds ? 0 : i + 1)), &color_sets[pos]};

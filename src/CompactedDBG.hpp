@@ -505,7 +505,15 @@ class CompactedDBG {
 
     protected:
 
-        bool mergeUnitigs(const CompactedDBG<U, G>& o, const bool verbose = false);
+        bool annotateSplitUnitigs(const CompactedDBG<U, G>& o, const bool verbose = false);
+
+        pair<size_t, size_t> splitAllUnitigs();
+
+        inline size_t joinUnitigs(vector<Kmer>* v_joins = nullptr, const size_t nb_threads = 1) {
+
+            return joinUnitigs_<is_void<U>::value>(v_joins, nb_threads);
+        }
+
         bool mergeData(const CompactedDBG<U, G>& o, const size_t nb_threads = 1, const bool verbose = false);
 
     private:
@@ -520,13 +528,25 @@ class CompactedDBG {
         bool bwStepBBF(Kmer km, Kmer& front, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;
         bool fwStepBBF(Kmer km, Kmer& end, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;
 
+        inline size_t find(const preAllocMinHashIterator<RepHash>& it_min_h) const {
+
+            const int pos = it_min_h.getPosition();
+            return (hmap_min_unitigs.find(Minimizer(&it_min_h.s[pos]).rep()) != hmap_min_unitigs.end() ? 0 : pos - it_min_h.p);
+        }
+
+        UnitigMap<U, G> find(const Kmer& km, const preAllocMinHashIterator<RepHash>& it_min_h);
+        vector<const_UnitigMap<U, G>> findPredecessors(const Kmer& km, const bool extremities_only = false) const;
+        vector<const_UnitigMap<U, G>> findSuccessors(const Kmer& km, const size_t limit = 4, const bool extremities_only = false) const;
+
         UnitigMap<U, G> findUnitig(const Kmer& km, const char* s, size_t pos);
         UnitigMap<U, G> findUnitig(const Kmer& km, const char* s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h);
 
         bool addUnitig(const string& str_unitig, const size_t id_unitig);
         bool addUnitig(const string& str_unitig, const size_t id_unitig, const size_t id_unitig_r, const size_t is_short_r);
         void swapUnitigs(const bool isShort, const size_t id_a, const size_t id_b);
+
         bool mergeUnitig(const string& seq, const bool verbose = false);
+        bool annotateSplitUnitig(const string& seq, const bool verbose = false);
 
         template<bool is_void>
         inline typename std::enable_if<!is_void, void>::type mergeData_(const UnitigMap<U, G>& a, const const_UnitigMap<U, G>& b){
@@ -546,26 +566,17 @@ class CompactedDBG {
                                                                     const size_t id_unitig, const bool delete_data = true);
 
         template<bool is_void>
-        typename std::enable_if<!is_void, bool>::type splitUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
-                                                                   size_t& v_unitigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp);
+        typename std::enable_if<!is_void, bool>::type extractUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
+                                                                    size_t& v_unitigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp);
         template<bool is_void>
-        typename std::enable_if<is_void, bool>::type splitUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
-                                                                  size_t& v_unitigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp);
+        typename std::enable_if<is_void, bool>::type extractUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
+                                                                    size_t& v_unitigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp);
 
-        UnitigMap<U, G> find(const Kmer& km, const preAllocMinHashIterator<RepHash>& it_min_h);
-        vector<const_UnitigMap<U, G>> findPredecessors(const Kmer& km, const bool extremities_only = false) const;
-        vector<const_UnitigMap<U, G>> findSuccessors(const Kmer& km, const size_t limit = 4, const bool extremities_only = false) const;
-
-        inline size_t find(const preAllocMinHashIterator<RepHash>& it_min_h) const {
-
-            const int pos = it_min_h.getPosition();
-            return (hmap_min_unitigs.find(Minimizer(&it_min_h.s[pos]).rep()) != hmap_min_unitigs.end() ? 0 : pos - it_min_h.p);
-        }
-
-        pair<size_t, size_t> splitAllUnitigs();
+        pair<size_t, size_t> extractAllUnitigs();
 
         template<bool is_void>
         typename std::enable_if<!is_void, size_t>::type joinUnitigs_(vector<Kmer>* v_joins = nullptr, const size_t nb_threads = 1);
+
         template<bool is_void>
         typename std::enable_if<is_void, size_t>::type joinUnitigs_(vector<Kmer>* v_joins = nullptr, const size_t nb_threads = 1);
 
@@ -588,7 +599,8 @@ class CompactedDBG {
         template<bool is_void>
         typename std::enable_if<is_void, void>::type writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const;
 
-        void mapRead(const UnitigMap<U, G>& cc);
+        void mapRead(const const_UnitigMap<U, G>& um);
+        void unmapRead(const const_UnitigMap<U, G>& um);
 
         void setKmerGmerLength(const int kmer_length, const int minimizer_length);
         void print() const;

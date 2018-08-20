@@ -42,8 +42,11 @@ class CompressedCoverage {
         inline void clear() { releasePointer(); };
 
         void initialize(const size_t sz, const bool full);
+        void initialize(const size_t sz, const size_t init_cov);
 
         void cover(size_t start, size_t end);
+        void uncover(size_t start, size_t end);
+
         uint8_t covAt(const size_t index) const;
 
         bool isFull() const;

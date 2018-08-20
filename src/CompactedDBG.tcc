@@ -1232,11 +1232,30 @@ bool CompactedDBG<U, G>::merge(const CompactedDBG& o, const size_t nb_threads, c
          ret = false;
     }
 
-    if (ret && mergeUnitigs(o, verbose)){
+    if (ret){
 
-        if (!is_void<U>::value) mergeData(o, nb_threads, verbose);
+        const size_t sz_before = size();
 
-        return true;
+        for (auto& unitig : *this) unitig.setFullCoverage();
+
+        if (annotateSplitUnitigs(o, verbose)){
+
+            const size_t sz_after = size();
+            const pair<size_t, size_t> p = splitAllUnitigs();
+            const size_t joined = (p.second != 0) ? joinUnitigs_<is_void<U>::value>() : 0;
+
+            if (verbose){
+
+                cout << "CompactedDBG::merge(): Added " << (sz_after - sz_before) << " new unitigs." << endl;
+                cout << "CompactedDBG::merge(): Split " << p.first << " unitigs into " << p.second << " new unitigs." << endl;
+                cout << "CompactedDBG::merge(): Joined " << joined << " unitigs." << endl;
+                cout << "CompactedDBG::merge(): " << size() << " unitigs after merging." << endl;
+            }
+
+            if (!is_void<U>::value) mergeData(o, nb_threads, verbose);
+
+            return true;
+        }
     }
 
     return false;
@@ -1282,14 +1301,30 @@ bool CompactedDBG<U, G>::merge(const vector<CompactedDBG>& v, const size_t nb_th
 
     if (ret){
 
+        const size_t sz_before = size();
+
+        for (auto& unitig : *this) unitig.setFullCoverage();
+
         for (const auto& cdbg : v){
 
-            ret = mergeUnitigs(cdbg, verbose);
+            ret = annotateSplitUnitigs(cdbg, verbose);
 
             if (!ret) break;
         }
 
         if (ret){
+
+            const size_t sz_after = size();
+            const pair<size_t, size_t> p = splitAllUnitigs();
+            const size_t joined = (p.second != 0) ? joinUnitigs_<is_void<U>::value>() : 0;
+
+            if (verbose){
+
+                cout << "CompactedDBG::merge(): Added " << (sz_after - sz_before) << " new unitigs." << endl;
+                cout << "CompactedDBG::merge(): Split " << p.first << " unitigs into " << p.second << " new unitigs." << endl;
+                cout << "CompactedDBG::merge(): Joined " << joined << " unitigs." << endl;
+                cout << "CompactedDBG::merge(): " << size() << " unitigs after merging." << endl;
+            }
 
             if (!is_void<U>::value){
 
@@ -1304,31 +1339,31 @@ bool CompactedDBG<U, G>::merge(const vector<CompactedDBG>& v, const size_t nb_th
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::mergeUnitigs(const CompactedDBG<U, G>& o, const bool verbose){
+bool CompactedDBG<U, G>::annotateSplitUnitigs(const CompactedDBG<U, G>& o, const bool verbose){
 
     if ((this != &o) && !invalid && !o.invalid) { // TODO: Check if k_ and g_ are the same
 
         if (verbose){
 
-            cout << "CompactedDBG::mergeUnitigs(): Current graph has " << size() << " unitigs." << endl;
-            cout << "CompactedDBG::mergeUnitigs(): Graph to merge has " << o.size() << " unitigs." << endl;
+            cout << "CompactedDBG::annotateSplitUnitigs(): Current graph has " << size() << " unitigs." << endl;
+            cout << "CompactedDBG::annotateSplitUnitigs(): Graph to merge has " << o.size() << " unitigs." << endl;
 
             size_t i = 0;
 
             for (const auto& unitig : o){
 
-                cout << "CompactedDBG::mergeUnitigs(): Processing unitig " << i << " of length " << unitig.toString().length() << endl;
+                cout << "CompactedDBG::annotateSplitUnitigs(): Processing unitig " << i << " of length " << unitig.toString().length() << endl;
 
-                mergeUnitig(unitig.toString(), false);
+                annotateSplitUnitig(unitig.toString(), false);
 
                 ++i;
             }
 
-            cout << "CompactedDBG::mergeUnitigs(): Merging unitigs finished." << endl;
+            cout << "CompactedDBG::annotateSplitUnitigs(): Merging unitigs finished." << endl;
         }
         else {
 
-            for (const auto& unitig : o) mergeUnitig(unitig.toString(), false);
+            for (const auto& unitig : o) annotateSplitUnitig(unitig.toString(), false);
         }
 
         return true;
@@ -1346,9 +1381,9 @@ bool CompactedDBG<U, G>::mergeData(const CompactedDBG<U, G>& o, const size_t nb_
 
         const size_t nb_locks = nb_threads * 1024;
 
-        vector<std::atomic_flag> locks_unitig(nb_locks);
+        std::atomic_flag* locks_unitig = new std::atomic_flag[nb_locks];
 
-        for (auto& lck : locks_unitig) lck.clear();
+        for (size_t i = 0; i < nb_locks; ++i) locks_unitig[i].clear();
 
         auto worker_function = [&](typename CompactedDBG<U, G>::const_iterator it_a, typename CompactedDBG<U, G>::const_iterator it_b) {
 
@@ -1428,6 +1463,8 @@ bool CompactedDBG<U, G>::mergeData(const CompactedDBG<U, G>& o, const size_t nb_
         for (auto& t : workers) t.join();
 
         if (verbose) cout << "CompactedDBG::mergeData(): Merging data finished." << endl;
+
+        delete[] locks_unitig;
 
         return true;
     }
@@ -1973,7 +2010,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt){
 
     if (opt.verbose) cout << endl << "CompactedDBG::construct(): Splitting unitigs (1/2)" << endl;
 
-    pair<size_t, size_t> unitigSplit = splitAllUnitigs();
+    pair<size_t, size_t> unitigSplit = extractAllUnitigs();
 
     const int unitigsAfter1 = size();
 
@@ -3184,6 +3221,7 @@ bool CompactedDBG<U, G>::mergeUnitig(const string& seq, const bool verbose){
     size_t nb_prev_succ = 0xFFFFFFFFFFFFFFFF;
 
     size_t added = 0;
+    size_t split_before = 0, split_after;
 
     bool prev_found = true;
 
@@ -3219,7 +3257,7 @@ bool CompactedDBG<U, G>::mergeUnitig(const string& seq, const bool verbose){
 
             v_unitigs[nxt_pos_insert_v_unitigs]->ccov.setFull();
 
-            ++nxt_pos_insert_v_unitigs; // TODO: check this is right
+            ++nxt_pos_insert_v_unitigs;
             ++added;
 
             v_joins.push_back(Kmer(&str_unitig[len_unitig - k_]));
@@ -3236,6 +3274,9 @@ bool CompactedDBG<U, G>::mergeUnitig(const string& seq, const bool verbose){
         vector<pair<int,int>> sp;
 
         while (it != it_end){
+
+            ++split_before;
+            ++split_after;
 
             const_UnitigMap<U, G> um(find(it.getKey(), true));
 
@@ -3255,6 +3296,8 @@ bool CompactedDBG<U, G>::mergeUnitig(const string& seq, const bool verbose){
                     if (prev_split_pos != pos - 1) v_joins.push_back(um.getUnitigKmer(pos - 1));
 
                     prev_split_pos = pos;
+
+                    ++split_after;
                 }
             }
 
@@ -3263,7 +3306,7 @@ bool CompactedDBG<U, G>::mergeUnitig(const string& seq, const bool verbose){
             v_joins.push_back(um.getUnitigKmer(prev_split_pos));
             if (prev_split_pos != um.size - k_) v_joins.push_back(um.getUnitigKmer(um.size - k_));
 
-            splitUnitig_<is_void<U>::value>(um.pos_unitig, nxt_pos_insert_v_unitigs, v_unitigs_sz, v_kmers_sz, sp);
+            extractUnitig_<is_void<U>::value>(um.pos_unitig, nxt_pos_insert_v_unitigs, v_unitigs_sz, v_kmers_sz, sp);
 
             sp.clear();
             split_v.clear();
@@ -3285,24 +3328,34 @@ bool CompactedDBG<U, G>::mergeUnitig(const string& seq, const bool verbose){
             vector<const_UnitigMap<U, G>> um_bw(findPredecessors(p.first));
             vector<const_UnitigMap<U, G>> um_fw(findSuccessors(p.first));
 
-            nb_curr_pred = um_bw.size();
-            nb_curr_succ = um_fw.size();
+            nb_curr_pred = 0;
+            nb_curr_succ = 0;
 
             for (auto& um : um_bw){
 
-                if (!um.isAbundant && !um.isShort){
+                if (!um.isEmpty){
 
-                    if (um.strand) ++(um.dist);
-                    if ((um.dist != 0) && (um.dist != um.size - k_ + 1)) kht.insert(um.getUnitigHead(), vector<size_t>()).first->push_back(um.dist);
+                    ++nb_curr_pred;
+
+                    if (!um.isAbundant && !um.isShort){
+
+                        if (um.strand) ++(um.dist);
+                        if ((um.dist != 0) && (um.dist != um.size - k_ + 1)) kht.insert(um.getUnitigHead(), vector<size_t>()).first->push_back(um.dist);
+                    }
                 }
             }
 
             for (auto& um : um_fw){
 
-                if (!um.isAbundant && !um.isShort){
+                if (!um.isEmpty){
 
-                    if (!um.strand) ++(um.dist);
-                    if ((um.dist != 0) && (um.dist != um.size - k_ + 1)) kht.insert(um.getUnitigHead(), vector<size_t>()).first->push_back(um.dist);
+                    ++nb_curr_succ;
+
+                    if (!um.isAbundant && !um.isShort){
+
+                        if (!um.strand) ++(um.dist);
+                        if ((um.dist != 0) && (um.dist != um.size - k_ + 1)) kht.insert(um.getUnitigHead(), vector<size_t>()).first->push_back(um.dist);
+                    }
                 }
             }
 
@@ -3310,44 +3363,31 @@ bool CompactedDBG<U, G>::mergeUnitig(const string& seq, const bool verbose){
 
                 prev_found = false;
                 curr_unitig = p.first.toString();
-
-                ++it_km;
             }
-            // TODO: Check if we need to make this check in reverse-complement too
-            else if (((nb_prev_succ == 0) && (nb_curr_pred == 0))){
-
-                curr_unitig.push_back(str_seq[p.second + k_ - 1]);
-                ++it_km;
-            }
+            else if ((nb_prev_succ == 0) && (nb_curr_pred == 0)) curr_unitig.push_back(str_seq[p.second + k_ - 1]);
             else {
 
                 add_graph_function(curr_unitig);
 
-                prev_found = true;
+                curr_unitig = p.first.toString();
             }
 
             nb_prev_succ = nb_curr_succ;
             nb_prev_pred = nb_curr_pred;
+
+            ++it_km;
         }
         else {
 
             if ((p.second == 0) && !cm.isAbundant && !cm.isShort){
 
-                if ((cm.dist != 0) && (cm.dist != cm.size - k_ + 1)){
-
-                    kht.insert(cm.getUnitigHead(), vector<size_t>()).first->push_back(cm.dist);
-                    //v_joins.push_back(Kmer(&str_seq[p.second]));
-                }
+                if ((cm.dist != 0) && (cm.dist != cm.size - k_ + 1)) kht.insert(cm.getUnitigHead(), vector<size_t>()).first->push_back(cm.dist);
             }
             else if ((p.second + cm.len == str_seq_len - k_ + 1) && !cm.isAbundant && !cm.isShort){
 
                 cm.dist += cm.len;
 
-                if ((cm.dist != 0) && (cm.dist != cm.size - k_ + 1)){
-
-                    kht.insert(cm.getUnitigHead(), vector<size_t>()).first->push_back(cm.dist);
-                    //v_joins.push_back(Kmer(&str_seq[str_seq_len - k_]));
-                }
+                if ((cm.dist != 0) && (cm.dist != cm.size - k_ + 1)) kht.insert(cm.getUnitigHead(), vector<size_t>()).first->push_back(cm.dist);
             }
 
             it_km += cm.len;
@@ -3372,9 +3412,163 @@ bool CompactedDBG<U, G>::mergeUnitig(const string& seq, const bool verbose){
 
     if (verbose){
 
-        cout << "CompactedDBG::mergeUnitig(): Added " << added << " unitigs to the graph" << endl;
-        cout << "CompactedDBG::mergeUnitig(): Joined " << joined << " unitigs from the graph" << endl;
+        cout << "CompactedDBG::mergeUnitig(): Added " << added << " new unitigs to the graph." << endl;
+        cout << "CompactedDBG::mergeUnitig(): Split " << split_before << " unitigs into " << split_after << " new unitigs." << endl;
+        cout << "CompactedDBG::mergeUnitig(): Joined " << joined << " unitigs from the graph." << endl;
     }
+
+    return true;
+}
+
+template<typename U, typename G>
+bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, const bool verbose){
+
+    if (invalid){
+
+        cerr << "CompactedDBG::annotateSplitUnitig(): Graph is invalid and no sequence can be added to it" << endl;
+        return false;
+    }
+
+    if (seq.length() < k_){
+
+        cerr << "CompactedDBG::annotateSplitUnitig(): Input sequence length cannot be less than k = " << k_ << endl;
+        return false;
+    }
+
+    size_t nxt_pos_insert_v_unitigs = v_unitigs.size();
+    size_t v_unitigs_sz = v_unitigs.size();
+    size_t v_kmers_sz = v_kmers.size();
+
+    size_t nb_curr_pred = 0;
+    size_t nb_curr_succ = 0;
+    size_t nb_prev_pred = 0xFFFFFFFFFFFFFFFF;
+    size_t nb_prev_succ = 0xFFFFFFFFFFFFFFFF;
+
+    bool prev_found = true;
+
+    string curr_unitig;
+
+    const char* str_seq = seq.c_str();
+
+    const size_t str_seq_len = seq.length();
+
+    auto add_graph_function = [&](const string& unitig){
+
+        const char* str_unitig = unitig.c_str();
+        const size_t len_unitig = unitig.length();
+
+        if (len_unitig == k_){
+
+            if (!addUnitig(str_unitig, v_kmers_sz)) v_kmers[v_kmers_sz++].second.ccov.setFull();
+            else h_kmers_ccov.find(Kmer(str_unitig).rep())->ccov.setFull();
+        }
+        else {
+
+            addUnitig(str_unitig, nxt_pos_insert_v_unitigs);
+
+            v_unitigs[nxt_pos_insert_v_unitigs++]->ccov.setFull();
+        }
+    };
+
+    for (KmerIterator it_km(str_seq), it_km_end; it_km != it_km_end;) { //non-ACGT char. are discarded
+
+        const std::pair<Kmer, int>& p = *it_km;
+
+        UnitigMap<U, G> cm = findUnitig(p.first, str_seq, p.second);
+
+        if (cm.isEmpty){
+
+            vector<const_UnitigMap<U, G>> um_bw(findPredecessors(p.first));
+            vector<const_UnitigMap<U, G>> um_fw(findSuccessors(p.first));
+
+            nb_curr_pred = 0;
+            nb_curr_succ = 0;
+
+            for (auto& um : um_bw){
+
+                if (!um.isEmpty){
+
+                    ++nb_curr_pred;
+
+                    if (!um.isAbundant && !um.isShort){
+
+                        if (um.strand) ++(um.dist);
+                        if ((um.dist != 0) && (um.dist != um.size - k_ + 1)) unmapRead(um);
+                    }
+                }
+            }
+
+            for (auto& um : um_fw){
+
+                if (!um.isEmpty){
+
+                    ++nb_curr_succ;
+
+                    if (!um.isAbundant && !um.isShort){
+
+                        if (!um.strand) ++(um.dist);
+                        if ((um.dist != 0) && (um.dist != um.size - k_ + 1)) unmapRead(um);
+                    }
+                }
+            }
+
+            if (prev_found){ // Previous k-mer was found in the graph => current k-mer (not found in the graph) starts a new unitig
+
+                prev_found = false;
+                curr_unitig = p.first.toString();
+            }
+            else if (((nb_prev_succ == 0) && (nb_curr_pred == 0))) curr_unitig.push_back(str_seq[p.second + k_ - 1]);
+            else {
+
+                add_graph_function(curr_unitig);
+
+                curr_unitig = p.first.toString();
+            }
+
+            nb_prev_succ = nb_curr_succ;
+            nb_prev_pred = nb_curr_pred;
+
+            ++it_km;
+        }
+        else {
+
+            if ((p.second == 0) && !cm.isAbundant && !cm.isShort){
+
+                if ((cm.dist != 0) && (cm.dist != cm.size - k_ + 1)){
+
+                    const size_t len = cm.len;
+
+                    cm.len = 1;
+                    unmapRead(cm);
+                    cm.len = len;
+                }
+            }
+            else if ((p.second + cm.len == str_seq_len - k_ + 1) && !cm.isAbundant && !cm.isShort){
+
+                cm.dist += cm.len;
+
+                if ((cm.dist != 0) && (cm.dist != cm.size - k_ + 1)){
+
+                    const size_t len = cm.len;
+
+                    cm.len = 1;
+                    unmapRead(cm);
+                    cm.len = len;
+                }
+            }
+
+            it_km += cm.len;
+
+            if (!prev_found){
+
+                add_graph_function(curr_unitig);
+
+                prev_found = true;
+            }
+        }
+    }
+
+    if (!prev_found) add_graph_function(curr_unitig);
 
     return true;
 }
@@ -3685,7 +3879,7 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::deleteUnitig_( 
 
 template<typename U, typename G>
 template<bool is_void>
-typename std::enable_if<!is_void, bool>::type CompactedDBG<U, G>::splitUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
+typename std::enable_if<!is_void, bool>::type CompactedDBG<U, G>::extractUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
                                                                                size_t& v_unitigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp){
 
     bool deleted = true;
@@ -3792,7 +3986,7 @@ typename std::enable_if<!is_void, bool>::type CompactedDBG<U, G>::splitUnitig_(s
 
 template<typename U, typename G>
 template<bool is_void>
-typename std::enable_if<is_void, bool>::type CompactedDBG<U, G>::splitUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
+typename std::enable_if<is_void, bool>::type CompactedDBG<U, G>::extractUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
                                                                               size_t& v_unitigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp){
 
     bool deleted = true;
@@ -3961,13 +4155,12 @@ UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const preAllocMinHashIt
     return UnitigMap<U, G>();
 }
 
-// use:  split, deleted = mapper.splitAllUnitigs()
-// post: All unitigs with 1 coverage somewhere have been split where the coverage is 1
-//       split is the number of unitigs splitted
-//       deleted is the number of unitigs deleted
-//       Now every unitig in mapper has coverage >= 2 everywhere
+// pre: Some k-mers in the unitigs might have a coverage which is less than CompressedCoverage::getFullCoverage()
+//      Those k-mers must be deleted from the unitigs.
+// post: All unitigs have a per k-mer coverage of CompressedCoverage::getFullCoverage(). The graph is not
+//       necessarily compacted after calling this function.
 template<typename U, typename G>
-pair<size_t, size_t> CompactedDBG<U, G>::splitAllUnitigs() {
+pair<size_t, size_t> CompactedDBG<U, G>::extractAllUnitigs() {
 
     size_t i;
     size_t split = 0, deleted = 0;
@@ -4005,7 +4198,7 @@ pair<size_t, size_t> CompactedDBG<U, G>::splitAllUnitigs() {
 
             vector<pair<int,int>> sp = v_unitigs[i]->ccov.splittingVector();
 
-            if (splitUnitig_<is_void<U>::value>(i, nxt_pos_insert, v_unitigs_sz, v_kmers_sz, sp)) deleted++;
+            if (extractUnitig_<is_void<U>::value>(i, nxt_pos_insert, v_unitigs_sz, v_kmers_sz, sp)) deleted++;
             else {
 
                 ++split;
@@ -4018,7 +4211,59 @@ pair<size_t, size_t> CompactedDBG<U, G>::splitAllUnitigs() {
     if (nxt_pos_insert < v_unitigs.size()) v_unitigs.resize(nxt_pos_insert);
     if (v_kmers_sz < v_kmers.size()) v_kmers.resize(v_kmers_sz);
 
-    return make_pair(split, deleted);
+    return {split, deleted};
+}
+
+// pre: Some k-mers in the unitigs might have a coverage which is less than CompressedCoverage::getFullCoverage().
+//      Unitigs must be split at the positions matching those low-coverage k-mers (not deleted).
+// post: All unitigs have a per k-mer coverage of CompressedCoverage::getFullCoverage(). The graph is not
+//       necessarily compacted after calling this function.
+template<typename U, typename G>
+pair<size_t, size_t> CompactedDBG<U, G>::splitAllUnitigs() {
+
+    pair<size_t, size_t> p = {0, 0};
+
+    size_t v_kmers_sz = v_kmers.size();
+    size_t v_unitigs_sz = v_unitigs.size();
+    size_t nxt_pos_insert = v_unitigs.size();
+
+    const size_t cov_full = CompressedCoverage::getFullCoverage();
+
+    for (size_t i = 0; i < v_unitigs_sz;) { // Iterate over unitigs created so far
+
+        if (!v_unitigs[i]->ccov.isFull()) { //Coverage not full, unitig must be splitted
+
+            const CompressedCoverage& ccov = v_unitigs[i]->ccov;
+
+            size_t prev_split_pos = 0;
+
+            vector<pair<int,int>> sp;
+
+            ++(p.first);
+
+            for (size_t pos = 0; pos < ccov.size(); ++pos){
+
+                if ((ccov.covAt(pos) != cov_full) && (pos != prev_split_pos)){
+
+                    sp.push_back({prev_split_pos, pos});
+                    ++(p.second);
+
+                    prev_split_pos = pos;
+                }
+            }
+
+            sp.push_back({prev_split_pos, ccov.size()});
+            ++(p.second);
+
+            extractUnitig_<is_void<U>::value>(i, nxt_pos_insert, v_unitigs_sz, v_kmers_sz, sp);
+        }
+        else ++i;
+    }
+
+    if (nxt_pos_insert < v_unitigs.size()) v_unitigs.resize(nxt_pos_insert);
+    if (v_kmers_sz < v_kmers.size()) v_kmers.resize(v_kmers_sz);
+
+    return p;
 }
 
 template<typename U, typename G>
@@ -4753,7 +4998,7 @@ void CompactedDBG<U, G>::check_fp_tips(KmerHashTable<bool>& ignored_km_tips){
                         sp.push_back(make_pair(0, cm_bw.dist));
                         sp.push_back(make_pair(cm_bw.dist, cm_bw.size - k_ + 1));
 
-                        splitUnitig_<is_void<U>::value>(cm_bw.pos_unitig, nxt_pos_insert_v_unitigs, v_unitigs_sz, v_kmers_sz, sp);
+                        extractUnitig_<is_void<U>::value>(cm_bw.pos_unitig, nxt_pos_insert_v_unitigs, v_unitigs_sz, v_kmers_sz, sp);
 
                         sp.clear();
                     }
@@ -4775,7 +5020,7 @@ void CompactedDBG<U, G>::check_fp_tips(KmerHashTable<bool>& ignored_km_tips){
                         sp.push_back(make_pair(0, cm_fw.dist));
                         sp.push_back(make_pair(cm_fw.dist, cm_fw.size - k_ + 1));
 
-                        splitUnitig_<is_void<U>::value>(cm_fw.pos_unitig, nxt_pos_insert_v_unitigs, v_unitigs_sz, v_kmers_sz, sp);
+                        extractUnitig_<is_void<U>::value>(cm_fw.pos_unitig, nxt_pos_insert_v_unitigs, v_unitigs_sz, v_kmers_sz, sp);
 
                         sp.clear();
                     }
@@ -5412,13 +5657,23 @@ void CompactedDBG<U, G>::readFASTA(const string& graphfilename) {
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::mapRead(const UnitigMap<U, G>& cc) {
+void CompactedDBG<U, G>::mapRead(const const_UnitigMap<U, G>& um) {
 
-    if (cc.isEmpty) return; // nothing maps, move on
+    if (um.isEmpty) return; // nothing maps, move on
 
-    if (cc.isShort) v_kmers[cc.pos_unitig].second.ccov.cover(cc.dist, cc.dist + cc.len - 1);
-    else if (cc.isAbundant) h_kmers_ccov.find(cc.pos_unitig)->ccov.cover(cc.dist, cc.dist + cc.len - 1);
-    else v_unitigs[cc.pos_unitig]->ccov.cover(cc.dist, cc.dist + cc.len - 1);
+    if (um.isShort) v_kmers[um.pos_unitig].second.ccov.cover(um.dist, um.dist + um.len - 1);
+    else if (um.isAbundant) h_kmers_ccov.find(um.pos_unitig)->ccov.cover(um.dist, um.dist + um.len - 1);
+    else v_unitigs[um.pos_unitig]->ccov.cover(um.dist, um.dist + um.len - 1);
+}
+
+template<typename U, typename G>
+void CompactedDBG<U, G>::unmapRead(const const_UnitigMap<U, G>& um) {
+
+    if (um.isEmpty) return; // nothing maps, move on
+
+    if (um.isShort) v_kmers[um.pos_unitig].second.ccov.uncover(um.dist, um.dist + um.len - 1);
+    else if (um.isAbundant) h_kmers_ccov.find(um.pos_unitig)->ccov.uncover(um.dist, um.dist + um.len - 1);
+    else v_unitigs[um.pos_unitig]->ccov.uncover(um.dist, um.dist + um.len - 1);
 }
 
 template<typename U, typename G>

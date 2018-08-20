@@ -4,7 +4,8 @@
 
 BlockedBloomFilter::BlockedBloomFilter() : table_(nullptr), blocks_(0), k_(0), fast_div_() {
 
-    mask_h = _mm256_setzero_si256();
+    //std::cout << std::hex << ((void*)&mask_h) << std::endl;
+    //mask_h = _mm256_setzero_si256();
 }
 
 BlockedBloomFilter::BlockedBloomFilter(size_t nb_elem, size_t bits_per_elem) : table_(nullptr), blocks_(0), k_(0), fast_div_() {
@@ -14,7 +15,7 @@ BlockedBloomFilter::BlockedBloomFilter(size_t nb_elem, size_t bits_per_elem) : t
         blocks_ = (bits_per_elem * nb_elem + MASK_BITS_BLOCK) / NB_BITS_BLOCK;
         k_ = (int) (bits_per_elem * log(2));
 
-        mask_h = _mm256_setzero_si256();
+        //mask_h = _mm256_setzero_si256();
 
         if (fpp(bits_per_elem, k_) >= fpp(bits_per_elem, k_+1)) ++k_;
 
@@ -27,18 +28,20 @@ BlockedBloomFilter::BlockedBloomFilter(size_t nb_elem, size_t bits_per_elem) : t
         }
         else {
 
-            uint64_t hashes_mask[4] __attribute__((aligned(32))) = {0, 0, 0, 0};
+            //uint64_t hashes_mask[4] __attribute__((aligned(32))) = {0, 0, 0, 0};
 
             for (int k = 0; k != k_; ++k) hashes_mask[k/4] = (hashes_mask[k/4] << 16) | 0xffff;
 
-            mask_h = _mm256_set_epi64x(hashes_mask[3], hashes_mask[2], hashes_mask[1], hashes_mask[0]);
+            //mask_h = _mm256_set_epi64x(hashes_mask[3], hashes_mask[2], hashes_mask[1], hashes_mask[0]);
         }
 
         init_table();
     }
 }
 
-BlockedBloomFilter::BlockedBloomFilter(const BlockedBloomFilter& o) : table_(nullptr), blocks_(o.blocks_), k_(o.k_), mask_h(o.mask_h), fast_div_() {
+BlockedBloomFilter::BlockedBloomFilter(const BlockedBloomFilter& o) : table_(nullptr), blocks_(o.blocks_), k_(o.k_), /*mask_h(o.mask_h),*/ fast_div_() {
+
+    std::memcpy(hashes_mask, o.hashes_mask, 4 * sizeof(uint64_t));
 
     if (blocks_ != 0){
 
@@ -51,7 +54,9 @@ BlockedBloomFilter::BlockedBloomFilter(const BlockedBloomFilter& o) : table_(nul
     }
 }
 
-BlockedBloomFilter::BlockedBloomFilter(BlockedBloomFilter&& o) : table_(o.table_), blocks_(o.blocks_), k_(o.k_), mask_h(o.mask_h), fast_div_(o.fast_div_) {
+BlockedBloomFilter::BlockedBloomFilter(BlockedBloomFilter&& o) : table_(o.table_), blocks_(o.blocks_), k_(o.k_), /*mask_h(o.mask_h),*/ fast_div_(o.fast_div_) {
+
+    std::memcpy(hashes_mask, o.hashes_mask, 4 * sizeof(uint64_t));
 
     o.table_ = nullptr;
 
@@ -69,7 +74,7 @@ BlockedBloomFilter& BlockedBloomFilter::operator=(const BlockedBloomFilter& o) {
 
     table_ = nullptr;
     blocks_ = o.blocks_;
-    mask_h = o.mask_h;
+    /*mask_h = o.mask_h;*/ std::memcpy(hashes_mask, o.hashes_mask, 4 * sizeof(uint64_t));
     k_ = o.k_;
 
     init_table();
@@ -91,7 +96,7 @@ BlockedBloomFilter& BlockedBloomFilter::operator=(BlockedBloomFilter&& o) {
         table_ = o.table_;
         blocks_ = o.blocks_;
         k_ = o.k_;
-        mask_h = o.mask_h;
+        /*mask_h = o.mask_h;*/ std::memcpy(hashes_mask, o.hashes_mask, 4 * sizeof(uint64_t));
         fast_div_ = o.fast_div_;
 
         o.table_ = nullptr;
@@ -107,6 +112,8 @@ int BlockedBloomFilter::contains(const uint64_t (&kmer_hash)[4], const uint64_t 
     int cpt = 0;
 
     __m256i table_gather;
+
+    const __m256i mask_h = _mm256_set_epi64x(hashes_mask[3], hashes_mask[2], hashes_mask[1], hashes_mask[0]);
 
     //Gather and compare
     const uint16_t* table = reinterpret_cast<const uint16_t*>(table_[min_hash - (min_hash / fast_div_) * blocks_].block);
@@ -242,6 +249,9 @@ bool BlockedBloomFilter::contains(const uint64_t kmer_hash, const uint64_t min_h
 
     const __m256i hash_gather_lsb = _mm256_sllv_epi32(one2shift_lsb, _mm256_and_si256(h_shift, mask_lsb));
     const __m256i hash_gather_msb = _mm256_sllv_epi32(one2shift_msb, _mm256_srli_epi32(h_shift, 16));
+
+    const __m256i mask_h = _mm256_set_epi64x(hashes_mask[3], hashes_mask[2], hashes_mask[1], hashes_mask[0]);
+
     const __m256i hash_gather = _mm256_and_si256(mask_h, _mm256_or_si256(hash_gather_lsb, hash_gather_msb));
 
     _mm256_stream_si256((__m256i*)hashes_div, _mm256_srli_epi16(km_hashes, 4));
@@ -340,6 +350,9 @@ size_t BlockedBloomFilter::contains_block(const uint64_t kmer_hash, const uint64
 
     const __m256i hash_gather_lsb = _mm256_sllv_epi32(one2shift_lsb, _mm256_and_si256(h_shift, mask_lsb));
     const __m256i hash_gather_msb = _mm256_sllv_epi32(one2shift_msb, _mm256_srli_epi32(h_shift, 16));
+
+    const __m256i mask_h = _mm256_set_epi64x(hashes_mask[3], hashes_mask[2], hashes_mask[1], hashes_mask[0]);
+
     const __m256i hash_gather = _mm256_and_si256(mask_h, _mm256_or_si256(hash_gather_lsb, hash_gather_msb));
 
     _mm256_stream_si256((__m256i*)hashes_div, _mm256_srli_epi16(km_hashes, 4));
@@ -451,11 +464,11 @@ bool BlockedBloomFilter::ReadBloomFilter(FILE *fp) {
         if (fread(&(table_[i].block), sizeof(uint64_t), NB_ELEM_BLOCK, fp) != NB_ELEM_BLOCK) return false;
     }
 
-    uint64_t hashes_mask[4] __attribute__((aligned(32))) = {0, 0, 0, 0};
+    //uint64_t hashes_mask[4] __attribute__((aligned(32))) = {0, 0, 0, 0};
 
     for (int k = 0; k != k_; ++k) hashes_mask[k/4] = (hashes_mask[k/4] << 16) | 0xffff;
 
-    mask_h = _mm256_set_epi64x(hashes_mask[3], hashes_mask[2], hashes_mask[1], hashes_mask[0]);
+    //mask_h = _mm256_set_epi64x(hashes_mask[3], hashes_mask[2], hashes_mask[1], hashes_mask[0]);
 
     return true;
 }
@@ -470,7 +483,7 @@ void BlockedBloomFilter::clear() {
 
     k_ = 0;
     blocks_ = 0;
-    mask_h = _mm256_setzero_si256();
+    //mask_h = _mm256_setzero_si256();
 }
 
 void BlockedBloomFilter::init_table(){
@@ -493,6 +506,9 @@ bool BlockedBloomFilter::insert_par(const uint64_t kmer_hash, const uint64_t min
 
     const __m256i hash_gather_lsb = _mm256_sllv_epi32(one2shift_lsb, _mm256_and_si256(h_shift, mask_lsb));
     const __m256i hash_gather_msb = _mm256_sllv_epi32(one2shift_msb, _mm256_srli_epi32(h_shift, 16));
+
+    const __m256i mask_h = _mm256_set_epi64x(hashes_mask[3], hashes_mask[2], hashes_mask[1], hashes_mask[0]);
+
     const __m256i hash_gather = _mm256_and_si256(mask_h, _mm256_or_si256(hash_gather_lsb, hash_gather_msb));
 
     _mm256_stream_si256((__m256i*)hashes_div, _mm256_srli_epi16(km_hashes, 4));
@@ -645,6 +661,9 @@ bool BlockedBloomFilter::insert_unpar(const uint64_t kmer_hash, const uint64_t m
 
     const __m256i hash_gather_lsb = _mm256_sllv_epi32(one2shift_lsb, _mm256_and_si256(h_shift, mask_lsb));
     const __m256i hash_gather_msb = _mm256_sllv_epi32(one2shift_msb, _mm256_srli_epi32(h_shift, 16));
+
+    const __m256i mask_h = _mm256_set_epi64x(hashes_mask[3], hashes_mask[2], hashes_mask[1], hashes_mask[0]);
+
     const __m256i hash_gather = _mm256_and_si256(mask_h, _mm256_or_si256(hash_gather_lsb, hash_gather_msb));
 
     _mm256_stream_si256((__m256i*)hashes_div, _mm256_srli_epi16(km_hashes, 4));

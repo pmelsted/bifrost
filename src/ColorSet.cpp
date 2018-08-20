@@ -1514,14 +1514,14 @@ UnitigColors::UnitigColors_const_iterator& UnitigColors::UnitigColors_const_iter
     else if (flag == ptrBitmap) {
 
         //it_roar.equalorlarger(nextPos);
-        for (; (it_roar != cs->getConstPtrBitmap()->r.end()) && (*it_roar < nextPos); ++it_roar){}
+        while ((it_roar != cs->getConstPtrBitmap()->r.end()) && (*it_roar < nextPos)) ++it_roar;
 
         if (it_roar != cs->getConstPtrBitmap()->r.end()) ck_id = *it_roar;
         else it_setBits = cs_sz;
     }
     else if (flag == localTinyBitmap) {
 
-        for (; (it_t_bmp != t_bmp.end()) && (*it_t_bmp < nextPos); ++it_t_bmp) {}
+        while ((it_t_bmp != t_bmp.end()) && (*it_t_bmp < nextPos)) ++it_t_bmp;
 
         if (it_t_bmp != t_bmp.end()) ck_id = *it_t_bmp;
         else it_setBits = cs_sz;

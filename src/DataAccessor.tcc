@@ -248,7 +248,7 @@ inline void DataAccessor<void>::merge(const UnitigColorMap<void>& um_dest, const
         UnitigColorMap<void> um(um_dest);
 
         um.dist = 0;
-        um.len = um.size - um_dest.getGraph()->getK() + 1;
+        um.len = um.size - um.getGraph()->getK() + 1;
         um.strand = true;
 
         // Insert new UnitigColors for reference unitig of um_dest

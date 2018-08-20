@@ -116,15 +116,9 @@ bool ColoredCDBG<U>::merge(const ColoredCDBG& o, const size_t nb_threads, const 
          ret = false;
     }
 
-    if (this->k_ != o.k_){
+    if (this->getK() != o.getK()){
 
          if (verbose) cerr << "ColoredCDBG::merge(): The graphs to merge do not have the same k-mer length." << endl;
-         ret = false;
-    }
-
-    if (this->g_ != o.g_){
-
-         if (verbose) cerr << "ColoredCDBG::merge(): The graphs to merge do not have the same minimizer length." << endl;
          ret = false;
     }
 
@@ -136,11 +130,27 @@ bool ColoredCDBG<U>::merge(const ColoredCDBG& o, const size_t nb_threads, const 
 
     if (ret){
 
-        ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::mergeUnitigs(o, verbose);
+        const size_t sz_before = this->size();
+
+        for (auto& unitig : *this) unitig.setFullCoverage();
+
+        ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::annotateSplitUnitigs(o, verbose);
 
         if (ret){
 
-            resizeDataUC(o, nb_threads);
+            const size_t sz_after = this->size();
+            const pair<size_t, size_t> p = CompactedDBG<DataAccessor<U>, DataStorage<U>>::splitAllUnitigs();
+            const size_t joined = (p.second != 0) ? CompactedDBG<DataAccessor<U>, DataStorage<U>>::joinUnitigs() : 0;
+
+            if (verbose){
+
+                cout << "CompactedDBG::merge(): Added " << (sz_after - sz_before) << " new unitigs." << endl;
+                cout << "CompactedDBG::merge(): Split " << p.first << " unitigs into " << p.second << " new unitigs." << endl;
+                cout << "CompactedDBG::merge(): Joined " << joined << " unitigs." << endl;
+                cout << "CompactedDBG::merge(): " << this->size() << " unitigs after merging." << endl;
+            }
+
+            resizeDataUC(nb_threads);
 
             for (size_t i = 0; i < o.getNbColors(); ++i) this->getData()->color_names.push_back(o.getColorName(i));
 
@@ -170,15 +180,9 @@ bool ColoredCDBG<U>::merge(const vector<ColoredCDBG>& v, const size_t nb_threads
              ret = false;
         }
 
-        if (this->k_ != ccdbg.k_){
+        if (this->getK() != ccdbg.getK()){
 
              if (verbose) cerr << "ColoredCDBG::merge(): The graphs to merge do not have the same k-mer length." << endl;
-             ret = false;
-        }
-
-        if (this->g_ != ccdbg.g_){
-
-             if (verbose) cerr << "ColoredCDBG::merge(): The graphs to merge do not have the same minimizer length." << endl;
              ret = false;
         }
 
@@ -191,15 +195,32 @@ bool ColoredCDBG<U>::merge(const vector<ColoredCDBG>& v, const size_t nb_threads
 
     if (ret){
 
+        const size_t sz_before = this->size();
+
+        for (auto& unitig : *this) unitig.setFullCoverage();
+
         for (const auto& ccdbg : v){
 
-            ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::mergeUnitigs(ccdbg, verbose);
+            ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::annotateSplitUnitigs(ccdbg, verbose);
 
-            if (ret) resizeDataUC(ccdbg, nb_threads);
-            else break;
+            if (!ret) break;
         }
 
         if (ret){
+
+            const size_t sz_after = this->size();
+            const pair<size_t, size_t> p = CompactedDBG<DataAccessor<U>, DataStorage<U>>::splitAllUnitigs();
+            const size_t joined = (p.second != 0) ? CompactedDBG<DataAccessor<U>, DataStorage<U>>::joinUnitigs() : 0;
+
+            if (verbose){
+
+                cout << "CompactedDBG::merge(): Added " << (sz_after - sz_before) << " new unitigs." << endl;
+                cout << "CompactedDBG::merge(): Split " << p.first << " unitigs into " << p.second << " new unitigs." << endl;
+                cout << "CompactedDBG::merge(): Joined " << joined << " unitigs." << endl;
+                cout << "CompactedDBG::merge(): " << this->size() << " unitigs after merging." << endl;
+            }
+
+            resizeDataUC(nb_threads);
 
             for (const auto& ccdbg : v){
 
@@ -441,7 +462,7 @@ void ColoredCDBG<U>::initUnitigColors(const CCDBG_Build_opt& opt, const size_t m
 }
 
 template<typename U>
-void ColoredCDBG<U>::resizeDataUC(const ColoredCDBG& o, const size_t nb_threads, const size_t max_nb_hash){
+void ColoredCDBG<U>::resizeDataUC(const size_t nb_threads, const size_t max_nb_hash){
 
     DataStorage<U>* ds = this->getData();
 
@@ -507,7 +528,7 @@ void ColoredCDBG<U>::resizeDataUC(const ColoredCDBG& o, const size_t nb_threads,
 }
 
 template<>
-inline void ColoredCDBG<void>::resizeDataUC(const ColoredCDBG& o, const size_t nb_threads, const size_t max_nb_hash){
+inline void ColoredCDBG<void>::resizeDataUC(const size_t nb_threads, const size_t max_nb_hash){
 
     DataStorage<void>* ds = this->getData();
 
@@ -556,6 +577,11 @@ inline void ColoredCDBG<void>::resizeDataUC(const ColoredCDBG& o, const size_t n
                             *(it_unitig->getData()) = p.first;
                             *(p.second.first) = move(*uc);
                         }
+
+                        /*const pair<DataAccessor<void>, pair<UnitigColors*, void*>> p  = new_ds.insert(*it_unitig);
+
+                        *(it_unitig->getData()) = p.first;
+                        if (uc != nullptr) *(p.second.first) = move(*uc);*/
                     }
                 }
             }

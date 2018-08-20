@@ -240,6 +240,8 @@ class UnitigMap : public UnitigMapBase {
             return um;
         }
 
+        void setFullCoverage() const;
+
     private:
 
         UnitigMap(size_t p_unitig, size_t i, size_t l, size_t sz, bool short_, bool abundance, bool strd, CompactedDBG_ptr_t cdbg_);
@@ -264,7 +266,6 @@ class UnitigMap : public UnitigMapBase {
         template<bool is_void> typename std::enable_if<is_void, Unitig_data_ptr_t>::type getData_() const;
 
         void partialCopy(const UnitigMap<U, G, is_const>& um);
-        void setFullCoverage() const;
 
         size_t pos_unitig; // unitig pos. in v_unitigs or v_kmers or h_kmers
 
