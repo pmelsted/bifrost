@@ -139,18 +139,20 @@ bool ColoredCDBG<U>::merge(const ColoredCDBG& o, const size_t nb_threads, const 
         if (ret){
 
             const size_t sz_after = this->size();
-            const pair<size_t, size_t> p = CompactedDBG<DataAccessor<U>, DataStorage<U>>::splitAllUnitigs();
-            const size_t joined = (p.second != 0) ? CompactedDBG<DataAccessor<U>, DataStorage<U>>::joinUnitigs() : 0;
+            const pair<size_t, size_t> p1 = CompactedDBG<DataAccessor<U>, DataStorage<U>>::getSplitInfoAllUnitigs();
+
+            resizeDataUC(sz_after + (p1.second - p1.first), nb_threads);
+
+            const pair<size_t, size_t> p2 = CompactedDBG<DataAccessor<U>, DataStorage<U>>::splitAllUnitigs();
+            const size_t joined = (p1.second != 0) ? CompactedDBG<DataAccessor<U>, DataStorage<U>>::joinUnitigs() : 0;
 
             if (verbose){
 
                 cout << "CompactedDBG::merge(): Added " << (sz_after - sz_before) << " new unitigs." << endl;
-                cout << "CompactedDBG::merge(): Split " << p.first << " unitigs into " << p.second << " new unitigs." << endl;
+                cout << "CompactedDBG::merge(): Split " << p1.first << " unitigs into " << p1.second << " new unitigs." << endl;
                 cout << "CompactedDBG::merge(): Joined " << joined << " unitigs." << endl;
                 cout << "CompactedDBG::merge(): " << this->size() << " unitigs after merging." << endl;
             }
-
-            resizeDataUC(nb_threads);
 
             for (size_t i = 0; i < o.getNbColors(); ++i) this->getData()->color_names.push_back(o.getColorName(i));
 
@@ -209,18 +211,20 @@ bool ColoredCDBG<U>::merge(const vector<ColoredCDBG>& v, const size_t nb_threads
         if (ret){
 
             const size_t sz_after = this->size();
-            const pair<size_t, size_t> p = CompactedDBG<DataAccessor<U>, DataStorage<U>>::splitAllUnitigs();
-            const size_t joined = (p.second != 0) ? CompactedDBG<DataAccessor<U>, DataStorage<U>>::joinUnitigs() : 0;
+            const pair<size_t, size_t> p1 = CompactedDBG<DataAccessor<U>, DataStorage<U>>::getSplitInfoAllUnitigs();
+
+            resizeDataUC(sz_after + (p1.second - p1.first), nb_threads);
+
+            const pair<size_t, size_t> p2 = CompactedDBG<DataAccessor<U>, DataStorage<U>>::splitAllUnitigs();
+            const size_t joined = (p1.second != 0) ? CompactedDBG<DataAccessor<U>, DataStorage<U>>::joinUnitigs() : 0;
 
             if (verbose){
 
                 cout << "CompactedDBG::merge(): Added " << (sz_after - sz_before) << " new unitigs." << endl;
-                cout << "CompactedDBG::merge(): Split " << p.first << " unitigs into " << p.second << " new unitigs." << endl;
+                cout << "CompactedDBG::merge(): Split " << p1.first << " unitigs into " << p1.second << " new unitigs." << endl;
                 cout << "CompactedDBG::merge(): Joined " << joined << " unitigs." << endl;
                 cout << "CompactedDBG::merge(): " << this->size() << " unitigs after merging." << endl;
             }
-
-            resizeDataUC(nb_threads);
 
             for (const auto& ccdbg : v){
 
@@ -462,11 +466,11 @@ void ColoredCDBG<U>::initUnitigColors(const CCDBG_Build_opt& opt, const size_t m
 }
 
 template<typename U>
-void ColoredCDBG<U>::resizeDataUC(const size_t nb_threads, const size_t max_nb_hash){
+void ColoredCDBG<U>::resizeDataUC(const size_t sz, const size_t nb_threads, const size_t max_nb_hash){
 
     DataStorage<U>* ds = this->getData();
 
-    DataStorage<U> new_ds(max_nb_hash, this->size(), ds->color_names);
+    DataStorage<U> new_ds(max_nb_hash, sz, ds->color_names);
 
     const size_t chunk = 100;
 
@@ -528,11 +532,11 @@ void ColoredCDBG<U>::resizeDataUC(const size_t nb_threads, const size_t max_nb_h
 }
 
 template<>
-inline void ColoredCDBG<void>::resizeDataUC(const size_t nb_threads, const size_t max_nb_hash){
+inline void ColoredCDBG<void>::resizeDataUC(const size_t sz, const size_t nb_threads, const size_t max_nb_hash){
 
     DataStorage<void>* ds = this->getData();
 
-    DataStorage<void> new_ds(max_nb_hash, this->size(), ds->color_names);
+    DataStorage<void> new_ds(max_nb_hash, sz, ds->color_names);
 
     const size_t chunk = 100;
 

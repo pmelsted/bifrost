@@ -4231,15 +4231,13 @@ pair<size_t, size_t> CompactedDBG<U, G>::splitAllUnitigs() {
 
     for (size_t i = 0; i < v_unitigs_sz;) { // Iterate over unitigs created so far
 
-        if (!v_unitigs[i]->ccov.isFull()) { //Coverage not full, unitig must be splitted
+        const CompressedCoverage& ccov = v_unitigs[i]->ccov;
 
-            const CompressedCoverage& ccov = v_unitigs[i]->ccov;
+        if (!ccov.isFull()) { //Coverage not full, unitig must be splitted
 
             size_t prev_split_pos = 0;
 
             vector<pair<int,int>> sp;
-
-            ++(p.first);
 
             for (size_t pos = 0; pos < ccov.size(); ++pos){
 
@@ -4253,7 +4251,9 @@ pair<size_t, size_t> CompactedDBG<U, G>::splitAllUnitigs() {
             }
 
             sp.push_back({prev_split_pos, ccov.size()});
+
             ++(p.second);
+            ++(p.first);
 
             extractUnitig_<is_void<U>::value>(i, nxt_pos_insert, v_unitigs_sz, v_kmers_sz, sp);
         }
@@ -4262,6 +4262,39 @@ pair<size_t, size_t> CompactedDBG<U, G>::splitAllUnitigs() {
 
     if (nxt_pos_insert < v_unitigs.size()) v_unitigs.resize(nxt_pos_insert);
     if (v_kmers_sz < v_kmers.size()) v_kmers.resize(v_kmers_sz);
+
+    return p;
+}
+
+template<typename U, typename G>
+pair<size_t, size_t> CompactedDBG<U, G>::getSplitInfoAllUnitigs() const {
+
+    pair<size_t, size_t> p = {0, 0};
+
+    const size_t cov_full = CompressedCoverage::getFullCoverage();
+
+    for (size_t i = 0; i < v_unitigs.size(); ++i) { // Iterate over unitigs created so far
+
+        const CompressedCoverage& ccov = v_unitigs[i]->ccov;
+
+        if (!ccov.isFull()) { //Coverage not full, unitig must be splitted
+
+            size_t prev_split_pos = 0;
+
+            for (size_t pos = 0; pos < ccov.size(); ++pos){
+
+                if ((ccov.covAt(pos) != cov_full) && (pos != prev_split_pos)){
+
+                    ++(p.second);
+
+                    prev_split_pos = pos;
+                }
+            }
+
+            ++(p.first);
+            ++(p.second);
+        }
+    }
 
     return p;
 }

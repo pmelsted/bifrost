@@ -508,6 +508,7 @@ class CompactedDBG {
         bool annotateSplitUnitigs(const CompactedDBG<U, G>& o, const bool verbose = false);
 
         pair<size_t, size_t> splitAllUnitigs();
+        pair<size_t, size_t> getSplitInfoAllUnitigs() const;
 
         inline size_t joinUnitigs(vector<Kmer>* v_joins = nullptr, const size_t nb_threads = 1) {
 
