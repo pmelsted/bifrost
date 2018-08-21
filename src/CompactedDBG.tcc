@@ -1473,6 +1473,108 @@ bool CompactedDBG<U, G>::mergeData(const CompactedDBG<U, G>& o, const size_t nb_
 }
 
 template<typename U, typename G>
+bool CompactedDBG<U, G>::mergeData(CompactedDBG<U, G>&& o, const size_t nb_threads, const bool verbose){
+
+    if ((this != &o) && !invalid && !o.invalid){ // TODO: Check if k_ and g_ are the same
+
+        if (verbose) cout << "CompactedDBG::mergeData(): Merging data started." << endl;
+
+        const size_t nb_locks = nb_threads * 1024;
+
+        std::atomic_flag* locks_unitig = new std::atomic_flag[nb_locks];
+
+        for (size_t i = 0; i < nb_locks; ++i) locks_unitig[i].clear();
+
+        auto worker_function = [&](typename CompactedDBG<U, G>::iterator it_a, typename CompactedDBG<U, G>::iterator it_b) {
+
+            while (it_a != it_b) {
+
+                const string str(it_a->toString());
+                const char* str_seq = str.c_str();
+
+                for (KmerIterator it_km(str_seq), it_km_end; it_km != it_km_end;) { //non-ACGT char. are discarded
+
+                    const std::pair<Kmer, int>& p = *it_km;
+
+                    const UnitigMap<U, G> um_dest = findUnitig(p.first, str_seq, p.second);
+
+                    if (um_dest.isEmpty) ++it_km;
+                    else {
+
+                        const_UnitigMap<U, G> um_src(*it_a);
+
+                        um_src.dist = p.second;
+                        um_src.len = um_dest.len;
+
+                        const uint64_t id_lock = um_dest.pos_unitig % nb_locks;
+
+                        while (locks_unitig[id_lock].test_and_set(std::memory_order_acquire));
+
+                        mergeData_<is_void<U>::value>(um_dest, um_src);
+
+                        locks_unitig[id_lock].clear(std::memory_order_release);
+
+                        it_km += um_dest.len;
+                    }
+                }
+
+                it_a->getData()->clear(*it_a);
+
+                ++it_a;
+            }
+        };
+
+        const size_t chunk = 100;
+
+        vector<thread> workers; // need to keep track of threads so we can join them
+
+        typename CompactedDBG<U, G>::iterator g_a = o.begin();
+        typename CompactedDBG<U, G>::iterator g_b = o.end();
+
+        mutex mutex_it;
+
+        for (size_t t = 0; t < nb_threads; ++t){
+
+            workers.emplace_back(
+
+                [&, t]{
+
+                    typename CompactedDBG<U, G>::iterator l_a, l_b;
+
+                    while (true) {
+
+                        {
+                            unique_lock<mutex> lock(mutex_it);
+
+                            if (g_a == g_b) return;
+
+                            l_a = g_a;
+                            l_b = g_a;
+
+                            for (size_t cpt = 0; (cpt < chunk) && (l_b != g_b); ++cpt, ++l_b){}
+
+                            g_a = l_b;
+                        }
+
+                        worker_function(l_a, l_b);
+                    }
+                }
+            );
+        }
+
+        for (auto& t : workers) t.join();
+
+        if (verbose) cout << "CompactedDBG::mergeData(): Merging data finished." << endl;
+
+        delete[] locks_unitig;
+
+        return true;
+    }
+
+    return false;
+}
+
+template<typename U, typename G>
 typename CompactedDBG<U, G>::iterator CompactedDBG<U, G>::begin() {
 
     if (invalid) return iterator();

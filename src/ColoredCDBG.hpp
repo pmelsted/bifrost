@@ -384,10 +384,10 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         bool read(const string& prefix_input_filename, const size_t nb_threads = 1, const bool verbose = false);
 
         /** Merge a colored and compacted de Bruijn graph.
-        * After merging, all unitigs and colors of o have been added to and compacted with the current colored and compacted
-        * de Bruijn graph (this). If the unitigs of o had data of type "MyUnitigData" associated, they have been added
-        * to the current colored and compacted de Bruijn graph using the functions of the class MyUnitigData which are
-        * also present in its base class CCDBG_Data_t<MyUnitigData>.
+        * After merging, all unitigs and colors of the input graph have been added to and compacted with the current
+        * colored and compacted de Bruijn graph (this). If the unitigs of the input graph had data of type "MyUnitigData"
+        * associated, they have been added to the current colored and compacted de Bruijn graph using the functions of
+        * the class MyUnitigData which are also present in its base class CCDBG_Data_t<MyUnitigData>.
         * Note that if multiple colored and compacted de Bruijn graphs have to be merged, it is more efficient to call
         * ColoredCDBG::merge with a vector of ColoredCDBG as input.
         * @param o is a constant reference to the colored and compacted de Bruijn graph to merge.
@@ -397,9 +397,25 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         */
         bool merge(const ColoredCDBG& o, const size_t nb_threads = 1, const bool verbose = false);
 
+        /** Merge and clear a colored and compacted de Bruijn graph.
+        * After merging, all unitigs and colors of the input graph have been added to and compacted with the current colored
+        * and compacted de Bruijn graph (this). The input graph is cleared before the function returns. If the unitigs of the
+        * input graph had data of type "MyUnitigData" associated, they have been added to the current colored and compacted
+        * de Bruijn graph using the functions of the class MyUnitigData which are also present in its base class
+        * CCDBG_Data_t<MyUnitigData>.
+        * Note that if multiple colored and compacted de Bruijn graphs have to be merged, it is more efficient to call
+        * ColoredCDBG::merge with a vector of ColoredCDBG as input.
+        * @param o is a reference on a reference to the colored and compacted de Bruijn graph to merge. It can be obtained using
+        * std::move(). After merging, the graph pointed by o is cleared.
+        * @param nb_threads is an integer indicating how many threads can be used during the merging.
+        * @param verbose is a boolean indicating if information messages must be printed during the execution of the function.
+        * @return a boolean indicating if the graph has been successfully merged.
+        */
+        bool merge(ColoredCDBG&& o, const size_t nb_threads = 1, const bool verbose = false);
+
         /** Merge multiple colored and compacted de Bruijn graphs.
-        * After merging, all unitigs and colors of the colored and compacted de Bruijn graphs have been added to and compacted
-        * with the current colored and compacted de Bruijn graph (this). If the unitigs had data of type "MyUnitigData"
+        * After merging, all unitigs and colors of the input colored and compacted de Bruijn graphs have been added to and
+        * compacted with the current colored and compacted de Bruijn graph (this). If the unitigs had data of type "MyUnitigData"
         * associated, they have been added to the current colored and compacted de Bruijn graph using the functions of the
         * class MyUnitigData which are also present in its base class CCDBG_Data_t<MyUnitigData>.
         * @param v is a constant reference to a vector of colored and compacted de Bruijn graphs to merge.
@@ -408,6 +424,20 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         * @return a boolean indicating if the graphs have been successfully merged.
         */
         bool merge(const vector<ColoredCDBG>& v, const size_t nb_threads = 1, const bool verbose = false);
+
+        /** Merge and clear multiple colored and compacted de Bruijn graphs.
+        * After merging, all unitigs and colors of the input colored and compacted de Bruijn graphs have been added to and
+        * compacted with the current colored and compacted de Bruijn graph (this). The input graphs are cleared before the
+        * function returns. If the input unitigs had data of type "MyUnitigData" associated, they have been added to the
+        * current colored and compacted de Bruijn graph using the functions of the class MyUnitigData which are also present
+        * in its base class CCDBG_Data_t<MyUnitigData>.
+        * @param v is a reference on a reference to a vector of colored and compacted de Bruijn graphs to merge.  It can be
+        * obtained using std::move(). After merging, the graphs in v are cleared.
+        * @param nb_threads is an integer indicating how many threads can be used during the merging.
+        * @param verbose is a boolean indicating if information messages must be printed during the execution of the function.
+        * @return a boolean indicating if the graphs have been successfully merged.
+        */
+        bool merge(vector<ColoredCDBG>&& v, const size_t nb_threads = 1, const bool verbose = false);
 
         /** Get the name of a color. As colors match the input files, the color names match the input filenames.
         * @return a string which is either a color name or an empty string if the color ID is invalid or if the

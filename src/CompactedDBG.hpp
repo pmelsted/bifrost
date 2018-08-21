@@ -516,6 +516,7 @@ class CompactedDBG {
         }
 
         bool mergeData(const CompactedDBG<U, G>& o, const size_t nb_threads = 1, const bool verbose = false);
+        bool mergeData(CompactedDBG<U, G>&& o, const size_t nb_threads = 1, const bool verbose = false);
 
     private:
 

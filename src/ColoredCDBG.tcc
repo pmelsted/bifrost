@@ -164,6 +164,74 @@ bool ColoredCDBG<U>::merge(const ColoredCDBG& o, const size_t nb_threads, const 
 }
 
 template<typename U>
+bool ColoredCDBG<U>::merge(ColoredCDBG&& o, const size_t nb_threads, const bool verbose){
+
+    bool ret = true;
+
+    if (invalid){
+
+         if (verbose) cerr << "ColoredCDBG::merge(): Current graph is invalid." << endl;
+         ret = false;
+    }
+
+    if (o.invalid){
+
+         if (verbose) cerr << "ColoredCDBG::merge(): Graph to merge is invalid." << endl;
+         ret = false;
+    }
+
+    if (this->getK() != o.getK()){
+
+         if (verbose) cerr << "ColoredCDBG::merge(): The graphs to merge do not have the same k-mer length." << endl;
+         ret = false;
+    }
+
+    if (this == &o){
+
+         if (verbose) cerr << "ColoredCDBG::merge(): Cannot merge graph with itself." << endl;
+         ret = false;
+    }
+
+    if (ret){
+
+        const size_t sz_before = this->size();
+
+        for (auto& unitig : *this) unitig.setFullCoverage();
+
+        ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::annotateSplitUnitigs(o, verbose);
+
+        if (ret){
+
+            const size_t sz_after = this->size();
+            const pair<size_t, size_t> p1 = CompactedDBG<DataAccessor<U>, DataStorage<U>>::getSplitInfoAllUnitigs();
+
+            resizeDataUC(sz_after + (p1.second - p1.first), nb_threads);
+
+            const pair<size_t, size_t> p2 = CompactedDBG<DataAccessor<U>, DataStorage<U>>::splitAllUnitigs();
+            const size_t joined = (p1.second != 0) ? CompactedDBG<DataAccessor<U>, DataStorage<U>>::joinUnitigs() : 0;
+
+            if (verbose){
+
+                cout << "CompactedDBG::merge(): Added " << (sz_after - sz_before) << " new unitigs." << endl;
+                cout << "CompactedDBG::merge(): Split " << p1.first << " unitigs into " << p1.second << " new unitigs." << endl;
+                cout << "CompactedDBG::merge(): Joined " << joined << " unitigs." << endl;
+                cout << "CompactedDBG::merge(): " << this->size() << " unitigs after merging." << endl;
+            }
+
+            for (size_t i = 0; i < o.getNbColors(); ++i) this->getData()->color_names.push_back(o.getColorName(i));
+
+            const bool ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::mergeData(o, nb_threads, verbose);
+
+            o.clear();
+
+            return ret;
+        }
+    }
+
+    return false;
+}
+
+template<typename U>
 bool ColoredCDBG<U>::merge(const vector<ColoredCDBG>& v, const size_t nb_threads, const bool verbose){
 
     bool ret = true;
@@ -231,6 +299,85 @@ bool ColoredCDBG<U>::merge(const vector<ColoredCDBG>& v, const size_t nb_threads
                 for (size_t i = 0; i < ccdbg.getNbColors(); ++i) this->getData()->color_names.push_back(ccdbg.getColorName(i));
 
                 if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::mergeData(ccdbg, nb_threads, verbose)) return false;
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+template<typename U>
+bool ColoredCDBG<U>::merge(vector<ColoredCDBG>&& v, const size_t nb_threads, const bool verbose){
+
+    bool ret = true;
+
+    if (invalid){
+
+         if (verbose) cerr << "ColoredCDBG::merge(): Current graph is invalid." << endl;
+         ret = false;
+    }
+
+    for (const auto& ccdbg : v){
+
+        if (ccdbg.invalid){
+
+             if (verbose) cerr << "ColoredCDBG::merge(): One of the graph to merge is invalid." << endl;
+             ret = false;
+        }
+
+        if (this->getK() != ccdbg.getK()){
+
+             if (verbose) cerr << "ColoredCDBG::merge(): The graphs to merge do not have the same k-mer length." << endl;
+             ret = false;
+        }
+
+        if (this == &ccdbg){
+
+             if (verbose) cerr << "ColoredCDBG::merge(): Cannot merge graph with itself." << endl;
+             ret = false;
+        }
+    }
+
+    if (ret){
+
+        const size_t sz_before = this->size();
+
+        for (auto& unitig : *this) unitig.setFullCoverage();
+
+        for (const auto& ccdbg : v){
+
+            ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::annotateSplitUnitigs(ccdbg, verbose);
+
+            if (!ret) break;
+        }
+
+        if (ret){
+
+            const size_t sz_after = this->size();
+            const pair<size_t, size_t> p1 = CompactedDBG<DataAccessor<U>, DataStorage<U>>::getSplitInfoAllUnitigs();
+
+            resizeDataUC(sz_after + (p1.second - p1.first), nb_threads);
+
+            const pair<size_t, size_t> p2 = CompactedDBG<DataAccessor<U>, DataStorage<U>>::splitAllUnitigs();
+            const size_t joined = (p1.second != 0) ? CompactedDBG<DataAccessor<U>, DataStorage<U>>::joinUnitigs() : 0;
+
+            if (verbose){
+
+                cout << "CompactedDBG::merge(): Added " << (sz_after - sz_before) << " new unitigs." << endl;
+                cout << "CompactedDBG::merge(): Split " << p1.first << " unitigs into " << p1.second << " new unitigs." << endl;
+                cout << "CompactedDBG::merge(): Joined " << joined << " unitigs." << endl;
+                cout << "CompactedDBG::merge(): " << this->size() << " unitigs after merging." << endl;
+            }
+
+            for (auto& ccdbg : v){
+
+                for (size_t i = 0; i < ccdbg.getNbColors(); ++i) this->getData()->color_names.push_back(ccdbg.getColorName(i));
+
+                if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::mergeData(move(ccdbg), nb_threads, verbose)) return false;
+
+                ccdbg.clear();
             }
 
             return true;
