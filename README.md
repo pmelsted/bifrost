@@ -143,7 +143,7 @@ Usage: Bifrost [COMMAND] [GENERAL_PARAMETERS] [COMMAND_PARAMETERS]
 
 2. **Build a compacted de Bruijn graph from a reference genome file**
    ```
-   Bifrost build -t 4 -k 31 -i -d -o C_graph -r C.fasta
+   Bifrost build -t 4 -k 31 -o C_graph -r C.fasta
    ```
    The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of file *C.fasta* (`-r C.fasta`). By using parameter `-r`, file *C.fasta* is NOT filtered: all 31-mers occurring in *C* are used during the construction. The graph is written to file *C_graph.gfa* (`-o C_graph`).
 
