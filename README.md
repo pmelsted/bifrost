@@ -15,6 +15,17 @@
     * **Add** or **remove** (sub-)sequences / *k*-mers / colors
     * **Find unitigs** containing **queried k-mers**
 
+## Table of Contents
+
+* [Requirements](https://github.com/pmelsted/bifrost#requirements)
+* [Compilation and Installation](https://github.com/pmelsted/bifrost#compilation-and-installation)
+* [Binary usage](https://github.com/pmelsted/bifrost#binary-usage)
+* [API](https://github.com/pmelsted/bifrost#api)
+* [FAQ](https://github.com/pmelsted/bifrost#faq)
+* [Troubleshooting](https://github.com/pmelsted/bifrost#troubleshooting)
+* [Contact](https://github.com/pmelsted/bifrost#contact)
+* [License](https://github.com/pmelsted/bifrost#license)
+
 ## Requirements
 
 * 64 bits POSIX-compliant UNIX or MacOS operating system
