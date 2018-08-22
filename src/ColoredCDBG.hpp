@@ -85,82 +85,13 @@
 * @var CCDBG_Build_opt::outputColors
 * Boolean indicating if color sets must be written to disk (true) or not (false). Default is true.
 */
-struct CCDBG_Build_opt {
+struct CCDBG_Build_opt : CDBG_Build_opt {
 
-    bool reference_mode;
-    bool verbose;
+    string filename_colors_in;
 
-    size_t nb_threads;
-    size_t read_chunksize;
-    size_t unitig_size;
-    size_t nb_unique_kmers;
-    size_t nb_non_unique_kmers;
-    size_t nb_bits_unique_kmers_bf;
-    size_t nb_bits_non_unique_kmers_bf;
-
-    string inFilenameBBF;
-    string outFilenameBBF;
-
-    vector<string> filename_seq_in;
-
-    // The following members are not used by CompactedDBG<T>::build
-    // but you can set them to use them as parameters for other functions
-    // such as CompactedDBG<T>::simplify or CompactedDBG<T>::write.
-
-    vector<string> filename_colors_in;
-
-    size_t k, g;
-
-    bool clipTips;
-    bool deleteIsolated;
-    bool useMercyKmers;
-
-    bool outputGFA;
     bool outputColors;
 
-    string prefixFilenameOut;
-
-    CCDBG_Build_opt() : nb_threads(1), k(DEFAULT_K), g(DEFAULT_G), nb_unique_kmers(0), nb_non_unique_kmers(0),
-                        nb_bits_unique_kmers_bf(14), nb_bits_non_unique_kmers_bf(14), read_chunksize(64),
-                        unitig_size(1000000), verbose(false), clipTips(false), deleteIsolated(false), useMercyKmers(false),
-                        outputGFA(true), outputColors(true), reference_mode(true), inFilenameBBF(""), outFilenameBBF("") {}
-
-    /** Creates a CDBG_Build_opt (for a CompactedDBG object) from a CCDBG_Build_opt.
-    * @return a CDBG_Build_opt
-    */
-    CDBG_Build_opt getCDBG_Build_opt() const {
-
-        CDBG_Build_opt cdbg_opt;
-
-        cdbg_opt.reference_mode = reference_mode;
-        cdbg_opt.filename_in = filename_seq_in;
-
-        cdbg_opt.verbose = verbose;
-
-        cdbg_opt.nb_threads = nb_threads;
-        cdbg_opt.read_chunksize = read_chunksize;
-        cdbg_opt.unitig_size = unitig_size;
-        cdbg_opt.nb_unique_kmers = nb_unique_kmers;
-        cdbg_opt.nb_non_unique_kmers = nb_non_unique_kmers;
-        cdbg_opt.nb_bits_unique_kmers_bf = nb_bits_unique_kmers_bf;
-        cdbg_opt.nb_bits_non_unique_kmers_bf = nb_bits_non_unique_kmers_bf;
-
-        cdbg_opt.inFilenameBBF = inFilenameBBF;
-        cdbg_opt.outFilenameBBF = outFilenameBBF;
-
-        cdbg_opt.k = k;
-        cdbg_opt.g = g;
-
-        cdbg_opt.clipTips = clipTips;
-        cdbg_opt.deleteIsolated = deleteIsolated;
-        cdbg_opt.useMercyKmers = useMercyKmers;
-
-        cdbg_opt.outputGFA = outputGFA;
-
-        cdbg_opt.prefixFilenameOut = prefixFilenameOut;
-
-        return cdbg_opt;
-    }
+    CCDBG_Build_opt() : outputColors(true) {}
 };
 
 template<typename U> using UnitigColorMap = UnitigMap<DataAccessor<U>, DataStorage<U>>;
@@ -381,7 +312,7 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         * @param verbose is a boolean indicating if information messages are printed during reading (true) or not (false).
         * @return a boolean indicating if the graph was successfully read.
         */
-        bool read(const string& prefix_input_filename, const size_t nb_threads = 1, const bool verbose = false);
+        bool read(const string& input_graph_filename, const string& input_colors_filename, const size_t nb_threads = 1, const bool verbose = false);
 
         /** Merge a colored and compacted de Bruijn graph.
         * After merging, all unitigs and colors of the input graph have been added to and compacted with the current
@@ -464,11 +395,6 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         void buildUnitigColors(const size_t nb_threads);
 
         void resizeDataUC(const size_t sz, const size_t nb_threads = 1, const size_t max_nb_hash = 31);
-
-        inline bool readColorSets(const CCDBG_Build_opt& opt){
-
-            return this->getData()->read(opt.filename_colors_in[0], opt.verbose);
-        }
 
         bool invalid;
 };

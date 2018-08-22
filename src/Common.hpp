@@ -4,6 +4,7 @@
 #include <cassert>
 #include <algorithm>
 #include <stdint.h>
+#include <sys/stat.h>
 
 #ifndef XXH_NAMESPACE
 #define XXH_NAMESPACE BIFROST_HASH_
@@ -104,6 +105,13 @@ inline uint16_t rndup(uint16_t v) {
     v++;
 
     return v;
+}
+
+inline bool check_file_exists(const string& filename) {
+
+    struct stat stFileInfo;
+
+    return (stat(filename.c_str(), &stFileInfo) == 0);
 }
 
 template<typename T> class wrapperData {

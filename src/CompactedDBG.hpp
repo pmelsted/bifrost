@@ -13,15 +13,12 @@
 #include <sstream>
 #include <stdint.h>
 #include <string>
-#include <sys/stat.h>
 #include <unordered_set>
 #include <vector>
 
 #include <thread>
 #include <atomic>
 #include <mutex>
-
-//#include <jemalloc/jemalloc.h>
 
 #include "BlockedBloomFilter.hpp"
 #include "Common.hpp"
@@ -118,7 +115,8 @@ using namespace std;
 */
 struct CDBG_Build_opt {
 
-    bool reference_mode;
+    bool build;
+    bool update;
     bool verbose;
 
     size_t nb_threads;
@@ -132,7 +130,8 @@ struct CDBG_Build_opt {
     string inFilenameBBF;
     string outFilenameBBF;
 
-    vector<string> filename_in;
+    vector<string> filename_seq_in;
+    vector<string> filename_ref_in;
 
     // The following members are not used by CompactedDBG<T>::build
     // but you can set them to use them as parameters for other functions
@@ -148,10 +147,12 @@ struct CDBG_Build_opt {
 
     string prefixFilenameOut;
 
-    CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(DEFAULT_G), nb_unique_kmers(0), nb_non_unique_kmers(0), nb_bits_unique_kmers_bf(14),
-                        nb_bits_non_unique_kmers_bf(14), read_chunksize(64), unitig_size(1000000), reference_mode(false),
-                        verbose(false), clipTips(false), deleteIsolated(false), useMercyKmers(false), outputGFA(true), inFilenameBBF(""),
-                        outFilenameBBF("") {}
+    string filename_graph_in;
+
+    CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(DEFAULT_G), nb_unique_kmers(0), nb_non_unique_kmers(0),
+                        nb_bits_unique_kmers_bf(14), nb_bits_non_unique_kmers_bf(14), read_chunksize(64),
+                        unitig_size(1000000), build(false), update(false), clipTips(false),
+                        deleteIsolated(false), useMercyKmers(false), outputGFA(true), verbose(false) {}
 };
 
 /** @typedef const_UnitigMap
@@ -477,6 +478,11 @@ class CompactedDBG {
         * @return a constant iterator to the "past-the-last" unitig of the graph.
         */
         const_iterator end() const;
+
+        /** Return the sum of the unitigs length.
+        * @return An integer which corresponds to the sum of the unitigs length.
+        */
+        size_t length() const;
 
         /** Return a boolean indicating if the graph is invalid (wrong input parameters/files, error occurring during a method, etc.).
         * @return A boolean indicating if the graph is invalid.

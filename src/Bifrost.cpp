@@ -18,142 +18,168 @@ void PrintCite() {
 void PrintUsage() {
 
     cout << endl << "Bifrost " << BFG_VERSION << endl << endl;
-    cout << "Highly Parallel and Memory Efficient Colored and Compacted de Bruijn Graph Construction" << endl << endl;
-    cout << "Usage: Bifrost [Parameters] -o <output_prefix> -f <file_1> ..." << endl << endl;
-    cout << "Mandatory parameters with required argument:" << endl << endl <<
-    "  -f, --input-files        Input sequence files (FASTA or FASTQ, possibly gziped) and/or graph files (GFA)" << endl <<
-    "  -o, --output-file        Prefix for output file (GFA output by default)" << endl << endl <<
-    "Optional parameters with required argument:" << endl << endl <<
-    "  -t, --threads            Number of threads (default is 1)" << endl <<
-    "  -k, --kmer-length        Length of k-mers (default is 31)" << endl <<
-    //"  -c, --load-colors        Input color sets file (default is no color)" << endl <<
-    "  -g, --min-length         Length of minimizers (default is 23)" << endl <<
-    "  -n, --num-kmers          Estimated number of different k-mers in input files (default: KmerStream estimation)" << endl <<
-    "  -N, --num-kmers2         Estimated number of different k-mers occurring twice or more in the input files (default: KmerStream estimation)" << endl <<
-    "  -b, --bloom-bits         Number of Bloom filter bits per k-mer occurring at least once in the input files (default is 14)" << endl <<
-    "  -B, --bloom-bits2        Number of Bloom filter bits per k-mer occurring at least twice in the input files (default is 14)" << endl <<
-    "  -l, --load-mbbf          Filename for input Blocked Bloom Filter, skips filtering step (default is no input)" << endl <<
-    "  -w, --write-mbbf         Filename for output Blocked Bloom Filter (default is no output)" << endl <<
-    "  -s, --chunk-size         Read chunk size per thread (default is 64)" << endl <<
-    endl << "Optional parameters with no argument:" << endl << endl <<
-    "  -p, --produce-colors     Produce a colored and compacted de Bruijn graph (default is without colors)" << endl <<
-    "  -r, --reference          Reference mode, no filtering" << endl <<
-    "  -i, --clip-tips          Clip tips shorter than k k-mers in length" << endl <<
-    "  -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl <<
-    "  -m, --keep-mercy         Keep low coverage k-mers connecting tips" << endl <<
-    "  -a, --fasta              Output file is in FASTA format (only sequences) instead of GFA" << endl <<
-    "  -v, --verbose            Print information messages during construction" << endl <<
-    endl;
+    cout << "Highly parallel construction and indexing of colored and compacted de Bruijn graphs" << endl << endl;
+    cout << "Usage: Bifrost [COMMAND] [GENERAL_PARAMETERS] [COMMAND_PARAMETERS]" << endl << endl;
+    cout << "[COMMAND]:" << endl << endl <<
+    "   build                   Build a compacted de Bruijn graph, with or without colors" << endl <<
+    "   update                  Update a compacted (possible colored) de Bruijn graph with new sequences" << endl << endl;
+    cout << "[GENERAL_PARAMETERS]:" << endl << endl;
+    cout << "   > Mandatory with required argument:" << endl << endl <<
+    "   -s, --input-seq-files    Input sequence files (FASTA/FASTQ possibly gzipped)" << endl <<
+    "                            Input sequence files can be provided as a list in a TXT file (one file per line)" << endl <<
+    "                            K-mers with exactly 1 occurrence in the input sequence files will be discarded" << endl <<
+    "   -r, --input-ref-files    Input reference files (FASTA/FASTQ possibly gzipped and GFA)" << endl <<
+    "                            Input reference files can be provided as a list in a TXT file (one file per line)" << endl <<
+    "                            All k-mers of the input reference files are used" << endl <<
+    "   -o, --output-file        Prefix for output file(s)" << endl <<
+    endl << "   > Optional with required argument:" << endl << endl <<
+    "   -t, --threads            Number of threads (default is 1)" << endl <<
+    endl << "   > Optional with no argument:" << endl << endl <<
+    "   -i, --clip-tips          Clip tips shorter than k k-mers in length" << endl <<
+    "   -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl <<
+    "   -v, --verbose            Print information messages during execution" << endl << endl;
+    cout << "[COMMAND_PARAMETERS]: build" << endl << endl;
+    cout << "   > Optional with required argument:" << endl << endl <<
+    "   -k, --kmer-length        Length of k-mers (default is 31)" << endl <<
+    "   -m, --min-length         Length of minimizers (default is 23)" << endl <<
+    //"   -n, --num-kmers          Estimated number of k-mers with 1+ occurrences in the input files (default: KmerStream estimation)" << endl <<
+    //"   -N, --num-kmers2         Estimated number of k-mers with 2+ occurrences in the input files (default: KmerStream estimation)" << endl <<
+    "   -b, --bloom-bits         Number of Bloom filter bits per k-mer with 1+ occurrences in the input files (default is 14)" << endl <<
+    "   -B, --bloom-bits2        Number of Bloom filter bits per k-mer with 2+ occurrences in the input files (default is 14)" << endl <<
+    "   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default is no input)" << endl <<
+    "   -w, --write-mbbf         Output Blocked Bloom Filter file (default is no output)" << endl <<
+    "   -u, --chunk-size         Read chunk size per thread (default is 64)" << endl <<
+    endl << "   > Optional with no argument:" << endl << endl <<
+    "   -c, --colors             Color the compacted de Bruijn graph (default is no coloring)" << endl <<
+    "   -y, --keep-mercy         Keep low coverage k-mers connecting tips" << endl <<
+    "   -a, --fasta              Output file is in FASTA format (only sequences) instead of GFA" << endl << endl;
+    cout << "[COMMAND_PARAMETERS]: update" << endl << endl;
+    cout << "   > Mandatory with required argument:" << endl << endl <<
+    "   -g, --input-graph-file   Input graph file to update (GFA format)" << endl <<
+    endl << "   > Optional with required argument:" << endl << endl <<
+    "   -f, --input-color-file   Input color file associated with the input graph file to update" << endl <<
+    "   -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)" << endl <<
+    "   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or 23)" << endl << endl;
 }
 
 void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
 
-    const char* opt_string = "f:o:c:n:N:t:k:g:b:B:l:w:s:pridmav";
+    int option_index = 0, c;
+
+    const char* opt_string = "s:r:g:o:t:k:m:n:N:b:B:l:w:u:f:idvcya";
 
     static struct option long_options[] = {
 
-        {"input-files",     required_argument,  0, 'f'},
-        {"output-file",     required_argument,  0, 'o'},
-        {"load-colors",     required_argument,  0, 'c'},
-        {"num-kmers",       required_argument,  0, 'n'},
-        {"num-kmers2",      required_argument,  0, 'N'},
-        {"threads",         required_argument,  0, 't'},
-        {"kmer-length",     required_argument,  0, 'k'},
-        {"min-length",      required_argument,  0, 'g'},
-        {"bloom-bits",      required_argument,  0, 'b'},
-        {"bloom-bits2",     required_argument,  0, 'B'},
-        {"load-mbbf",       required_argument,  0, 'l'},
-        {"write-mbbf",      required_argument,  0, 'w'},
-        {"chunk-size",      required_argument,  0, 's'},
-        {"produce-colors",  no_argument,        0, 'p'},
-        {"reference",       no_argument,        0, 'r'},
-        {"clip-tips",       no_argument,        0, 'i'},
-        {"del-isolated",    no_argument,        0, 'd'},
-        {"keep-mercy",      no_argument,        0, 'm'},
-        {"fasta",           no_argument,        0, 'a'},
-        {"verbose",         no_argument,        0, 'v'},
-        {0,                 0,                  0,  0 }
+        {"input-seq-files",     required_argument,  0, 's'},
+        {"input-ref-files",     required_argument,  0, 'r'},
+        {"input-graph-file",    required_argument,  0, 'g'},
+        {"output-file",         required_argument,  0, 'o'},
+        {"threads",             required_argument,  0, 't'},
+        {"kmer-length",         required_argument,  0, 'k'},
+        {"min-length",          required_argument,  0, 'm'},
+        {"num-kmers",           required_argument,  0, 'n'},
+        {"num-kmers2",          required_argument,  0, 'N'},
+        {"bloom-bits",          required_argument,  0, 'b'},
+        {"bloom-bits2",         required_argument,  0, 'B'},
+        {"load-mbbf",           required_argument,  0, 'l'},
+        {"write-mbbf",          required_argument,  0, 'w'},
+        {"chunk-size",          required_argument,  0, 'u'},
+        {"input-color-file",    required_argument,  0, 'f'},
+        {"clip-tips",           no_argument,        0, 'i'},
+        {"del-isolated",        no_argument,        0, 'd'},
+        {"verbose",             no_argument,        0, 'v'},
+        {"colors",              no_argument,        0, 'c'},
+        {"keep-mercy",          no_argument,        0, 'y'},
+        {"fasta",               no_argument,        0, 'a'},
+        {0,                     0,                  0,  0 }
     };
 
-    int option_index = 0, c;
+    if (strcmp(argv[1], "build") == 0) opt.build = true;
+    else if (strcmp(argv[1], "update") == 0) opt.update = true;
 
-    while ((c = getopt_long(argc, argv, opt_string, long_options, &option_index)) != -1) {
+    if (opt.build || opt.update){
 
-        switch (c) {
+        while ((c = getopt_long(argc, argv, opt_string, long_options, &option_index)) != -1) {
 
-            case 'p':
-                opt.outputColors = true;
-                break;
-            case 'r':
-                opt.reference_mode = true;
-                break;
-            case 'v':
-                opt.verbose = true;
-                break;
-            case 'i':
-                opt.clipTips = true;
-                break;
-            case 'd':
-                opt.deleteIsolated = true;
-                break;
-            case 'm':
-                opt.useMercyKmers = true;
-                break;
-            case 'a':
-                opt.outputGFA = false;
-                break;
-            case 't':
-                opt.nb_threads = atoi(optarg);
-                break;
-            case 'k':
-                opt.k = atoi(optarg);
-                break;
-            case 'g':
-                opt.g = atoi(optarg);
-                break;
-            case 's':
-                opt.read_chunksize = atoi(optarg);
-                break;
-            case 'n':
-                opt.nb_unique_kmers = atoi(optarg);
-                break;
-            case 'N':
-                opt.nb_non_unique_kmers = atoi(optarg);
-                break;
-            case 'b':
-                opt.nb_bits_unique_kmers_bf = atoi(optarg);
-                break;
-            case 'B':
-                opt.nb_bits_non_unique_kmers_bf = atoi(optarg);
-                break;
-            case 'o':
-                opt.prefixFilenameOut = optarg;
-                break;
-            case 'w':
-                opt.outFilenameBBF = optarg;
-                break;
-            case 'l':
-                opt.inFilenameBBF = optarg;
-                break;
-            case 'f': {
+            switch (c) {
 
-                for (optind--; (optind < argc) && (*argv[optind] != '-'); ++optind){
+                case 's': {
 
-                      opt.filename_seq_in.push_back(argv[optind]);
+                    for (--optind; (optind < argc) && (*argv[optind] != '-'); ++optind){
+
+                          opt.filename_seq_in.push_back(argv[optind]);
+                    }
+
+                    break;
                 }
+                case 'r': {
 
-                break;
-            }
-            case 'c': {
+                    for (--optind; (optind < argc) && (*argv[optind] != '-'); ++optind){
 
-                for (optind--; (optind < argc) && (*argv[optind] != '-'); ++optind){
+                          opt.filename_ref_in.push_back(argv[optind]);
+                    }
 
-                      opt.filename_colors_in.push_back(argv[optind]);
+                    break;
                 }
-
-                break;
+                case 'g':
+                    opt.filename_graph_in = optarg;
+                    break;
+                case 'f':
+                    opt.filename_colors_in = optarg;
+                    break;
+                case 'o':
+                    opt.prefixFilenameOut = optarg;
+                    break;
+                case 't':
+                    opt.nb_threads = atoi(optarg);
+                    break;
+                case 'k':
+                    opt.k = atoi(optarg);
+                    break;
+                case 'm':
+                    opt.g = atoi(optarg);
+                    break;
+                case 'n':
+                    opt.nb_unique_kmers = atoi(optarg);
+                    break;
+                case 'N':
+                    opt.nb_non_unique_kmers = atoi(optarg);
+                    break;
+                case 'b':
+                    opt.nb_bits_unique_kmers_bf = atoi(optarg);
+                    break;
+                case 'B':
+                    opt.nb_bits_non_unique_kmers_bf = atoi(optarg);
+                    break;
+                case 'w':
+                    opt.outFilenameBBF = optarg;
+                    break;
+                case 'l':
+                    opt.inFilenameBBF = optarg;
+                    break;
+                case 'u':
+                    opt.read_chunksize = atoi(optarg);
+                    break;
+                case 'i':
+                    opt.clipTips = true;
+                    break;
+                case 'd':
+                    opt.deleteIsolated = true;
+                    break;
+                case 'v':
+                    opt.verbose = true;
+                    break;
+                case 'c':
+                    opt.outputColors = true;
+                    break;
+                case 'y':
+                    opt.useMercyKmers = true;
+                    break;
+                case 'a':
+                    opt.outputGFA = false;
+                    break;
+                default: break;
             }
-            default: break;
         }
     }
 }
@@ -164,77 +190,109 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
 
     size_t max_threads = std::thread::hardware_concurrency();
 
+    auto check_files = [&](vector<string>& v_files) {
+
+        vector<string> files_tmp;
+
+        char* buffer = new char[4096]();
+
+        for (const auto& file : v_files) {
+
+            if (!check_file_exists(file)) {
+
+                cerr << "Error: File " << file << " not found." << endl;
+                ret = false;
+            }
+            else {
+
+                const string s_ext = file.substr(file.find_last_of(".") + 1);
+
+                if ((s_ext == "txt")){
+
+                    FILE* fp = fopen(file.c_str(), "r");
+
+                    if (fp != NULL){
+
+                        fclose(fp);
+
+                        ifstream ifs_file_txt(file);
+                        istream i_file_txt(ifs_file_txt.rdbuf());
+
+                        while (i_file_txt.getline(buffer, 4096)){
+
+                            fp = fopen(buffer, "r");
+
+                            if (fp == NULL) {
+
+                                cerr << "Error: Could not open file " << buffer << " for reading." << endl;
+                                ret = false;
+                            }
+                            else {
+
+                                fclose(fp);
+                                files_tmp.push_back(string(buffer));
+                            }
+                        }
+
+                        ifs_file_txt.close();
+                    }
+                    else {
+
+                        cerr << "Error: Could not open file " << file << " for reading." << endl;
+                        ret = false;
+                    }
+                }
+                else files_tmp.push_back(file);
+            }
+        }
+
+        v_files = move(files_tmp);
+
+        delete[] buffer;
+    };
+
+    // Check general parameters
+
+    if (!opt.build && !opt.update){
+
+        cerr << "Error: No command selected (can be 'build' or 'update')." << endl;
+        ret = false;
+    }
+
     if (opt.nb_threads <= 0){
 
-        cerr << "Error: Number of threads cannot be less than or equal to 0" << endl;
+        cerr << "Error: Number of threads cannot be less than or equal to 0." << endl;
         ret = false;
     }
 
     if (opt.nb_threads > max_threads){
 
-        cerr << "Error: Number of threads cannot be greater than or equal to " << max_threads << endl;
-        ret = false;
-    }
-
-    if (opt.read_chunksize <= 0) {
-
-        cerr << "Error: Chunk size of reads to share among threads cannot be less than or equal to 0" << endl;
+        cerr << "Error: Number of threads cannot be greater than or equal to " << max_threads << "." << endl;
         ret = false;
     }
 
     if (opt.k <= 0){
 
-        cerr << "Error: Length k of k-mers cannot be less than or equal to 0" << endl;
+        cerr << "Error: Length k of k-mers cannot be less than or equal to 0." << endl;
         ret = false;
     }
 
     if (opt.k >= MAX_KMER_SIZE){
 
-        cerr << "Error: Length k of k-mers cannot exceed or be equal to " << MAX_KMER_SIZE << endl;
+        cerr << "Error: Length k of k-mers cannot exceed or be equal to " << MAX_KMER_SIZE << "." << endl;
         ret = false;
     }
 
     if (opt.g <= 0){
 
-        cerr << "Error: Length g of minimizers cannot be less than or equal to 0" << endl;
+        cerr << "Error: Length m of minimizers cannot be less than or equal to 0." << endl;
         ret = false;
     }
 
-    if (opt.g >= MAX_KMER_SIZE){
+    if (opt.g > opt.k - 2){
 
-        cerr << "Error: Length g of minimizers cannot exceed or be equal to " << MAX_KMER_SIZE << endl;
+        cerr << "Error: Length m of minimizers cannot exceed k - 2 (" << (opt.k - 2) << ")." << endl;
         ret = false;
-    }
-
-    if (!opt.reference_mode && (opt.nb_non_unique_kmers > opt.nb_unique_kmers)){
-
-        cerr << "Error: The estimated number of non unique k-mers ";
-        cerr << "cannot be greater than the estimated number of unique k-mers" << endl;
-        ret = false;
-    }
-
-    if (opt.outFilenameBBF.length() != 0){
-
-        FILE* fp = fopen(opt.outFilenameBBF.c_str(), "wb");
-
-        if (fp == NULL) {
-
-            cerr << "Error: Could not open file for writing output Blocked Bloom filter: " << opt.outFilenameBBF << endl;
-            ret = false;
-        }
-        else fclose(fp);
-    }
-
-    if (opt.inFilenameBBF.length() != 0){
-
-        FILE* fp = fopen(opt.inFilenameBBF.c_str(), "rb");
-
-        if (fp == NULL) {
-
-            cerr << "Error: Could not read file input Blocked Bloom filter: " << opt.inFilenameBBF << endl;
-            ret = false;
-        }
-        else fclose(fp);
     }
 
     const string out = opt.prefixFilenameOut + (opt.outputGFA ? ".gfa" : ".fasta");
@@ -243,95 +301,123 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
 
     if (fp == NULL) {
 
-        cerr << "Error: Could not open file for writing output graph in GFA format: " << out << endl;
+        cerr << "Error: Could not open file for writing output graph in GFA format: " << out << "." << endl;
         ret = false;
     }
     else {
 
         fclose(fp);
-        if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << endl;
+        if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << "." << endl;
     }
 
-    if (opt.filename_seq_in.size() == 0) {
+    if ((opt.filename_seq_in.size() + opt.filename_ref_in.size()) == 0) {
 
-        cerr << "Error: Missing input files" << endl;
+        cerr << "Error: Missing input files." << endl;
         ret = false;
     }
     else {
 
-        struct stat stFileInfo;
-        vector<string> filename_seq_in_tmp;
-
-        char* buffer = new char[4096]();
-
-        for (vector<string>::const_iterator it = opt.filename_seq_in.begin(); it != opt.filename_seq_in.end(); ++it) {
-
-            const int iStat = stat(it->c_str(), &stFileInfo);
-
-            if (iStat != 0) {
-
-                cerr << "Error: File not found, " << *it << endl;
-                ret = false;
-            }
-
-            const string s_ext = it->substr(it->find_last_of(".") + 1);
-
-            if ((s_ext == "txt")){
-
-                FILE* fp = fopen(it->c_str(), "r");
-
-                if (fp != NULL){
-
-                    fclose(fp);
-
-                    ifstream ifs_file_txt(*it);
-                    istream i_file_txt(ifs_file_txt.rdbuf());
-
-                    while (i_file_txt.getline(buffer, 4096)){
-
-                        fp = fopen(buffer, "r");
-
-                        if (fp == NULL) {
-
-                            cerr << "Error: Could not open file " << buffer << " for reading" << endl;
-                            ret = false;
-                        }
-                        else {
-
-                            fclose(fp);
-                            filename_seq_in_tmp.push_back(string(buffer));
-                        }
-                    }
-
-                    ifs_file_txt.close();
-                }
-                else {
-
-                    cerr << "Error: Could not open file " << *it << " for reading" << endl;
-                    ret = false;
-                }
-            }
-            else filename_seq_in_tmp.push_back(*it);
-        }
-
-        opt.filename_seq_in = move(filename_seq_in_tmp);
-
-        delete[] buffer;
+        check_files(opt.filename_seq_in);
+        check_files(opt.filename_ref_in);
     }
 
-    if (opt.filename_colors_in.size() != 0) {
+    if (opt.build){ // Check param. command build
 
-        struct stat stFileInfo;
-        vector<string>::const_iterator it;
-        int intStat;
+        if (opt.read_chunksize <= 0) {
 
-        for (it = opt.filename_colors_in.begin(); it != opt.filename_colors_in.end(); ++it) {
+            cerr << "Error: Chunk size of reads to share among threads cannot be less than or equal to 0." << endl;
+            ret = false;
+        }
 
-            intStat = stat(it->c_str(), &stFileInfo);
+        if (opt.nb_non_unique_kmers > opt.nb_unique_kmers){
 
-            if (intStat != 0) {
-                cerr << "Error: File not found, " << *it << endl;
+            cerr << "Error: The estimated number of non unique k-mers ";
+            cerr << "cannot be greater than the estimated number of unique k-mers." << endl;
+            ret = false;
+        }
+
+        if (opt.outFilenameBBF.length() != 0){
+
+            FILE* fp = fopen(opt.outFilenameBBF.c_str(), "wb");
+
+            if (fp == NULL) {
+
+                cerr << "Error: Could not open Blocked Bloom filter file " << opt.outFilenameBBF << " for writing." << endl;
                 ret = false;
+            }
+            else {
+
+                fclose(fp);
+
+                if (remove(opt.outFilenameBBF.c_str()) != 0){
+
+                    cerr << "Error: Could not remove temporary file " << opt.outFilenameBBF << "." << endl;
+                }
+            }
+        }
+
+        if (opt.inFilenameBBF.length() != 0){
+
+            if (check_file_exists(opt.inFilenameBBF)){
+
+                FILE* fp = fopen(opt.inFilenameBBF.c_str(), "rb");
+
+                if (fp == NULL) {
+
+                    cerr << "Error: Could not read input Blocked Bloom filter file " << opt.inFilenameBBF << "." << endl;
+                    ret = false;
+                }
+                else fclose(fp);
+            }
+            else {
+
+                cerr << "Error: Input Blocked Bloom filter " << opt.inFilenameBBF << " file does not exist." << endl;
+                ret = false;
+            }
+        }
+    }
+
+    if (opt.update){
+
+        if (opt.filename_graph_in.length() == 0){
+
+            cerr << "Error: No graph file to update was provided in input." << endl;
+            ret = false;
+        }
+        else if (!check_file_exists(opt.filename_graph_in)){
+
+            cerr << "Error: The graph file to update does not exist." << endl;
+            ret = false;
+        }
+        else {
+
+            FILE* fp = fopen(opt.filename_graph_in.c_str(), "r");
+
+            if (fp == NULL) {
+
+                cerr << "Error: Could not read input graph file " << opt.filename_graph_in << "." << endl;
+                ret = false;
+            }
+            else fclose(fp);
+        }
+
+        if (opt.filename_colors_in.length() != 0){
+
+            if (!check_file_exists(opt.filename_colors_in)){
+
+                cerr << "Error: The input color file does not exist." << endl;
+                ret = false;
+            }
+            else {
+
+                FILE* fp = fopen(opt.filename_colors_in.c_str(), "rb");
+
+                if (fp == NULL) {
+
+                    cerr << "Error: Could not read input color file " << opt.filename_colors_in << "." << endl;
+                    ret = false;
+                }
+                else fclose(fp);
             }
         }
     }
@@ -346,17 +432,14 @@ int main(int argc, char **argv){
 
         CCDBG_Build_opt opt;
 
-        opt.reference_mode = false; // We dont know yet if we want colors or not
         opt.outputColors = false; // We dont know yet if we want colors or not
 
         parse_ProgramOptions(argc, argv, opt); // Parse input parameters
 
-        if (check_ProgramOptions(opt)){ // Check if input parameters are valid
+        if (!check_ProgramOptions(opt)) return 0; // Check if input parameters are valid
+        else if (opt.build){ // We want to build the graph
 
-            if (opt.outputColors || (opt.filename_colors_in.size() != 0)){ // If colors in or out
-
-                opt.reference_mode = true; //If the user wants a colored cdBG, it is reference mode
-                opt.outputColors = true; //If the user wants a colored cdBG, it is reference mode
+            if (opt.outputColors){
 
                 ColoredCDBG<> cdbg(opt.k, opt.g);
 
@@ -367,13 +450,54 @@ int main(int argc, char **argv){
             }
             else {
 
-                CDBG_Build_opt opt_ = opt.getCDBG_Build_opt();
+                CompactedDBG<> cdbg(opt.k, opt.g);
 
-                CompactedDBG<> cdbg(opt_.k, opt_.g);
+                cdbg.build(opt);
+                cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+                cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
+            }
+        }
+        else if (opt.update){
 
-                cdbg.build(opt_);
-                cdbg.simplify(opt_.deleteIsolated, opt_.clipTips, opt_.verbose);
-                cdbg.write(opt_.prefixFilenameOut, opt_.nb_threads, opt_.outputGFA, opt_.verbose);
+            if (opt.filename_colors_in.length() != 0){ // If colors in or out
+
+                ColoredCDBG<> cdbg1(opt.k, opt.g);
+                ColoredCDBG<> cdbg2(opt.k, opt.g);
+
+                cdbg1.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
+                cdbg2.buildGraph(opt);
+                cdbg2.buildColors(opt);
+
+                const size_t cdbg1_len = cdbg1.length();
+                const size_t cdbg2_len = cdbg2.length();
+
+                ColoredCDBG<>& cdbg_a = (cdbg1_len > cdbg2_len) ? cdbg1 : cdbg2;
+                ColoredCDBG<>& cdbg_b = (cdbg1_len > cdbg2_len) ? cdbg2 : cdbg1;
+
+                cdbg_a.merge(move(cdbg_b), opt.nb_threads, opt.verbose);
+
+                cdbg_a.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+                cdbg_a.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
+            }
+            else {
+
+                CompactedDBG<> cdbg1(opt.k, opt.g);
+                CompactedDBG<> cdbg2(opt.k, opt.g);
+
+                cdbg1.read(opt.filename_graph_in, opt.verbose);
+                cdbg2.build(opt);
+
+                const size_t cdbg1_len = cdbg1.length();
+                const size_t cdbg2_len = cdbg2.length();
+
+                CompactedDBG<>& cdbg_a = (cdbg1_len > cdbg2_len) ? cdbg1 : cdbg2;
+                CompactedDBG<>& cdbg_b = (cdbg1_len > cdbg2_len) ? cdbg2 : cdbg1;
+
+                cdbg_a.merge(cdbg_b, opt.nb_threads, opt.verbose);
+                cdbg_b.clear();
+
+                cdbg_a.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+                cdbg_a.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
             }
         }
     }
