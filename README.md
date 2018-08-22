@@ -233,7 +233,7 @@ Yes, as long as they are FASTA, FASTQ and GFA.
 
 **Can I provide in input a file which is a list of files?**
 
-Yes, a text file (which is a list of files) can be given in input. It must contain one input filename per line with no empty lines.
+Yes, a text file containing one input filename per line with no empty lines can be given in input.
 
 **If I input a GFA file, does it need to contain an already compacted de Bruijn graph?**
 
