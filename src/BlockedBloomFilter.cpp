@@ -2,13 +2,17 @@
 
 #if defined(__AVX2__)
 
-BlockedBloomFilter::BlockedBloomFilter() : table_(nullptr), blocks_(0), k_(0), fast_div_() {
+BlockedBloomFilter::BlockedBloomFilter() : table_(nullptr), blocks_(0), k_(0) {
 
-    //std::cout << std::hex << ((void*)&mask_h) << std::endl;
     //mask_h = _mm256_setzero_si256();
+
+    hashes_mask[0] = 0;
+    hashes_mask[1] = 0;
+    hashes_mask[2] = 0;
+    hashes_mask[3] = 0;
 }
 
-BlockedBloomFilter::BlockedBloomFilter(size_t nb_elem, size_t bits_per_elem) : table_(nullptr), blocks_(0), k_(0), fast_div_() {
+BlockedBloomFilter::BlockedBloomFilter(size_t nb_elem, size_t bits_per_elem) : table_(nullptr), blocks_(0), k_(0) {
 
     if ((nb_elem != 0) && (bits_per_elem != 0)){
 
@@ -16,6 +20,11 @@ BlockedBloomFilter::BlockedBloomFilter(size_t nb_elem, size_t bits_per_elem) : t
         k_ = (int) (bits_per_elem * log(2));
 
         //mask_h = _mm256_setzero_si256();
+
+        hashes_mask[0] = 0;
+        hashes_mask[1] = 0;
+        hashes_mask[2] = 0;
+        hashes_mask[3] = 0;
 
         if (fpp(bits_per_elem, k_) >= fpp(bits_per_elem, k_+1)) ++k_;
 
@@ -39,7 +48,7 @@ BlockedBloomFilter::BlockedBloomFilter(size_t nb_elem, size_t bits_per_elem) : t
     }
 }
 
-BlockedBloomFilter::BlockedBloomFilter(const BlockedBloomFilter& o) : table_(nullptr), blocks_(o.blocks_), k_(o.k_), /*mask_h(o.mask_h),*/ fast_div_() {
+BlockedBloomFilter::BlockedBloomFilter(const BlockedBloomFilter& o) : table_(nullptr), blocks_(o.blocks_), k_(o.k_), /*mask_h(o.mask_h),*/ fast_div_(o.fast_div_) {
 
     std::memcpy(hashes_mask, o.hashes_mask, 4 * sizeof(uint64_t));
 
@@ -483,7 +492,13 @@ void BlockedBloomFilter::clear() {
 
     k_ = 0;
     blocks_ = 0;
+
     //mask_h = _mm256_setzero_si256();
+
+    hashes_mask[0] = 0;
+    hashes_mask[1] = 0;
+    hashes_mask[2] = 0;
+    hashes_mask[3] = 0;
 }
 
 void BlockedBloomFilter::init_table(){
@@ -790,9 +805,9 @@ const __m256i BlockedBloomFilter::mask_lsb = _mm256_set1_epi64x(0x0000ffff0000ff
 
 #else
 
-BlockedBloomFilter::BlockedBloomFilter() : table_(nullptr), blocks_(0), k_(0), fast_div_() {}
+BlockedBloomFilter::BlockedBloomFilter() : table_(nullptr), blocks_(0), k_(0) {}
 
-BlockedBloomFilter::BlockedBloomFilter(size_t nb_elem, size_t bits_per_elem) : table_(nullptr), blocks_(0), k_(0), fast_div_() {
+BlockedBloomFilter::BlockedBloomFilter(size_t nb_elem, size_t bits_per_elem) : table_(nullptr), blocks_(0), k_(0) {
 
     if ((nb_elem != 0) && (bits_per_elem != 0)){
 
@@ -805,7 +820,7 @@ BlockedBloomFilter::BlockedBloomFilter(size_t nb_elem, size_t bits_per_elem) : t
     }
 }
 
-BlockedBloomFilter::BlockedBloomFilter(const BlockedBloomFilter& o) : table_(nullptr), blocks_(o.blocks_), k_(o.k_), fast_div_() {
+BlockedBloomFilter::BlockedBloomFilter(const BlockedBloomFilter& o) : table_(nullptr), blocks_(o.blocks_), k_(o.k_), fast_div_(o.fast_div_) {
 
     if (blocks_ != 0){
 
