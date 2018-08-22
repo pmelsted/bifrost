@@ -139,31 +139,31 @@ Usage: Bifrost [COMMAND] [GENERAL_PARAMETERS] [COMMAND_PARAMETERS]
    ```
    Bifrost build -t 4 -k 31 -i -d -o AB_graph -s A.fastq B.fastq
    ```
-  The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq* and *B.fastq* (`-s A.fastq B.fastq`). By using parameter `-s`, files *A.fastq* and *B.fastq* are filtered: 31-mers occurring exactly once in *A* and *B* are discarded from the construction. Graph simplification steps are performed after building (`-i -d`) and the graph is written to file *AB_graph.gfa* (`-o AB_graph`).
+   The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq* and *B.fastq* (`-s A.fastq B.fastq`). By using parameter `-s`, files *A.fastq* and *B.fastq* are filtered: 31-mers occurring exactly once in *A* and *B* are discarded from the construction. Graph simplification steps are performed after building (`-i -d`) and the graph is written to file *AB_graph.gfa* (`-o AB_graph`).
 
 2. **Build a compacted de Bruijn graph from a reference genome file**
    ```
    Bifrost build -t 4 -k 31 -i -d -o C_graph -r C.fasta
    ```
-  The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of file *C.fasta* (`-r C.fasta`). By using parameter `-r`, file *C.fasta* is NOT filtered: all 31-mers occurring in *C* are used during the construction. The graph is written to file *C_graph.gfa* (`-o C_graph`).
+   The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of file *C.fasta* (`-r C.fasta`). By using parameter `-r`, file *C.fasta* is NOT filtered: all 31-mers occurring in *C* are used during the construction. The graph is written to file *C_graph.gfa* (`-o C_graph`).
 
 3. **Building a compacted and colored de Bruijn graph from read files and reference genome files, clean the graph**
    ```
    Bifrost build -t 4 -k 31 -c -i -d -o ABC -s A.fastq B.fastq -r C.fasta
    ```
-  Combining the two previous examples, the compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq*, *B.fastq* (`-s A.fastq B.fastq`) and file *C.fasta* (`-r C.fasta`). By using parameter `-s`, files *A.fastq* and *B.fastq* are filtered: 31-mers occurring exactly once in *A* and *B* are discarded from the construction. By using parameter `-r`, file *C.fasta* is not filtered: all 31-mers occurring in *C* are used during the construction. Graph simplification steps are performed after building (`-i -d`). The graph is colored (`-c`), meaning that each k-mer of the graph unitigs keeps track of whether it occurs in *A*, *B* or *C*. The graph is written to file *ABC.gfa* and the colors are written to file *ABC.bfg_colors* (`-o ABC`).
+   Combining the two previous examples, the compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq*, *B.fastq* (`-s A.fastq B.fastq`) and file *C.fasta* (`-r C.fasta`). By using parameter `-s`, files *A.fastq* and *B.fastq* are filtered: 31-mers occurring exactly once in *A* and *B* are discarded from the construction. By using parameter `-r`, file *C.fasta* is not filtered: all 31-mers occurring in *C* are used during the construction. Graph simplification steps are performed after building (`-i -d`). The graph is colored (`-c`), meaning that each k-mer of the graph unitigs keeps track of whether it occurs in *A*, *B* or *C*. The graph is written to file *ABC.gfa* and the colors are written to file *ABC.bfg_colors* (`-o ABC`).
 
 4. **Updating a compacted de Bruijn graph with a reference genome file**
    ```
    Bifrost update -t 4 -o CD_graph -r D.fasta -g C_graph.gfa
    ```
-  The compacted de Bruijn graph *C* (`-g C_graph.gfa`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of file *D.fasta* (`-r D.fasta`). By using parameter `-r`, file *D.fasta* is NOT filtered: all *k*-mers occurring in *D* are used during the merging. The graph is written to file *CD_graph.gfa* (`-o CD_graph`).
+   The compacted de Bruijn graph *C* (`-g C_graph.gfa`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of file *D.fasta* (`-r D.fasta`). By using parameter `-r`, file *D.fasta* is NOT filtered: all *k*-mers occurring in *D* are used during the merging. The graph is written to file *CD_graph.gfa* (`-o CD_graph`).
 
 5. **Updating a compacted and colored de Bruijn graph with read files and clean the graph**
    ```
    Bifrost update -t 4 -i -d -o ABCEF -s E.fastq F.fastq -g ABC.gfa -f ABC.bfg_colors
    ```
-  The compacted and colored de Bruijn graph *ABC* (`-g ABC.gfa -f ABC.bfg_colors`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of files *E.fastq* and *F.fastq* (`-s E.fastq F.fastq`). By using parameter `-s`, files *E.fastq* and *F.fastq* are filtered: 31-mers occurring exactly once in *E* and *F* are discarded from the merging. Graph simplification steps are performed after merging (`-i -d`). The graph is written to file *ABCEF.gfa* and the colors are written to file *ABCEF.bfg_colors* (`-o ABCEF`).
+   The compacted and colored de Bruijn graph *ABC* (`-g ABC.gfa -f ABC.bfg_colors`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of files *E.fastq* and *F.fastq* (`-s E.fastq F.fastq`). By using parameter `-s`, files *E.fastq* and *F.fastq* are filtered: 31-mers occurring exactly once in *E* and *F* are discarded from the merging. Graph simplification steps are performed after merging (`-i -d`). The graph is written to file *ABCEF.gfa* and the colors are written to file *ABCEF.bfg_colors* (`-o ABCEF`).
 
 ## API
 
