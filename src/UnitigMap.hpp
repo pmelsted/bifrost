@@ -135,11 +135,17 @@ class UnitigMap : public UnitigMapBase {
         */
         bool operator!=(const UnitigMap& o) const;
 
-        /** Create a string containing the sequence of the mapped unitig.
-        * @return a string containing the sequence of the mapped unitig or
+        /** Create a string containing the sequence corresponding to the mapping.
+        * @return a string containing the sequence corresponding to the mapping or
         * an empty string if there is no mapping (UnitigMap::isEmpty = true).
         */
-        string toString() const;
+        string mappedSequenceToString() const;
+
+        /** Create a string containing the sequence of the reference unitig used the mapping.
+        * @return a string containing the sequence of the reference unitig used the mapping or
+        * an empty string if there is no mapping (UnitigMap::isEmpty = true).
+        */
+        string referenceUnitigToString() const;
 
         /** Compute the length of the longest common prefix between a given sequence and
         * the reference unitig used in the mapping.

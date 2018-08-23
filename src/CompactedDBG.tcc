@@ -135,9 +135,9 @@ bool CompactedDBG<U, G>::operator==(const CompactedDBG& o) const {
                 unitig_o.dist = 0;
                 unitig_o.len = unitig_o.size - k_ + 1;
 
-                const string unitig_o_str = unitig_o.strand ? unitig_o.toString() : reverse_complement(unitig_o.toString());
+                const string unitig_o_str = unitig_o.strand ? unitig_o.referenceUnitigToString() : reverse_complement(unitig_o.referenceUnitigToString());
 
-                if (unitig_o_str != unitig.toString()) return false;
+                if (unitig_o_str != unitig.referenceUnitigToString()) return false;
             }
         }
 
@@ -1434,7 +1434,7 @@ bool CompactedDBG<U, G>::annotateSplitUnitigs(const CompactedDBG<U, G>& o, const
 
             for (const auto& unitig : o){
 
-                annotateSplitUnitig(unitig.toString(), false);
+                annotateSplitUnitig(unitig.referenceUnitigToString(), false);
 
                 ++i;
             }
@@ -1443,7 +1443,7 @@ bool CompactedDBG<U, G>::annotateSplitUnitigs(const CompactedDBG<U, G>& o, const
         }
         else {
 
-            for (const auto& unitig : o) annotateSplitUnitig(unitig.toString(), false);
+            for (const auto& unitig : o) annotateSplitUnitig(unitig.referenceUnitigToString(), false);
         }
 
         return true;
@@ -1469,7 +1469,7 @@ bool CompactedDBG<U, G>::mergeData(const CompactedDBG<U, G>& o, const size_t nb_
 
             while (it_a != it_b) {
 
-                const string str(it_a->toString());
+                const string str(it_a->referenceUnitigToString());
                 const char* str_seq = str.c_str();
 
                 for (KmerIterator it_km(str_seq), it_km_end; it_km != it_km_end;) { //non-ACGT char. are discarded
@@ -1569,7 +1569,7 @@ bool CompactedDBG<U, G>::mergeData(CompactedDBG<U, G>&& o, const size_t nb_threa
 
             while (it_a != it_b) {
 
-                const string str(it_a->toString());
+                const string str(it_a->referenceUnitigToString());
                 const char* str_seq = str.c_str();
 
                 for (KmerIterator it_km(str_seq), it_km_end; it_km != it_km_end;) { //non-ACGT char. are discarded

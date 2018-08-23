@@ -219,19 +219,6 @@ You can also link to the Bifrost static library (*libbifrost.a*) for better perf
 #include <bifrost/ColoredCDBG.hpp>
 ```
 
-### Changelog
-
-* **08-07-2018**
-	* Add de Bruijn graphs merging functions (`CompactedDBG::merge()` and `ColoredCDBG::merge()`) and addition assignment operators (`CompactedDBG::operator+=()` and `ColoredCDBG::operator+=()`, same as `merge()` but uses only one thread).
-	* Add de Bruijn graphs comparison functions `CompactedDBG::operator==()`, `CompactedDBG::operator!=()`, `ColoredCDBG::operator==()` and `ColoredCDBG::operator!=()`.
-	* Delete `CompactedDBG::empty()` and `ColoredCDBG::empty()` to be consistent with STD containers (those functions were emptying the graph of its content while `empty()` of STD containers returns whether the container is empty). Now, to empty the graph, use `CompactedDBG::clear()` and `ColoredCDBG::clear()`.
-    * Major changes in the abstract class `CDBG_Data_t` and `CCDBG_Data_t`:
-    	* All the functions are now **non**-static.
-    	* Function `join()` is renamed `concat()` and works a bit differently (have a look at the doc). Quickly, `join()` was concatenating two unitigs A and B such that the result was A=AB and B was deleted from the graph. Now, `concat()` deletes A and B from the graph and adds a new unitig C=AB.
-    	* Function `sub()` is renamed `extract()`.
-    	* Add the functions `merge()` and `clear()` which **must** be overloaded too in the derived class of `CDBG_Data_t` and `CCDBG_Data_t`.
-    * Bugfix with graph reading from disk and concatenating UnitigColors.
-
 ## FAQ
 
 **What are the accepted input file formats?**

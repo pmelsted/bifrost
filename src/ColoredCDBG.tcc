@@ -70,9 +70,9 @@ bool ColoredCDBG<U>::operator==(const ColoredCDBG& o) const {
                 unitig_o.dist = 0;
                 unitig_o.len = unitig_o.size - this->k_ + 1;
 
-                const string unitig_o_str = unitig_o.strand ? unitig_o.toString() : reverse_complement(unitig_o.toString());
+                const string unitig_o_str = unitig_o.strand ? unitig_o.referenceUnitigToString() : reverse_complement(unitig_o.referenceUnitigToString());
 
-                if (unitig_o_str != unitig.toString()) return false;
+                if (unitig_o_str != unitig.referenceUnitigToString()) return false;
                 else {
 
                     const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);

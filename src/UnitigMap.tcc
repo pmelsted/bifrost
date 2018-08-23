@@ -28,7 +28,7 @@ bool UnitigMap<U, G, is_const>::operator!=(const UnitigMap& o) const {
 }
 
 template<typename U, typename G, bool is_const>
-string UnitigMap<U, G, is_const>::toString() const {
+string UnitigMap<U, G, is_const>::mappedSequenceToString() const {
 
     if (isEmpty) return string();
 
@@ -46,6 +46,16 @@ string UnitigMap<U, G, is_const>::toString() const {
 
         return reverse_complement(cdbg->v_unitigs[pos_unitig]->seq.toString(dist, len + cdbg->k_ - 1));
     }
+}
+
+template<typename U, typename G, bool is_const>
+string UnitigMap<U, G, is_const>::referenceUnitigToString() const {
+
+    if (isEmpty) return string();
+    if (isShort) return cdbg->v_kmers[pos_unitig].first.toString();
+    if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey().toString();
+
+    return cdbg->v_unitigs[pos_unitig]->seq.toString();
 }
 
 template<typename U, typename G, bool is_const>
