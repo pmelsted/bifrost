@@ -214,12 +214,6 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
         construct_finished = false;
     }
 
-    if (opt.unitig_size <= 0){
-
-        cerr << "CompactedDBG::build(): Maximum unitig size cannot be less than or equal to 0" << endl;
-        construct_finished = false;
-    }
-
     if (opt.outFilenameBBF.length() != 0){
 
         FILE* fp = fopen(opt.outFilenameBBF.c_str(), "wb");

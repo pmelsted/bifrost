@@ -246,7 +246,7 @@ Yes, as long as they are FASTA, FASTQ and GFA.
 
 Yes, a text file containing one input filename per line with no empty lines can be given in input.
 
-**If I input a GFA file, does it need to contain an already compacted de Bruijn graph?**
+**If I input a GFA file for building the de Bruijn graph, does it need to contain an already compacted de Bruijn graph?**
 
 No, it can contain any type of sequence graph (like an uncompacted de Bruijn graph or a sequence graph).
 
