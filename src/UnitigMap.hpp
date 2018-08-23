@@ -258,11 +258,6 @@ class UnitigMap : public UnitigMapBase {
         neighborIterator<U, G, is_const> fw_begin() const;
         neighborIterator<U, G, is_const> fw_end() const;
 
-        template<bool is_void> typename std::enable_if<!is_void, void>::type mergeData_(const UnitigMap<U, G, is_const>& um) const;
-        template<bool is_void> typename std::enable_if<is_void, void>::type mergeData_(const UnitigMap<U, G, is_const>& um) const;
-
-        void mergeData(const UnitigMap<U, G, is_const>& um) const;
-
         template<bool is_void> typename std::enable_if<!is_void, Unitig<U>>::type splitData_(const bool last_split) const;
         template<bool is_void> typename std::enable_if<is_void, Unitig<U>>::type splitData_(const bool last_split) const;
 

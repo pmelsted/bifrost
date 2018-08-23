@@ -562,9 +562,8 @@ bool CompactedDBG<U, G>::read(const string& input_filename, const bool verbose){
         stringstream hs(&buffer[2]); // Skip the first 2 char. of the line "H\t"
         string sub;
 
-        invalid = true;
-
-        int k = INT_MAX;
+        int k = k_;
+        int g = g_;
 
         while (hs.good()){ // Split line based on tabulation
 
@@ -573,32 +572,25 @@ bool CompactedDBG<U, G>::read(const string& input_filename, const bool verbose){
             const string tag = sub.substr(0, 5);
 
             if (tag == "KL:Z:") k = atoi(sub.c_str() + 5);
-            else if (tag == "BV:Z:") invalid = false;
+            else if (tag == "ML:Z:") g = atoi(sub.c_str() + 5);
         }
-
-        if (!invalid){
-
-            const int g_cpy = g_;
-
-            clear();
-
-            setKmerGmerLength(k, g_cpy);
-
-            if (!invalid) readGFA(input_filename);
-        }
-        else return false;
-    }
-    else {
-
-        const int k_cpy = k_;
-        const int g_cpy = g_;
-        const bool invalid_cpy = invalid;
 
         clear();
 
-        k_ = k_cpy;
-        g_ = g_cpy;
-        invalid = invalid_cpy;
+        setKmerGmerLength(k, g);
+
+        if (!invalid) readGFA(input_filename);
+
+        return !invalid;
+    }
+    else {
+
+        const int k = k_;
+        const int g = g_;
+
+        clear();
+
+        setKmerGmerLength(k, g);
 
         readFASTA(input_filename);
     }
@@ -5562,7 +5554,7 @@ void CompactedDBG<U, G>::writeGFA(const string& graphfilename, const size_t nb_t
 
     size_t i, labelA, labelB, id = v_unitigs_sz + v_kmers_sz + 1;
 
-    const string header_tag("BV:Z:" + string(BFG_VERSION) + "\t" + "KL:Z:" + to_string(k_));
+    const string header_tag("BV:Z:" + string(BFG_VERSION) + "\t" + "KL:Z:" + to_string(k_) + "\t" + "ML:Z:" + to_string(g_));
 
     KmerHashTable<size_t> idmap(h_kmers_ccov.size());
 

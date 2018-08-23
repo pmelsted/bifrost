@@ -277,23 +277,6 @@ typename std::enable_if<is_void, typename UnitigMap<U, G, is_const>::Unitig_data
     return nullptr;
 }
 
-template<typename U, typename G, bool is_const>
-template<bool is_void>
-typename std::enable_if<!is_void, void>::type UnitigMap<U, G, is_const>::mergeData_(const UnitigMap<U, G, is_const>& um) const {
-
-    if (!isEmpty) getData_<false>()->concat(*this, um);
-}
-
-template<typename U, typename G, bool is_const>
-template<bool is_void>
-typename std::enable_if<is_void, void>::type UnitigMap<U, G, is_const>::mergeData_(const UnitigMap<U, G, is_const>& um) const {}
-
-template<typename U, typename G, bool is_const>
-void UnitigMap<U, G, is_const>::mergeData(const UnitigMap<U, G, is_const>& um) const {
-
-    mergeData_<is_void<U>::value>(um);
-}
-
 
 template<typename U, typename G, bool is_const>
 template<bool is_void>
