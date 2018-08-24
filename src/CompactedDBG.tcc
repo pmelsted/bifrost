@@ -1311,7 +1311,7 @@ bool CompactedDBG<U, G>::merge(const CompactedDBG& o, const size_t nb_threads, c
 
         for (auto& unitig : *this) unitig.setFullCoverage();
 
-        if (annotateSplitUnitigs(o, verbose)){
+        if (annotateSplitUnitigs(o, nb_threads, verbose)){
 
             const size_t sz_after = size();
             const pair<size_t, size_t> p = splitAllUnitigs();
@@ -1380,7 +1380,7 @@ bool CompactedDBG<U, G>::merge(const vector<CompactedDBG>& v, const size_t nb_th
 
         for (const auto& cdbg : v){
 
-            ret = annotateSplitUnitigs(cdbg, verbose);
+            ret = annotateSplitUnitigs(cdbg, nb_threads, verbose);
 
             if (!ret) break;
         }
@@ -1412,7 +1412,7 @@ bool CompactedDBG<U, G>::merge(const vector<CompactedDBG>& v, const size_t nb_th
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::annotateSplitUnitigs(const CompactedDBG<U, G>& o, const bool verbose){
+bool CompactedDBG<U, G>::annotateSplitUnitigs(const CompactedDBG<U, G>& o, const size_t nb_threads, const bool verbose){
 
     if ((this != &o) && !invalid && !o.invalid) { // TODO: Check if k_ and g_ are the same
 
@@ -1421,22 +1421,62 @@ bool CompactedDBG<U, G>::annotateSplitUnitigs(const CompactedDBG<U, G>& o, const
             cout << "CompactedDBG::annotateSplitUnitigs(): Current graph has " << size() << " unitigs." << endl;
             cout << "CompactedDBG::annotateSplitUnitigs(): Graph to merge has " << o.size() << " unitigs." << endl;
             cout << "CompactedDBG::annotateSplitUnitigs(): Start unitigs merging." << endl;
-
-            size_t i = 0;
-
-            for (const auto& unitig : o){
-
-                annotateSplitUnitig(unitig.referenceUnitigToString(), false);
-
-                ++i;
-            }
-
-            cout << "CompactedDBG::annotateSplitUnitigs(): Merging unitigs finished." << endl;
         }
-        else {
+
+        if (nb_threads == 1){
 
             for (const auto& unitig : o) annotateSplitUnitig(unitig.referenceUnitigToString(), false);
         }
+        else {
+
+            LockGraph lck_g(nb_threads);
+
+            const size_t chunk = 100;
+
+            vector<thread> workers; // need to keep track of threads so we can join them
+
+            typename CompactedDBG<U, G>::const_iterator g_a = o.begin();
+            typename CompactedDBG<U, G>::const_iterator g_b = o.end();
+
+            mutex mutex_o_unitig;
+            mutex mutex_km;
+
+            for (size_t t = 0; t < nb_threads; ++t){
+
+                workers.emplace_back(
+
+                    [&, t]{
+
+                        typename CompactedDBG<U, G>::const_iterator l_a, l_b;
+
+                        while (true) {
+
+                            {
+                                unique_lock<mutex> lock(mutex_o_unitig);
+
+                                if (g_a == g_b) return;
+
+                                l_a = g_a;
+                                l_b = g_a;
+
+                                for (size_t cpt = 0; (cpt < chunk) && (l_b != g_b); ++cpt, ++l_b){}
+
+                                g_a = l_b;
+                            }
+
+                            for (auto& it_unitig = l_a; it_unitig != l_b; ++it_unitig) {
+
+                                annotateSplitUnitig(it_unitig->referenceUnitigToString(), lck_g, t, false);
+                            }
+                        }
+                    }
+                );
+            }
+
+            for (auto& t : workers) t.join();
+        }
+
+        if (verbose) cout << "CompactedDBG::annotateSplitUnitigs(): Merging unitigs finished." << endl;
 
         return true;
     }
@@ -1687,6 +1727,21 @@ size_t CompactedDBG<U, G>::length() const {
     }
 
     return len;
+}
+
+template<typename U, typename G>
+size_t CompactedDBG<U, G>::nbKmers() const {
+
+    size_t nb = 0;
+
+    if (!invalid){
+
+        nb = (v_kmers.size() + h_kmers_ccov.size());
+
+        for (const auto& unitig : v_unitigs) nb += unitig->seq.size() - k_ + 1;
+    }
+
+    return nb;
 }
 
 template<typename U, typename G>
@@ -3753,6 +3808,185 @@ bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, const bool verbo
                     cm.len = len;
                 }
             }
+
+            it_km += cm.len;
+
+            if (!prev_found){
+
+                add_graph_function(curr_unitig);
+
+                prev_found = true;
+            }
+        }
+    }
+
+    if (!prev_found) add_graph_function(curr_unitig);
+
+    return true;
+}
+
+template<typename U, typename G>
+bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, LockGraph& lck_g, const size_t thread_id, const bool verbose){
+
+    if (invalid){
+
+        cerr << "CompactedDBG::annotateSplitUnitig(): Graph is invalid and no sequence can be added to it" << endl;
+        return false;
+    }
+
+    if (seq.length() < k_){
+
+        cerr << "CompactedDBG::annotateSplitUnitig(): Input sequence length cannot be less than k = " << k_ << endl;
+        return false;
+    }
+
+    size_t nb_curr_pred = 0;
+    size_t nb_curr_succ = 0;
+    size_t nb_prev_pred = 0xFFFFFFFFFFFFFFFF;
+    size_t nb_prev_succ = 0xFFFFFFFFFFFFFFFF;
+
+    bool prev_found = true;
+
+    string curr_unitig;
+
+    char km_tmp[MAX_KMER_SIZE];
+
+    const char* str_seq = seq.c_str();
+
+    const size_t str_seq_len = seq.length();
+
+    auto add_graph_function = [&](const string& unitig){
+
+        const char* str_unitig = unitig.c_str();
+        const size_t len_unitig = unitig.length();
+
+        lck_g.lock_all_threads();
+
+        if (len_unitig == k_){
+
+            if (!addUnitig(str_unitig, v_kmers.size())) v_kmers[v_kmers.size() - 1].second.ccov.setFull();
+            else h_kmers_ccov.find(Kmer(str_unitig).rep())->ccov.setFull();
+        }
+        else {
+
+            addUnitig(str_unitig, v_unitigs.size());
+
+            v_unitigs[v_unitigs.size() - 1]->ccov.setFull();
+        }
+
+        lck_g.unlock_all_threads();
+    };
+
+    for (KmerIterator it_km(str_seq), it_km_end; it_km != it_km_end;) { //non-ACGT char. are discarded
+
+        const std::pair<Kmer, int>& p = *it_km;
+
+        lck_g.lock_thread(thread_id);
+
+        UnitigMap<U, G> cm = findUnitig(p.first, str_seq, p.second);
+
+        if (cm.isEmpty){
+
+            vector<const_UnitigMap<U, G>> um_bw(findPredecessors(p.first));
+            vector<const_UnitigMap<U, G>> um_fw(findSuccessors(p.first));
+
+            nb_curr_pred = 0;
+            nb_curr_succ = 0;
+
+            for (auto& um : um_bw){
+
+                if (!um.isEmpty){
+
+                    ++nb_curr_pred;
+
+                    if (!um.isAbundant && !um.isShort){
+
+                        if (um.strand) ++(um.dist);
+                        if ((um.dist != 0) && (um.dist != um.size - k_ + 1)){
+
+                            lck_g.lock_unitig(um.pos_unitig);
+                            unmapRead(um);
+                            lck_g.unlock_unitig(um.pos_unitig);
+                        }
+                    }
+                }
+            }
+
+            for (auto& um : um_fw){
+
+                if (!um.isEmpty){
+
+                    ++nb_curr_succ;
+
+                    if (!um.isAbundant && !um.isShort){
+
+                        if (!um.strand) ++(um.dist);
+                        if ((um.dist != 0) && (um.dist != um.size - k_ + 1)){
+
+                            lck_g.lock_unitig(um.pos_unitig);
+                            unmapRead(um);
+                            lck_g.unlock_unitig(um.pos_unitig);
+                        }
+                    }
+                }
+            }
+
+            lck_g.unlock_thread(thread_id);
+
+            if (prev_found){ // Previous k-mer was found in the graph => current k-mer (not found in the graph) starts a new unitig
+
+                prev_found = false;
+                curr_unitig = p.first.toString();
+            }
+            else if (((nb_prev_succ == 0) && (nb_curr_pred == 0))) curr_unitig.push_back(str_seq[p.second + k_ - 1]);
+            else {
+
+                add_graph_function(curr_unitig);
+
+                curr_unitig = p.first.toString();
+            }
+
+            nb_prev_succ = nb_curr_succ;
+            nb_prev_pred = nb_curr_pred;
+
+            ++it_km;
+        }
+        else {
+
+            if ((p.second == 0) && !cm.isAbundant && !cm.isShort){
+
+                if ((cm.dist != 0) && (cm.dist != cm.size - k_ + 1)){
+
+                    const size_t len = cm.len;
+
+                    cm.len = 1;
+
+                    lck_g.lock_unitig(cm.pos_unitig);
+                    unmapRead(cm);
+                    lck_g.unlock_unitig(cm.pos_unitig);
+
+                    cm.len = len;
+                }
+            }
+            else if ((p.second + cm.len == str_seq_len - k_ + 1) && !cm.isAbundant && !cm.isShort){
+
+                cm.dist += cm.len;
+
+                if ((cm.dist != 0) && (cm.dist != cm.size - k_ + 1)){
+
+                    const size_t len = cm.len;
+
+                    cm.len = 1;
+
+                    lck_g.lock_unitig(cm.pos_unitig);
+                    unmapRead(cm);
+                    lck_g.unlock_unitig(cm.pos_unitig);
+
+                    cm.len = len;
+                }
+            }
+
+            lck_g.unlock_thread(thread_id);
 
             it_km += cm.len;
 

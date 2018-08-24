@@ -29,6 +29,7 @@
 #include "KmerHashTable.hpp"
 #include "KmerIterator.hpp"
 #include "KmerStream.hpp"
+#include "Lock.hpp"
 #include "minHashIterator.hpp"
 #include "RepHash.hpp"
 #include "TinyVector.hpp"
@@ -495,6 +496,8 @@ class CompactedDBG {
         */
         size_t length() const;
 
+        size_t nbKmers() const;
+
         /** Return a boolean indicating if the graph is invalid (wrong input parameters/files, error occurring during a method, etc.).
         * @return A boolean indicating if the graph is invalid.
         */
@@ -522,7 +525,7 @@ class CompactedDBG {
 
     protected:
 
-        bool annotateSplitUnitigs(const CompactedDBG<U, G>& o, const bool verbose = false);
+        bool annotateSplitUnitigs(const CompactedDBG<U, G>& o, const size_t nb_threads = 1, const bool verbose = false);
 
         pair<size_t, size_t> splitAllUnitigs();
         pair<size_t, size_t> getSplitInfoAllUnitigs() const;
@@ -566,6 +569,7 @@ class CompactedDBG {
 
         bool mergeUnitig(const string& seq, const bool verbose = false);
         bool annotateSplitUnitig(const string& seq, const bool verbose = false);
+        bool annotateSplitUnitig(const string& seq, LockGraph& lck_g, const size_t thread_id, const bool verbose = false);
 
         template<bool is_void>
         inline typename std::enable_if<!is_void, void>::type mergeData_(const UnitigMap<U, G>& a, const const_UnitigMap<U, G>& b){

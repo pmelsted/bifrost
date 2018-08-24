@@ -134,7 +134,7 @@ bool ColoredCDBG<U>::merge(const ColoredCDBG& o, const size_t nb_threads, const 
 
         for (auto& unitig : *this) unitig.setFullCoverage();
 
-        ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::annotateSplitUnitigs(o, verbose);
+        ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::annotateSplitUnitigs(o, nb_threads, verbose);
 
         if (ret){
 
@@ -198,7 +198,7 @@ bool ColoredCDBG<U>::merge(ColoredCDBG&& o, const size_t nb_threads, const bool 
 
         for (auto& unitig : *this) unitig.setFullCoverage();
 
-        ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::annotateSplitUnitigs(o, verbose);
+        ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::annotateSplitUnitigs(o, nb_threads, verbose);
 
         if (ret){
 
@@ -271,7 +271,7 @@ bool ColoredCDBG<U>::merge(const vector<ColoredCDBG>& v, const size_t nb_threads
 
         for (const auto& ccdbg : v){
 
-            ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::annotateSplitUnitigs(ccdbg, verbose);
+            ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::annotateSplitUnitigs(ccdbg, nb_threads, verbose);
 
             if (!ret) break;
         }
@@ -348,7 +348,7 @@ bool ColoredCDBG<U>::merge(vector<ColoredCDBG>&& v, const size_t nb_threads, con
 
         for (const auto& ccdbg : v){
 
-            ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::annotateSplitUnitigs(ccdbg, verbose);
+            ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::annotateSplitUnitigs(ccdbg, nb_threads, verbose);
 
             if (!ret) break;
         }
