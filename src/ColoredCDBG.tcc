@@ -11,7 +11,7 @@ template<typename U>
 ColoredCDBG<U>::ColoredCDBG(const ColoredCDBG& o) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(o), invalid(o.invalid) {}
 
 template<typename U>
-ColoredCDBG<U>::ColoredCDBG(ColoredCDBG&& o) :  CompactedDBG<DataAccessor<U>, DataStorage<U>>(o), invalid(o.invalid) {}
+ColoredCDBG<U>::ColoredCDBG(ColoredCDBG&& o) :  CompactedDBG<DataAccessor<U>, DataStorage<U>>(move(o)), invalid(o.invalid) {}
 
 template<typename U>
 void ColoredCDBG<U>::clear(){
@@ -37,7 +37,7 @@ ColoredCDBG<U>& ColoredCDBG<U>::operator=(ColoredCDBG&& o) {
 
     if (this != &o) {
 
-        CompactedDBG<DataAccessor<U>, DataStorage<U>>::operator=(o);
+        CompactedDBG<DataAccessor<U>, DataStorage<U>>::operator=(move(o));
 
         invalid = o.invalid;
 

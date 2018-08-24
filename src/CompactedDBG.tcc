@@ -1429,17 +1429,16 @@ bool CompactedDBG<U, G>::annotateSplitUnitigs(const CompactedDBG<U, G>& o, const
         }
         else {
 
-            LockGraph lck_g(nb_threads);
-
             const size_t chunk = 100;
 
             vector<thread> workers; // need to keep track of threads so we can join them
 
-            typename CompactedDBG<U, G>::const_iterator g_a = o.begin();
-            typename CompactedDBG<U, G>::const_iterator g_b = o.end();
+            typename CompactedDBG<U, G>::const_iterator g_a(o.begin());
+            typename CompactedDBG<U, G>::const_iterator g_b(o.end());
+
+            LockGraph lck_g(nb_threads);
 
             mutex mutex_o_unitig;
-            mutex mutex_km;
 
             for (size_t t = 0; t < nb_threads; ++t){
 

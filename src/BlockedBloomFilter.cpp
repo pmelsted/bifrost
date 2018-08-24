@@ -48,7 +48,7 @@ BlockedBloomFilter::BlockedBloomFilter(size_t nb_elem, size_t bits_per_elem) : t
     }
 }
 
-BlockedBloomFilter::BlockedBloomFilter(const BlockedBloomFilter& o) : table_(nullptr), blocks_(o.blocks_), k_(o.k_), /*mask_h(o.mask_h),*/ fast_div_(o.fast_div_) {
+BlockedBloomFilter::BlockedBloomFilter(const BlockedBloomFilter& o) : table_(nullptr), blocks_(o.blocks_), k_(o.k_), fast_div_(o.fast_div_) {
 
     std::memcpy(hashes_mask, o.hashes_mask, 4 * sizeof(uint64_t));
 
@@ -63,7 +63,7 @@ BlockedBloomFilter::BlockedBloomFilter(const BlockedBloomFilter& o) : table_(nul
     }
 }
 
-BlockedBloomFilter::BlockedBloomFilter(BlockedBloomFilter&& o) : table_(o.table_), blocks_(o.blocks_), k_(o.k_), /*mask_h(o.mask_h),*/ fast_div_(o.fast_div_) {
+BlockedBloomFilter::BlockedBloomFilter(BlockedBloomFilter&& o) : table_(o.table_), blocks_(o.blocks_), k_(o.k_), fast_div_(o.fast_div_) {
 
     std::memcpy(hashes_mask, o.hashes_mask, 4 * sizeof(uint64_t));
 
@@ -83,8 +83,10 @@ BlockedBloomFilter& BlockedBloomFilter::operator=(const BlockedBloomFilter& o) {
 
     table_ = nullptr;
     blocks_ = o.blocks_;
-    /*mask_h = o.mask_h;*/ std::memcpy(hashes_mask, o.hashes_mask, 4 * sizeof(uint64_t));
     k_ = o.k_;
+    fast_div_ = o.fast_div_;
+
+    std::memcpy(hashes_mask, o.hashes_mask, 4 * sizeof(uint64_t));
 
     init_table();
 
@@ -105,8 +107,9 @@ BlockedBloomFilter& BlockedBloomFilter::operator=(BlockedBloomFilter&& o) {
         table_ = o.table_;
         blocks_ = o.blocks_;
         k_ = o.k_;
-        /*mask_h = o.mask_h;*/ std::memcpy(hashes_mask, o.hashes_mask, 4 * sizeof(uint64_t));
         fast_div_ = o.fast_div_;
+
+        std::memcpy(hashes_mask, o.hashes_mask, 4 * sizeof(uint64_t));
 
         o.table_ = nullptr;
 
@@ -851,6 +854,7 @@ BlockedBloomFilter& BlockedBloomFilter::operator=(const BlockedBloomFilter& o) {
 
     blocks_ = o.blocks_;
     k_ = o.k_;
+    fast_div_ = o.fast_div_;
 
     init_table();
 
