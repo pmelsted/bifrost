@@ -10,6 +10,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <memory>
 
 using namespace std;
 
@@ -109,10 +110,10 @@ class GFA_Parser {
 
         vector<string> graph_filenames;
 
-        ifstream graphfile_in;
+        unique_ptr<ifstream> graphfile_in;
         istream graph_in;
 
-        ofstream graphfile_out;
+        unique_ptr<ofstream> graphfile_out;
         ostream graph_out;
 
         size_t v_gfa;

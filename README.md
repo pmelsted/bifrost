@@ -30,7 +30,7 @@
 
 * 64 bits POSIX-compliant UNIX or MacOS operating system
 * C++11 capable compiler:
-    * [GCC](https://gcc.gnu.org/) 5.0 or later
+    * [GCC](https://gcc.gnu.org/) 4.8.5 or later
     * [Clang](http://clang.llvm.org/) 3.5 or later
 * [Cmake](https://cmake.org/) 2.8.12 or later
 * [Zlib](https://zlib.net/)

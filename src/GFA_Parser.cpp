@@ -1,10 +1,11 @@
 #include "GFA_Parser.hpp"
 
 GFA_Parser::GFA_Parser() : file_open_write(false), file_open_read(false), file_no(0), v_gfa(0), graph_out(nullptr), graph_in(nullptr),
-                           buff_sz(0), buffer(nullptr) {}
+                           graphfile_in(nullptr), graphfile_out(nullptr), buffer(nullptr), buff_sz(0) {}
 
 GFA_Parser::GFA_Parser(const string& filename, const size_t buffer_size) :  file_open_write(false), file_open_read(false), file_no(0),
                                                                             v_gfa(0), graph_out(nullptr), graph_in(nullptr),
+                                                                            graphfile_in(nullptr), graphfile_out(nullptr),
                                                                             buff_sz(buffer_size), buffer(nullptr) {
 
     graph_filenames.push_back(filename);
@@ -18,6 +19,7 @@ GFA_Parser::GFA_Parser(const string& filename, const size_t buffer_size) :  file
 
 GFA_Parser::GFA_Parser(const vector<string>& filenames, const size_t buffer_size) : file_open_write(false), file_open_read(false), file_no(0),
                                                                                     v_gfa(0), graph_out(nullptr), graph_in(nullptr),
+                                                                                    graphfile_in(nullptr), graphfile_out(nullptr),
                                                                                     buff_sz(buffer_size), buffer(nullptr) {
 
     graph_filenames = filenames;
@@ -37,8 +39,8 @@ GFA_Parser::GFA_Parser(GFA_Parser&& o) :    graph_filenames(o.graph_filenames), 
                                             v_gfa(o.v_gfa), file_no(o.file_no), buff_sz(o.buff_sz), buffer(o.buffer),
                                             file_open_write(o.file_open_write), file_open_read(o.file_open_read) {
 
-    if (file_open_write) graph_out.rdbuf(graphfile_out.rdbuf());
-    if (file_open_read) graph_in.rdbuf(graphfile_in.rdbuf());
+    if (file_open_write) graph_out.rdbuf(graphfile_out->rdbuf());
+    if (file_open_read) graph_in.rdbuf(graphfile_in->rdbuf());
 
     o.buffer = nullptr;
 
@@ -68,8 +70,8 @@ GFA_Parser& GFA_Parser::operator=(GFA_Parser&& o){
         file_open_write = o.file_open_write;
         file_open_read = o.file_open_read;
 
-        if (file_open_write) graph_out.rdbuf(graphfile_out.rdbuf());
-        if (file_open_read) graph_in.rdbuf(graphfile_in.rdbuf());
+        if (file_open_write) graph_out.rdbuf(graphfile_out->rdbuf());
+        if (file_open_read) graph_in.rdbuf(graphfile_in->rdbuf());
 
         o.buffer = nullptr;
 
@@ -116,8 +118,10 @@ bool GFA_Parser::open_write(const size_t version_GFA, const string tags_line_hea
 
     if (file_open_write){
 
-        graphfile_out.open(filename.c_str(), ios_base::out);
-        graph_out.rdbuf(graphfile_out.rdbuf());
+        if (graphfile_out == nullptr) graphfile_out = unique_ptr<ofstream>(new ofstream());
+
+        graphfile_out->open(filename.c_str(), ios_base::out);
+        graph_out.rdbuf(graphfile_out->rdbuf());
         graph_out.sync_with_stdio(false);
 
         graph_out << "H\tVN:Z:" << (v_gfa == 1 ? "1" : "2") << ".0";
@@ -162,8 +166,10 @@ bool GFA_Parser::open(const size_t idx_filename){
 
         if (file_open_read) {
 
-            graphfile_in.open(graph_filenames[idx_filename], ios_base::in);
-            graph_in.rdbuf(graphfile_in.rdbuf());
+            if (graphfile_in == nullptr) graphfile_in = unique_ptr<ifstream>(new ifstream());
+
+            graphfile_in->open(graph_filenames[idx_filename], ios_base::in);
+            graph_in.rdbuf(graphfile_in->rdbuf());
             graph_in.sync_with_stdio(false);
 
             graph_in.getline(buffer, buff_sz); // Read and discard header
@@ -195,12 +201,12 @@ void GFA_Parser::close(){
 
     if (file_open_write){
 
-        graphfile_out.close();
+        graphfile_out->close();
         file_open_write = false;
     }
     else if (file_open_read){
 
-        graphfile_in.close();
+        graphfile_in->close();
         file_open_read = false;
     }
 }
