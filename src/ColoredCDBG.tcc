@@ -220,7 +220,7 @@ bool ColoredCDBG<U>::merge(ColoredCDBG&& o, const size_t nb_threads, const bool 
 
             for (size_t i = 0; i < o.getNbColors(); ++i) this->getData()->color_names.push_back(o.getColorName(i));
 
-            const bool ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::mergeData(o, nb_threads, verbose);
+            const bool ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::mergeData(move(o), nb_threads, verbose);
 
             o.clear();
 
