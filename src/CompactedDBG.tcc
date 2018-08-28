@@ -5706,7 +5706,7 @@ template<typename U, typename G>
 template<bool is_void>
 typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const {
 
-    const size_t v_unitigs_sz = v_unitigs.size();
+    /*const size_t v_unitigs_sz = v_unitigs.size();
     const size_t v_kmers_sz = v_kmers.size();
 
     size_t i, labelA, labelB, id = v_unitigs_sz + v_kmers_sz + 1;
@@ -5739,6 +5739,17 @@ typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::writeGFA_seque
         graph.write_sequence(slabelA, k_, it.getKey().toString(), data == "" ? data : string("DA:Z:" + data));
 
         ++id;
+    }*/
+
+    size_t labelA = 1;
+
+    for (const auto& unitig : *this){
+
+        const string seq(unitig.referenceUnitigToString());
+
+        graph.write_sequence(std::to_string(labelA), seq.size(), seq, unitig.getData()->serialize(unitig));
+
+        ++labelA;
     }
 }
 
@@ -5746,7 +5757,7 @@ template<typename U, typename G>
 template<bool is_void>
 typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const {
 
-    const size_t v_unitigs_sz = v_unitigs.size();
+    /*const size_t v_unitigs_sz = v_unitigs.size();
     const size_t v_kmers_sz = v_kmers.size();
 
     size_t i, labelA, labelB, id = v_unitigs_sz + v_kmers_sz + 1;
@@ -5776,6 +5787,17 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::writeGFA_sequen
         graph.write_sequence(slabelA, k_, it.getKey().toString(), "");
 
         ++id;
+    }*/
+
+    size_t labelA = 1;
+
+    for (const auto& unitig : *this){
+
+        const string seq(unitig.referenceUnitigToString());
+
+        graph.write_sequence(std::to_string(labelA), seq.size(), "");
+
+        ++labelA;
     }
 }
 

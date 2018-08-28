@@ -121,12 +121,14 @@ class DataAccessor : public CDBG_Data_t<DataAccessor<Unitig_data_t>, DataStorage
         */
         void extract(const UnitigColorMap<U>& um_src, const bool last_extraction);
 
-        /** Serialize the data to a string. This function is used when the graph is written to disk in GFA format.
-        * If the returned string is not empty, the string is appended to an optional field of the Segment line matching the unitig
-        * of this data. If the returned string is empty, no optional field and string are appended to the Segment line matching the
-        * unitig of this data.
+        /** Serialize the data to a GFA-formatted string. This function is used when the graph is written to disk in GFA format.
+        * If the returned string is not empty, the string is appended as an optional field to the Segment line matching the unitig to which
+        * this data is associated. Note that it is your responsability to add GFA-compatible tags matching your data in the string.
+        * @param um_src is a const_UnitigColorMap object representing the (reference) unitig to which the data to serialize is
+        * associated.
+        * @return a GFA-formatted string which is the serialization of the data.
         */
-        string serialize() const;
+        string serialize(const const_UnitigColorMap<U>& um_src) const;
 
     private:
 

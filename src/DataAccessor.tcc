@@ -303,6 +303,26 @@ inline void DataAccessor<void>::extract(const UnitigColorMap<void>& um_src, cons
 }
 
 template<typename U>
-string DataAccessor<U>::serialize() const { return std::to_string(da_id); }
+string DataAccessor<U>::serialize(const const_UnitigColorMap<U>& um_src) const {
+
+    string da_str("DA:Z:" + std::to_string(da_id));
+
+    const U* data_src = um_src.getData()->getData(um_src);
+
+    if (data_src != nullptr) {
+
+        const string data_str(data_src->serialize(um_src));
+
+        if (!data_str.empty()) da_str += string('\t' + data_str);
+    }
+
+    return da_str;
+}
+
+template<>
+inline string DataAccessor<void>::serialize(const const_UnitigColorMap<void>& um_src) const {
+
+    return string("DA:Z:" + std::to_string(da_id));
+}
 
 #endif

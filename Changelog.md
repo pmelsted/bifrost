@@ -2,6 +2,8 @@
 
 API only.
 
+* **08-28-2018**
+	* Functions `CDBG_Data_t::serialize()` and `CCDBG_Data_t::serialize()` have now one parameter which is a `const_UnitigMap`/`const_UnitigColorMap` reference representing the (reference) unitig to which the data are associated to.
 * **08-23-2018**
 	* Function `UnitigMap::toString()` was ambiguous as if it would generate the string of the mapped sequence or the string of the reference unitig used in the mapping. It has been replaced by two functions: `UnitigMap::mappedSequenceToString()` and `UnitigMap::referenceUnitigToString()`.
 * **08-07-2018**
