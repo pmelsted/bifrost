@@ -180,7 +180,7 @@ Usage: Bifrost [COMMAND] [GENERAL_PARAMETERS] [COMMAND_PARAMETERS]
 
 (Work in progress)
 
-Changes in the API are reported in the [Changelog](https://github.com/pmelsted/bifrost/Changelog.md).
+Changes in the API are reported in the [Changelog](https://github.com/pmelsted/bifrost/blob/master/Changelog.md).
 
 ### Documentation
 
