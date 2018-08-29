@@ -2,6 +2,8 @@
 
 API only.
 
+* **08-29-2018**
+	* `UnitigColors::const_iterator` only considers now the k-mer positions of the unitig mapping provided in the `UnitigMap`/`UnitigColorMap` parameter of `UnitigColors::begin()`.
 * **08-28-2018**
 	* Functions `CDBG_Data_t::serialize()` and `CCDBG_Data_t::serialize()` have now one parameter which is a `const_UnitigMap`/`const_UnitigColorMap` reference representing the (reference) unitig to which the data are associated to.
 * **08-23-2018**

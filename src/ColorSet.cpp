@@ -211,7 +211,8 @@ bool UnitigColors::isEqual(const UnitigMapBase& um, const UnitigColors& o, const
 
     if (size() != o.size()) return false;
 
-    UnitigColors::const_iterator it(begin(um)), o_it(o.begin(um_o));
+    UnitigColors::const_iterator it(begin(0, um.size - Kmer::k + 1, um.size - Kmer::k + 1));
+    UnitigColors::const_iterator o_it(o.begin(0, um_o.size - Kmer::k + 1, um_o.size - Kmer::k + 1));
     const UnitigColors::const_iterator it_end(end()), o_it_end(o.end());
 
     for (; (it != it_end) && (o_it != o_it_end); ++it, ++o_it){
@@ -1039,7 +1040,7 @@ uint64_t UnitigColors::hash(const size_t seed) const {
     const size_t nb_bytes_buffer = 64 * sizeof(uint64_t);
     const size_t nb_bits_buffer = nb_bytes_buffer * 8;
 
-    UnitigColors::const_iterator it(begin(1));
+    UnitigColors::const_iterator it(begin(0, 1, 1));
     const UnitigColors::const_iterator it_end(end());
 
     if (it != it_end){
@@ -1127,7 +1128,7 @@ UnitigColors UnitigColors::getNonFullColors(const UnitigMapBase& um, const Uniti
 
     UnitigColors non_full_uc(((setBits & flagMask) == ptrUnitigColors) ? getConstPtrUnitigColors()[1] : *this);
 
-    UnitigColors::const_iterator it_f(full_uc.begin(1));
+    UnitigColors::const_iterator it_f(full_uc.begin(0, 1, 1));
     const UnitigColors::const_iterator it_f_end(full_uc.end());
 
     while (it_f != it_f_end){
@@ -1148,7 +1149,7 @@ UnitigColors UnitigColors::getFullColors(const UnitigMapBase& um) const {
 
     UnitigColors new_uc;
 
-    UnitigColors::const_iterator it(begin(um));
+    UnitigColors::const_iterator it(begin(0, len_um_km, len_um_km));
     const UnitigColors::const_iterator it_end(end());
 
     for (; it != it_end; ++it, ++count){
@@ -1276,19 +1277,23 @@ bool UnitigColors::read(istream& stream_in) {
 
 UnitigColors::const_iterator UnitigColors::begin(const UnitigMapBase& um) const {
 
-    const_iterator it(this, um.size - Kmer::k + 1, true);
-    return ++it;
+    if (um.isEmpty) return end();
+    else {
+
+        const_iterator it(this, um.dist, um.dist + um.len, um.size - Kmer::k + 1, true);
+        return ++it;
+    }
 }
 
-UnitigColors::const_iterator UnitigColors::begin(const size_t len_km_sz) const {
+UnitigColors::const_iterator UnitigColors::begin(const size_t start_pos, const size_t end_pos, const size_t len_km_sz) const {
 
-    const_iterator it(this, len_km_sz, true);
+    const_iterator it(this, start_pos, end_pos, len_km_sz, true);
     return ++it;
 }
 
 UnitigColors::const_iterator UnitigColors::end() const {
 
-    return const_iterator(this, 0, false);
+    return const_iterator(this, 0, 0, 0, false);
 }
 
 UnitigColors UnitigColors::reverse(const UnitigMapBase& um) const {
@@ -1311,9 +1316,10 @@ UnitigColors UnitigColors::reverse(const UnitigMapBase& um) const {
         new_cs = getConstPtrSharedUnitigColors()->first.reverse(um);
     }
     else {
+
         const size_t len_unitig_km = um.size - Kmer::k + 1;
 
-        UnitigColors::const_iterator it(begin(um));
+        UnitigColors::const_iterator it(begin(0, len_unitig_km, len_unitig_km));
         const UnitigColors::const_iterator it_end(end());
 
         for (; it != it_end; ++it){
@@ -1328,12 +1334,13 @@ UnitigColors UnitigColors::reverse(const UnitigMapBase& um) const {
 }
 
 UnitigColors::UnitigColors_const_iterator::UnitigColors_const_iterator() :  cs(nullptr), it_uc(nullptr), flag(localBitVector), it_setBits(0),
-                                                                            ck_id(0xffffffffffffffff), cs_sz(0), um_sz(0),
-                                                                            it_roar(empty_roar.end()) {}
+                                                                            ck_id(0xffffffffffffffff), cs_sz(0), um_sz(0), start_pos(0),
+                                                                            end_pos(0), it_roar(empty_roar.end()) {}
 
-UnitigColors::UnitigColors_const_iterator::UnitigColors_const_iterator(const UnitigColors* cs_, const size_t len_unitig_km, const bool beg) :
-                                                                        cs(cs_), it_uc(nullptr), um_sz(len_unitig_km),
-                                                                        ck_id(0xffffffffffffffff), it_setBits(0xffffffffffffffff),
+UnitigColors::UnitigColors_const_iterator::UnitigColors_const_iterator( const UnitigColors* cs_, const size_t start_pos_, const size_t end_pos_,
+                                                                        const size_t len_unitig_km, const bool beg) :
+                                                                        cs(cs_), it_uc(nullptr), um_sz(len_unitig_km), start_pos(0),
+                                                                        end_pos(0), ck_id(0xffffffffffffffff), it_setBits(0xffffffffffffffff),
                                                                         it_roar(empty_roar.end()) {
 
     flag = cs->setBits & flagMask;
@@ -1344,14 +1351,14 @@ UnitigColors::UnitigColors_const_iterator::UnitigColors_const_iterator(const Uni
 
         it_uc = new UnitigColors_const_iterator[2];
 
-        it_uc[0] = beg ? uc[0].begin(1) : uc[0].end();
-        it_uc[1] = beg ? uc[1].begin(len_unitig_km) : uc[1].end();
+        it_uc[0] = beg ? uc[0].begin(0, 1, 1) : uc[0].end();
+        it_uc[1] = beg ? uc[1].begin(start_pos_, end_pos_, len_unitig_km) : uc[1].end();
 
         cs_sz = cs->size();
     }
     else if (flag == ptrSharedUnitigColors){
 
-        *this = UnitigColors_const_iterator(&(cs->getConstPtrSharedUnitigColors()->first), len_unitig_km, beg);
+        *this = UnitigColors_const_iterator(&(cs->getConstPtrSharedUnitigColors()->first), start_pos_, end_pos_, len_unitig_km, beg);
     }
     else if (flag == ptrBitmap){
 
@@ -1368,11 +1375,17 @@ UnitigColors::UnitigColors_const_iterator::UnitigColors_const_iterator(const Uni
     }
     else cs_sz = (flag == localSingleInt) ? 1 : maxBitVectorIDs;
 
-    if (!beg) it_setBits = cs_sz;
+    if (beg){
+
+        start_pos = start_pos_;
+        end_pos = end_pos_;
+    }
+    else it_setBits = cs_sz;
 }
 
 UnitigColors::UnitigColors_const_iterator::UnitigColors_const_iterator(const UnitigColors_const_iterator& o) : cs(o.cs), flag(o.flag),
-                                                                        it_setBits(o.it_setBits), cs_sz(o.cs_sz), um_sz(o.um_sz), ck_id(o.ck_id),
+                                                                        it_setBits(o.it_setBits), cs_sz(o.cs_sz), um_sz(o.um_sz),
+                                                                        ck_id(o.ck_id), start_pos(o.start_pos), end_pos(o.end_pos),
                                                                         it_uc(nullptr), it_roar(o.it_roar), it_t_bmp(o.it_t_bmp) {
 
     if (flag == localTinyBitmap){
@@ -1408,6 +1421,9 @@ UnitigColors::UnitigColors_const_iterator& UnitigColors::UnitigColors_const_iter
 
     ck_id = o.ck_id;
 
+    start_pos = o.start_pos;
+    end_pos = o.end_pos;
+
     it_roar = o.it_roar;
     it_t_bmp = o.it_t_bmp;
 
@@ -1440,108 +1456,122 @@ UnitigColors::UnitigColors_const_iterator UnitigColors::UnitigColors_const_itera
 
 UnitigColors::UnitigColors_const_iterator& UnitigColors::UnitigColors_const_iterator::operator++() {
 
-    if (it_setBits == cs_sz) return *this;
+    bool first_round = true;
 
-    ++it_setBits;
+    while ((it_setBits != cs_sz) && (first_round || (getKmerPosition() < start_pos) || (getKmerPosition() >= end_pos))){
 
-    if (flag == ptrUnitigColors) {
+        ++it_setBits;
 
-        if (it_setBits != 0){ // Must increment one iterator
+        if (flag == ptrUnitigColors) {
 
-            if (!it_uc[0].isInvalid() && (getColorID() == it_uc[0].getColorID())){ // We were iterating over a full color
+            if (it_setBits != 0){ // Must increment one iterator
 
-                ++ck_id;
+                if (!it_uc[0].isInvalid() && (getColorID() == it_uc[0].getColorID())){ // We were iterating over a full color
 
-                if (getKmerPosition() == 0) ++it_uc[0]; // If the next k-mer position is past the last
-                else {
+                    ++ck_id;
 
-                    --it_setBits;
-                    return *this;
+                    if (getKmerPosition() == 0) ++it_uc[0]; // If the next k-mer position is past the last
+                    else {
+
+                        --it_setBits;
+                        first_round = false;
+
+                        continue;
+                    }
                 }
-            }
-            else if (!it_uc[1].isInvalid()) ++it_uc[1];
-        }
-
-        if (it_uc[0].isInvalid()) ck_id = it_uc[1].ck_id; // If first iterator finished, consider second iterator
-        else if (it_uc[1].isInvalid() || (it_uc[0].getColorID() < it_uc[1].getColorID())) ck_id = it_uc[0].getColorID() * um_sz;
-        else ck_id = it_uc[1].ck_id;
-    }
-    else if (flag == ptrBitmap) {
-
-        if (it_setBits != 0) ++it_roar;
-        if (it_roar != cs->getConstPtrBitmap()->r.end()) ck_id = *it_roar;
-    }
-    else if (flag == localTinyBitmap) {
-
-        if (it_setBits != 0) ++it_t_bmp;
-        if (it_t_bmp != t_bmp.end()) ck_id = *it_t_bmp;
-    }
-    else if (flag == localBitVector){
-
-        while (it_setBits < maxBitVectorIDs){
-
-            if (((cs->setBits >> (it_setBits + shiftMaskBits)) & 0x1) != 0){
-
-                ck_id = it_setBits;
-                break;
+                else if (!it_uc[1].isInvalid()) ++it_uc[1];
             }
 
-            ++it_setBits;
+            if (it_uc[0].isInvalid()) ck_id = it_uc[1].ck_id; // If first iterator finished, consider second iterator
+            else if (it_uc[1].isInvalid() || (it_uc[0].getColorID() < it_uc[1].getColorID())){
+
+                ck_id = it_uc[0].getColorID() * um_sz;
+            }
+            else ck_id = it_uc[1].ck_id;
         }
+        else if (flag == ptrBitmap) {
+
+            if (it_setBits != 0) ++it_roar;
+            if (it_roar != cs->getConstPtrBitmap()->r.end()) ck_id = *it_roar;
+        }
+        else if (flag == localTinyBitmap) {
+
+            if (it_setBits != 0) ++it_t_bmp;
+            if (it_t_bmp != t_bmp.end()) ck_id = *it_t_bmp;
+        }
+        else if (flag == localBitVector){
+
+            while (it_setBits < maxBitVectorIDs){
+
+                if (((cs->setBits >> (it_setBits + shiftMaskBits)) & 0x1) != 0){
+
+                    ck_id = it_setBits;
+                    break;
+                }
+
+                ++it_setBits;
+            }
+        }
+        else ck_id = cs->setBits >> shiftMaskBits;
+
+        first_round = false;
     }
-    else ck_id = cs->setBits >> shiftMaskBits;
 
     return *this;
 }
 
 UnitigColors::UnitigColors_const_iterator& UnitigColors::UnitigColors_const_iterator::nextColor() {
 
-    if (it_setBits == cs_sz) return *this;
+    bool first_round = true;
 
-    const size_t nextColor = getColorID() + 1;
-    const size_t nextPos = nextColor * um_sz;
+    while ((it_setBits != cs_sz) && (first_round || (getKmerPosition() < start_pos) || (getKmerPosition() >= end_pos))){
 
-    if (flag == ptrUnitigColors) {
+        const size_t nextColor = getColorID() + 1;
+        const size_t nextPos = nextColor * um_sz + start_pos;
 
-        while (!it_uc[0].isInvalid() && (it_uc[0].ck_id < nextColor)) ++it_uc[0];
-        while (!it_uc[1].isInvalid() && (it_uc[1].ck_id < nextPos)) it_uc[1].nextColor();
+        if (flag == ptrUnitigColors) {
 
-        if (it_uc[0].isInvalid() && it_uc[1].isInvalid()) it_setBits = cs_sz;
-        else if (it_uc[0].isInvalid()) ck_id = it_uc[1].ck_id;
-        else if (it_uc[1].isInvalid() || (it_uc[0].getColorID() < it_uc[1].getColorID())) ck_id = it_uc[0].getColorID() * um_sz;
-        else ck_id = it_uc[1].ck_id;
-    }
-    else if (flag == ptrBitmap) {
+            while (!it_uc[0].isInvalid() && (it_uc[0].ck_id < nextColor)) ++it_uc[0];
+            while (!it_uc[1].isInvalid() && (it_uc[1].ck_id < nextPos)) it_uc[1].nextColor();
 
-        //it_roar.equalorlarger(nextPos);
-        while ((it_roar != cs->getConstPtrBitmap()->r.end()) && (*it_roar < nextPos)) ++it_roar;
-
-        if (it_roar != cs->getConstPtrBitmap()->r.end()) ck_id = *it_roar;
-        else it_setBits = cs_sz;
-    }
-    else if (flag == localTinyBitmap) {
-
-        while ((it_t_bmp != t_bmp.end()) && (*it_t_bmp < nextPos)) ++it_t_bmp;
-
-        if (it_t_bmp != t_bmp.end()) ck_id = *it_t_bmp;
-        else it_setBits = cs_sz;
-    }
-    else if (flag == localBitVector){
-
-        it_setBits = min(maxBitVectorIDs, nextPos);
-
-        while (it_setBits < maxBitVectorIDs){
-
-            if ((cs->setBits >> (it_setBits + shiftMaskBits)) & 0x1){
-
-                ck_id = it_setBits;
-                break;
-            }
-
-            ++it_setBits;
+            if (it_uc[0].isInvalid() && it_uc[1].isInvalid()) it_setBits = cs_sz;
+            else if (it_uc[0].isInvalid()) ck_id = it_uc[1].ck_id;
+            else if (it_uc[1].isInvalid() || (it_uc[0].getColorID() < it_uc[1].getColorID())) ck_id = it_uc[0].getColorID() * um_sz;
+            else ck_id = it_uc[1].ck_id;
         }
+        else if (flag == ptrBitmap) {
+
+            while ((it_roar != cs->getConstPtrBitmap()->r.end()) && (*it_roar < nextPos)) ++it_roar;
+
+            if (it_roar != cs->getConstPtrBitmap()->r.end()) ck_id = *it_roar;
+            else it_setBits = cs_sz;
+        }
+        else if (flag == localTinyBitmap) {
+
+            while ((it_t_bmp != t_bmp.end()) && (*it_t_bmp < nextPos)) ++it_t_bmp;
+
+            if (it_t_bmp != t_bmp.end()) ck_id = *it_t_bmp;
+            else it_setBits = cs_sz;
+        }
+        else if (flag == localBitVector){
+
+            it_setBits = min(maxBitVectorIDs, nextPos);
+
+            while (it_setBits < maxBitVectorIDs){
+
+                if ((cs->setBits >> (it_setBits + shiftMaskBits)) & 0x1){
+
+                    ck_id = it_setBits;
+                    break;
+                }
+
+                ++it_setBits;
+            }
+        }
+        else ++it_setBits;
+
+        first_round = false;
     }
-    else ++it_setBits;
 
     return *this;
 }

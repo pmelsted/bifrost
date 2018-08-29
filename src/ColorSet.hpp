@@ -116,6 +116,9 @@ class UnitigColors {
                 size_t cs_sz;
                 size_t um_sz;
 
+                size_t start_pos;
+                size_t end_pos;
+
                 uint64_t ck_id;
 
                 const Roaring empty_roar;
@@ -126,7 +129,8 @@ class UnitigColors {
                 Roaring::const_iterator it_roar;
                 TinyBitmap::const_iterator it_t_bmp;
 
-                UnitigColors_const_iterator(const UnitigColors* cs_, const size_t len_unitig_km, const bool beg);
+                UnitigColors_const_iterator(const UnitigColors* cs_, const size_t start_pos_, const size_t end_pos_,
+                                            const size_t len_unitig_km, const bool beg);
 
                 inline uint64_t get_ID() const { return ck_id; }
 
@@ -361,7 +365,7 @@ class UnitigColors {
 
         UnitigColors reverse(const UnitigMapBase& um) const;
 
-        const_iterator begin(const size_t len_km_sz) const;
+        const_iterator begin(const size_t start_pos, const size_t end_pos, const size_t len_km_sz) const;
 
         inline Bitmap* getPtrBitmap() const {
 

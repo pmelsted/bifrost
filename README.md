@@ -180,6 +180,8 @@ Usage: Bifrost [COMMAND] [GENERAL_PARAMETERS] [COMMAND_PARAMETERS]
 
 (Work in progress)
 
+Changes in the API are reported in the [Changelog](https://github.com/pmelsted/bifrost/Changelog.md).
+
 ### Documentation
 
 Documentation for the Bifrost library is available in the */doc/doxygen* folder (HTML version, open *html/index.html*).

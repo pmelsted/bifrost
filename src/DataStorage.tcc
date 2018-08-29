@@ -467,13 +467,14 @@ UnitigColors DataStorage<U>::getSubUnitigColors(const const_UnitigColorMap<U>& u
 
         if (cs != nullptr){
 
-            const size_t end = um.dist + um.len;
-            const size_t um_km_sz = um.size - um.getGraph()->getK() + 1;
             const size_t nb_colors = um.getGraph()->getData()->color_names.size();
 
             UnitigColorMap<U> um_tmp(0, 1, um.len + um.getGraph()->getK() - 1, um.strand);
 
             if ((um.len * nb_colors * 16) < cs->size(um)){
+
+                const size_t end = um.dist + um.len;
+                const size_t um_km_sz = um.size - um.getGraph()->getK() + 1;
 
                 for (size_t colorID = 0; colorID < nb_colors; ++colorID){
 
@@ -496,17 +497,10 @@ UnitigColors DataStorage<U>::getSubUnitigColors(const const_UnitigColorMap<U>& u
 
                     const size_t km_dist = it.getKmerPosition();
 
-                    if (km_dist < end){
+                    um_tmp.dist = um.strand ? (km_dist - um.dist) : (um.dist + um.len - km_dist - 1);
+                    new_cs.add(um_tmp, it.getColorID());
 
-                        if (km_dist >= um.dist){
-
-                            um_tmp.dist = um.strand ? (km_dist - um.dist) : (um.dist + um.len - km_dist - 1);
-                            new_cs.add(um_tmp, it.getColorID());
-                        }
-
-                        ++it;
-                    }
-                    else it.nextColor();
+                    ++it;
                 }
             }
         }
@@ -526,26 +520,10 @@ vector<string> DataStorage<U>::getSubUnitigColorNames(const const_UnitigColorMap
 
         if (cs != nullptr){
 
-            size_t prev_color_id = 0xffffffffffffffff;
-
-            const size_t end = um.dist + um.len;
-            const size_t um_km_sz = um.size - um.getGraph()->getK() + 1;
-
             UnitigColors::const_iterator it(cs->begin(um));
             const UnitigColors::const_iterator it_end(cs->end());
 
-            for (; it != it_end; ++it){
-
-                const size_t km_dist = (*it).first;
-                const size_t color_id = (*it).second;
-
-                if ((km_dist >= um.dist) && (km_dist < end) && (color_id != prev_color_id)){
-
-                    v_out.push_back(color_names[color_id]);
-                }
-
-                prev_color_id = color_id;
-            }
+            for (; it != it_end; it.nextColor()) v_out.push_back(color_names[it.getColorID()]);
         }
     }
 
@@ -853,16 +831,14 @@ bool DataStorage<U>::addUnitigColors(const UnitigColorMap<U>& um_dest, const con
 
         if ((cs_dest != nullptr) && (cs_src != nullptr)){
 
-            const size_t pos_end_src = um_src.dist + um_src.len;
             const size_t nb_colors_src = um_src.getGraph()->getData()->color_names.size();
             const size_t nb_colors_dest = um_dest.getGraph()->getData()->color_names.size() - nb_colors_src;
 
             UnitigColorMap<U> um_tmp(0, 1, um_dest.size, um_dest.strand);
 
-            //unique_lock<mutex> lock(mutex_overflow);
-
             if ((um_src.len * nb_colors_src * 16) < cs_src->size(um_src)){
 
+                const size_t pos_end_src = um_src.dist + um_src.len;
                 const size_t sz_km_src = um_src.size - Kmer::k + 1;
 
                 for (size_t colorID = 0; colorID < nb_colors_src; ++colorID){
@@ -888,19 +864,12 @@ bool DataStorage<U>::addUnitigColors(const UnitigColorMap<U>& um_dest, const con
 
                     const size_t km_dist = it.getKmerPosition();
 
-                    if (km_dist < pos_end_src){
+                    if (um_dest.strand != um_src.strand) um_tmp.dist = (um_src.len - 1 - (km_dist - um_src.dist)) + um_dest.dist;
+                    else um_tmp.dist = (km_dist - um_src.dist) + um_dest.dist;
 
-                        if (km_dist >= um_src.dist){
+                    cs_dest->add(um_tmp, it.getColorID() + nb_colors_dest);
 
-                            if (um_dest.strand != um_src.strand) um_tmp.dist = (um_src.len - 1 - (km_dist - um_src.dist)) + um_dest.dist;
-                            else um_tmp.dist = (km_dist - um_src.dist) + um_dest.dist;
-
-                            cs_dest->add(um_tmp, it.getColorID() + nb_colors_dest);
-                        }
-
-                        ++it;
-                    }
-                    else it.nextColor();
+                    ++it;
                 }
             }
         }
@@ -940,7 +909,7 @@ UnitigColors DataStorage<U>::joinUnitigColors(const const_UnitigColorMap<U>& um_
                     color_set_dest = &csd_rev;
                 }
 
-                UnitigColors::const_iterator it(color_set_dest->begin(um_dest));
+                UnitigColors::const_iterator it(color_set_dest->begin(0, um_dest_km_sz, um_dest_km_sz));
                 const UnitigColors::const_iterator it_end(color_set_dest->end());
 
                 if (it != it_end){
@@ -988,7 +957,7 @@ UnitigColors DataStorage<U>::joinUnitigColors(const const_UnitigColorMap<U>& um_
                     color_set_src = &css_rev;
                 }
 
-                UnitigColors::const_iterator it(color_set_src->begin(um_src));
+                UnitigColors::const_iterator it(color_set_src->begin(0, um_src_km_sz, um_src_km_sz));
                 const UnitigColors::const_iterator it_end(color_set_src->end());
 
                 if (it != it_end){
