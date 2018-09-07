@@ -507,13 +507,15 @@ bool CompactedDBG<U, G>::read(const string& input_filename, const bool verbose){
 
     if (verbose) cout << endl << "CompactedDBG::read(): Reading graph from disk" << endl;
 
-    string s_ext = input_filename.substr(input_filename.find_last_of(".") + 1);
+    const size_t last_point = input_filename.find_last_of(".");
+
+    string s_ext = input_filename.substr(last_point + 1);
 
     if ((s_ext == "gz")){
 
-        s_ext = s_ext.substr(s_ext.find_last_of(".") + 1);
+        s_ext = input_filename.substr(input_filename.find_last_of(".", last_point - 1) + 1);
 
-        if ((s_ext != "fasta") && (s_ext != "fa") && (s_ext != "gfa")) {
+        if ((s_ext != "fasta.gz") && (s_ext != "fa.gz")) {
 
             cerr << "CompactedDBG::read(): Input files must be in FASTA (*.fasta, *.fa, *.fasta.gz, *.fa.gz) or " <<
             "GFA (*.gfa) format" << endl;

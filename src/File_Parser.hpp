@@ -35,13 +35,15 @@ class FileParser {
                     }
                     else {
 
-                        string s_ext = s.substr(s.find_last_of(".") + 1);
+                        const size_t last_point = s.find_last_of(".");
+
+                        string s_ext = s.substr(last_point + 1);
 
                         if ((s_ext == "gz")){
 
-                            s_ext = s_ext.substr(s_ext.find_last_of(".") + 1);
+                            s_ext = s.substr(s.find_last_of(".", last_point - 1) + 1);
 
-                            if ((s_ext == "fasta") || (s_ext == "fa") || (s_ext == "fastq") || (s_ext == "fq")) files_fastx.push_back(s);
+                            if ((s_ext == "fasta.gz") || (s_ext == "fa.gz") || (s_ext == "fastq.gz") || (s_ext == "fq.gz")) files_fastx.push_back(s);
                             else {
 
                                 cerr << "FileParser::FileParser(): Input files must be in FASTA (*.fasta, *.fa, *.fasta.gz, *.fa.gz) or " <<

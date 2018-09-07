@@ -40,25 +40,33 @@ class UnitigColors {
 
             public:
 
-                /** Constructor of an empty iterator. The resulting iterator can't be used as it is
-                * (it is not associated with any UnitigColors).
+                /**
+                * Constructor of an empty iterator. The resulting iterator cannott be used as it is
+                * because it is not associated with any UnitigColors.
                 */
                 UnitigColors_const_iterator();
 
+                /**
+                * Copy constructor. After the call to this function, the same iterator exists twice in memory.
+                * @param o is a constant reference to the const_iterator to copy.
+                * @return a reference to the const_iterator copy.
+                */
                 UnitigColors_const_iterator(const UnitigColors_const_iterator& o);
 
-                /** Destructor.
+                /**
+                * Destructor.
                 */
                 ~UnitigColors_const_iterator();
 
-                /** Copy assignment operator. After the call to this function, the same iterator exists
-                * twice in memory.
-                * @param o is the iterator to copy.
-                * @return a reference to the iterator copy.
+                /**
+                * Copy assignment operator. After the call to this function, the same iterator exists twice in memory.
+                * @param o is a constant reference to the const_iterator to copy.
+                * @return a reference to the const_iterator copy.
                 */
                 UnitigColors_const_iterator& operator=(const UnitigColors_const_iterator& o);
 
-                /** Indirection operator.
+                /**
+                * Indirection operator.
                 * @return a pair p of integers representing the position of a k-mer in the unitig (p.first)
                 * and the ID of the color associated with the k-mer at the given position (p.second).
                 */
@@ -67,41 +75,48 @@ class UnitigColors {
                     return make_pair(ck_id % um_sz, ck_id / um_sz);
                 }
 
-                /** Get the k-mer position of the k-mer visited by the iterator. It is equal to (*it).first.
+                /**
+                * Get the k-mer position of the k-mer visited by the iterator. It is equal to (*it).first.
                 * @return the k-mer position of the k-mer visited by the iterator. It is equal to (*it).first.
                 */
                 inline size_t getKmerPosition() const { return ck_id % um_sz; }
 
-                /** Get the color of the k-mer visited by the iterator. It is equal to (*it).second.
+                /**
+                * Get the color of the k-mer visited by the iterator. It is equal to (*it).second.
                 * @return the color of the k-mer visited by the iterator. It is equal to (*it).second.
                 */
                 inline size_t getColorID() const { return ck_id / um_sz; }
 
-                /** Postfix increment operator: it iterates over the next k-mer of the unitig having the
+                /**
+                * Postfix increment operator: it iterates over the next k-mer of the unitig having the
                 * current color or the first k-mer having the next color (if all k-mers having the current
                 * color have already been visited by this iterator).
                 * @return a copy of the iterator before the call to this operator.
                 */
                 UnitigColors_const_iterator operator++(int);
 
-                /** Prefix increment operator: it iterates over the next k-mer of the unitig having the
+                /**
+                * Prefix increment operator: it iterates over the next k-mer of the unitig having the
                 * current color or the first k-mer having the next color (if all k-mers having the current
                 * color have already been visited by this iterator).
                 * @return a reference to the current iterator.
                 */
                 UnitigColors_const_iterator& operator++();
 
-                /** Color increment operator: it iterates over the first k-mer position of the next color.
+                /**
+                * Color increment operator: it iterates over the first k-mer position of the next color.
                 * @return a reference to the current iterator.
                 */
                 UnitigColors_const_iterator& nextColor();
 
-                /** Equality operator.
+                /**
+                * Equality operator.
                 * @return a boolean indicating if two iterators are the same (true) or not (false).
                 */
                 bool operator==(const UnitigColors_const_iterator& o) const;
 
-                /** Inequality operator.
+                /**
+                * Inequality operator.
                 * @return a boolean indicating if two iterators are different (true) or not (false).
                 */
                 bool operator!=(const UnitigColors_const_iterator& o) const;
@@ -140,41 +155,48 @@ class UnitigColors {
                 }
         };
 
-        /** @typedef const_iterator
+        /**
+        * @typedef const_iterator
         * @brief Iterator for the colors of a unitig. The iterator iterates over the colors of a
-        * unitig in ascending order. For each color, it iterates over the k-mer positions
-        * of the unitig k-mers having this color, in ascending order.
+        * unitig in ascending order. For each color, it iterates over the positions of the mapped k-mers
+        * (UnitigMap parameter of UnitigColors::begin()) having this color, in ascending order.
         */
         typedef UnitigColors_const_iterator const_iterator;
 
-        /** Constructor (set up an empty container of k-mer color sets).
+        /**
+        * Constructor (set up an empty container of k-mer color sets).
         */
         UnitigColors();
 
-        /** Copy constructor. After the call to this constructor, the same UnitigColors object
+        /**
+        * Copy constructor. After the call to this constructor, the same UnitigColors object
         * exists twice in memory.
         * @param o is the color set to copy.
         */
         UnitigColors(const UnitigColors& o); // Copy constructor
 
-        /** Move constructor. After the call to this constructor, the UnitigColors to move is empty:
+        /**
+        * Move constructor. After the call to this constructor, the UnitigColors to move is empty:
         * its content has been transfered (moved) to a new UnitigColors.
         * @param o is the color set to move.
         */
         UnitigColors(UnitigColors&& o); // Move  constructor
 
-        /** Destructor.
+        /**
+        * Destructor.
         */
         ~UnitigColors();
 
-        /** Copy assignment operator. After the call to this operator, the same UnitigColors object
+        /**
+        * Copy assignment operator. After the call to this operator, the same UnitigColors object
         * exists twice in memory.
         * @param o is the UnitigColors to copy.
         * @return a reference to the current UnitigColors which is a copy of o.
         */
         UnitigColors& operator=(const UnitigColors& o);
 
-        /** Move assignment operator. After the call to this operator, the UnitigColors to move is empty:
+        /**
+        * Move assignment operator. After the call to this operator, the UnitigColors to move is empty:
         * its content has been transfered (moved) to another UnitigColors.
         * @param o is the UnitigColors to move.
         * @return a reference to the current UnitigColors having (owning) the content of o.
@@ -184,11 +206,13 @@ class UnitigColors {
         //bool operator==(const UnitigColors& o) const;
         // inline bool operator!=(const UnitigColors& o) const { return !operator==(o);
 
-        /** Empty a UnitigColors of its content.
+        /**
+        * Empty a UnitigColors of its content.
         */
         void clear();
 
-        /** Check if two UnitigColors are equal.
+        /**
+        * Check if two UnitigColors are equal.
         * @param um is a UnitigMapBase object representing the reference unitig to which the current
         * UnitigColors calling this function (this) is associated.
         * @param o is the UnitigColors to compare to the current UnitigColors calling this function (this).
@@ -198,26 +222,30 @@ class UnitigColors {
         */
         bool isEqual(const UnitigMapBase& um, const UnitigColors& o, const UnitigMapBase& um_o) const;
 
-        /** Check if a UnitigColors is empty (no colors).
+        /**
+        * Check if a UnitigColors is empty (no colors).
         * @return a boolean indicating if the UnitigColors is empty.
         */
         inline bool isEmpty() const { return (size() == 0); }
 
-        /** Add a color in the current UnitigColors to all k-mers of a unitig mapping.
+        /**
+        * Add a color in the current UnitigColors to all k-mers of a unitig mapping.
         * @param um is a UnitigMapBase object representing a mapping to a reference unitig for which the
         * color must be added. The color will be added only for the given mapping, i.e, unitig[um.dist..um.dist+um.len+k-1]
         * @param color_id is the ID of the color to add.
         */
         void add(const UnitigMapBase& um, const size_t color_id);
 
-        /** Remove a color in the current UnitigColors for all k-mers of a unitig mapping.
+        /**
+        * Remove a color in the current UnitigColors for all k-mers of a unitig mapping.
         * @param um is a UnitigMapBase object representing a mapping to a reference unitig for which the
         * color must be removed. The color will be removed only for the given mapping, i.e, unitig[um.dist..um.dist+um.len+k-1]
         * @param color_id is the ID of the color to remove.
         */
         void remove(const UnitigMapBase& um, const size_t color_id);
 
-        /** Check if a color is present on all k-mers of a unitig mapping.
+        /**
+        * Check if a color is present on all k-mers of a unitig mapping.
         * @param um is a UnitigMapBase object representing a mapping to a reference unitig. All k-mers of this mapping will be
         * checked for the presence of the color. If true is returned, all k-mers of the mapping have the color.
         * If false is returned, at least one k-mer of the mapping does not have the color.
@@ -226,58 +254,67 @@ class UnitigColors {
         */
         bool contains(const UnitigMapBase& um, const size_t color_id) const;
 
-        /** Get the number of pairs (k-mer position, color) of a reference unitig.
+        /**
+        * Get the number of pairs (k-mer position, color) of a reference unitig.
         * @return Number of pairs (k-mer position, color) of a reference unitig.
         */
         size_t size(const UnitigMapBase& um) const;
 
-        /** Get the number of k-mers of a reference unitig having a given color.
+        /**
+        * Get the number of k-mers of a reference unitig having a given color.
         * @param um is a UnitigMapBase object representing a mapping to a reference unitig.
         * @param color_id is the color index.
         * @return Number of k-mers of a reference unitig having a given color.
         */
         size_t size(const UnitigMapBase& um, const size_t color_id) const;
 
-        /** Get the largest color index of all k-mers of a reference unitig.
+        /**
+        * Get the largest color index of all k-mers of a reference unitig.
         * @param um is a UnitigMapBase object representing a mapping to a reference unitig.
         * @return The largest color index of all k-mers of a reference unitig.
         */
         size_t colorMax(const UnitigMapBase& um) const;
 
-        /** Write a UnitigColors to a stream.
+        /**
+        * Write a UnitigColors to a stream.
         * @param stream_out is an out stream to which the UnitigColors must be written. It must be
         * opened prior to the call of this function and it won't be closed by this function.
         * @return a boolean indicating if the write was successful.
         */
         bool write(ostream& stream_out, const bool copy_UnitigColors = true) const;
 
-        /** Read a UnitigColors from a stream.
+        /**
+        * Read a UnitigColors from a stream.
         * @param stream_in is an in stream from which the UnitigColors must be read. It must be
         * opened prior to the call of this function and it won't be closed by this function.
         * @return a boolean indicating if the write was successful.
         */
         bool read(istream& stream_in);
 
-        /** Size of the UnitigColors in bytes.
+        /**
+        * Size of the UnitigColors in bytes.
         * @return Size of the UnitigColors in bytes.
         */
         size_t getSizeInBytes() const;
 
-        /** Create a constant iterator on all pairs (k-mer position, color) of the UnitigColors.
+        /**
+        * Create a constant iterator on all pairs (k-mer position, color) of the UnitigColors.
         * The iterator goes from the smallest to the largest color index. For each such color index,
         * the iterator goes from the smallest to the largest k-mer position.
         * @return a constant iterator to the smallest pair (k-mer position, color) of the UnitigColors.
         */
         const_iterator begin(const UnitigMapBase& um) const;
 
-        /** Create a constant iterator to the "past-the-last" pair (k-mer position, color) of the
+        /**
+        * Create a constant iterator to the "past-the-last" pair (k-mer position, color) of the
         * UnitigColors.
         * @return a constant iterator to the "past-the-last" pair (k-mer position, color) of the
         * UnitigColors.
         */
         const_iterator end() const;
 
-        /** If possible, decrease the memory usage of the UnitigColors by optimizing the memory for "full
+        /**
+        * If possible, decrease the memory usage of the UnitigColors by optimizing the memory for "full
         * colors" (a color is "full" when it is present on all k-mers of the reference unitig).
         * @param um is a UnitigMapBase object representing a mapping to a reference unitig.
         * @return a boolean indicating if it was possible to optimize the memory usage of the UnitigColors.
