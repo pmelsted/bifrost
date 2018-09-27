@@ -231,7 +231,7 @@ void DataAccessor<U>::merge(const UnitigColorMap<U>& um_dest, const const_Unitig
     // Merge colors for k-mers with positions matching mapping given in um_src
     if ((uc_dest != nullptr) && (uc_src != nullptr)) ds->addUnitigColors(um_dest, um_src);
     // Merge data for k-mers with positions matching mapping given in um_src
-    if ((data_dest != nullptr) && (data_src != nullptr)) data_dest->merge(uc_dest, um_dest, um_src);
+    if ((data_dest != nullptr) && (data_src != nullptr)) data_dest->merge(um_dest, um_src);
 }
 
 template<>
