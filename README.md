@@ -37,16 +37,16 @@
 
 GCC/Clang, Cmake and Zlib are probably already installed on your computer (those are installed by default on most operating systems) but they can be downloaded and installed by following the instructions on their respective websites. It is most likely that all are available via a package manager for your operating system: 
 
-* Ubuntu/Debian:
+* **Ubuntu/Debian**:
 ```
 sudo apt-get install build-essential cmake zlib1g-dev
 ```
-* MacOS (with [Homebrew](https://brew.sh/)):
+* **MacOS** (with [Homebrew](https://brew.sh/)):
 ```
 brew install --with-toolchain llvm
 brew install cmake zlib
 ```
-* Windows 10:
+* **Windows 10**:
 
 1. Open the Windows Store
 2. Search and install the `Ubuntu` app (from `Canonical Group Limited`)
