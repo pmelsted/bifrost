@@ -28,7 +28,7 @@
 
 ## Requirements
 
-* 64 bits POSIX-compliant UNIX or MacOS operating system
+* 64 bits POSIX-compliant operating system
 * C++11 capable compiler:
     * [GCC](https://gcc.gnu.org/) 4.8.5 or later
     * [Clang](http://clang.llvm.org/) 3.5 or later
@@ -39,13 +39,23 @@ GCC/Clang, Cmake and Zlib are probably already installed on your computer (those
 
 * Ubuntu/Debian:
 ```
-sudo apt-get install build-essential cmake zlib1g
+sudo apt-get install build-essential cmake zlib1g-dev
 ```
 * MacOS (with [Homebrew](https://brew.sh/)):
 ```
 brew install --with-toolchain llvm
 brew install cmake zlib
 ```
+* Windows 10:
+
+1. Open the Windows Store
+2. Search and install the `Ubuntu` app (from `Canonical Group Limited`)
+3. Open the Windows main menu and open the app `Ubuntu` (it should open an Ubuntu terminal)
+4. In the terminal, type:
+```
+sudo apt-get install build-essential cmake zlib1g-dev
+```
+5. Use the opened Ubuntu terminal for compiling, installing and running Bifrost (see next section). See [Troubleshooting](#troubleshooting) if you have any problem during the installation.
 
 ## Compilation and Installation
 
