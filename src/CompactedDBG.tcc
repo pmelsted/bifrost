@@ -5708,41 +5708,6 @@ template<typename U, typename G>
 template<bool is_void>
 typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const {
 
-    /*const size_t v_unitigs_sz = v_unitigs.size();
-    const size_t v_kmers_sz = v_kmers.size();
-
-    size_t i, labelA, labelB, id = v_unitigs_sz + v_kmers_sz + 1;
-
-    for (labelA = 1; labelA <= v_unitigs_sz; ++labelA) {
-
-        const Unitig<U>* unitig = v_unitigs[labelA - 1];
-        const string slabelA = std::to_string(labelA);
-        const string data = unitig->getData()->serialize();
-
-        graph.write_sequence(slabelA, unitig->seq.size(), unitig->seq.toString(), data == "" ? data : string("DA:Z:" + data));
-    }
-
-    for (labelA = 1; labelA <= v_kmers_sz; ++labelA) {
-
-        const pair<Kmer, CompressedCoverage_t<U>>& p = v_kmers[labelA - 1];
-        const string slabelA = std::to_string(labelA + v_unitigs_sz);
-        const string data = p.second.getData()->serialize();
-
-        graph.write_sequence(slabelA, k_, p.first.toString(), data == "" ? data : string("DA:Z:" + data));
-    }
-
-    for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it) {
-
-        const string slabelA = std::to_string(id);
-        const string data = it->getData()->serialize();
-
-        idmap.insert(it.getKey(), id);
-
-        graph.write_sequence(slabelA, k_, it.getKey().toString(), data == "" ? data : string("DA:Z:" + data));
-
-        ++id;
-    }*/
-
     size_t labelA = 1;
 
     for (const auto& unitig : *this){
@@ -5750,6 +5715,8 @@ typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::writeGFA_seque
         const string seq(unitig.referenceUnitigToString());
 
         graph.write_sequence(std::to_string(labelA), seq.size(), seq, unitig.getData()->serialize(unitig));
+
+        if (unitig.isAbundant) idmap.insert(Kmer(unitig.referenceUnitigToString().c_str()), labelA);
 
         ++labelA;
     }
@@ -5759,45 +5726,15 @@ template<typename U, typename G>
 template<bool is_void>
 typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const {
 
-    /*const size_t v_unitigs_sz = v_unitigs.size();
-    const size_t v_kmers_sz = v_kmers.size();
-
-    size_t i, labelA, labelB, id = v_unitigs_sz + v_kmers_sz + 1;
-
-    for (labelA = 1; labelA <= v_unitigs_sz; ++labelA) {
-
-        const Unitig<U>* unitig = v_unitigs[labelA - 1];
-        const string slabelA = std::to_string(labelA);
-
-        graph.write_sequence(slabelA, unitig->seq.size(), unitig->seq.toString(), "");
-    }
-
-    for (labelA = 1; labelA <= v_kmers_sz; ++labelA) {
-
-        const pair<Kmer, CompressedCoverage_t<U>>& p = v_kmers[labelA - 1];
-        const string slabelA = std::to_string(labelA + v_unitigs_sz);
-
-        graph.write_sequence(slabelA, k_, p.first.toString(), "");
-    }
-
-    for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it) {
-
-        const string slabelA = std::to_string(id);
-
-        idmap.insert(it.getKey(), id);
-
-        graph.write_sequence(slabelA, k_, it.getKey().toString(), "");
-
-        ++id;
-    }*/
-
     size_t labelA = 1;
 
     for (const auto& unitig : *this){
 
         const string seq(unitig.referenceUnitigToString());
 
-        graph.write_sequence(std::to_string(labelA), seq.size(), "");
+        graph.write_sequence(std::to_string(labelA), seq.size(), seq, "");
+
+        if (unitig.isAbundant) idmap.insert(Kmer(unitig.referenceUnitigToString().c_str()), labelA);
 
         ++labelA;
     }
