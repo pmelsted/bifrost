@@ -75,12 +75,14 @@ By default, the installation creates:
 * a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS)
 * a static library (*libbifrost.a*).
 
-The default maximum *k*-mer size supported is 31. To work with larger *k*, you must replace *MAX_KMER_SIZE* in *CMakeLists.txt* with a larger and appropriate (a power of 2) number, such as:
+The default maximum *k*-mer size supported is 31. To work with larger *k* in the binary, you must replace *MAX_KMER_SIZE* in *CMakeLists.txt* with a larger and appropriate number (a power of 2), such as:
 ```
 set( MAX_KMER_SIZE "64")
 ```
 
 In this case, the maximum *k* allowed is 63. Keep in mind that increasing *MAX_KMER_SIZE* increases Bifrost memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
+
+To work with larger *k* when using the Bifrost API, the new value *MAX_KMER_SIZE* must be given to the compiler and linker as explained in Section [API](https://github.com/pmelsted/bifrost#api)
 
 ## Binary usage:
 
@@ -224,6 +226,18 @@ You can also link to the Bifrost static library (*libbifrost.a*) for better perf
 ```
 <path_to_lib_folder>/libbifrost.a -pthread -lz
 ```
+
+The default maximum *k*-mer size supported is 31. To work with larger *k*, the code using the Bifrost API must be compiled and linked with the flag `-DMAX_KMER_SIZE=x` where `x` is a larger and appropriate number (a power of 2), such as:
+```
+-DMAX_KMER_SIZE=64 -O3 -std=c++11 -march=native
+```
+
+and the following flags for linking:
+```
+-DMAX_KMER_SIZE=64 -lbifrost -pthread -lz
+```
+
+In this case, the maximum *k* allowed is 63. Keep in mind that increasing the maximum *k*-mer size increases Bifrost memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
 
 ### With colors (beta)
 
