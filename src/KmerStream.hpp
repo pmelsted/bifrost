@@ -384,12 +384,12 @@ class KmerStream {
 
                             s_ext = s.substr(s.find_last_of(".", last_point - 1) + 1);
 
-                            if ((s_ext == "fasta.gz") || (s_ext == "fa.gz")) files_no_quality.push_back(s);
+                            if ((s_ext == "fasta.gz") || (s_ext == "fa.gz") || (s_ext == "fna.gz")) files_no_quality.push_back(s);
                             else if ((s_ext == "fastq.gz") || (s_ext == "fq.gz")) files_with_quality.push_back(s);
                             else {
 
-                                cerr << "KmerStream::KmerStream(): Input files must be in FASTA (*.fasta, *.fa, *.fasta.gz, *.fa.gz) or " <<
-                                "FASTQ (*.fastq, *.fq, *.fastq.gz, *.fq.gz) or GFA (*.gfa) format" << endl;
+                                cerr << "KmerStream::KmerStream(): Input files must be in FASTA (*.fasta, *.fa, *.fna, *.fasta.gz, *.fa.gz, *.fna.gz)" <<
+                                " or FASTQ (*.fastq, *.fq, *.fastq.gz, *.fq.gz) or GFA (*.gfa) format" << endl;
                                 cerr << "KmerStream::KmerStream(): Erroneous file is " << s << endl;
 
                                 invalid = true;
@@ -397,12 +397,12 @@ class KmerStream {
                         }
                         else {
 
-                            if ((s_ext == "fasta") || (s_ext == "fa") || (s_ext == "gfa")) files_no_quality.push_back(s);
+                            if ((s_ext == "fasta") || (s_ext == "fa") || (s_ext == "fna") || (s_ext == "gfa")) files_no_quality.push_back(s);
                             else if ((s_ext == "fastq") || (s_ext == "fq")) files_with_quality.push_back(s);
                             else {
 
-                                cerr << "KmerStream::KmerStream(): Input files must be in FASTA (*.fasta, *.fa, *.fasta.gz, *.fa.gz) or " <<
-                                "FASTQ (*.fastq, *.fq, *.fastq.gz, *.fq.gz) or GFA (*.gfa) format" << endl;
+                                cerr << "KmerStream::KmerStream(): Input files must be in FASTA (*.fasta, *.fa, *.fna, *.fasta.gz, *.fa.gz, *.fna.gz)" <<
+                                " or FASTQ (*.fastq, *.fq, *.fastq.gz, *.fq.gz) or GFA (*.gfa) format" << endl;
                                 cerr << "KmerStream::KmerStream(): Erroneous file is " << s << endl;
 
                                 invalid = true;
@@ -488,9 +488,10 @@ class KmerStream {
 
                         if (new_reading) qual = fp.getQualityScoreString();
 
-                        pos_read = (new_reading ? 0 : pos_read);
-                        len_read = seq.length();
+                        //pos_read = (new_reading ? 0 : pos_read);
+                        pos_read &= static_cast<size_t>(new_reading) - 1;
 
+                        len_read = seq.length();
                         s_str = seq.c_str();
                         q_str = qual.c_str();
 
@@ -620,9 +621,10 @@ class KmerStream {
 
                     if (!new_reading || fp.read(s, file_id)) {
 
-                        pos_read = (new_reading ? 0 : pos_read);
-                        len_read = s.length();
+                        //pos_read = (new_reading ? 0 : pos_read);
+                        pos_read &= static_cast<size_t>(new_reading) - 1;
 
+                        len_read = s.length();
                         s_str = s.c_str();
 
                         if (len_read >= k){

@@ -13,25 +13,36 @@
 #define XXH_INLINE_ALL
 #include "xxhash.h"
 
-using namespace std;
+#if defined(__GNUC__)
+#define BFG_LIKELY(x) (__builtin_expect((x), 1))
+#define BFG_UNLIKELY(x) (__builtin_expect((x), 0))
+#else
+#define BFG_LIKELY(x) (x)
+#define BFG_UNLIKELY(x) (x)
+#endif
+
+#ifdef _MSC_VER
+#define BFG_INLINE __forceinline
+#elif defined(__clang__) || defined(__GNUC__)
+#define BFG_INLINE inline __attribute__((__always_inline__))
+#else
+#define BFG_INLINE inline
+#endif
 
 #define BFG_VERSION "0.2"
 #define BFG_BUG_EMAIL "guillaumeholley@gmail.com"
 
+using namespace std;
+
 static const char alpha[4] = {'A','C','G','T'};
 
-inline size_t cstrMatch(const char* a, const char* b) {
+BFG_INLINE size_t cstrMatch(const char* a, const char* b) {
 
     const char* a_ = a;
 
     while ((*a != '\0') && (*a == *b)){ ++a; ++b; }
 
     return a - a_;
-}
-
-inline size_t stringMatch(const string& a, const string& b, const size_t pos) {
-
-    return distance(a.begin(), mismatch(a.begin(), a.end(), b.begin() + pos).first);
 }
 
 inline string reverse_complement(const string& s){
@@ -68,7 +79,7 @@ inline string reverse_complement(const string& s){
     return seq;
 }
 
-inline size_t rndup(size_t v) {
+BFG_INLINE size_t rndup(size_t v) {
 
     v--;
     v |= v >> 1;
@@ -82,7 +93,7 @@ inline size_t rndup(size_t v) {
     return v;
 }
 
-inline uint32_t rndup(uint32_t v) {
+BFG_INLINE uint32_t rndup(uint32_t v) {
 
     v--;
     v |= v >> 1;
@@ -95,7 +106,7 @@ inline uint32_t rndup(uint32_t v) {
     return v;
 }
 
-inline uint16_t rndup(uint16_t v) {
+BFG_INLINE uint16_t rndup(uint16_t v) {
 
     v--;
     v |= v >> 1;
@@ -107,7 +118,7 @@ inline uint16_t rndup(uint16_t v) {
     return v;
 }
 
-inline bool check_file_exists(const string& filename) {
+BFG_INLINE bool check_file_exists(const string& filename) {
 
     struct stat stFileInfo;
 
@@ -118,8 +129,8 @@ template<typename T> class wrapperData {
 
     public:
 
-        inline const T* getData() const { return &data; }
-        inline T* getData() { return &data; }
+        BFG_INLINE const T* getData() const { return &data; }
+        BFG_INLINE T* getData() { return &data; }
 
     private:
 
@@ -130,8 +141,8 @@ template<> class wrapperData<void> {
 
     public:
 
-        inline const void* getData() const { return nullptr; }
-        inline void* getData() { return nullptr; }
+        BFG_INLINE const void* getData() const { return nullptr; }
+        BFG_INLINE void* getData() { return nullptr; }
 };
 
 #endif // BFG_COMMON_HPP

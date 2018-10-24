@@ -548,12 +548,11 @@ class CompactedDBG {
         bool filter(const CDBG_Build_opt& opt);
         bool construct(const CDBG_Build_opt& opt);
 
-        bool addUnitigSequenceBBF(Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km,
-                                  vector<std::atomic_flag>& locks_mapping, vector<std::atomic_flag>& locks_unitig,
-                                  const size_t thread_id);
+        bool addUnitigSequenceBBF(const Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km, LockGraph& lck_g);
+
         size_t findUnitigSequenceBBF(Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip);
-        bool bwStepBBF(Kmer km, Kmer& front, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;
-        bool fwStepBBF(Kmer km, Kmer& end, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, bool check_fp_cand = true) const;
+        bool bwStepBBF(const Kmer km, Kmer& front, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand = true) const;
+        bool fwStepBBF(const Kmer km, Kmer& end, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand = true) const;
 
         inline size_t find(const preAllocMinHashIterator<RepHash>& it_min_h) const {
 
@@ -574,7 +573,7 @@ class CompactedDBG {
 
         bool mergeUnitig(const string& seq, const bool verbose = false);
         bool annotateSplitUnitig(const string& seq, const bool verbose = false);
-        bool annotateSplitUnitig(const string& seq, LockGraph& lck_g, const size_t thread_id, const bool verbose = false);
+        bool annotateSplitUnitig(const string& seq, LockGraph& lck_g, const bool verbose = false);
 
         template<bool is_void>
         inline typename std::enable_if<!is_void, void>::type mergeData_(const UnitigMap<U, G>& a, const const_UnitigMap<U, G>& b){

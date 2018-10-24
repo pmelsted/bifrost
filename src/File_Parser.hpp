@@ -43,23 +43,26 @@ class FileParser {
 
                             s_ext = s.substr(s.find_last_of(".", last_point - 1) + 1);
 
-                            if ((s_ext == "fasta.gz") || (s_ext == "fa.gz") || (s_ext == "fastq.gz") || (s_ext == "fq.gz")) files_fastx.push_back(s);
+                            if ((s_ext == "fasta.gz") || (s_ext == "fa.gz") || (s_ext == "fna.gz") || (s_ext == "fastq.gz") || (s_ext == "fq.gz")){
+
+                                files_fastx.push_back(s);
+                            }
                             else {
 
-                                cerr << "FileParser::FileParser(): Input files must be in FASTA (*.fasta, *.fa, *.fasta.gz, *.fa.gz) or " <<
-                                "FASTQ (*.fastq, *.fq, *.fastq.gz, *.fq.gz) or GFA (*.gfa) format" << endl;
+                                cerr << "FileParser::FileParser(): Input files must be in FASTA (*.fasta, *.fa, *.fna, *.fasta.gz, *.fa.gz, *.fna.gz)" <<
+                                " or FASTQ (*.fastq, *.fq, *.fastq.gz, *.fq.gz) or GFA (*.gfa) format" << endl;
 
                                 invalid = true;
                             }
                         }
                         else {
 
-                            if ((s_ext == "fasta") || (s_ext == "fa") || (s_ext == "fastq") || (s_ext == "fq")) files_fastx.push_back(s);
+                            if ((s_ext == "fasta") || (s_ext == "fa") || (s_ext == "fna") || (s_ext == "fastq") || (s_ext == "fq")) files_fastx.push_back(s);
                             else if (s_ext == "gfa") files_gfa.push_back(s);
                             else {
 
-                                cerr << "FileParser::FileParser(): Input files must be in FASTA (*.fasta, *.fa, *.fasta.gz, *.fa.gz) or " <<
-                                "FASTQ (*.fastq, *.fq, *.fastq.gz, *.fq.gz) or GFA (*.gfa) format" << endl;
+                                cerr << "FileParser::FileParser(): Input files must be in FASTA (*.fasta, *.fa, *.fna, *.fasta.gz, *.fa.gz, *.fna.gz)" <<
+                                " or FASTQ (*.fastq, *.fq, *.fastq.gz, *.fq.gz) or GFA (*.gfa) format" << endl;
 
                                 invalid = true;
                             }

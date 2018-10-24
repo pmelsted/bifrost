@@ -100,7 +100,7 @@ class BlockedBloomFilter {
         #if defined(__AVX2__)
         //__m256i mask_h; // Mask for hash functions that we do not want (>k);
 
-        uint64_t hashes_mask[4]/* __attribute__((aligned(32)))*/;
+        uint64_t hashes_mask[4];
 
         static const __m256i mask_and_div; // All MASK_BITS_BLOCK LSB of each 16 bits word
         static const __m256i mask_and_mod; // All 4 LSB of each 16 bits word

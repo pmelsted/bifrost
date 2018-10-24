@@ -50,8 +50,8 @@ brew install cmake zlib
 
 1. Open the Windows Store
 2. Search and install the `Ubuntu` app (from `Canonical Group Limited`)
-3. Open the Windows main menu and open the app `Ubuntu` (it should open an Ubuntu terminal)
-4. In the terminal, type:
+3. Open the Windows main menu and open the `Ubuntu` app (it should open an Ubuntu terminal)
+4. Use the following command in the Ubuntu terminal:
 ```
 sudo apt-get install build-essential cmake zlib1g-dev
 ```

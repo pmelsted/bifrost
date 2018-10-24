@@ -858,7 +858,8 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
                             um.len = 1 + um.lcp(str_tmp, it_km->second + k_, um.strand ? um.dist + k_ : um.dist - 1, !um.strand);
 
-                            if ((um.size != k_) && !um.strand) um.dist -= um.len - 1;
+                            //if ((um.size != k_) && !um.strand) um.dist -= um.len - 1;
+                            um.dist -= (um.len - 1) & (static_cast<size_t>((um.size == k_) || um.strand) - 1);
 
                             it_km += um.len - 1;
                         }
@@ -899,9 +900,10 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
             if (!new_reading || fp.read(s, file_id)) {
 
-                pos_read = (new_reading ? 0 : pos_read);
-                len_read = s.length();
+                //pos_read = (new_reading ? 0 : pos_read);
+                pos_read &= static_cast<size_t>(new_reading) - 1;
 
+                len_read = s.length();
                 s_str = s.c_str();
 
                 if (len_read >= k_){
