@@ -122,6 +122,8 @@ class GFA_Parser {
 
         char* buffer;
 
+        char buffer_stream[8192];
+
         bool file_open_write;
         bool file_open_read;
 

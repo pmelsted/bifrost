@@ -91,7 +91,7 @@ class ReadHasher {
                     last_valid = false;
                 }
 
-                if (last_valid) handle(hf.hash());
+                if (last_valid) sc(hf.hash());
             }
         }
 
@@ -136,15 +136,13 @@ class ReadHasher {
                             last_valid = false;
                         }
 
-                        if (last_valid) handle(hf.hash());
+                        if (last_valid) sc(hf.hash());
                     }
                 }
 
                 str += sl + 1;
             }
         }
-
-        inline void handle(const uint64_t val) { sc(val); }
 
         inline void setQualityCutoff(const size_t q) {}
 
@@ -227,7 +225,7 @@ class ReadQualityHasher {
                     last_valid = false;
                 }
 
-                if (last_valid) handle(hf.hash());
+                if (last_valid) sc(hf.hash());
             }
         }
 
@@ -236,8 +234,8 @@ class ReadQualityHasher {
             const char q_base_cut = (char) (q_base + q_cutoff);
 
             const char* str = seq_buf;
-            const char* q_str = qual_buf;
             const char* str_end = &seq_buf[buf_sz];
+            const char* q_str = qual_buf;
 
             while (str < str_end) { // for each input
 
@@ -275,7 +273,7 @@ class ReadQualityHasher {
                             last_valid = false;
                         }
 
-                        if (last_valid) handle(hf.hash());
+                        if (last_valid) sc(hf.hash());
                     }
                 }
 
@@ -283,8 +281,6 @@ class ReadQualityHasher {
                 q_str += sl + 1;
             }
         }
-
-        inline void handle(const uint64_t val) { sc(val); }
 
         inline void setQualityCutoff(const size_t q) { q_cutoff = q; }
 

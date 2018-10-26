@@ -97,7 +97,7 @@ class Kmer {
         * @param seed is a seed number for the hash function (0 by default).
         * @return a hash of the k-mer.
         */
-        inline uint64_t hash(const uint64_t seed = 0) const {
+        BFG_INLINE uint64_t hash(const uint64_t seed = 0) const {
             return (uint64_t)XXH64((const void *)bytes, MAX_K/4, seed);
         }
 
@@ -222,7 +222,7 @@ class Minimizer {
 
         void set_minimizer(const char *s);
 
-        inline uint64_t hash(const uint64_t seed = 0) const {
+        BFG_INLINE uint64_t hash(const uint64_t seed = 0) const {
 
             return (uint64_t)XXH64((const void *)bytes, MAX_G/4, seed);
         }

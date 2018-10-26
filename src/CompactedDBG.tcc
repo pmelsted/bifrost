@@ -5879,6 +5879,183 @@ typename std::enable_if<is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_(
     return joined;
 }
 
+/*template<typename U, typename G>
+template<bool is_void>
+typename std::enable_if<is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_(vector<Kmer>* v_joins, const size_t nb_threads) {
+
+    size_t i;
+    size_t joined = 0;
+    size_t cov_full = CompressedCoverage::getFullCoverage();
+    size_t v_unitigs_size = v_unitigs.size();
+    size_t v_kmers_size = v_kmers.size();
+
+    Hybrid_SpinLockRW_MCS<> lck(nb_threads);
+
+    // a and b are candidates for joining
+    KmerHashTable<Kmer> joins;
+
+    createJoinHT(v_joins, joins, nb_threads);
+
+    if (v_joins != nullptr) v_joins->clear();
+
+    auto worker_v_kmers = [&lck, this](const Kmer head, const Kmer tail){
+
+        lck.acquire_reader();
+
+        UnitigMap<U, G> cmHead = find(head, true);
+        UnitigMap<U, G> cmTail = find(tail, true);
+
+        if (!cmHead.isEmpty && !cmTail.isEmpty) {
+
+            Kmer cmHead_head, cmTail_head;
+
+            if (cmHead.isShort) cmHead_head = v_kmers[cmHead.pos_unitig].first;
+            else if (cmHead.isAbundant) cmHead_head = h_kmers_ccov.find(cmHead.pos_unitig).getKey();
+            else cmHead_head = v_unitigs[cmHead.pos_unitig]->seq.getKmer(0);
+
+            if (cmTail.isShort) cmTail_head = v_kmers[cmTail.pos_unitig].first;
+            else if (cmTail.isAbundant) cmTail_head = h_kmers_ccov.find(cmTail.pos_unitig).getKey();
+            else cmTail_head = v_unitigs[cmTail.pos_unitig]->seq.getKmer(0);
+
+            if (cmHead_head != cmTail_head) { // can't join a sequence with itself, either hairPin, loop or mobius loop
+
+                // both kmers are still end-kmers
+                bool headDir;
+                bool len_k_head = cmHead.isShort || cmHead.isAbundant;
+
+                if (len_k_head && (head == cmHead_head)) headDir = true;
+                else if (!len_k_head && (head == v_unitigs[cmHead.pos_unitig]->seq.getKmer(v_unitigs[cmHead.pos_unitig]->numKmers()-1))) headDir = true;
+                else if (head.twin() == cmHead_head) headDir = false;
+                else continue;
+
+                bool tailDir;
+                bool len_k_tail = cmTail.isShort || cmTail.isAbundant;
+
+                if (tail == cmTail_head) tailDir = true;
+                else if (len_k_tail){
+                    if (tail.twin() == cmTail_head) tailDir = false;
+                    else continue;
+                }
+                else if (tail.twin() == v_unitigs[cmTail.pos_unitig]->seq.getKmer(v_unitigs[cmTail.pos_unitig]->numKmers()-1)) tailDir = false;
+                else continue;
+
+                //Compute join sequence
+                string joinSeq;
+
+                joinSeq.reserve((len_k_head ? k_ : cmHead.size) + (len_k_tail ? k_ : cmTail.size) - k_ + 1);
+
+                if (headDir) joinSeq = len_k_head ? cmHead_head.toString() : v_unitigs[cmHead.pos_unitig]->seq.toString();
+                else joinSeq = len_k_head ? cmHead_head.twin().toString() : v_unitigs[cmHead.pos_unitig]->seq.rev().toString();
+
+                if (tailDir) joinSeq.append(len_k_tail ? cmTail_head.toString() : v_unitigs[cmTail.pos_unitig]->seq.toString(), k_ - 1, string::npos);
+                else joinSeq.append(len_k_tail ? cmTail_head.twin().toString() : v_unitigs[cmTail.pos_unitig]->seq.rev().toString(), k_ - 1, string::npos);
+
+                //Compute new coverage
+                uint64_t covsum;
+
+                if (len_k_head){
+
+                    CompressedCoverage& ccov = cmHead.isShort ? v_kmers[cmHead.pos_unitig].second.ccov : h_kmers_ccov.find(cmHead.pos_unitig)->ccov;
+                    covsum = ccov.covAt(0);
+                }
+                else covsum = v_unitigs[cmHead.pos_unitig]->coveragesum;
+
+                if (len_k_tail){
+
+                    CompressedCoverage& ccov = cmTail.isShort ? v_kmers[cmTail.pos_unitig].second.ccov : h_kmers_ccov.find(cmTail.pos_unitig)->ccov;
+                    covsum += ccov.covAt(0);
+                }
+                else covsum += v_unitigs[cmTail.pos_unitig]->coveragesum;
+
+                Unitig<U>* unitig; //New unitig
+
+                cmTail.strand = tailDir;
+                cmHead.strand = headDir;
+
+                if (cmHead.isShort || cmHead.isAbundant){
+
+                    if (cmHead.isShort){ //If head is a short unitig, swap and delete it
+
+                        --v_kmers_size;
+
+                        if (cmHead.pos_unitig != v_kmers_size){
+
+                            swapUnitigs(true, cmHead.pos_unitig, v_kmers_size);
+
+                            // If the last unitig of the vector used for the swap was the tail
+                            if (cmTail.isShort && (v_kmers_size == cmTail.pos_unitig)) cmTail.pos_unitig = cmHead.pos_unitig;
+                        }
+
+                        deleteUnitig_<true>(true, false, v_kmers_size);
+                    }
+                    else if (cmHead.isAbundant) deleteUnitig_<true>(false, true, cmHead.pos_unitig);
+                }
+
+                if (cmTail.isShort || cmTail.isAbundant){
+
+                    if (cmTail.isShort){ //If tail is a short unitig, swap and delete it
+
+                        --v_kmers_size;
+
+                        if (cmTail.pos_unitig != v_kmers_size){
+
+                            swapUnitigs(true, cmTail.pos_unitig, v_kmers_size);
+
+                            if (cmHead.isShort && (v_kmers_size == cmHead.pos_unitig)) cmHead.pos_unitig = cmTail.pos_unitig;
+                        }
+
+                        deleteUnitig_<true>(true, false, v_kmers_size);
+                    }
+                    else if (cmTail.isAbundant) deleteUnitig_<true>(false, true, cmTail.pos_unitig);
+                }
+
+                if (len_k_head && len_k_tail){
+
+                    addUnitig(joinSeq, v_unitigs_size);
+                    unitig = v_unitigs[v_unitigs_size];
+                    ++v_unitigs_size;
+                }
+                else if (len_k_head){
+
+                    deleteUnitig_<true>(false, false, cmTail.pos_unitig);
+                    addUnitig(joinSeq, cmTail.pos_unitig);
+                    unitig = v_unitigs[cmTail.pos_unitig];
+                }
+                else {
+
+                    if (!len_k_tail){
+
+                        --v_unitigs_size;
+
+                        if (cmTail.pos_unitig != v_unitigs_size){
+
+                            swapUnitigs(false, cmTail.pos_unitig, v_unitigs_size);
+
+                            if (v_unitigs_size == cmHead.pos_unitig) cmHead.pos_unitig = cmTail.pos_unitig;
+                        }
+
+                        deleteUnitig_<true>(false, false, v_unitigs_size);
+                    }
+
+                    deleteUnitig_<true>(false, false, cmHead.pos_unitig);
+                    addUnitig(joinSeq, cmHead.pos_unitig);
+                    unitig = v_unitigs[cmHead.pos_unitig];
+                }
+
+                unitig->coveragesum = covsum;
+                if (covsum >= cov_full * unitig->numKmers()) unitig->ccov.setFull();
+
+                ++joined;
+            }
+        }
+    }
+
+    if (v_unitigs_size < v_unitigs.size()) v_unitigs.resize(v_unitigs_size);
+    if (v_kmers_size < v_kmers.size()) v_kmers.resize(v_kmers_size);
+
+    return joined;
+}*/
+
 template<typename U, typename G>
 bool CompactedDBG<U, G>::checkJoin(const Kmer& a, const const_UnitigMap<U, G>& cm_a, Kmer& b) const {
 
@@ -6265,42 +6442,40 @@ void CompactedDBG<U, G>::writeGFA(const string& graphfilename, const size_t nb_t
 
             const Unitig<U>* unitig = v_unitigs[labelA - 1];
             const Kmer head = unitig->seq.getKmer(0);
+            const Kmer tail = unitig->seq.getKmer(unitig->seq.size() - k_);
 
-            for (i = 0; i < 4; ++i) {
+            const vector<const_UnitigMap<U, G>> pred = findPredecessors(head, true);
+            const vector<const_UnitigMap<U, G>> succ = findSuccessors(tail, 4, true);
 
-                const Kmer b = head.backwardBase(alpha[i]);
-                const const_UnitigMap<U, G> cand = find(b, true);
+            for (const auto& unitig : pred){
 
-                if (!cand.isEmpty) {
+                if (!unitig.isEmpty){
 
-                    if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
-                    else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
+                    if (unitig.isAbundant) labelB = *(idmap.find(unitig.getUnitigHead().rep()));
+                    else labelB = unitig.pos_unitig + 1 + ((static_cast<size_t>(!unitig.isShort) - 1) & v_unitigs_sz);
 
                     const string slabelA = std::to_string(labelA);
                     const string slabelB = std::to_string(labelB);
 
-                    graph.write_edge(slabelA, 0, k_-1, false,
-                                     slabelB, cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, !cand.strand);
+                    const size_t pos = (static_cast<size_t>(unitig.strand) - 1) & (unitig.size - k_ + 1);
+
+                    graph.write_edge(slabelA, 0, k_-1, false, slabelB, pos, pos + k_ - 1, !unitig.strand);
                 }
             }
 
-            const Kmer tail = unitig->seq.getKmer(unitig->seq.size() - k_);
+            for (const auto& unitig : succ){
 
-            for (i = 0; i < 4; ++i) {
+                if (!unitig.isEmpty){
 
-                const Kmer b = tail.forwardBase(alpha[i]);
-                const const_UnitigMap<U, G> cand = find(b, true);
-
-                if (!cand.isEmpty) {
-
-                    if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
-                    else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
+                    if (unitig.isAbundant) labelB = *(idmap.find(unitig.getUnitigHead().rep()));
+                    else labelB = unitig.pos_unitig + 1 + ((static_cast<size_t>(!unitig.isShort) - 1) & v_unitigs_sz);
 
                     const string slabelA = std::to_string(labelA);
                     const string slabelB = std::to_string(labelB);
 
-                    graph.write_edge(slabelA, unitig->seq.size() - k_ + 1, unitig->seq.size(), true,
-                                     slabelB, cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                    const size_t pos = (static_cast<size_t>(unitig.strand) - 1) & (unitig.size - k_ + 1);
+
+                    graph.write_edge(slabelA, unitig.size - k_ + 1, unitig.size, true, slabelB, pos, pos + k_ - 1, unitig.strand);
                 }
             }
         }
@@ -6309,44 +6484,85 @@ void CompactedDBG<U, G>::writeGFA(const string& graphfilename, const size_t nb_t
 
             const pair<Kmer, CompressedCoverage_t<U>>& p = v_kmers[labelA - v_unitigs_sz - 1];
 
-            for (i = 0; i < 4; ++i) {
+            const vector<const_UnitigMap<U, G>> pred = findPredecessors(p.first, true);
+            const vector<const_UnitigMap<U, G>> succ = findSuccessors(p.first, 4, true);
 
-                const Kmer b = p.first.backwardBase(alpha[i]);
-                const const_UnitigMap<U, G> cand = find(b, true);
+            for (const auto& unitig : pred){
 
-                if (!cand.isEmpty) {
+                if (!unitig.isEmpty){
 
-                    if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
-                    else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz : 0);
+                    if (unitig.isAbundant) labelB = *(idmap.find(unitig.getUnitigHead().rep()));
+                    else labelB = unitig.pos_unitig + 1 + ((static_cast<size_t>(!unitig.isShort) - 1) & v_unitigs_sz);
 
                     const string slabelA = std::to_string(labelA);
                     const string slabelB = std::to_string(labelB);
 
-                    graph.write_edge(slabelA, 0, k_-1, false,
-                                     slabelB, cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, !cand.strand);
+                    const size_t pos = (static_cast<size_t>(unitig.strand) - 1) & (unitig.size - k_ + 1);
+
+                    graph.write_edge(slabelA, 0, k_-1, false, slabelB, pos, pos + k_ - 1, !unitig.strand);
                 }
             }
 
-            for (i = 0; i < 4; ++i) {
+            for (const auto& unitig : succ){
 
-                const Kmer b = p.first.forwardBase(alpha[i]);
-                const const_UnitigMap<U, G> cand = find(b, true);
+                if (!unitig.isEmpty){
 
-                if (!cand.isEmpty) {
-
-                    if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
-                    else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
+                    if (unitig.isAbundant) labelB = *(idmap.find(unitig.getUnitigHead().rep()));
+                    else labelB = unitig.pos_unitig + 1 + ((static_cast<size_t>(!unitig.isShort) - 1) & v_unitigs_sz);
 
                     const string slabelA = std::to_string(labelA);
                     const string slabelB = std::to_string(labelB);
 
-                    graph.write_edge(slabelA, 0, k_-1, true,
-                                     slabelB, cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                    const size_t pos = (static_cast<size_t>(unitig.strand) - 1) & (unitig.size - k_ + 1);
+
+                    graph.write_edge(slabelA, unitig.size - k_ + 1, unitig.size, true, slabelB, pos, pos + k_ - 1, unitig.strand);
+                }
+            }
+        }
+
+        for (KmerHashTable<size_t>::iterator it = idmap.begin(); it != idmap.end(); it++) {
+
+            labelA = *it;
+
+            const vector<const_UnitigMap<U, G>> pred = findPredecessors(it.getKey(), true);
+            const vector<const_UnitigMap<U, G>> succ = findSuccessors(it.getKey(), 4, true);
+
+            for (const auto& unitig : pred){
+
+                if (!unitig.isEmpty){
+
+                    if (unitig.isAbundant) labelB = *(idmap.find(unitig.getUnitigHead().rep()));
+                    else labelB = unitig.pos_unitig + 1 + ((static_cast<size_t>(!unitig.isShort) - 1) & v_unitigs_sz);
+
+                    const string slabelA = std::to_string(labelA);
+                    const string slabelB = std::to_string(labelB);
+
+                    const size_t pos = (static_cast<size_t>(unitig.strand) - 1) & (unitig.size - k_ + 1);
+
+                    graph.write_edge(slabelA, 0, k_-1, false, slabelB, pos, pos + k_ - 1, !unitig.strand);
+                }
+            }
+
+            for (const auto& unitig : succ){
+
+                if (!unitig.isEmpty){
+
+                    if (unitig.isAbundant) labelB = *(idmap.find(unitig.getUnitigHead().rep()));
+                    else labelB = unitig.pos_unitig + 1 + ((static_cast<size_t>(!unitig.isShort) - 1) & v_unitigs_sz);
+
+                    const string slabelA = std::to_string(labelA);
+                    const string slabelB = std::to_string(labelB);
+
+                    const size_t pos = (static_cast<size_t>(unitig.strand) - 1) & (unitig.size - k_ + 1);
+
+                    graph.write_edge(slabelA, unitig.size - k_ + 1, unitig.size, true, slabelB, pos, pos + k_ - 1, unitig.strand);
                 }
             }
         }
     }
     else {
+
+        const size_t chunk_size = 1024;
 
         auto worker_v_unitigs = [v_unitigs_sz, &idmap, this](const size_t labelA_start, const size_t labelA_end,
                                                              vector<pair<pair<size_t, bool>, pair<size_t, bool>>>* v_out){
@@ -6359,26 +6575,27 @@ void CompactedDBG<U, G>::writeGFA(const string& graphfilename, const size_t nb_t
                 const Kmer head = unitig->seq.getKmer(0);
                 const Kmer tail = unitig->seq.getKmer(unitig->seq.size() - k_);
 
-                vector<const_UnitigMap<U, G>> v_um = findPredecessors(head, true);
+                const vector<const_UnitigMap<U, G>> pred = findPredecessors(head, true);
+                const vector<const_UnitigMap<U, G>> succ = findSuccessors(tail, 4, true);
 
-                for (const auto& um : v_um) {
+                for (const auto& um : pred) {
 
                     if (!um.isEmpty){
 
-                        const size_t labelB = (um.isAbundant ? *(idmap.find(um.getUnitigHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
+                        const size_t labelB = (um.isAbundant ?  *(idmap.find(um.getUnitigHead().rep())) :
+                                                                um.pos_unitig + 1 + ((static_cast<size_t>(!um.isShort) - 1) & v_unitigs_sz));
+
                         v_out->push_back(make_pair(make_pair(labelA, false), make_pair(labelB, !um.strand)));
                     }
                 }
 
-                v_um.clear();
-
-                v_um = findSuccessors(tail, 4, true);
-
-                for (const auto& um : v_um) {
+                for (const auto& um : succ) {
 
                     if (!um.isEmpty){
 
-                        const size_t labelB = (um.isAbundant ? *(idmap.find(um.getUnitigHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
+                        const size_t labelB = (um.isAbundant ?  *(idmap.find(um.getUnitigHead().rep())) :
+                                                                um.pos_unitig + 1 + ((static_cast<size_t>(!um.isShort) - 1) & v_unitigs_sz));
+
                         v_out->push_back(make_pair(make_pair(labelA, true), make_pair(labelB, um.strand)));
                     }
                 }
@@ -6393,155 +6610,217 @@ void CompactedDBG<U, G>::writeGFA(const string& graphfilename, const size_t nb_t
 
                 const pair<Kmer, CompressedCoverage_t<U>>& p = v_kmers[labelA - v_unitigs_sz - 1];
 
-                vector<const_UnitigMap<U, G>> v_um = findPredecessors(p.first, true);
+                const vector<const_UnitigMap<U, G>> pred = findPredecessors(p.first, true);
+                const vector<const_UnitigMap<U, G>> succ = findSuccessors(p.first, 4, true);
 
-                for (const auto& um : v_um) {
+                for (const auto& um : pred) {
 
                     if (!um.isEmpty){
 
-                        const size_t labelB = (um.isAbundant ? *(idmap.find(um.getUnitigHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
+                        const size_t labelB = (um.isAbundant ?  *(idmap.find(um.getUnitigHead().rep())) :
+                                                                um.pos_unitig + 1 + ((static_cast<size_t>(!um.isShort) - 1) & v_unitigs_sz));
+
                         v_out->push_back(make_pair(make_pair(labelA, false), make_pair(labelB, !um.strand)));
                     }
                 }
 
-                v_um.clear();
-
-                v_um = findSuccessors(p.first, 4, true);
-
-                for (const auto& um : v_um) {
+                for (const auto& um : succ) {
 
                     if (!um.isEmpty){
 
-                        const size_t labelB = (um.isAbundant ? *(idmap.find(um.getUnitigHead().rep())) : um.pos_unitig + 1 + (um.isShort ? v_unitigs_sz : 0));
+                        const size_t labelB = (um.isAbundant ?  *(idmap.find(um.getUnitigHead().rep())) :
+                                                                um.pos_unitig + 1 + ((static_cast<size_t>(!um.isShort) - 1) & v_unitigs_sz));
+
                         v_out->push_back(make_pair(make_pair(labelA, true), make_pair(labelB, um.strand)));
                     }
                 }
             }
         };
 
-        const int chunk_size = 1000;
+        auto worker_v_abundant = [v_unitigs_sz, chunk_size, &idmap, this](  KmerHashTable<size_t>::iterator* l_it,
+                                                                            vector<pair<pair<size_t, bool>, pair<size_t, bool>>>* v_out){
 
-        vector<vector<pair<pair<size_t, bool>, pair<size_t, bool>>>> v_out(nb_threads);
+            KmerHashTable<size_t>::iterator& it = *l_it;
 
-        labelA = 1;
+            // We need to deal with the tail of long unitigs
+            for (size_t i = 0; (it != idmap.end()) && (i < chunk_size); ++i, ++it) {
 
-        while (labelA <= v_unitigs_sz) {
+                const vector<const_UnitigMap<U, G>> pred = findPredecessors(it.getKey(), true);
+                const vector<const_UnitigMap<U, G>> succ = findSuccessors(it.getKey(), 4, true);
 
-            vector<thread> workers;
+                for (const auto& um : pred) {
 
-            for (size_t i = 0; i != nb_threads; ++i) {
+                    if (!um.isEmpty){
 
-                if (labelA + chunk_size <= v_unitigs_sz){
+                        const size_t labelB = (um.isAbundant ?  *(idmap.find(um.getUnitigHead().rep())) :
+                                                                um.pos_unitig + 1 + ((static_cast<size_t>(!um.isShort) - 1) & v_unitigs_sz));
 
-                    workers.push_back(thread(worker_v_unitigs, labelA, labelA + chunk_size, &v_out[i]));
-
-                    labelA += chunk_size;
+                        v_out->push_back(make_pair(make_pair(*it, false), make_pair(labelB, !um.strand)));
+                    }
                 }
-                else {
 
-                    workers.push_back(thread(worker_v_unitigs, labelA, v_unitigs_sz + 1, &v_out[i]));
+                for (const auto& um : succ) {
 
-                    labelA += chunk_size;
+                    if (!um.isEmpty){
 
-                    break;
+                        const size_t labelB = (um.isAbundant ?  *(idmap.find(um.getUnitigHead().rep())) :
+                                                                um.pos_unitig + 1 + ((static_cast<size_t>(!um.isShort) - 1) & v_unitigs_sz));
+
+                        v_out->push_back(make_pair(make_pair(*it, true), make_pair(labelB, um.strand)));
+                    }
                 }
             }
+        };
 
-            for (auto &t : workers) t.join();
+        {
+            atomic<size_t> label(1);
 
-            for (size_t i = 0; i < nb_threads; ++i) {
+            vector<vector<pair<pair<size_t, bool>, pair<size_t, bool>>>> v_out(nb_threads);
+            vector<thread> workers; // need to keep track of threads so we can join them
 
-                for (const auto& p : v_out[i]){
+            mutex mutex_file;
 
-                    const string slabelA = std::to_string(p.first.first);
-                    const string slabelB = std::to_string(p.second.first);
+            for (size_t t = 0; t < nb_threads; ++t){
 
-                    graph.write_edge(slabelA, 0, k_-1, p.first.second, slabelB, 0, k_-1, p.second.second);
-                }
+                workers.emplace_back(
 
-                v_out[i].clear();
+                    [&, t]{
+
+                        while (true) {
+
+                            const size_t old_labelA = label.fetch_add(chunk_size);
+
+                            if (old_labelA <= v_unitigs_sz){
+
+                                if (old_labelA + chunk_size <= v_unitigs_sz) worker_v_unitigs(old_labelA, old_labelA + chunk_size, &v_out[t]);
+                                else worker_v_unitigs(old_labelA, v_unitigs_sz + 1, &v_out[t]);
+
+                                {
+                                    unique_lock<mutex> lock(mutex_file);
+
+                                    for (const auto& p : v_out[t]){
+
+                                        const string slabelA = std::to_string(p.first.first);
+                                        const string slabelB = std::to_string(p.second.first);
+
+                                        graph.write_edge(slabelA, 0, k_-1, p.first.second, slabelB, 0, k_-1, p.second.second);
+                                    }
+                                }
+
+                                v_out[t].clear();
+                            }
+                            else return;
+                        }
+                    }
+                );
             }
+
+            for (auto& t : workers) t.join();
         }
 
-        labelA = v_unitigs_sz + 1;
+        {
+            const size_t v_kmers_unitigs_sz = v_kmers_sz + v_unitigs_sz;
 
-        while (labelA <= v_kmers_sz + v_unitigs_sz) {
+            atomic<size_t> label(v_unitigs_sz + 1);
 
-            vector<thread> workers;
+            vector<vector<pair<pair<size_t, bool>, pair<size_t, bool>>>> v_out(nb_threads);
+            vector<thread> workers; // need to keep track of threads so we can join them
 
-            for (size_t i = 0; i != nb_threads; ++i) {
+            mutex mutex_file;
 
-                if (labelA + chunk_size <= v_kmers_sz + v_unitigs_sz){
+            for (size_t t = 0; t < nb_threads; ++t){
 
-                    workers.push_back(thread(worker_v_kmers, labelA, labelA + chunk_size, &v_out[i]));
+                workers.emplace_back(
 
-                    labelA += chunk_size;
-                }
-                else {
+                    [&, t]{
 
-                    workers.push_back(thread(worker_v_kmers, labelA, v_kmers_sz + v_unitigs_sz + 1, &v_out[i]));
+                        while (true) {
 
-                    labelA += chunk_size;
+                            const size_t old_labelA = label.fetch_add(chunk_size);
 
-                    break;
-                }
+                            if (old_labelA <= v_kmers_unitigs_sz){
+
+                                if (old_labelA + chunk_size <= v_kmers_unitigs_sz) worker_v_kmers(old_labelA, old_labelA + chunk_size, &v_out[t]);
+                                else worker_v_kmers(old_labelA, v_kmers_unitigs_sz + 1, &v_out[t]);
+
+                                {
+                                    unique_lock<mutex> lock(mutex_file);
+
+                                    for (const auto& p : v_out[t]){
+
+                                        const string slabelA = std::to_string(p.first.first);
+                                        const string slabelB = std::to_string(p.second.first);
+
+                                        graph.write_edge(slabelA, 0, k_-1, p.first.second, slabelB, 0, k_-1, p.second.second);
+                                    }
+                                }
+
+                                v_out[t].clear();
+                            }
+                            else return;
+                        }
+                    }
+                );
             }
 
-            for (auto &t : workers) t.join();
-
-            for (size_t i = 0; i < nb_threads; ++i) {
-
-                for (const auto& p : v_out[i]){
-
-                    const string slabelA = std::to_string(p.first.first);
-                    const string slabelB = std::to_string(p.second.first);
-
-                    graph.write_edge(slabelA, 0, k_-1, p.first.second, slabelB, 0, k_-1, p.second.second);
-                }
-
-                v_out[i].clear();
-            }
-        }
-    }
-
-    for (KmerHashTable<size_t>::iterator it = idmap.begin(); it != idmap.end(); it++) {
-
-        labelA = *it;
-
-        for (i = 0; i < 4; ++i) {
-
-            const Kmer b = it.getKey().backwardBase(alpha[i]);
-            const const_UnitigMap<U, G> cand = find(b, true);
-
-            if (!cand.isEmpty) {
-
-                if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
-                else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
-
-                const string slabelA = std::to_string(labelA);
-                const string slabelB = std::to_string(labelB);
-
-                graph.write_edge(slabelA, 0, k_-1, false,
-                                 slabelB, cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, !cand.strand);
-            }
+            for (auto& t : workers) t.join();
         }
 
-        for (i = 0; i < 4; ++i) {
+        {
+            KmerHashTable<size_t>::iterator it = idmap.begin(), it_end = idmap.end();
 
-            const Kmer b = it.getKey().forwardBase(alpha[i]);
-            const const_UnitigMap<U, G> cand = find(b, true);
+            vector<vector<pair<pair<size_t, bool>, pair<size_t, bool>>>> v_out(nb_threads);
+            vector<thread> workers; // need to keep track of threads so we can join them
 
-            if (!cand.isEmpty) {
+            mutex mutex_file, mutex_it;
 
-                if (cand.isAbundant) labelB = *(idmap.find(b.rep()));
-                else labelB = cand.pos_unitig + 1 + (cand.isShort ? v_unitigs_sz: 0);
+            for (size_t t = 0; t < nb_threads; ++t){
 
-                const string slabelA = std::to_string(labelA);
-                const string slabelB = std::to_string(labelB);
+                workers.emplace_back(
 
-                graph.write_edge(slabelA, 0, k_-1, true,
-                                 slabelB, cand.strand ? 0 : cand.size - k_ + 1, cand.strand ? k_-1 : cand.size, cand.strand);
+                    [&, t]{
+
+                        KmerHashTable<size_t>::iterator l_it;
+
+                        bool stop;
+
+                        while (true) {
+
+                            {
+                                unique_lock<mutex> lock(mutex_it);
+
+                                l_it = it;
+
+                                for (size_t i = 0; (it != it_end) && (i < chunk_size); ++i, ++it){}
+
+                                stop = (l_it == it_end) && (it == it_end);
+                            }
+
+                            if (!stop){
+
+                                worker_v_abundant(&l_it, &v_out[t]);
+
+                                {
+                                    unique_lock<mutex> lock(mutex_file);
+
+                                    for (const auto& p : v_out[t]){
+
+                                        const string slabelA = std::to_string(p.first.first);
+                                        const string slabelB = std::to_string(p.second.first);
+
+                                        graph.write_edge(slabelA, 0, k_-1, p.first.second, slabelB, 0, k_-1, p.second.second);
+                                    }
+                                }
+
+                                v_out[t].clear();
+                            }
+                            else return;
+                        }
+                    }
+                );
             }
+
+            for (auto& t : workers) t.join();
         }
     }
 

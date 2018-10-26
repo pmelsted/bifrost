@@ -121,6 +121,8 @@ bool GFA_Parser::open_write(const size_t version_GFA, const string tags_line_hea
         if (graphfile_out == nullptr) graphfile_out = unique_ptr<ofstream>(new ofstream());
 
         graphfile_out->open(filename.c_str(), ios_base::out);
+        graphfile_out->rdbuf()->pubsetbuf(buffer_stream, sizeof(buffer_stream));
+
         graph_out.rdbuf(graphfile_out->rdbuf());
         graph_out.sync_with_stdio(false);
 
@@ -169,6 +171,8 @@ bool GFA_Parser::open(const size_t idx_filename){
             if (graphfile_in == nullptr) graphfile_in = unique_ptr<ifstream>(new ifstream());
 
             graphfile_in->open(graph_filenames[idx_filename], ios_base::in);
+            graphfile_in->rdbuf()->pubsetbuf(buffer_stream, sizeof(buffer_stream));
+
             graph_in.rdbuf(graphfile_in->rdbuf());
             graph_in.sync_with_stdio(false);
 

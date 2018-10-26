@@ -61,7 +61,7 @@ class StreamCounter {
             ++sumCount;
 
             // hashval is XXX .. XXX1000.. (w times) ..00 0
-            size_t w = __builtin_ctz(hashval);
+            size_t w = __builtin_ctzll(hashval);
 
             if (w >= MAX_TABLE) w = MAX_TABLE - 1;
             if (M[w] == size * countsPerLong * maxVal) return;
