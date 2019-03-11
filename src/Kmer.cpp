@@ -334,8 +334,23 @@ char Kmer::getChar(const size_t offset) const {
 
     assert(offset < Kmer::k);
 
-    const char v = (longs[offset >> 5] >> (62 - (offset << 1))) & 0x3;
+    const char v = (longs[offset >> 5] >> (62 - ((offset & 0x1F) << 1))) & 0x3;
     return (0x40 | (v + 1) | (0x1 << ((v - 1) << 1)));
+}
+
+bool Kmer::setChar(const size_t offset, const char b)  {
+
+    if (offset >= Kmer::k) return false;
+
+    const size_t pos_shift = 62 - ((offset & 0x1F) << 1);
+    const size_t pos_longs = offset >> 5;
+
+    const size_t x = (b & 4) >> 1;
+
+    longs[pos_longs] &= 0xffffffffffffffffULL - (0x3ULL << pos_shift);
+    longs[pos_longs] |= (x + ((x ^ (b & 2)) >> 1)) << pos_shift;
+
+    return true;
 }
 
 std::string Kmer::toString() const {

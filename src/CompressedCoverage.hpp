@@ -6,6 +6,8 @@
 #include <vector>
 #include <iostream>
 
+#include "Common.hpp"
+
 using std::vector;
 using std::pair;
 
@@ -39,7 +41,7 @@ class CompressedCoverage {
         CompressedCoverage& operator=(const CompressedCoverage& o); // Copy assignment
         CompressedCoverage& operator=(CompressedCoverage&& o); // Move assignment
 
-        inline void clear() { releasePointer(); };
+        BFG_INLINE void clear() { releasePointer(); };
 
         void initialize(const size_t sz, const bool full);
         void initialize(const size_t sz, const size_t init_cov);
@@ -69,7 +71,7 @@ class CompressedCoverage {
             }
         }
 
-        inline static size_t getFullCoverage() { return cov_full; }
+        BFG_INLINE static size_t getFullCoverage() { return cov_full; }
 
     private:
 
@@ -84,11 +86,11 @@ class CompressedCoverage {
 
         static uintptr_t localCoverageMask;
 
-        inline size_t round_to_bytes(const size_t len) const { return (len + 3) / 4; }
+        BFG_INLINE size_t round_to_bytes(const size_t len) const { return (len + 3) / 4; }
 
-        inline uint8_t *get8Pointer() const { return reinterpret_cast<uint8_t *>(asBits & pointerMask); }
-        inline uint32_t *get32Pointer() const { return reinterpret_cast<uint32_t *>(asBits & pointerMask); }
-        inline const uint32_t *getConst32Pointer() const { return reinterpret_cast<const uint32_t *>(asBits & pointerMask); }
+        BFG_INLINE uint8_t* get8Pointer() const { return reinterpret_cast<uint8_t*>(asBits & pointerMask); }
+        BFG_INLINE uint32_t* get32Pointer() const { return reinterpret_cast<uint32_t*>(asBits & pointerMask); }
+        BFG_INLINE const uint32_t* getConst32Pointer() const { return reinterpret_cast<const uint32_t*>(asBits & pointerMask); }
 
         void releasePointer();
 
@@ -103,8 +105,8 @@ template<typename T> struct CompressedCoverage_t {
 
     CompressedCoverage_t(size_t sz = 0, bool full = false) : ccov(sz, full) {}
 
-    inline const T* getData() const { return &data; }
-    inline T* getData() { return &data; }
+    BFG_INLINE const T* getData() const { return &data; }
+    BFG_INLINE T* getData() { return &data; }
 
     CompressedCoverage ccov;
     T data;
@@ -114,8 +116,8 @@ template<> struct CompressedCoverage_t<void> {
 
     CompressedCoverage_t(size_t sz = 0, bool full = false) : ccov(sz, full) {}
 
-    inline const void* getData() const { return nullptr; }
-    inline void* getData() { return nullptr; }
+    BFG_INLINE const void* getData() const { return nullptr; }
+    BFG_INLINE void* getData() { return nullptr; }
 
     CompressedCoverage ccov;
 };

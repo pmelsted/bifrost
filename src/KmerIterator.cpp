@@ -43,24 +43,6 @@ KmerIterator& KmerIterator::operator+=(const int length){
     return *this;
 }
 
-/*KmerIterator& KmerIterator::operator+=(const int length){
-
-    if (!invalid_ && (length != 0)){
-
-        if (length == 1) return operator++();
-
-        size_t curr_pos_end = p_.second + Kmer::k;
-        const size_t next_pos_end = curr_pos_end + length;
-
-        while ((curr_pos_end < next_pos_end) && (s_[curr_pos_end] != 0)) ++curr_pos_end;
-
-        if (s_[curr_pos_end] == 0) invalid_ = true;
-        else find_next(next_pos_end - Kmer::k - 1, next_pos_end - Kmer::k - 1, false);
-    }
-
-    return *this;
-}*/
-
 // use:  val = (a == b);
 // pre:
 // post: (val == true) if a and b are both exhausted
@@ -68,7 +50,7 @@ KmerIterator& KmerIterator::operator+=(const int length){
 //       (val == false) otherwise.
 bool KmerIterator::operator==(const KmerIterator& o) {
 
-    if (invalid_  || o.invalid_) return invalid_ && o.invalid_;
+    if (invalid_ || o.invalid_) return invalid_ && o.invalid_;
     return (s_ == o.s_) && (p_.second == o.p_.second);
 }
 

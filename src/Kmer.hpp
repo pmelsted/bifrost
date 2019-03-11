@@ -139,6 +139,14 @@ class Kmer {
         */
         char getChar(const size_t offset) const;
 
+       /** Set a character at a given position in a k-mer.
+        * @param offset is the position of the character to set in the k-mer.
+        * @param b is the character to set. It must be either 'A', 'C', 'G' or 'T'.
+        * @return a boolean indicating if the character was succesfully set. The boolean will be equal to
+        * false if offset > k-mer length or if the character to set is not 'A', 'C', 'G' or 'T'.
+        */
+        bool setChar(const size_t offset, const char b);
+
         /** Get the string of a k-mer.
         * @param s is a pointer to an array of characters that will be set with the string of a k-mer.
         */

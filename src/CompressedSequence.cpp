@@ -440,22 +440,6 @@ Kmer CompressedSequence::getKmer(const size_t offset) const {
 
         size_t j = 0;
 
-        /*uint64_t tmp_data = static_cast<uint64_t>(data[offset >> 2] >> ((offset & 0x3) << 1));
-
-        for (size_t i = offset; j < nlongs; ++j){
-
-            uint64_t tmp_km = 0;
-            const size_t end = len < i + 32 ? len : i + 32;
-
-            for (; i != end; ++i, tmp_data >>= 2){
-
-                if ((i & 0x3) == 0) tmp_data = static_cast<uint64_t>(data[i >> 2]);
-                tmp_km = (tmp_km << 2) | (tmp_data & 0x3);
-            }
-
-            km.longs[j] = tmp_km;
-        }*/
-
         for (size_t i = offset; j < nlongs; ++j){
 
             uint64_t tmp_km = 0;
@@ -501,20 +485,6 @@ bool CompressedSequence::compareKmer(const size_t offset, const size_t length, c
     else { //Comparison 2 bits per 2 bits
 
         const size_t nlongs = (length + 31) / 32;
-
-        /*uint64_t tmp_data = static_cast<uint64_t>(data[offset >> 2] >> ((offset & 0x3) << 1));
-
-        for (size_t i = offset, j = 0; j < nlongs; ++j){
-
-            uint64_t tmp_km = km.longs[j];
-            const size_t end = pos_end < i + 32 ? pos_end : i + 32;
-
-            for (; i != end; ++i, tmp_km <<= 2, tmp_data >>= 2){
-
-                if ((i & 0x3) == 0) tmp_data = static_cast<uint64_t>(data[i >> 2]);
-                if ((tmp_data & 0x3) != (tmp_km >> 62)) return false;
-            }
-        }*/
 
         for (size_t i = offset, j = 0; j < nlongs; ++j){
 

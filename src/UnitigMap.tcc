@@ -236,7 +236,7 @@ UnitigMap<U, G, is_const> UnitigMap<U, G, is_const>::getKmerMapping(const size_t
     um.dist = pos;
     um.len = 1;
 
-    if (pos >= um.size) um.isEmpty = true;
+    if (pos > um.size - cdbg->getK()) um.isEmpty = true;
 
     return um;
 }
@@ -349,6 +349,47 @@ void UnitigMap<U, G, is_const>::setFullCoverage() const {
         else cdbg->v_unitigs[pos_unitig]->ccov.setFull();
     }
 }
+
+template<typename U, typename G, bool is_const>
+void UnitigMap<U, G, is_const>::increaseCoverage() const {
+
+    if (isEmpty) return; // nothing maps, move on
+
+    if (isShort) cdbg->v_kmers[pos_unitig].second.ccov.cover(dist, dist + len - 1);
+    else if (isAbundant) cdbg->h_kmers_ccov.find(pos_unitig)->ccov.cover(dist, dist + len - 1);
+    else cdbg->v_unitigs[pos_unitig]->ccov.cover(dist, dist + len - 1);
+}
+
+template<typename U, typename G, bool is_const>
+void UnitigMap<U, G, is_const>::decreaseCoverage() const {
+
+    if (isEmpty) return; // nothing maps, move on
+
+    if (isShort) cdbg->v_kmers[pos_unitig].second.ccov.uncover(dist, dist + len - 1);
+    else if (isAbundant) cdbg->h_kmers_ccov.find(pos_unitig)->ccov.uncover(dist, dist + len - 1);
+    else cdbg->v_unitigs[pos_unitig]->ccov.uncover(dist, dist + len - 1);
+}
+
+template<typename U, typename G, bool is_const>
+bool UnitigMap<U, G, is_const>::isCoverageFull() const {
+
+    if (isEmpty) return false; // nothing maps, move on
+
+    if (isShort) cdbg->v_kmers[pos_unitig].second.ccov.isFull();
+    else if (isAbundant) cdbg->h_kmers_ccov.find(pos_unitig)->ccov.isFull();
+    else cdbg->v_unitigs[pos_unitig]->ccov.isFull();
+}
+
+template<typename U, typename G, bool is_const>
+size_t UnitigMap<U, G, is_const>::getCoverage(const size_t pos) const {
+
+    if (isEmpty || (pos > size - cdbg->getK())) return 0; // nothing maps, move on
+
+    if (isShort) cdbg->v_kmers[pos_unitig].second.ccov.covAt(pos);
+    else if (isAbundant) cdbg->h_kmers_ccov.find(pos_unitig)->ccov.covAt(pos);
+    else cdbg->v_unitigs[pos_unitig]->ccov.covAt(pos);
+}
+
 
 template<typename U, typename G, bool is_const>
 UnitigMap<U, G, is_const>::UnitigMap(size_t p_unitig, size_t i, size_t l, size_t sz, bool short_, bool abundance, bool strd,

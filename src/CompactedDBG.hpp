@@ -13,6 +13,7 @@
 #include <sstream>
 #include <stdint.h>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -68,12 +69,6 @@ using namespace std;
 * Number of threads to use for building the graph. Default is 1.
 * @var CDBG_Build_opt::read_chunksize
 * Number of reads a thread can read and process at a time. Default is 64.
-* @var CDBG_Build_opt::nb_unique_kmers
-* Estimated number (upper bound) of different k-mers in the input FASTA/FASTQ/GFA files of
-* CDBG_Build_opt::filename_in. Default is KmerStream estimation.
-* @var CDBG_Build_opt::nb_non_unique_kmers
-* Estimated number (upper bound) of different k-mers occurring twice or more in the FASTA/FASTQ/GFA files
-* of CDBG_Build_opt::filename_in. Default is a KmerStream estimation.
 * @var CDBG_Build_opt::nb_bits_unique_kmers_bf
 * Number of Bloom filter bits per k-mer occurring at least once in the FASTA/FASTQ/GFA files of
 * CDBG_Build_opt::filename_in. Default is 14.
@@ -130,8 +125,8 @@ struct CDBG_Build_opt {
     size_t nb_threads;
     size_t read_chunksize;
 
-    size_t nb_unique_kmers;
-    size_t nb_non_unique_kmers;
+    //size_t nb_unique_kmers;
+    //size_t nb_non_unique_kmers;
     size_t nb_bits_unique_kmers_bf;
     size_t nb_bits_non_unique_kmers_bf;
 
@@ -161,7 +156,7 @@ struct CDBG_Build_opt {
 
     string filename_graph_in;
 
-    CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(DEFAULT_G), nb_unique_kmers(0), nb_non_unique_kmers(0),
+    CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(DEFAULT_G), /*nb_unique_kmers(0), nb_non_unique_kmers(0),*/
                         nb_bits_unique_kmers_bf(14), nb_bits_non_unique_kmers_bf(14), read_chunksize(64),
                         build(false), update(false), clipTips(false), deleteIsolated(false), useMercyKmers(false),
                         outputGFA(true), verbose(false) {}
@@ -434,6 +429,15 @@ class CompactedDBG {
         */
         const_UnitigMap<U, G> find(const Kmer& km, const bool extremities_only = false) const;
 
+        /** Find the unitig containing the k-mer starting at a given position in a query sequence and extends the mapping (if the k-mer is found, the
+        * function extends the mapping from the k-mer as long as the query sequence and the unitig matches).
+        * @param s is a pointer to an array of character containing the sequence to query
+        * @param pos is the position of the first k-mer to find in the sequence to query.
+        * @return UnitigMap<U, G> object containing the mapping information to the unitig having the queried k-mer (if present).
+        * If the k-mer is found, the function extends the mapping from the k-mer as long as the query sequence and the unitig matches (um.len >= 1).
+        */
+        UnitigMap<U, G> findUnitig(const char* s, size_t pos);
+
         /** Add a sequence to the Compacted de Bruijn graph. Non-{A,C,G,T} characters such as Ns are discarded.
         * The function automatically breaks the sequence into unitig(s). Those unitigs can be stored as the reverse-complement
         * of the input sequence.
@@ -528,6 +532,8 @@ class CompactedDBG {
         */
         inline const G* getData() const { return data.getData(); }
 
+        vector<pair<size_t, UnitigMap<U, G>>> searchSequence(const string& seq, const bool exact, const bool insertion, const bool deletion, const bool mismatch) const;
+
     protected:
 
         bool annotateSplitUnitigs(const CompactedDBG<U, G>& o, const size_t nb_threads = 1, const bool verbose = false);
@@ -545,8 +551,8 @@ class CompactedDBG {
 
     private:
 
-        bool filter(const CDBG_Build_opt& opt);
-        bool construct(const CDBG_Build_opt& opt);
+        bool filter(const CDBG_Build_opt& opt, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers);
+        bool construct(const CDBG_Build_opt& opt, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers);
 
         bool addUnitigSequenceBBF(const Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km, LockGraph& lck_g);
 
@@ -560,9 +566,16 @@ class CompactedDBG {
             return (hmap_min_unitigs.find(Minimizer(&it_min_h.s[pos]).rep()) != hmap_min_unitigs.end() ? 0 : pos - it_min_h.p);
         }
 
+        UnitigMap<U, G> find(const char* s, const size_t pos_km, const minHashIterator<RepHash>& it_min, const bool extremities_only = false);
+        const_UnitigMap<U, G> find(const char* s, const size_t pos_km, const minHashIterator<RepHash>& it_min, const bool extremities_only = false) const;
+
         UnitigMap<U, G> find(const Kmer& km, const preAllocMinHashIterator<RepHash>& it_min_h);
+
         vector<const_UnitigMap<U, G>> findPredecessors(const Kmer& km, const bool extremities_only = false) const;
         vector<const_UnitigMap<U, G>> findSuccessors(const Kmer& km, const size_t limit = 4, const bool extremities_only = false) const;
+
+        vector<UnitigMap<U, G>> findPredecessors(const Kmer& km, const bool extremities_only = false);
+        vector<UnitigMap<U, G>> findSuccessors(const Kmer& km, const size_t limit = 4, const bool extremities_only = false);
 
         UnitigMap<U, G> findUnitig(const Kmer& km, const char* s, size_t pos);
         UnitigMap<U, G> findUnitig(const Kmer& km, const char* s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h);
@@ -627,11 +640,13 @@ class CompactedDBG {
         typename std::enable_if<is_void, void>::type writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const;
 
         void mapRead(const const_UnitigMap<U, G>& um);
+        void mapRead(const const_UnitigMap<U, G>& um, LockGraph& lck_g);
         void unmapRead(const const_UnitigMap<U, G>& um);
 
         void setKmerGmerLength(const int kmer_length, const int minimizer_length);
         void print() const;
 
+        vector<Minimizer> test(const Minimizer minz) const;
 
         int k_;
         int g_;

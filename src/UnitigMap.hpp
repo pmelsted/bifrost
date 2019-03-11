@@ -247,6 +247,11 @@ class UnitigMap : public UnitigMapBase {
         }
 
         void setFullCoverage() const;
+        void increaseCoverage() const;
+        void decreaseCoverage() const;
+
+        bool isCoverageFull() const;
+        size_t getCoverage(const size_t pos) const;
 
     private:
 
@@ -284,7 +289,29 @@ struct UnitigMapHash {
 
     size_t operator()(const UnitigMap<U, G, is_const>& um) const {
 
-        return static_cast<size_t>(XXH64(static_cast<const void*>(&um), sizeof(UnitigMap<U, G, is_const>), 0));
+        struct UnitigMapTMP {
+
+            size_t pos_unitig; // unitig pos. in v_unitigs or v_kmers or h_kmers
+            size_t dist;
+            size_t len;
+            size_t size;
+
+            bool strand;
+            bool isEmpty;
+
+            bool isShort; // true if the unitig has length k
+            bool isAbundant; // true if the unitig has length k and has an abundant minimizer
+
+            const void* cdbg;
+
+            UnitigMapTMP(const UnitigMap<U, G, is_const>& um) : pos_unitig(um.pos_unitig), dist(um.dist), len(um.len), size(um.size),
+                                                                strand(um.strand), isEmpty(um.isEmpty), isShort(um.isShort),
+                                                                isAbundant(um.isAbundant), cdbg(static_cast<const void*>(um.cdbg)) {};
+        };
+
+        UnitigMapTMP tmp(um);
+
+        return static_cast<size_t>(XXH64(static_cast<const void*>(&tmp), sizeof(UnitigMapTMP), 0));
     }
 };
 

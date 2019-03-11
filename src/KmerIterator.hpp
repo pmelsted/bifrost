@@ -30,7 +30,7 @@ class KmerIterator : public std::iterator<std::input_iterator_tag, std::pair<Kme
         bool operator!=(const KmerIterator& o) { return !this->operator==(o);}
 
         std::pair<Kmer, int>& operator*();
-        std::pair<Kmer, int> *operator->();
+        std::pair<Kmer, int>* operator->();
 
     private:
 

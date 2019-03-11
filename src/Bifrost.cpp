@@ -66,7 +66,8 @@ void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
 
     int option_index = 0, c;
 
-    const char* opt_string = "s:r:g:o:t:k:m:n:N:b:B:l:w:u:f:idvcya";
+    //const char* opt_string = "s:r:g:o:t:k:m:n:N:b:B:l:w:u:f:idvcya";
+    const char* opt_string = "s:r:g:o:t:k:m:b:B:l:w:u:f:idvcya";
 
     static struct option long_options[] = {
 
@@ -77,8 +78,8 @@ void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
         {"threads",             required_argument,  0, 't'},
         {"kmer-length",         required_argument,  0, 'k'},
         {"min-length",          required_argument,  0, 'm'},
-        {"num-kmers",           required_argument,  0, 'n'},
-        {"num-kmers2",          required_argument,  0, 'N'},
+        //{"num-kmers",           required_argument,  0, 'n'},
+        //{"num-kmers2",          required_argument,  0, 'N'},
         {"bloom-bits",          required_argument,  0, 'b'},
         {"bloom-bits2",         required_argument,  0, 'B'},
         {"load-mbbf",           required_argument,  0, 'l'},
@@ -139,12 +140,12 @@ void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                 case 'm':
                     opt.g = atoi(optarg);
                     break;
-                case 'n':
+                /*case 'n':
                     opt.nb_unique_kmers = atoi(optarg);
                     break;
                 case 'N':
                     opt.nb_non_unique_kmers = atoi(optarg);
-                    break;
+                    break;*/
                 case 'b':
                     opt.nb_bits_unique_kmers_bf = atoi(optarg);
                     break;
@@ -329,12 +330,12 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
             ret = false;
         }
 
-        if (opt.nb_non_unique_kmers > opt.nb_unique_kmers){
+       /* if (opt.nb_non_unique_kmers > opt.nb_unique_kmers){
 
             cerr << "Error: The estimated number of non unique k-mers ";
             cerr << "cannot be greater than the estimated number of unique k-mers." << endl;
             ret = false;
-        }
+        }*/
 
         if (opt.outFilenameBBF.length() != 0){
 
