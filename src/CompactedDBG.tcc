@@ -2615,12 +2615,12 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
         fp_candidate = new tiny_vector<Kmer, 2>[bf.getNbBlocks()];
         locks_fp = vector<SpinLock>(nb_locks);
 
-        MinimizerHashTable_2Val hmap_min_unitigs_tmp(nb_non_unique_minimizers * 1.2);
+        MinimizerHashTable_2Val hmap_min_unitigs_tmp(nb_non_unique_minimizers * 1.05);
         hmap_min_unitigs = move(hmap_min_unitigs_tmp);
     }
     else {
 
-        MinimizerHashTable_2Val hmap_min_unitigs_tmp(nb_unique_minimizers * 1.2);
+        MinimizerHashTable_2Val hmap_min_unitigs_tmp(nb_unique_minimizers * 1.05);
         hmap_min_unitigs = move(hmap_min_unitigs_tmp);
     }
 

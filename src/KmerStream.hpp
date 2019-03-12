@@ -242,7 +242,8 @@ class ReadHasherMinimizer {
 
                     if (min_it.getPosition() != prev_pos_min){
 
-                        sc_min(min_it.getHash());
+                        sc_min(Minimizer(&s[min_it.getPosition()]).rep().hash());
+                        //sc_min(min_it.getHash());
 
                         prev_pos_min = min_it.getPosition();
                     }
@@ -302,7 +303,8 @@ class ReadHasherMinimizer {
 
                             if (min_it.getPosition() != prev_pos_min){
 
-                                sc_min(min_it.getHash());
+                                //sc_min(min_it.getHash());
+                                sc_min(Minimizer(&str[min_it.getPosition()]).rep().hash());
 
                                 prev_pos_min = min_it.getPosition();
                             }
@@ -548,6 +550,7 @@ class ReadQualityHasherMinimizer {
                     if (last_valid) { // s[i..j-1] was a valid k-mer k-mer, update
 
                         hf.update(s[i],s[j]);
+
                         ++i;
                         ++min_it;
                     }
@@ -575,7 +578,8 @@ class ReadQualityHasherMinimizer {
 
                     if (min_it.getPosition() != prev_pos_min){
 
-                        sc_min(min_it.getHash());
+                        //sc_min(min_it.getHash());
+                        sc_min(Minimizer(&s[min_it.getPosition()]).rep().hash());
 
                         prev_pos_min = min_it.getPosition();
                     }
@@ -597,7 +601,7 @@ class ReadQualityHasherMinimizer {
 
                 if (sl >= k){
 
-                    size_t i = 0, j = 0, prev_pos_min = 0xffffffffffffffffULL;;
+                    size_t i = 0, j = 0, prev_pos_min = 0xffffffffffffffffULL;
 
                     bool last_valid = false;
 
@@ -638,7 +642,8 @@ class ReadQualityHasherMinimizer {
 
                             if (min_it.getPosition() != prev_pos_min){
 
-                                sc_min(min_it.getHash());
+                                //sc_min(min_it.getHash());
+                                sc_min(Minimizer(&str[min_it.getPosition()]).rep().hash());
 
                                 prev_pos_min = min_it.getPosition();
                             }
