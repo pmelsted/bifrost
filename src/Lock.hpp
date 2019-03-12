@@ -37,7 +37,7 @@
         std::vector<SpinLock> spinlocks_unitigs;
 };*/
 
-/*class LockGraph : public SpinLockRW_MCS {
+class LockGraph : public SpinLockRW_MCS {
 
     public:
 
@@ -66,9 +66,9 @@
         const size_t mask_nb_locks;
 
         std::vector<SpinLock> spinlocks_unitigs;
-};*/
+};
 
-class LockGraph : public Hybrid_SpinLockRW_MCS<> {
+/*class LockGraph : public Hybrid_SpinLockRW_MCS<> {
 
     public:
 
@@ -97,6 +97,6 @@ class LockGraph : public Hybrid_SpinLockRW_MCS<> {
         const size_t mask_nb_locks;
 
         std::vector<SpinLock> spinlocks_unitigs;
-};
+};*/
 
 #endif
