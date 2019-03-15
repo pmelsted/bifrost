@@ -2628,7 +2628,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
 
         vector<Kmer> l_ignored_km_tips;
 
-        uint64_t it_min_h, last_it_min_h;
+        uint64_t it_min_h;
 
         Kmer km;
         RepHash rep;
@@ -2666,7 +2666,6 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
 
                     last_pos_km = p_.second;
                     it_min_h = it_min.getHash();
-                    last_it_min_h = it_min_h;
 
                     const BlockedBloomFilter::BBF_Blocks block_bf(bf.getBlock(it_min_h));
                     const size_t r = bf.contains_block(p_.first, it_min_h, block_bf);
@@ -5547,7 +5546,8 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>
         }
         else {
 
-            Hybrid_SpinLockRW_MCS<> lck(nb_threads);
+            //Hybrid_SpinLockRW_MCS<> lck(nb_threads);
+            SpinLockRW_MCS lck(nb_threads);
 
             auto worker_v_abundant = [chunk, &joins, &lck, this](typename h_kmers_ccov_t::const_iterator* l_it_ccov){
 
