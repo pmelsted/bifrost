@@ -36,6 +36,13 @@ using namespace std;
 
 static const char alpha[4] = {'A','C','G','T'};
 
+BFG_INLINE bool isDNA(const char c) {
+
+    static const size_t DNAbits[4] = {0x0ULL, 0x10008A0010008AULL, 0x0ULL, 0x0ULL};
+
+    return static_cast<bool>((DNAbits[c >> 6] >> (c & 0x3F)) & 0x1ULL);
+}
+
 BFG_INLINE size_t cstrMatch(const char* a, const char* b) {
 
     const char* a_ = a;
@@ -45,7 +52,7 @@ BFG_INLINE size_t cstrMatch(const char* a, const char* b) {
     return a - a_;
 }
 
-inline string reverse_complement(const string& s){
+BFG_INLINE string reverse_complement(const string& s){
 
     string seq(s);
 
@@ -53,26 +60,34 @@ inline string reverse_complement(const string& s){
 
     for (size_t i = 0; i < seq.length(); ++i){
 
-        switch (seq[i]){
+        const char c = seq[i] & 0xDF;
 
-            case 'a':
-            case 'A':
-                seq[i] = 'T';
-                break;
-            case 'c':
-            case 'C':
-                seq[i] = 'G';
-                break;
-            case 'g':
-            case 'G':
-                seq[i] = 'C';
-                break;
-            case 't':
-            case 'T':
-                seq[i] = 'A';
-                break;
-            default:
-                return string();
+        if (isDNA(c)){
+
+            const size_t x = (c & 4) >> 1;
+
+            seq[i] = alpha[3 - (x + ((x ^ (c & 2)) >> 1))];
+        }
+    }
+
+    return seq;
+}
+
+BFG_INLINE string reverse_complement(const char* s){
+
+    string seq(s);
+
+    reverse(seq.begin(), seq.end());
+
+    for (size_t i = 0; i < seq.length(); ++i){
+
+        const char c = seq[i] & 0xDF;
+
+        if (isDNA(c)){
+
+            const size_t x = (c & 4) >> 1;
+
+            seq[i] = alpha[3 - (x + ((x ^ (c & 2)) >> 1))];
         }
     }
 

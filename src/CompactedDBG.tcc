@@ -2413,32 +2413,22 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_uniqu
 
             if (reference_mode){
 
-                for (int last_pos = -1; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min, ++l_num_kmers) {
+                for (; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++l_num_kmers) {
 
-                    const std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
+                    const pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
 
-                    // If one or more k-mer were jumped because contained non-ACGT char.
-                    if (p_.second != last_pos + 1)
-                        it_min = minHashIterator<RepHash>(&str[p_.second], len - p_.second, k_, g_, RepHash(), true);
-
-                    last_pos = p_.second;
-
-                    bf.insert(p_.first, it_min.getHash(), multi_threaded);
-
-                    ++l_num_ins;
+                    it_min += (p_.second - it_min.getKmerPosition()); //If one or more k-mer were jumped because contained non-ACGT char.
+                    l_num_ins += bf.insert(p_.first, it_min.getHash(), multi_threaded);
                 }
             }
             else {
 
-                for (int last_pos = -1; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min, ++l_num_kmers) {
+                for (; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++l_num_kmers) {
 
-                    const std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
+                    const pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
 
-                    // If one or more k-mer were jumped because contained non-ACGT char.
-                    if (p_.second != last_pos + 1)
-                        it_min = minHashIterator<RepHash>(&str[p_.second], len - p_.second, k_, g_, RepHash(), true);
+                    it_min += (p_.second - it_min.getKmerPosition()); //If one or more k-mer were jumped because contained non-ACGT char.
 
-                    last_pos = p_.second;
                     const uint64_t min_hr = it_min.getHash();
 
                     if (bf_tmp.insert(p_.first, min_hr, multi_threaded)) ++l_num_ins;
@@ -2628,7 +2618,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
 
         vector<Kmer> l_ignored_km_tips;
 
-        uint64_t it_min_h;
+        //uint64_t it_min_h;
 
         Kmer km;
         RepHash rep;
@@ -2653,24 +2643,19 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
                 KmerHashIterator<RepHash> it_kmer_h(str_tmp, curr_len, k_), it_kmer_h_end;
                 minHashIterator<RepHash> it_min(str_tmp, curr_len, k_, g_, rep, true);
 
-                for (uint64_t last_pos_km = 0xFFFFFFFFFFFFFFFEULL; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++it_min) {
+                for (; it_kmer_h != it_kmer_h_end; ++it_kmer_h) {
 
                     const std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
 
-                    if (p_.second != last_pos_km + 1){ // If one or more k-mer were jumped because contained non-ACGT char.
+                    it_min += (p_.second - it_min.getKmerPosition());
 
-                        km = Kmer(&str_tmp[p_.second]);
-                        it_min += p_.second - ((last_pos_km + 1) & (static_cast<uint64_t>(last_pos_km == 0xFFFFFFFFFFFFFFFEULL) - 1));
-                    }
-                    else km.selfForwardBase(str_tmp[p_.second + k_ - 1]);
-
-                    last_pos_km = p_.second;
-                    it_min_h = it_min.getHash();
-
+                    const uint64_t it_min_h = it_min.getHash();
                     const BlockedBloomFilter::BBF_Blocks block_bf(bf.getBlock(it_min_h));
                     const size_t r = bf.contains_block(p_.first, it_min_h, block_bf);
 
                     if (r != 0){
+
+                        km = Kmer(&str_tmp[p_.second]);
 
                         lck_g.acquire_reader();
 
@@ -3051,7 +3036,7 @@ bool CompactedDBG<U, G>::bwStepBBF(const Kmer km, Kmer& front, char& c, bool& ha
 
     const uint64_t it_min_h_bw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
 
-    size_t nb_neigh = bf.contains(hashes_bw, it_min_h_bw, neigh_bw, check_fp_cand ? 4 : 2);
+    size_t nb_neigh = bf.contains(hashes_bw, it_min_h_bw, neigh_bw, 2 * (static_cast<size_t>(check_fp_cand) + 1));
     size_t j = static_cast<size_t>(neigh_bw[1]) + (2ULL & (static_cast<size_t>(!neigh_bw[2]) - 1)) + (3ULL & (static_cast<size_t>(!neigh_bw[3]) - 1));
 
     if (check_fp_cand && (nb_neigh >= 2)){
@@ -3227,7 +3212,7 @@ bool CompactedDBG<U, G>::fwStepBBF(const Kmer km, Kmer& end, char& c, bool& has_
 
     const uint64_t it_min_h_fw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
 
-    size_t nb_neigh = bf.contains(hashes_fw, it_min_h_fw, neigh_fw, check_fp_cand ? 4 : 2);
+    size_t nb_neigh = bf.contains(hashes_fw, it_min_h_fw, neigh_fw, 2 * (static_cast<size_t>(check_fp_cand) + 1));
     size_t j = static_cast<size_t>(neigh_fw[1]) + (2ULL & (static_cast<size_t>(!neigh_fw[2]) - 1)) + (3ULL & (static_cast<size_t>(!neigh_fw[3]) - 1));
 
     if (check_fp_cand && (nb_neigh >= 2)){
@@ -3375,34 +3360,10 @@ bool CompactedDBG<U, G>::fwStepBBF(const Kmer km, Kmer& end, char& c, bool& has_
 // post: cc contains either the reference to the unitig position
 //       or empty if none found
 template<typename U, typename G>
-UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const Kmer& km, const char* s, size_t pos) {
+UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const Kmer& km, const char* s, const size_t pos) {
 
     // need to check if we find it right away, need to treat this common case
-    const UnitigMap<U, G> cc = find(km);
-
-    if (!cc.isEmpty && !cc.isShort && !cc.isAbundant){
-
-        const size_t mask = static_cast<size_t>(cc.strand) - 1;
-        const size_t jlen = v_unitigs[cc.pos_unitig]->seq.jump(s, pos, cc.dist + ((k_ - 1) & mask), !cc.strand) - k_ + 1;
-        const size_t km_dist = cc.dist - ((jlen - 1) & mask);
-
-        return UnitigMap<U, G>(cc.pos_unitig, km_dist, jlen, cc.size, false, false, cc.strand, this);
-    }
-
-    return cc;
-}
-
-template<typename U, typename G>
-UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const char* s, size_t pos) {
-
-    UnitigMap<U, G> um;
-
-    const size_t len = strlen(s);
-
-    if ((len < k_) || (pos > len - k_)) return um;
-
-    // need to check if we find it right away, need to treat this common case
-    um = find(Kmer(s + pos));
+    UnitigMap<U, G> um = find(km);
 
     if (!um.isEmpty && !um.isShort && !um.isAbundant){
 
@@ -3416,21 +3377,68 @@ UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const char* s, size_t pos) {
 }
 
 template<typename U, typename G>
-UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const Kmer& km, const char* s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h) {
+UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const char* s, const size_t pos, const size_t len) {
 
-    // need to check if we find it right away, need to treat this common case
-    const UnitigMap<U, G> cc = find(km, it_min_h);
+    if ((len < k_) || (pos > len - k_)) return UnitigMap<U, G>();
 
-    if (!cc.isEmpty && !cc.isShort && !cc.isAbundant){
+    for (size_t i = pos; i != pos + k_; ++i){
 
-        const size_t mask = static_cast<size_t>(cc.strand) - 1;
-        const size_t jlen = v_unitigs[cc.pos_unitig]->seq.jump(s, pos, cc.dist + ((k_ - 1) & mask), !cc.strand) - k_ + 1;
-        const size_t km_dist = cc.dist - ((jlen - 1) & mask);
-
-        return UnitigMap<U, G>(cc.pos_unitig, km_dist, jlen, cc.size, false, false, cc.strand, this);
+        if (!isDNA(s[i])) return UnitigMap<U, G>();
     }
 
-    return cc;
+    // need to check if we find it right away, need to treat this common case
+    UnitigMap<U, G> um = find(Kmer(s + pos));
+
+    if (!um.isEmpty && !um.isShort && !um.isAbundant){
+
+        const size_t mask = static_cast<size_t>(um.strand) - 1;
+
+        um.len = v_unitigs[um.pos_unitig]->seq.jump(s, pos, um.dist + ((k_ - 1) & mask), !um.strand) - k_ + 1;
+        um.dist = um.dist - ((um.len - 1) & mask);
+    }
+
+    return um;
+}
+
+template<typename U, typename G>
+UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const char* s, const size_t pos, const size_t len, const minHashIterator<RepHash>& it_min) {
+
+    if ((len < k_) || (pos > len - k_)) return UnitigMap<U, G>();
+
+    for (size_t i = pos; i != pos + k_; ++i){
+
+        if (!isDNA(s[i])) return UnitigMap<U, G>();
+    }
+
+    // need to check if we find it right away, need to treat this common case
+    UnitigMap<U, G> um = find(s, pos, it_min);
+
+    if (!um.isEmpty && !um.isShort && !um.isAbundant){
+
+        const size_t mask = static_cast<size_t>(um.strand) - 1;
+
+        um.len = v_unitigs[um.pos_unitig]->seq.jump(s, pos, um.dist + ((k_ - 1) & mask), !um.strand) - k_ + 1;
+        um.dist = um.dist - ((um.len - 1) & mask);
+    }
+
+    return um;
+}
+
+template<typename U, typename G>
+UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const Kmer& km, const char* s, const size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h) {
+
+    // need to check if we find it right away, need to treat this common case
+    UnitigMap<U, G> um = find(km, it_min_h);
+
+    if (!um.isEmpty && !um.isShort && !um.isAbundant){
+
+        const size_t mask = static_cast<size_t>(um.strand) - 1;
+
+        um.len = v_unitigs[um.pos_unitig]->seq.jump(s, pos, um.dist + ((k_ - 1) & mask), !um.strand) - k_ + 1;
+        um.dist = um.dist - ((um.len - 1) & mask);
+    }
+
+    return um;
 }
 
 template<typename U, typename G>
@@ -5153,14 +5161,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
     vector<pair<size_t, UnitigMap<U, G>>> v_um;
     KmerHashTable<uint8_t> s_km;
 
-    vector<string> seqs;
-    vector<pair<size_t, bool>> minz_pres;
-    vector<minHashIterator<RepHash>> mhi;
-
-    minHashResultIterator<RepHash> it_min, it_min_end;
-    minHashResult mhr;
-
-    Minimizer minz;
+    string seqs;
 
     if (invalid){
 
@@ -5168,120 +5169,160 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
         return v_um;
     }
 
-    auto worker_func = [&](const size_t len_seq, const size_t start, const size_t end){
+    auto worker_func = [&](const bool substitution, const bool insertion, const bool deletion, const size_t shift){
 
-        for (size_t i = start; i != end; ++i){
+        const bool subst_or_ind = (substitution || insertion);
 
-            mhi[i] = minHashIterator<RepHash>(seqs[i].c_str(), len_seq, k_, g_, RepHash(), true);
+        const size_t end = (subst_or_ind ? 4 : 1);
 
-            it_min = *(mhi[i]);
-            mhr = *it_min;
-            minz = Minimizer(seqs[i].c_str() + mhr.pos).rep();
-            minz_pres[i] = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
+        for (size_t i = 0; i != end; ++i){
 
-            for (++it_min; !minz_pres[i].second && (it_min != it_min_end); ++it_min){
+            if (subst_or_ind){
 
-                mhr = *it_min;
-                minz = Minimizer(seqs[i].c_str() + mhr.pos).rep();
-                minz_pres[i].second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
+                for (size_t j = shift; j < seqs.length(); j += k_) seqs[j] = alpha[i];
             }
 
-            const Kmer km_sub(seqs[i].c_str());
+            minHashIterator<RepHash> mhi = minHashIterator<RepHash>(seqs.c_str(), seqs.length(), k_, g_, RepHash(), true);
+            minHashResultIterator<RepHash> it_min = *mhi, it_min_end;
+            minHashResult mhr = *it_min;
 
-            if (minz_pres[i].second){ // If at least one minimizer was present, search the kmer
+            Minimizer minz = Minimizer(seqs.c_str() + mhr.pos).rep();
+
+            pair<size_t, bool> minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
+
+            for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
+
+                mhr = *it_min;
+                minz = Minimizer(seqs.c_str() + mhr.pos).rep();
+                minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
+            }
+
+            size_t pos_seq = 0;
+
+            if (minz_pres.second){ // If at least one minimizer was present, search the kmer
+
+                const Kmer km_sub(seqs.c_str());
 
                 if (s_km.find(km_sub.rep()) == s_km.end()){ // If the k-mer has already been searched in the past, discard
 
-                    const UnitigMap<U, G> um(find(seqs[i].c_str(), 0, mhi[i], false));
+                    const UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
 
-                    if (!um.isEmpty) v_um.push_back({0, um}); // If there is a hit, add it to the result
+                    if (!um.isEmpty){
 
+                        if (um.strand){
+
+                            v_um.push_back({pos_seq, um.getKmerMapping(um.dist)});
+
+                            for (size_t j = um.dist + 1; j < um.dist + um.len; ++j){
+
+                                if (s_km.find(um.getUnitigKmer(j).rep()) == s_km.end()) v_um.push_back({pos_seq + j - um.dist, um.getKmerMapping(j)});
+                            }
+                        }
+                        else {
+
+                            v_um.push_back({pos_seq, um.getKmerMapping(um.dist + um.len - 1)});
+
+                            for (size_t j = um.dist; j < um.dist + um.len - 1; ++j){
+
+                                if (s_km.find(um.getUnitigKmer(j).rep()) == s_km.end()) v_um.push_back({pos_seq + um.dist + um.len - j - 1, um.getKmerMapping(j)});
+                            }
+                        }
+
+                        pos_seq += um.len - 1;
+                        mhi += pos_seq - mhi.getKmerPosition();
+                    }
                 }
             }
-        }
 
-        for (size_t pos_seq = 1; pos_seq != len_seq - k_ + 1; ++pos_seq){
+            ++pos_seq;
 
-            for (size_t i = start; i != end; ++i){
+            while (pos_seq < seqs.length() - k_ + 1){
 
-                const Kmer km_sub(seqs[i].c_str() + pos_seq);
+                ++mhi;
 
-                ++mhi[i];
-
-                it_min = *(mhi[i]);
+                it_min = *mhi;
                 mhr = *it_min;
 
                 // If minimizers of new kmer are different from minimizers of previous kmer
                 // or if minimizers are the same but they were present, search them again
-                if ((mhr.pos != minz_pres[i].first) || minz_pres[i].second){
+                if ((mhr.pos != minz_pres.first) || minz_pres.second){
 
-                    if (mhr.pos != minz_pres[i].first){
+                    const Kmer km_sub(seqs.c_str() + pos_seq);
 
-                        minz = Minimizer(seqs[i].c_str() + mhr.pos).rep();
-                        minz_pres[i] = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
+                    if (mhr.pos != minz_pres.first){
 
-                        for (++it_min; !minz_pres[i].second && (it_min != it_min_end); ++it_min){
+                        minz = Minimizer(seqs.c_str() + mhr.pos).rep();
+                        minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
+
+                        for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
 
                             mhr = *it_min;
-                            minz = Minimizer(seqs[i].c_str() + mhr.pos).rep();
-                            minz_pres[i].second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
+                            minz = Minimizer(seqs.c_str() + mhr.pos).rep();
+                            minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
                         }
                     }
 
-                    if (s_km.find(km_sub.rep()) == s_km.end()){ // If the k-mer has already been searched in the past, discard
+                    if (minz_pres.second && (s_km.find(km_sub.rep()) == s_km.end())) { // If the k-mer has already been searched in the past, discard
 
-                        const UnitigMap<U, G> um(find(seqs[i].c_str(), pos_seq, mhi[i], false));
+                        const UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
 
-                        if (!um.isEmpty) v_um.push_back({pos_seq, um}); // If there is a hit, add it to the result
+                        if (!um.isEmpty){
+
+                            if (um.strand){
+
+                                v_um.push_back({pos_seq, um.getKmerMapping(um.dist)});
+
+                                for (size_t j = um.dist + 1; j < um.dist + um.len; ++j){
+
+                                    if (s_km.find(um.getUnitigKmer(j).rep()) == s_km.end()) v_um.push_back({pos_seq + j - um.dist, um.getKmerMapping(j)});
+                                }
+                            }
+                            else {
+
+                                v_um.push_back({pos_seq, um.getKmerMapping(um.dist + um.len - 1)});
+
+                                for (size_t j = um.dist; j < um.dist + um.len - 1; ++j){
+
+                                    if (s_km.find(um.getUnitigKmer(j).rep()) == s_km.end()) v_um.push_back({pos_seq + um.len + um.dist - j - 1, um.getKmerMapping(j)});
+                                }
+                            }
+
+                            pos_seq += um.len - 1;
+                            mhi += pos_seq - mhi.getKmerPosition();
+                        }
                     }
                 }
+
+                ++pos_seq;
             }
         }
     };
 
     if (exact){
 
-        seqs = vector<string>(1, seq);
-        minz_pres = vector<pair<size_t, bool>>(1);
-        mhi = vector<minHashIterator<RepHash>>(1);
+        seqs = seq;
 
-        worker_func(seqs[0].length(), 0, 1);
+        worker_func(false, false, false, 0);
     }
 
     for (KmerIterator it_km(seq.c_str()), it_km_end; it_km != it_km_end; ++it_km) s_km.insert(it_km->first.rep(), 0);
 
     if (mismatch){
 
-        seqs = vector<string>(k_ * 4, seq);
-        minz_pres = vector<pair<size_t, bool>>(k_ * 4);
-        mhi = vector<minHashIterator<RepHash>>(k_ * 4);
-
-        // For each possible deleted position in a k-mer...
         for (size_t i = 0; i != k_; ++i){
 
-            const size_t base_id = i << 2;
-
-            for (size_t j = i; j < seqs[base_id].length(); j += k_) seqs[base_id][j] = alpha[0];
-            for (size_t j = i; j < seqs[base_id + 1].length(); j += k_) seqs[base_id + 1][j] = alpha[1];
-            for (size_t j = i; j < seqs[base_id + 2].length(); j += k_) seqs[base_id + 2][j] = alpha[2];
-            for (size_t j = i; j < seqs[base_id + 3].length(); j += k_) seqs[base_id + 3][j] = alpha[3];
+            seqs = seq;
+            worker_func(true, false, false, i);
         }
-
-        worker_func(seqs[0].length(), 0, k_ * 4);
     }
 
     if (insertion){
 
-        seqs = vector<string>(k_ * 4);
-        minz_pres = vector<pair<size_t, bool>>(k_ * 4);
-        mhi = vector<minHashIterator<RepHash>>(k_ * 4);
-
-        // For each possible deleted position in a k-mer...
         for (size_t i = 0; i != k_; ++i){
 
-            const size_t base_id = i << 2;
-
             std::stringstream ss;
+
+            const size_t v_um_sz_before = v_um.size();
 
             for (size_t j = 0; j < i; ++j) ss << seq[j];
 
@@ -5292,38 +5333,35 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
                 ss << seq[j];
             }
 
-            seqs[base_id] = ss.str();
+            seqs = ss.str();
 
-            seqs[base_id + 1] = seqs[base_id];
-            seqs[base_id + 2] = seqs[base_id];
-            seqs[base_id + 3] = seqs[base_id];
+            worker_func(false, true, false, i);
 
-            for (size_t j = i; j < seqs[base_id + 1].length(); j += k_) seqs[base_id + 1][j] = alpha[1];
-            for (size_t j = i; j < seqs[base_id + 2].length(); j += k_) seqs[base_id + 2][j] = alpha[2];
-            for (size_t j = i; j < seqs[base_id + 3].length(); j += k_) seqs[base_id + 3][j] = alpha[3];
-        }
+            size_t v_um_sz_after = v_um.size();
 
-        for (size_t i = 0; i != k_; ++i){
+            for (size_t j = v_um_sz_before; j < v_um_sz_after;){
 
-            const size_t v_um_sz = v_um.size();
+                v_um[j].first -= (v_um[j].first / k_) + (v_um[j].first % k_ > i);
 
-            //worker_func(min_len, i << 2, (i + 1) << 2);
-            worker_func(seqs[i << 2].length() - 1, i << 2, (i + 1) << 2);
+                if (v_um[j].first + k_ - 1 >= seq.length()){
 
-            for (size_t j = v_um_sz; j < v_um.size(); ++j) v_um[j].first -= (v_um[j].first / k_) + (v_um[j].first % k_ > i);
+                    swap(v_um[j], v_um[v_um_sz_after - 1]);
+                    --v_um_sz_after;
+                }
+                else ++j;
+            }
+
+            v_um.resize(v_um_sz_after);
         }
     }
 
     if (deletion){
 
-        seqs = vector<string>(k_);
-        minz_pres = vector<pair<size_t, bool>>(k_);
-        mhi = vector<minHashIterator<RepHash>>(k_);
-
-        // For each possible deleted position in a k-mer...
         for (size_t i = 0; i != k_; ++i){
 
             std::stringstream ss;
+
+            const size_t v_um_sz_before = v_um.size();
 
             for (size_t j = 0; j < i; ++j) ss << seq[j];
 
@@ -5332,16 +5370,25 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
                 if (cpt % k_ != 0) ss << seq[j];
             }
 
-            seqs[i] = ss.str();
-        }
+            seqs = ss.str();
 
-        for (size_t i = 0; i != k_; ++i){
+            worker_func(false, false, true, i);
 
-            const size_t v_um_sz = v_um.size();
+            size_t v_um_sz_after = v_um.size();
 
-            worker_func(seqs[i].length() - 1, i, i + 1);
+            for (size_t j = v_um_sz_before; j < v_um_sz_after;){
 
-            for (size_t j = v_um_sz; j < v_um.size(); ++j) v_um[j].first += (v_um[j].first / (k_ - 1)) + (v_um[j].first % (k_ - 1) > i);
+                v_um[j].first += (v_um[j].first / (k_ - 1)) + (v_um[j].first % (k_ - 1) > i);
+
+                if (v_um[j].first + k_ - 1 >= seq.length()){
+
+                    swap(v_um[j], v_um[v_um_sz_after - 1]);
+                    --v_um_sz_after;
+                }
+                else ++j;
+            }
+
+            v_um.resize(v_um_sz_after);
         }
     }
 

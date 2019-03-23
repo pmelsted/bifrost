@@ -186,7 +186,8 @@ Kmer Kmer::twin() const {
     const size_t mod = (k & 0x1f) << 1; // (k % 32) * 2
     const size_t shift = (64 - mod) & 0x3f; // mod ? 64 - mod : 0
     const size_t mod2 = 64 - shift;
-    const uint64_t shiftmask = mod ? (((1ULL << shift) - 1) << mod2) : 0ULL;
+    //const uint64_t shiftmask = mod ? (((1ULL << shift) - 1) << mod2) : 0ULL;
+    const uint64_t shiftmask = (static_cast<uint64_t>(!mod) - 1) & (((1ULL << shift) - 1) << mod2);
 
     km.longs[0] <<= shift;
 
@@ -241,6 +242,7 @@ Kmer Kmer::forwardBase(const char b) const {
     }
 
     const uint64_t x = (b & 4) >> 1;
+
     km.longs[nlongs-1] |= (x + ((x ^ (b & 2)) >> 1)) << ((31-((k-1) & 0x1f)) << 1);
 
     return km;
@@ -259,6 +261,7 @@ void Kmer::selfForwardBase(const char b) {
     }
 
     const uint64_t x = (b & 4) >>1;
+
     longs[nlongs-1] |= (x + ((x ^ (b & 2)) >>1 )) << ((31-((k-1) & 0x1f)) << 1);
 }
 
@@ -497,6 +500,7 @@ void Minimizer::set_minimizer(const char *s)  {
         l = i >> 5;
 
         const size_t x = ((*s) & 4) >> 1;
+
         longs[l] |= ((x + ((x ^ (*s & 2)) >> 1)) << j);
 
         s++;
@@ -528,7 +532,9 @@ Minimizer Minimizer::twin() const {
     const size_t mod = (g & 0x1f) << 1; // (g % 32) * 2
     const size_t shift = (64 - mod) & 0x3f; // mod ? 64 - mod : 0
     const size_t mod2 = 64 - shift;
-    const uint64_t shiftmask = mod ? (((1ULL << shift) - 1) << mod2) : 0ULL;
+
+    //const uint64_t shiftmask = mod ? (((1ULL << shift) - 1) << mod2) : 0ULL;
+    const uint64_t shiftmask = (static_cast<uint64_t>(!mod) - 1) & (((1ULL << shift) - 1) << mod2);
 
     minz.longs[0] <<= shift;
 
@@ -537,7 +543,6 @@ Minimizer Minimizer::twin() const {
         minz.longs[i-1] |= (minz.longs[i] & shiftmask) >> mod2;
         minz.longs[i] <<= shift;
     }
-
 
     return minz;
 }
@@ -624,6 +629,7 @@ void Minimizer::toString(char *s) const {
         for (; i < end; ++i, ++s, tmp <<= 2){
 
             const char v = tmp >> 62;
+
             *s = 0x40 | (v + 1) | (0x1 << ((v - 1) << 1));
         }
     }

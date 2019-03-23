@@ -70,9 +70,7 @@ class ReadHasher {
 
             while (j < l) { // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
 
-                const char c = s[j] & 0xDF;
-
-                if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) {
+                if (isDNA(s[j])) {
 
                     if (last_valid) {
                         // s[i..j-1] was a valid k-mer k-mer, update
@@ -115,9 +113,7 @@ class ReadHasher {
 
                     while (j < sl) { // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
 
-                        const char c = str[j] & 0xDF;
-
-                        if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) {
+                        if (isDNA(str[j])) {
 
                             if (last_valid) {
                                 // s[i..j-1] was a valid k-mer k-mer, update
@@ -208,9 +204,7 @@ class ReadHasherMinimizer {
 
             while (j < l) { // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
 
-                const char c = s[j] & 0xDF;
-
-                if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) {
+                if (isDNA(s[j])) {
 
                     if (last_valid) { // s[i..j-1] was a valid k-mer k-mer, update
 
@@ -223,7 +217,7 @@ class ReadHasherMinimizer {
                         hf.init(s+i); // start the k-mer at position i
                         last_valid = true;
 
-                        while (min_it.getKmerPosition() < i) ++min_it;
+                        min_it += i - min_it.getKmerPosition();
                     }
 
                     ++j;
@@ -243,7 +237,6 @@ class ReadHasherMinimizer {
                     if (min_it.getPosition() != prev_pos_min){
 
                         sc_min(Minimizer(&s[min_it.getPosition()]).rep().hash());
-                        //sc_min(min_it.getHash());
 
                         prev_pos_min = min_it.getPosition();
                     }
@@ -270,9 +263,7 @@ class ReadHasherMinimizer {
 
                     while (j < sl) { // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
 
-                        const char c = str[j] & 0xDF;
-
-                        if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) {
+                        if (isDNA(str[j])) {
 
                             if (last_valid) {
                                 // s[i..j-1] was a valid k-mer k-mer, update
@@ -285,7 +276,7 @@ class ReadHasherMinimizer {
                                 hf.init(str + i); // start the k-mer at position i
                                 last_valid = true;
 
-                                while (min_it.getKmerPosition() < i) ++min_it;
+                                min_it += i - min_it.getKmerPosition();
                             }
 
                             ++j;
@@ -303,7 +294,6 @@ class ReadHasherMinimizer {
 
                             if (min_it.getPosition() != prev_pos_min){
 
-                                //sc_min(min_it.getHash());
                                 sc_min(Minimizer(&str[min_it.getPosition()]).rep().hash());
 
                                 prev_pos_min = min_it.getPosition();
@@ -399,9 +389,8 @@ class ReadQualityHasher {
 
             while (j < l) {
                 // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
-                const char c = s[j] & 0xDF;
 
-                if (((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) && (q[j] >= q_base_cut)) {
+                if (isDNA(s[j]) && (q[j] >= q_base_cut)) {
 
                     if (last_valid) {
                         // s[i..j-1] was a valid k-mer k-mer, update
@@ -447,9 +436,7 @@ class ReadQualityHasher {
 
                     while (j < sl) {
                         // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
-                        const char c = str[j] & 0xDF;
-
-                        if (((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) && (q_str[j] >= q_base_cut)) {
+                        if (isDNA(str[j]) && (q_str[j] >= q_base_cut)) {
 
                             if (last_valid) {
                                 // s[i..j-1] was a valid k-mer k-mer, update
@@ -543,9 +530,7 @@ class ReadQualityHasherMinimizer {
 
             while (j < l) {
                 // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
-                const char c = s[j] & 0xDF;
-
-                if (((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) && (q[j] >= q_base_cut)) {
+                if (isDNA(s[j]) && (q[j] >= q_base_cut)) {
 
                     if (last_valid) { // s[i..j-1] was a valid k-mer k-mer, update
 
@@ -559,7 +544,7 @@ class ReadQualityHasherMinimizer {
                         hf.init(s+i); // start the k-mer at position i
                         last_valid = true;
 
-                        while (min_it.getKmerPosition() < i) ++min_it;
+                        min_it += i - min_it.getKmerPosition();
                     }
 
                     ++j;
@@ -578,7 +563,6 @@ class ReadQualityHasherMinimizer {
 
                     if (min_it.getPosition() != prev_pos_min){
 
-                        //sc_min(min_it.getHash());
                         sc_min(Minimizer(&s[min_it.getPosition()]).rep().hash());
 
                         prev_pos_min = min_it.getPosition();
@@ -609,9 +593,7 @@ class ReadQualityHasherMinimizer {
 
                     while (j < sl) {
                         // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
-                        const char c = str[j] & 0xDF;
-
-                        if (((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) && (q_str[j] >= q_base_cut)) {
+                        if (isDNA(str[j]) && (q_str[j] >= q_base_cut)) {
 
                             if (last_valid) {
                                 // s[i..j-1] was a valid k-mer k-mer, update
@@ -624,7 +606,7 @@ class ReadQualityHasherMinimizer {
                                 hf.init(str + i); // start the k-mer at position i
                                 last_valid = true;
 
-                                while (min_it.getKmerPosition() < i) ++min_it;
+                                min_it += i - min_it.getKmerPosition();
                             }
 
                             ++j;
@@ -642,7 +624,6 @@ class ReadQualityHasherMinimizer {
 
                             if (min_it.getPosition() != prev_pos_min){
 
-                                //sc_min(min_it.getHash());
                                 sc_min(Minimizer(&str[min_it.getPosition()]).rep().hash());
 
                                 prev_pos_min = min_it.getPosition();

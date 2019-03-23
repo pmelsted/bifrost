@@ -78,7 +78,7 @@ class KmerHashIterator {
 
                     const char c = s[j] & 0xDF; // mask lowercase bit
 
-                    if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) --j;
+                    if (/*(c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')*/isDNA(c)) --j;
                     else {
 
                         p_.second = j + 1;
@@ -114,7 +114,7 @@ class KmerHashIterator {
                 const int j = p_.second + k - 1;
                 const char c = s[j] & 0xDF; // mask lowercase bit
 
-                if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')){
+                if (/*(c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')*/isDNA(c)){
 
                     hf.update(s[j-k], s[j]);
                     p_.first = hf.hash();

@@ -101,7 +101,7 @@ void KmerIterator::find_next(size_t i, size_t j, bool last_valid) {
         const char c = s_[j] & 0xDF;
 
         if (c == 0) invalid_ = true;
-        else if ((c != 'A') && (c != 'C') && (c != 'G') && (c != 'T')){
+        else if (/*(c != 'A') && (c != 'C') && (c != 'G') && (c != 'T')*/!isDNA(c)){
 
             i = ++j;
             last_valid = false;
@@ -121,7 +121,8 @@ void KmerIterator::find_next(size_t i, size_t j, bool last_valid) {
 
             ++j;
 
-            if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) {
+            //if ((c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')) {
+            if (isDNA(c)) {
 
                 if (i + Kmer::k == j) {
 

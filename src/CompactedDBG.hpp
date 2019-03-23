@@ -433,10 +433,11 @@ class CompactedDBG {
         * function extends the mapping from the k-mer as long as the query sequence and the unitig matches).
         * @param s is a pointer to an array of character containing the sequence to query
         * @param pos is the position of the first k-mer to find in the sequence to query.
+        * @param len is the length of s.
         * @return UnitigMap<U, G> object containing the mapping information to the unitig having the queried k-mer (if present).
         * If the k-mer is found, the function extends the mapping from the k-mer as long as the query sequence and the unitig matches (um.len >= 1).
         */
-        UnitigMap<U, G> findUnitig(const char* s, size_t pos);
+        UnitigMap<U, G> findUnitig(const char* s, const size_t pos, const size_t len);
 
         /** Add a sequence to the Compacted de Bruijn graph. Non-{A,C,G,T} characters such as Ns are discarded.
         * The function automatically breaks the sequence into unitig(s). Those unitigs can be stored as the reverse-complement
@@ -577,8 +578,9 @@ class CompactedDBG {
         vector<UnitigMap<U, G>> findPredecessors(const Kmer& km, const bool extremities_only = false);
         vector<UnitigMap<U, G>> findSuccessors(const Kmer& km, const size_t limit = 4, const bool extremities_only = false);
 
-        UnitigMap<U, G> findUnitig(const Kmer& km, const char* s, size_t pos);
-        UnitigMap<U, G> findUnitig(const Kmer& km, const char* s, size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h);
+        UnitigMap<U, G> findUnitig(const Kmer& km, const char* s, const size_t pos);
+        UnitigMap<U, G> findUnitig(const Kmer& km, const char* s, const size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h);
+        UnitigMap<U, G> findUnitig(const char* s, const size_t pos, const size_t len, const minHashIterator<RepHash>& it_min);
 
         bool addUnitig(const string& str_unitig, const size_t id_unitig);
         bool addUnitig(const string& str_unitig, const size_t id_unitig, const size_t id_unitig_r, const size_t is_short_r);

@@ -98,7 +98,9 @@ class Kmer {
         * @return a hash of the k-mer.
         */
         BFG_INLINE uint64_t hash(const uint64_t seed = 0) const {
+
             return (uint64_t)XXH64((const void *)bytes, MAX_K/4, seed);
+            //return wyhash(bytes, MAX_K/4, seed);
         }
 
         /** Get the reverse-complement of a k-mer.
@@ -233,6 +235,7 @@ class Minimizer {
         BFG_INLINE uint64_t hash(const uint64_t seed = 0) const {
 
             return (uint64_t)XXH64((const void *)bytes, MAX_G/4, seed);
+            //return wyhash(bytes, MAX_G/4, seed);
         }
 
         Minimizer twin() const;
