@@ -1858,14 +1858,18 @@ bool CompactedDBG<U, G>::remove(const const_UnitigMap<U, G>& um, const bool verb
         if (!find(fw, true).isEmpty) v_km.push_back(fw);
     }
 
-    const size_t swap_position = (um.isShort ? v_kmers.size() : v_unitigs.size()) - 1;
+    if (um.isAbundant) deleteUnitig_<is_void<U>::value>(um.isShort, um.isAbundant, um.pos_unitig);
+    else {
 
-    if (!um.isAbundant && (um.pos_unitig != swap_position)) swapUnitigs(um.isShort, um.pos_unitig, swap_position);
+        const size_t swap_position = (um.isShort ? v_kmers.size() : v_unitigs.size()) - 1;
 
-    deleteUnitig_<is_void<U>::value>(um.isShort, um.isAbundant, swap_position);
+        if (um.pos_unitig != swap_position) swapUnitigs(um.isShort, um.pos_unitig, swap_position);
 
-    if (um.isShort) v_kmers.resize(swap_position);
-    else if (!um.isAbundant) v_unitigs.resize(swap_position);
+        deleteUnitig_<is_void<U>::value>(um.isShort, um.isAbundant, swap_position);
+
+        if (um.isShort) v_kmers.resize(swap_position);
+        else v_unitigs.resize(swap_position);
+    }
 
     joinUnitigs_<is_void<U>::value>(&v_km);
 
@@ -5593,8 +5597,7 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>
         }
         else {
 
-            //Hybrid_SpinLockRW_MCS<> lck(nb_threads);
-            SpinLockRW_MCS lck(nb_threads);
+            Hybrid_SpinLockRW_MCS<> lck(nb_threads);
 
             auto worker_v_abundant = [chunk, &joins, &lck, this](typename h_kmers_ccov_t::const_iterator* l_it_ccov){
 
