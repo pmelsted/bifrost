@@ -220,7 +220,7 @@ class SpinLockRW_MCS {
         std::atomic<size_t> load_lock_pool;
 };
 
-template<size_t N = 4, size_t M = 256>
+/*template<size_t N = 4, size_t M = 256>
 class Hybrid_SpinLockRW_MCS {
 
     public:
@@ -354,6 +354,171 @@ class Hybrid_SpinLockRW_MCS {
         };
 
         Lock lcks[M];
+        atomic<size_t> load;
+        const int padding1[14];
+        atomic<size_t> id;
+        const int padding2[14];
+        size_t id_w;
+        const int padding3[14];
+        const size_t nb_threads;
+        const int padding4[14];
+        const size_t flag_full;
+        const int padding5[14];
+        const size_t mask_id;
+        const int padding6[14];
+        const size_t mask_full;
+        const int padding7[14];
+        const size_t mask_bits;
+};*/
+
+template<size_t N = 4>
+class Hybrid_SpinLockRW_MCS {
+
+    public:
+
+        Hybrid_SpinLockRW_MCS(const size_t nb_threads_) :   load(0), id(0), id_w(0), nb_threads(std::min(nb_threads_, N)), flag_full(0x1ULL << (nb_threads + 1)),
+                                                            mask_id(rndup(((2 * nb_threads + N - 1) / N) + 1) - 1), mask_full((0x1ULL << (nb_threads + 2)) - 1),
+                                                            mask_bits(mask_full - 0x1ULL - flag_full), lcks(nullptr),
+                                                            padding1{0}, padding2{0}, padding3{0}, padding4{0}, padding5{0}, padding6{0}, padding7{0} {
+
+            static_assert(N <= 62, "Hybrid_SpinLockRW_MCS(): Number of reader/writer per block cannot be more than 62");
+
+            if (nb_threads <= std::thread::hardware_concurrency()){
+
+                lcks = new Lock[mask_id + 1];
+                lcks[mask_id].bits = mask_full;
+            }
+            else {
+
+                cerr << "Hybrid_SpinLockRW_MCS(): Number of threads required is greater than number of threads possible on this machine (" <<
+                std::thread::hardware_concurrency() << ")" << endl;
+            }
+        }
+
+        ~Hybrid_SpinLockRW_MCS() {
+
+            if (lcks != nullptr){
+
+                delete[] lcks;
+                lcks = nullptr;
+            }
+        }
+
+        BFG_INLINE void acquire_reader() {
+
+            uint_fast32_t retry = 0;
+
+            const size_t l_id = id.fetch_add(1);
+            const size_t new_ = (l_id / nb_threads) & mask_id;
+            const size_t prev_ = (new_ - 1) & mask_id;
+            const size_t mod_ = l_id % nb_threads;
+            const size_t pos_ = 0x2ULL << mod_;
+
+            while (lcks[prev_].bits != mask_full){
+
+                if (++retry > RETRY_THRESHOLD) this_thread::yield();
+            }
+
+            ++load;
+
+            // If element is full of readers only, just unlock it and reset previous element in list
+            if (((lcks[new_].bits.fetch_or(pos_) | pos_) & mask_bits) == mask_bits){
+
+                lcks[prev_].bits = 0;
+                lcks[new_].bits = mask_full;
+            }
+            // Else if element is full but as writers waiting, set flag_full to unlock writers
+            else if (mod_ == (nb_threads - 1)) lcks[new_].bits |= flag_full;
+        }
+
+        BFG_INLINE void release_reader() {
+
+            --load;
+        }
+
+        BFG_INLINE void acquire_writer() {
+
+            uint_fast32_t retry = 0;
+
+            const size_t l_id = id.fetch_add(1);
+            const size_t div_ = l_id / nb_threads;
+            const size_t mod_ = l_id % nb_threads;
+            const size_t new_ = div_ & mask_id;
+            const size_t prev_ = (new_ - 1) & mask_id;
+            const size_t pos_ = 0x2ULL << mod_;
+            const size_t mask_ = mask_full - ((pos_ << 1) - 1);
+            const size_t end_ = div_ * nb_threads + nb_threads;
+
+            size_t start_ = (l_id + 1);
+
+            // Wait while previous element is not ready -> LOCAL SPIN
+            // Skipping this step and just spinning on *load* would make all writers access the same ressource at the same moment
+            while (lcks[prev_].bits != mask_full){
+
+                if (++retry > RETRY_THRESHOLD) this_thread::yield();
+            }
+
+            // Element is full but as writers waiting so unlocks them
+            if (mod_ == (nb_threads - 1)) lcks[new_].bits |= flag_full;
+
+            // Wait that the current element is filled in with the max readers and writers possible -> LOCAL SPIN
+            while (~lcks[new_].bits & mask_){
+
+                if (++retry > RETRY_THRESHOLD){
+
+                    this_thread::yield();
+
+                    if ((retry & 1023) == 0) {
+
+                        while ((start_ < end_) && !id.compare_exchange_strong(start_, start_ + 1));
+
+                        if (start_ < end_){
+
+                            const size_t mod_r = start_ % nb_threads;
+
+                            ++start_;
+                            lcks[new_].bits |= (0x2ULL << mod_r);
+
+                            if (mod_r == (nb_threads - 1)) lcks[new_].bits |= flag_full;
+                        }
+                    }
+                }
+            }
+
+            while (load){ // Wait that all readers are done reading -> GLOBAL SPIN
+
+                if (++retry > RETRY_THRESHOLD) this_thread::yield();
+            }
+
+            id_w = l_id; // Set the current ticket number that is processed
+        }
+
+        BFG_INLINE void release_writer() {
+
+            const size_t curr_ = (id_w / nb_threads) & mask_id;
+            const size_t pos_ = 0x2ULL << (id_w % nb_threads);
+            const size_t prev_bits = lcks[curr_].bits.fetch_or(pos_);
+
+            if ((prev_bits | pos_) == (mask_full - 0x1ULL)){
+
+                const size_t prev_ = (curr_ - 1) & mask_id;
+
+                lcks[prev_].bits = 0;
+                lcks[curr_].bits = mask_full;
+            }
+        }
+
+    private:
+
+        struct Lock {
+
+            std::atomic<size_t> bits;
+            const int padding[14];
+
+            Lock() : bits(0), padding{0} {}
+        };
+
+        Lock* lcks;
         atomic<size_t> load;
         const int padding1[14];
         atomic<size_t> id;
