@@ -5,7 +5,7 @@
 
 #include "rw_spin_lock.h"
 
-/*class LockGraph : public SpinLockRW {
+class LockGraph : public SpinLockRW {
 
     public:
 
@@ -35,7 +35,7 @@
         const size_t mask_nb_locks;
 
         std::vector<SpinLock> spinlocks_unitigs;
-};*/
+};
 
 /*class LockGraph : public SpinLockRW_MCS {
 
@@ -68,7 +68,7 @@
         std::vector<SpinLock> spinlocks_unitigs;
 };*/
 
-class LockGraph : public Hybrid_SpinLockRW_MCS<> {
+/*class LockGraph : public Hybrid_SpinLockRW_MCS<> {
 
     public:
 
@@ -97,6 +97,6 @@ class LockGraph : public Hybrid_SpinLockRW_MCS<> {
         const size_t mask_nb_locks;
 
         std::vector<SpinLock> spinlocks_unitigs;
-};
+};*/
 
 #endif

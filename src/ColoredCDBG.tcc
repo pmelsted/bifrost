@@ -993,6 +993,8 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
             const size_t curr_uc_sz = getCurrentRSS();
 
+            cout << "getCurrentRSS(): " << curr_uc_sz << endl;
+
             if ((curr_uc_sz - prev_uc_sz) >= 1073741824ULL){
 
                 const size_t chunk = 1000;

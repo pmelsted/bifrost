@@ -5597,7 +5597,8 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>
         }
         else {
 
-            Hybrid_SpinLockRW_MCS<> lck(nb_threads);
+            //Hybrid_SpinLockRW_MCS<> lck(nb_threads);
+            SpinLockRW lck;
 
             auto worker_v_abundant = [chunk, &joins, &lck, this](typename h_kmers_ccov_t::const_iterator* l_it_ccov){
 

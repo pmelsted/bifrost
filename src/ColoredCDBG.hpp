@@ -340,6 +340,7 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
 
         void initUnitigColors(const CCDBG_Build_opt& opt, const size_t max_nb_hash = 31);
         void buildUnitigColors(const size_t nb_threads);
+        //void buildUnitigColors2(const size_t nb_threads);
 
         void resizeDataUC(const size_t sz, const size_t nb_threads = 1, const size_t max_nb_hash = 31);
 
