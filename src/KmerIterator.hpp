@@ -70,6 +70,8 @@ class KmerHashIterator {
 
         inline void init() {
 
+            invalid = (p_.second >= n - k + 1);
+
             if (!invalid){
 
                 int j = p_.second + k - 1;
@@ -78,7 +80,7 @@ class KmerHashIterator {
 
                     const char c = s[j] & 0xDF; // mask lowercase bit
 
-                    if (/*(c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')*/isDNA(c)) --j;
+                    if (isDNA(c)) --j;
                     else {
 
                         p_.second = j + 1;
@@ -96,6 +98,7 @@ class KmerHashIterator {
                 hf.init(&s[p_.second]);
                 p_.first = hf.hash();
             }
+            else p_ = {0,-1};
         }
 
         KmerHashIterator& operator++() {
@@ -114,7 +117,7 @@ class KmerHashIterator {
                 const int j = p_.second + k - 1;
                 const char c = s[j] & 0xDF; // mask lowercase bit
 
-                if (/*(c == 'A') || (c == 'C') || (c == 'G') || (c == 'T')*/isDNA(c)){
+                if (isDNA(c)){
 
                     hf.update(s[j-k], s[j]);
                     p_.first = hf.hash();

@@ -4,6 +4,10 @@
 #include <thread>
 #include <atomic>
 
+#if defined(__SSE2__)
+#include <emmintrin.h>
+#endif
+
 #include "Common.hpp"
 
 #define HAS_WRITER 0x80000000UL
@@ -113,7 +117,7 @@ class SpinLockRW_MCS {
     public:
 
         SpinLockRW_MCS(const size_t nb_readers) :   writer(nullptr), lock_pool(nullptr), it_lock_pool(0),
-                                                    load_lock_pool(0), mask_it(rndup(2 * nb_readers + 1) - 1),
+                                                    load_lock_pool(0), mask_it(rndup(nb_readers + 1) - 1),
                                                     padding1{0}, padding2{0}, padding3{0}, padding4{0} {
 
             if (nb_readers <= std::thread::hardware_concurrency()){
@@ -152,6 +156,9 @@ class SpinLockRW_MCS {
             while (lock_pool[prev_reader_id].is_locked){
 
                 if (++retry > 100) this_thread::yield();
+                #if defined(__SSE2__)
+                else _mm_pause();
+                #endif
             }
 
             ++load_lock_pool;
@@ -175,16 +182,22 @@ class SpinLockRW_MCS {
             while (lock_pool[prev_reader_id].is_locked){
 
                 if (++retry > 100) this_thread::yield();
+                #if defined(__SSE2__)
+                else _mm_pause();
+                #endif
             }
 
             while (load_lock_pool){
 
                 if (++retry > 100) this_thread::yield();
+                #if defined(__SSE2__)
+                else _mm_pause();
+                #endif
             }
 
             lock_pool[prev_reader_id].is_locked = true;
 
-            writer = &lock_pool[new_reader_id];
+            writer = lock_pool + new_reader_id;
         }
 
         BFG_INLINE void release_writer() {
@@ -252,6 +265,9 @@ class Hybrid_SpinLockRW_MCS {
             while (lcks[prev_].bits != mask_full){
 
                 if (++retry > RETRY_THRESHOLD) this_thread::yield();
+                #if defined(__SSE2__)
+                else _mm_pause();
+                #endif
             }
 
             ++load;
@@ -291,6 +307,9 @@ class Hybrid_SpinLockRW_MCS {
             while (lcks[prev_].bits != mask_full){
 
                 if (++retry > RETRY_THRESHOLD) this_thread::yield();
+                #if defined(__SSE2__)
+                else _mm_pause();
+                #endif
             }
 
             // Element is full but as writers waiting so unlocks them
@@ -318,11 +337,17 @@ class Hybrid_SpinLockRW_MCS {
                         }
                     }
                 }
+                #if defined(__SSE2__)
+                else _mm_pause();
+                #endif
             }
 
             while (load){ // Wait that all readers are done reading -> GLOBAL SPIN
 
                 if (++retry > RETRY_THRESHOLD) this_thread::yield();
+                #if defined(__SSE2__)
+                else _mm_pause();
+                #endif
             }
 
             id_w = l_id; // Set the current ticket number that is processed
