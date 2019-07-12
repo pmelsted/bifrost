@@ -23,6 +23,7 @@
 * [API](https://github.com/pmelsted/bifrost#api)
 * [FAQ](https://github.com/pmelsted/bifrost#faq)
 * [Troubleshooting](https://github.com/pmelsted/bifrost#troubleshooting)
+* [Citation](https://github.com/pmelsted/bifrost#citation)
 * [Contact](https://github.com/pmelsted/bifrost#contact)
 * [License](https://github.com/pmelsted/bifrost#license)
 
@@ -290,6 +291,19 @@ Assuming that *libbifrost*.(*so*|*dylib*|*a*) is located at the path */usr/local
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
 export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/lib/
 export PATH=$PATH:/usr/local/lib/
+```
+
+## Citation
+
+```
+@article {holley2019bifrost,
+  author = {Holley, Guillaume and Melsted, P{\'a}ll},
+  title = "{Bifrost - Highly parallel construction and indexing of colored and compacted de Bruijn graphs}",
+  elocation-id = {695338},
+  doi = {10.1101/695338},
+  journal = {bioRxiv},
+  year = {2019}
+}
 ```
 
 ## Contact
