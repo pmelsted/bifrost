@@ -161,7 +161,12 @@ UnitigColors& UnitigColors::operator=(const UnitigColors& o){
 
             setBits = (reinterpret_cast<uintptr_t>(t_bmp_cpy.detach()) & pointerMask) | localTinyBitmap;
         }
-        else setBits = o.setBits;
+        else {
+
+            releaseMemory();
+
+            setBits = o.setBits;
+        }
     }
 
     return *this;
@@ -476,7 +481,7 @@ void UnitigColors::add(const size_t color_id) { // PRIVATE
 
             if ((setBits_tmp < maxBitVectorIDs) && (color_id < maxBitVectorIDs)){
 
-                setBits = (1ULL << (setBits_tmp + shiftMaskBits)) | (1ULL << (color_id + shiftMaskBits)) | localBitVector;
+                setBits = (1ULL << (setBits_tmp + shiftMaskBits)) | localBitVector;
             }
             else {
 
@@ -749,9 +754,7 @@ void UnitigColors::remove(const UnitigMapBase& um, const size_t color_id) {
         if (card == 0) clear();
         else if (card == 1){
 
-            uint32_t color_id;
-
-            bitmap->r.select(0, &color_id);
+            const uint32_t color_id = bitmap->r.minimum();
 
             clear();
             add(color_id);

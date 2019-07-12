@@ -631,7 +631,7 @@ size_t TinyBitmap::runOptimize() {
             if (mode == bmp_mode){
 
                 uint16_t nb_run = 0;
-                uint16_t prev_val_pres = 0xFFFF; // This value cannot exist in bitmap mode
+                uint16_t prev_val_pres = 0xFFFE; // This value cannot exist in bitmap mode
                 uint16_t cardinality_cpy = cardinality;
 
                 for (uint16_t i = 3; (i != sz) && (cardinality_cpy != 0); ++i){
@@ -650,12 +650,12 @@ size_t TinyBitmap::runOptimize() {
                 const uint16_t new_cardinality = nb_run << 1;
                 const uint16_t new_sz = getNextSize(new_cardinality + 3);
 
-                if ((new_cardinality < cardinality)/*(new_sz < sz)*/ && (new_sz <= sizes[nb_sizes - 1])){
+                if ((new_cardinality < cardinality) && (new_sz <= sizes[nb_sizes - 1])){
 
                     cardinality_cpy = cardinality;
-                    prev_val_pres = 0xFFFF;
+                    prev_val_pres = 0xFFFE;
 
-                    uint16_t k = 2;
+                    uint16_t k = 3;
 
                     uint16_t* tiny_bmp_new = nullptr;
 
@@ -677,7 +677,7 @@ size_t TinyBitmap::runOptimize() {
 
                                 if (j != (prev_val_pres + 1)){
 
-                                    tiny_bmp_new[k++] = prev_val_pres;
+                                    if (prev_val_pres != 0xFFFE) tiny_bmp_new[k++] = prev_val_pres;
                                     tiny_bmp_new[k++] = j;
                                 }
 
@@ -708,7 +708,7 @@ size_t TinyBitmap::runOptimize() {
                 const uint16_t new_cardinality = nb_run << 1;
                 const uint16_t new_sz = getNextSize(new_cardinality + 3);
 
-                if ((new_cardinality < cardinality)/*(new_sz < sz)*/ && (new_sz <= sizes[nb_sizes - 1])){
+                if ((new_cardinality < cardinality) && (new_sz <= sizes[nb_sizes - 1])){
 
                     uint16_t k = 4;
 
@@ -1000,7 +1000,7 @@ bool TinyBitmap::switch_mode(const uint16_t sz_min, const uint16_t new_mode) {
 
             for (size_t i = 3, k = 3; i < cardinality + 3; i += 2){
 
-                for (uint16_t j = tiny_bmp_new[i]; j <= tiny_bmp_new[i + 1]; ++j, ++k) tiny_bmp[k] = j;
+                for (uint32_t j = tiny_bmp_new[i]; j <= tiny_bmp_new[i + 1]; ++j) tiny_bmp[k++] = j;
             }
 
             tiny_bmp[0] = (tiny_bmp[0] & sz_mask) | list_mode | bits_16;

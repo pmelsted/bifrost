@@ -4,9 +4,9 @@
 #include <thread>
 #include <atomic>
 
-#if defined(__SSE2__)
-#include <emmintrin.h>
-#endif
+//#if defined(__SSE2__)
+//#include <emmintrin.h>
+//#endif
 
 #include "Common.hpp"
 
@@ -15,6 +15,7 @@
 #define MASK_READER 0xBFFFFFFFUL
 
 #define RETRY_THRESHOLD 100
+#define RETRY_THRESHOLD_MAX 1023
 
 class SpinLock {
 
@@ -37,6 +38,9 @@ class SpinLock {
                     retry = 0;
                     this_thread::yield();
                 }
+                //#if defined(__SSE2__)
+                //else _mm_pause();
+                //#endif
             }
         }
 
@@ -73,6 +77,9 @@ class SpinLockRW {
                 }
 
                 if (++retry > RETRY_THRESHOLD) this_thread::yield();
+                //#if defined(__SSE2__)
+                //else _mm_pause();
+                //#endif
             }
         }
 
@@ -93,6 +100,9 @@ class SpinLockRW {
                 if ((prev_bits & HAS_WRITER_WAITING) == 0) _bits.fetch_or(HAS_WRITER_WAITING);
 
                 if (++retry > RETRY_THRESHOLD) this_thread::yield();
+                //#if defined(__SSE2__)
+                //else _mm_pause();
+                //#endif
             }
         }
 
@@ -155,10 +165,10 @@ class SpinLockRW_MCS {
 
             while (lock_pool[prev_reader_id].is_locked){
 
-                if (++retry > 100) this_thread::yield();
-                #if defined(__SSE2__)
-                else _mm_pause();
-                #endif
+                if (++retry > RETRY_THRESHOLD) this_thread::yield();
+                //#if defined(__SSE2__)
+                //else _mm_pause();
+                //#endif
             }
 
             ++load_lock_pool;
@@ -181,18 +191,18 @@ class SpinLockRW_MCS {
 
             while (lock_pool[prev_reader_id].is_locked){
 
-                if (++retry > 100) this_thread::yield();
-                #if defined(__SSE2__)
-                else _mm_pause();
-                #endif
+                if (++retry > RETRY_THRESHOLD) this_thread::yield();
+                //#if defined(__SSE2__)
+                //else _mm_pause();
+                //#endif
             }
 
             while (load_lock_pool){
 
-                if (++retry > 100) this_thread::yield();
-                #if defined(__SSE2__)
-                else _mm_pause();
-                #endif
+                if (++retry > RETRY_THRESHOLD) this_thread::yield();
+                //#if defined(__SSE2__)
+                //else _mm_pause();
+                //#endif
             }
 
             lock_pool[prev_reader_id].is_locked = true;
@@ -265,9 +275,9 @@ class Hybrid_SpinLockRW_MCS {
             while (lcks[prev_].bits != mask_full){
 
                 if (++retry > RETRY_THRESHOLD) this_thread::yield();
-                #if defined(__SSE2__)
-                else _mm_pause();
-                #endif
+                //#if defined(__SSE2__)
+                //else _mm_pause();
+                //#endif
             }
 
             ++load;
@@ -307,9 +317,9 @@ class Hybrid_SpinLockRW_MCS {
             while (lcks[prev_].bits != mask_full){
 
                 if (++retry > RETRY_THRESHOLD) this_thread::yield();
-                #if defined(__SSE2__)
-                else _mm_pause();
-                #endif
+                //#if defined(__SSE2__)
+                //else _mm_pause();
+                //#endif
             }
 
             // Element is full but as writers waiting so unlocks them
@@ -322,7 +332,7 @@ class Hybrid_SpinLockRW_MCS {
 
                     this_thread::yield();
 
-                    if ((retry & 1023) == 0) {
+                    if ((retry & RETRY_THRESHOLD_MAX) == 0) {
 
                         while ((start_ < end_) && !id.compare_exchange_strong(start_, start_ + 1));
 
@@ -337,17 +347,17 @@ class Hybrid_SpinLockRW_MCS {
                         }
                     }
                 }
-                #if defined(__SSE2__)
-                else _mm_pause();
-                #endif
+                //#if defined(__SSE2__)
+                //else _mm_pause();
+                //#endif
             }
 
             while (load){ // Wait that all readers are done reading -> GLOBAL SPIN
 
                 if (++retry > RETRY_THRESHOLD) this_thread::yield();
-                #if defined(__SSE2__)
-                else _mm_pause();
-                #endif
+                //#if defined(__SSE2__)
+                //else _mm_pause();
+                //#endif
             }
 
             id_w = l_id; // Set the current ticket number that is processed

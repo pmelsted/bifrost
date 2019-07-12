@@ -2,10 +2,7 @@ cmake_minimum_required(VERSION 2.8.12)
 
 project(Bifrost)
 
-# This affects the memory usage of the program
-# we use 1 byte for every 4 bp in kmers. Ideally
-# this parameter should be a multiple of 4.
-# Actual maximum kmer size is 1 less.
+# Can be replaced with a larger and appropriate number (a power of 2). Actual k-mer size is MAX_KMER_SIZE-1.
 set(MAX_KMER_SIZE "32")
 
 set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=c11 -march=native -DXXH_NAMESPACE=BIFROST_HASH_")
