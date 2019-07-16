@@ -191,8 +191,6 @@ Usage: Bifrost [COMMAND] [GENERAL_PARAMETERS] [COMMAND_PARAMETERS]
 
 ## API
 
-(Work in progress)
-
 Changes in the API are reported in the [Changelog](https://github.com/pmelsted/bifrost/blob/master/Changelog.md).
 
 ### Documentation
@@ -240,7 +238,7 @@ and the following flags for linking:
 
 In this case, the maximum *k* allowed is 63. Keep in mind that increasing the maximum *k*-mer size increases Bifrost memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
 
-### With colors (beta)
+### With colors
 
 ```
 #include <bifrost/ColoredCDBG.hpp>
