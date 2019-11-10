@@ -31,13 +31,15 @@ class MinimizerIndex {
 
             const Minimizer getKey() const {
 
-                ht->lck_edit_keys.acquire();
+                /*ht->lck_edit_keys.acquire();
 
                 const Minimizer minz(ht->table_keys[h]);
 
                 ht->lck_edit_keys.release();
 
-                return minz;
+                return minz;*/
+
+                return ht->table_keys[h];
             }
 
             inline size_t getHash() const {

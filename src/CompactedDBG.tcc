@@ -7750,54 +7750,12 @@ void CompactedDBG<U, G>::writeGFA(const string& graphfilename, const size_t nb_t
     graph.close();
 }
 
-/*template<typename U, typename G>
-void CompactedDBG<U, G>::readGFA(const string& graphfilename, const size_t nb_threads) {
-
-    size_t graph_file_id = 0;
-
-    bool new_file_opened = false;
-
-    GFA_Parser graph(graphfilename);
-
-    graph.open_read();
-
-    GFA_Parser::GFA_line r = graph.read(graph_file_id, new_file_opened, true);
-
-    while ((r.first != nullptr) || (r.second != nullptr)){
-
-        if (r.first != nullptr) addUnitig(r.first->seq, (r.first->seq.length() == k_) ? v_kmers.size() : v_unitigs.size());
-
-        r = graph.read(graph_file_id, new_file_opened, true);
-    }
-}*/
-
-/*template<typename U, typename G>
-void CompactedDBG<U, G>::readFASTA(const string& graphfilename) {
-
-    size_t graph_file_id = 0;
-
-    string seq;
-
-    FastqFile ff(vector<string>(1, graphfilename));
-
-    while (ff.read_next(seq, graph_file_id) != -1) addUnitig(seq, (seq.length() == k_) ? v_kmers.size() : v_unitigs.size());
-}*/
-
 template<typename U, typename G>
 void CompactedDBG<U, G>::readGFA(const string& graphfilename, const size_t nb_threads) {
 
-    const size_t block_sz = 1024;
-
-    std::atomic<size_t> v_kmers_sz;
-    std::atomic<size_t> v_unitigs_sz;
-
-    bool new_file_opened = false;
-    bool is_first = true;
-    bool stop = false;
-
     size_t graph_file_id = 0;
 
-    SpinLock lck_unitig, lck_kmer;
+    bool new_file_opened = false;
 
     GFA_Parser graph(graphfilename);
 
@@ -7805,116 +7763,145 @@ void CompactedDBG<U, G>::readGFA(const string& graphfilename, const size_t nb_th
 
     GFA_Parser::GFA_line r = graph.read(graph_file_id, new_file_opened, true);
 
-    vector<thread> workers; // need to keep track of threads so we can join them
+    if (nb_threads == 1){
 
-    mutex mutex_file;
+        while ((r.first != nullptr) || (r.second != nullptr)){
 
-    v_kmers_sz = 0;
-    v_unitigs_sz = 0;
+            if (r.first != nullptr) addUnitig(r.first->seq, (r.first->seq.length() == k_) ? v_kmers.size() : v_unitigs.size());
 
-    hmap_min_unitigs.init_threads();
-
-    for (size_t t = 0; t < nb_threads; ++t){
-
-        workers.emplace_back(
-
-            [&]{
-
-                vector<string> seq;
-
-                while (true) {
-
-                    {
-                        unique_lock<mutex> lock(mutex_file);
-
-                        if (stop) return;
-
-                        seq.clear();
-
-                        for (size_t i = 0; (i < block_sz) && !stop; ++i){
-
-                            if (!is_first) r = graph.read(graph_file_id, new_file_opened, true);
-                            if (r.first != nullptr) seq.push_back(r.first->seq);
-
-                            stop = ((r.first == nullptr) && (r.second == nullptr));
-                            is_first = false;
-                        }
-                    }
-
-                    for (const auto& s : seq) addUnitig(s, (s.length() == k_) ? v_kmers_sz++ : v_unitigs_sz++, lck_unitig, lck_kmer, false);
-                }
-            }
-        );
+            r = graph.read(graph_file_id, new_file_opened, true);
+        }
     }
+    else {
 
-    for (auto& t : workers) t.join();
+        const size_t block_sz = 1024;
 
-    hmap_min_unitigs.release_threads();
-    moveToAbundant();
+        std::atomic<size_t> v_kmers_sz;
+        std::atomic<size_t> v_unitigs_sz;
+
+        bool is_first = true;
+        bool stop = false;
+
+        SpinLock lck_unitig, lck_kmer;
+
+        vector<thread> workers; // need to keep track of threads so we can join them
+
+        mutex mutex_file;
+
+        v_kmers_sz = 0;
+        v_unitigs_sz = 0;
+
+        hmap_min_unitigs.init_threads();
+
+        for (size_t t = 0; t < nb_threads; ++t){
+
+            workers.emplace_back(
+
+                [&]{
+
+                    vector<string> seq;
+
+                    while (true) {
+
+                        {
+                            unique_lock<mutex> lock(mutex_file);
+
+                            if (stop) return;
+
+                            seq.clear();
+
+                            for (size_t i = 0; (i < block_sz) && !stop; ++i){
+
+                                if (!is_first) r = graph.read(graph_file_id, new_file_opened, true);
+                                if (r.first != nullptr) seq.push_back(r.first->seq);
+
+                                stop = ((r.first == nullptr) && (r.second == nullptr));
+                                is_first = false;
+                            }
+                        }
+
+                        for (const auto& s : seq) addUnitig(s, (s.length() == k_) ? v_kmers_sz++ : v_unitigs_sz++, lck_unitig, lck_kmer, false);
+                    }
+                }
+            );
+        }
+
+        for (auto& t : workers) t.join();
+
+        hmap_min_unitigs.release_threads();
+        moveToAbundant();
+    }
 }
 
 template<typename U, typename G>
 void CompactedDBG<U, G>::readFASTA(const string& graphfilename, const size_t nb_threads) {
 
-    const size_t block_sz = 1024;
-
     size_t graph_file_id = 0;
-
-    bool stop = false;
-
-    std::atomic<size_t> v_kmers_sz;
-    std::atomic<size_t> v_unitigs_sz;
-
-    string seq;
-
-    SpinLock lck_unitig, lck_kmer;
 
     FastqFile ff(vector<string>(1, graphfilename));
 
-    vector<thread> workers; // need to keep track of threads so we can join them
+    string seq;
 
-    mutex mutex_file;
+    if (nb_threads == 1){
 
-    v_kmers_sz = 0;
-    v_unitigs_sz = 0;
-
-    hmap_min_unitigs.init_threads();
-
-    for (size_t t = 0; t < nb_threads; ++t){
-
-        workers.emplace_back(
-
-            [&]{
-
-                vector<string> v_seq;
-
-                while (true) {
-
-                    {
-                        unique_lock<mutex> lock(mutex_file);
-
-                        if (stop) return;
-
-                        v_seq.clear();
-
-                        for (size_t i = 0; (i < block_sz) && !stop; ++i){
-
-                            stop = (ff.read_next(seq, graph_file_id) == -1);
-
-                            if (!stop && !seq.empty()) v_seq.push_back(seq);
-                        }
-                    }
-
-                    for (const auto& s : v_seq) addUnitig(s, (s.length() == k_) ? v_kmers_sz++ : v_unitigs_sz++, lck_unitig, lck_kmer, false);
-                }
-            }
-        );
+        while (ff.read_next(seq, graph_file_id) != -1) addUnitig(seq, (seq.length() == k_) ? v_kmers.size() : v_unitigs.size());
     }
+    else {
 
-    for (auto& t : workers) t.join();
+        const size_t block_sz = 1024;
 
-    hmap_min_unitigs.release_threads();
-    moveToAbundant();
+        bool stop = false;
+
+        std::atomic<size_t> v_kmers_sz;
+        std::atomic<size_t> v_unitigs_sz;
+
+        SpinLock lck_unitig, lck_kmer;
+
+        vector<thread> workers; // need to keep track of threads so we can join them
+
+        mutex mutex_file;
+
+        v_kmers_sz = 0;
+        v_unitigs_sz = 0;
+
+        hmap_min_unitigs.init_threads();
+
+        for (size_t t = 0; t < nb_threads; ++t){
+
+            workers.emplace_back(
+
+                [&]{
+
+                    vector<string> v_seq;
+
+                    while (true) {
+
+                        {
+                            unique_lock<mutex> lock(mutex_file);
+
+                            if (stop) return;
+
+                            v_seq.clear();
+
+                            for (size_t i = 0; (i < block_sz) && !stop; ++i){
+
+                                stop = (ff.read_next(seq, graph_file_id) == -1);
+
+                                if (!stop && !seq.empty()) v_seq.push_back(seq);
+                            }
+                        }
+
+                        for (const auto& s : v_seq) addUnitig(s, (s.length() == k_) ? v_kmers_sz++ : v_unitigs_sz++, lck_unitig, lck_kmer, false);
+                    }
+                }
+            );
+        }
+
+        for (auto& t : workers) t.join();
+
+        hmap_min_unitigs.release_threads();
+        moveToAbundant();
+    }
 }
 
 template<typename U, typename G>
