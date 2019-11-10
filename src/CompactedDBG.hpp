@@ -32,6 +32,7 @@
 #include "KmerStream.hpp"
 #include "Lock.hpp"
 #include "minHashIterator.hpp"
+#include "MinimizerIndex.hpp"
 #include "RepHash.hpp"
 #include "TinyVector.hpp"
 #include "Unitig.hpp"
@@ -408,10 +409,11 @@ class CompactedDBG {
         * that the graph is correctly compacted and to set correctly the parameters of the graph (such as the k-mer length) before the
         * call to this function.
         * @param input_filename is a string containing the name of the file from which the graph will be read.
+        * @param nb_threads is a number indicating how many threads can be used to read the graph from disk.
         * @param verbose is a boolean indicating if information messages must be printed during the function execution.
         * @return boolean indicating if the graph has been read successfully.
         */
-        bool read(const string& input_filename, const bool verbose = false);
+        bool read(const string& input_filename, const size_t nb_threads = 1, const bool verbose = false);
 
         /** Find the unitig containing the queried k-mer in the Compacted de Bruijn graph.
         * @param km is the queried k-mer (see Kmer class). It does not need to be a canonical k-mer.
@@ -599,6 +601,7 @@ class CompactedDBG {
 
         bool addUnitig(const string& str_unitig, const size_t id_unitig);
         bool addUnitig(const string& str_unitig, const size_t id_unitig, const size_t id_unitig_r, const size_t is_short_r);
+        bool addUnitig(const string& str_unitig, const size_t id_unitig, SpinLock& lck_unitig, SpinLock& lck_kmer, const bool enable_abundant = true);
         void swapUnitigs(const bool isShort, const size_t id_a, const size_t id_b);
 
         bool mergeUnitig(const string& seq, const bool verbose = false);
@@ -622,6 +625,8 @@ class CompactedDBG {
         typename std::enable_if<is_void, void>::type deleteUnitig_( const bool isShort, const bool isAbundant,
                                                                     const size_t id_unitig, const bool delete_data = true);
 
+        void deleteUnitig_(const bool isShort, const bool isAbundant, const size_t id_unitig, const string& str);
+
         template<bool is_void>
         typename std::enable_if<!is_void, bool>::type extractUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
                                                                     size_t& v_unitigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp);
@@ -637,6 +642,8 @@ class CompactedDBG {
         template<bool is_void>
         typename std::enable_if<is_void, size_t>::type joinUnitigs_(vector<Kmer>* v_joins = nullptr, const size_t nb_threads = 1);
 
+        void moveToAbundant();
+
         void createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>& joins, const size_t nb_threads) const;
         bool checkJoin(const Kmer& a, const const_UnitigMap<U, G>& cm_a, Kmer& b) const;
         void check_fp_tips(KmerHashTable<bool>& ignored_km_tips);
@@ -648,8 +655,8 @@ class CompactedDBG {
         void writeGFA(const string& graphfilename, const size_t nb_threads = 1) const;
         void writeFASTA(const string& graphfilename) const;
 
-        void readGFA(const string& graphfilename);
-        void readFASTA(const string& graphfilename);
+        void readGFA(const string& graphfilename, const size_t nb_threads = 1);
+        void readFASTA(const string& graphfilename, const size_t nb_threads = 1);
 
         template<bool is_void>
         typename std::enable_if<!is_void, void>::type writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const;
@@ -663,8 +670,6 @@ class CompactedDBG {
         void setKmerGmerLength(const int kmer_length, const int minimizer_length);
         void print() const;
 
-        vector<Minimizer> test(const Minimizer minz) const;
-
         int k_;
         int g_;
 
@@ -675,15 +680,11 @@ class CompactedDBG {
         static const int max_abundance_lim = 15;
 
         typedef KmerHashTable<CompressedCoverage_t<U>> h_kmers_ccov_t;
-        typedef MinimizerHashTable_2Val hmap_min_unitigs_t;
-
-        typedef typename hmap_min_unitigs_t::iterator hmap_min_unitigs_iterator;
-        typedef typename hmap_min_unitigs_t::const_iterator hmap_min_unitigs_const_iterator;
 
         vector<Unitig<U>*> v_unitigs;
         vector<pair<Kmer, CompressedCoverage_t<U>>> v_kmers;
 
-        hmap_min_unitigs_t hmap_min_unitigs;
+        MinimizerIndex hmap_min_unitigs;
 
         h_kmers_ccov_t h_kmers_ccov;
 

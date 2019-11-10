@@ -116,6 +116,11 @@ class SpinLockRW {
             _bits = 1;
         }
 
+        BFG_INLINE void release_all() {
+
+            _bits = 0;
+        }
+
     private:
 
         std::atomic<uint32_t> _bits;

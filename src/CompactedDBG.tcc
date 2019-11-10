@@ -201,13 +201,6 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
         construct_finished = false;
     }
 
-    /*if (opt.nb_non_unique_kmers > opt.nb_unique_kmers){
-
-        cerr << "CompactedDBG::build(): The estimated number of non unique k-mers ";
-        cerr << "cannot be greater than the estimated number of unique k-mers" << endl;
-        construct_finished = false;
-    }*/
-
     if (opt.read_chunksize <= 0){
 
         cerr << "CompactedDBG::build(): Chunk size of reads to share among threads cannot be less than or equal to 0" << endl;
@@ -366,11 +359,8 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
 
             const size_t nb_unique_kmers = max(1UL, kms.KmerF0());
             const size_t nb_unique_minimizers = max(1UL, kms.MinimizerF0());
-            //opt.nb_unique_kmers = max(1UL, kms.F0());
-
             const size_t nb_non_unique_kmers = reference_mode ? 0 : max(1UL, nb_unique_kmers - min(nb_unique_kmers, kms.Kmerf1()));
             const size_t nb_non_unique_minimizers = reference_mode ? 0 : max(1UL, nb_unique_minimizers - min(nb_unique_minimizers, kms.Minimizerf1()));
-            //if (!reference_mode) opt.nb_non_unique_kmers = max(1UL, opt.nb_unique_kmers - min(opt.nb_unique_kmers, kms.f1()));
 
             if (opt.verbose){
 
@@ -400,40 +390,7 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
                     fclose(fp);
                 }
             }
-            else {
-
-                /*if ((opt.nb_unique_kmers == 0) || (!reference_mode && (opt.nb_non_unique_kmers == 0))){
-
-                    KmerStream_Build_opt kms_opt;
-
-                    kms_opt.threads = opt.nb_threads;
-                    kms_opt.verbose = opt.verbose;
-                    kms_opt.k = opt.k;
-                    kms_opt.q = 0;
-
-                    for (const auto& s : v_files) kms_opt.files.push_back(s);
-
-                    KmerStream kms(kms_opt);
-
-                    opt.nb_unique_kmers = max(1UL, kms.F0());
-
-                    if (!reference_mode) opt.nb_non_unique_kmers = max(1UL, opt.nb_unique_kmers - min(opt.nb_unique_kmers, kms.f1()));
-
-                    if (opt.verbose){
-
-                        cout << "CompactedDBG::build(): Estimated number of k-mers occurring at least once: " << opt.nb_unique_kmers << endl;
-
-                        if (!reference_mode){
-
-                            cout << "CompactedDBG::build(): Estimated number of k-mers occurring twice or more: " << opt.nb_non_unique_kmers << endl;
-                        }
-                    }
-                }
-
-                construct_finished = filter(opt);*/
-
-                construct_finished = filter(opt, nb_unique_kmers, nb_non_unique_kmers);
-            }
+            else construct_finished = filter(opt, nb_unique_kmers, nb_non_unique_kmers);
 
             if (construct_finished){
 
@@ -537,7 +494,7 @@ bool CompactedDBG<U, G>::write(const string& output_filename, const size_t nb_th
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::read(const string& input_filename, const bool verbose){
+bool CompactedDBG<U, G>::read(const string& input_filename, const size_t nb_threads, const bool verbose){
 
     if (verbose) cout << endl << "CompactedDBG::read(): Reading graph from disk" << endl;
 
@@ -613,11 +570,28 @@ bool CompactedDBG<U, G>::read(const string& input_filename, const bool verbose){
 
         clear();
 
+        {
+            KmerStream_Build_opt kms_opt;
+
+            kms_opt.threads = nb_threads;
+            kms_opt.verbose = verbose;
+            kms_opt.k = k;
+            kms_opt.g = g;
+            kms_opt.q = 0;
+
+            kms_opt.files.push_back(input_filename);
+
+            KmerStream kms(kms_opt);
+
+            MinimizerIndex hmap_min_unitigs_tmp(max(1UL, kms.MinimizerF0()) * 1.05);
+            hmap_min_unitigs = move(hmap_min_unitigs_tmp);
+        }
+
         setKmerGmerLength(k, g);
 
-        if (!invalid) readGFA(input_filename);
+        if (!invalid) readGFA(input_filename, nb_threads);
 
-         if (verbose) cout << endl << "CompactedDBG::read(): Finished reading graph from disk" << endl;
+        if (verbose) cout << endl << "CompactedDBG::read(): Finished reading graph from disk" << endl;
 
         return !invalid;
     }
@@ -628,9 +602,27 @@ bool CompactedDBG<U, G>::read(const string& input_filename, const bool verbose){
 
         clear();
 
+        {
+            KmerStream_Build_opt kms_opt;
+
+            kms_opt.threads = nb_threads;
+            kms_opt.verbose = verbose;
+            kms_opt.k = k;
+            kms_opt.g = g;
+            kms_opt.q = 0;
+
+            kms_opt.files.push_back(input_filename);
+
+            KmerStream kms(kms_opt);
+
+            MinimizerIndex hmap_min_unitigs_tmp(max(1UL, kms.MinimizerF0()) * 1.05);
+
+            hmap_min_unitigs = move(hmap_min_unitigs_tmp);
+        }
+
         setKmerGmerLength(k, g);
 
-        readFASTA(input_filename);
+        readFASTA(input_filename, nb_threads);
     }
 
     CompressedCoverage::setFullCoverage(1);
@@ -673,14 +665,14 @@ const_UnitigMap<U, G> CompactedDBG<U, G>::find(const char* s, const size_t pos_k
         const minHashResult& min_h_res = *it_it_min;
         const size_t min_h_res_pos_km = min_h_res.pos - pos_km;
         Minimizer minz(Minimizer(&s[min_h_res.pos]).rep());
-        hmap_min_unitigs_t::const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
+        MinimizerIndex::const_iterator it = hmap_min_unitigs.find(minz);
 
         mhr = min_h_res;
 
         while (it != hmap_min_unitigs.end()){ // If the minimizer is found
 
-            const packed_tiny_vector& v = it.getVal1();
-            const uint8_t flag_v = it.getVal2();
+            const packed_tiny_vector& v = it.getVector();
+            const uint8_t flag_v = it.getVectorSize();
             const int v_sz = v.size(flag_v);
 
             it = hmap_min_unitigs.end();
@@ -796,14 +788,14 @@ UnitigMap<U, G> CompactedDBG<U, G>::find(const char* s, const size_t pos_km, con
         const minHashResult& min_h_res = *it_it_min;
         const size_t min_h_res_pos_km = min_h_res.pos - pos_km;
         Minimizer minz(Minimizer(&s[min_h_res.pos]).rep());
-        hmap_min_unitigs_t::const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
+        MinimizerIndex::const_iterator it = hmap_min_unitigs.find(minz);
 
         mhr = min_h_res;
 
         while (it != hmap_min_unitigs.end()){ // If the minimizer is found
 
-            const packed_tiny_vector& v = it.getVal1();
-            const uint8_t flag_v = it.getVal2();
+            const packed_tiny_vector& v = it.getVector();
+            const uint8_t flag_v = it.getVectorSize();
             const int v_sz = v.size(flag_v);
 
             it = hmap_min_unitigs.end();
@@ -919,14 +911,14 @@ const_UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extrem
 
         int mhr_pos = it_min.getPosition();
         Minimizer minz(Minimizer(&km_tmp[mhr_pos]).rep());
-        hmap_min_unitigs_t::const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
+        MinimizerIndex::const_iterator it = hmap_min_unitigs.find(minz);
 
         it_min2 = it_min;
 
         while (it != hmap_min_unitigs.end()){ // If the minimizer is found
 
-            const packed_tiny_vector& v = it.getVal1();
-            const uint8_t flag_v = it.getVal2();
+            const packed_tiny_vector& v = it.getVector();
+            const uint8_t flag_v = it.getVectorSize();
             const int v_sz = v.size(flag_v);
 
             it = hmap_min_unitigs.end();
@@ -1041,14 +1033,14 @@ UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extremities_
 
         int mhr_pos = it_min.getPosition();
         Minimizer minz(Minimizer(&km_tmp[mhr_pos]).rep());
-        hmap_min_unitigs_t::const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
+        MinimizerIndex::const_iterator it = hmap_min_unitigs.find(minz);
 
         it_min2 = it_min;
 
         while (it != hmap_min_unitigs.end()){ // If the minimizer is found
 
-            const packed_tiny_vector& v = it.getVal1();
-            const uint8_t flag_v = it.getVal2();
+            const packed_tiny_vector& v = it.getVector();
+            const uint8_t flag_v = it.getVectorSize();
             const int v_sz = v.size(flag_v);
 
             it = hmap_min_unitigs.end();
@@ -1164,14 +1156,14 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& k
 
         const minHashResult& min_h_res = *it_it_min;
         Minimizer minz(Minimizer(&km_tmp[min_h_res.pos]).rep());
-        hmap_min_unitigs_t::const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
+        MinimizerIndex::const_iterator it = hmap_min_unitigs.find(minz);
 
         mhr = min_h_res;
 
         while (it != hmap_min_unitigs.end()){ // If the minimizer is found
 
-            const packed_tiny_vector& v = it.getVal1();
-            const uint8_t flag_v = it.getVal2();
+            const packed_tiny_vector& v = it.getVector();
+            const uint8_t flag_v = it.getVectorSize();
             const int v_sz = v.size(flag_v);
 
             it = hmap_min_unitigs.end();
@@ -1312,14 +1304,14 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& km, con
 
         const minHashResult& min_h_res = *it_it_min;
         Minimizer minz(Minimizer(&km_tmp[min_h_res.pos]).rep());
-        hmap_min_unitigs_t::const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
+        MinimizerIndex::const_iterator it = hmap_min_unitigs.find(minz);
 
         mhr = min_h_res;
 
         while (it != hmap_min_unitigs.end()){ // If the minimizer is found
 
-            const packed_tiny_vector& v = it.getVal1();
-            const uint8_t flag_v = it.getVal2();
+            const packed_tiny_vector& v = it.getVector();
+            const uint8_t flag_v = it.getVectorSize();
             const int v_sz = v.size(flag_v);
 
             it = hmap_min_unitigs.end();
@@ -1462,16 +1454,18 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
 
     while (it_it_min != it_it_min_end){
 
+            size_t i = 0;
+
         const minHashResult& min_h_res = *it_it_min;
         Minimizer minz(Minimizer(&km_tmp[min_h_res.pos]).rep());
-        hmap_min_unitigs_t::const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
+        MinimizerIndex::const_iterator it = hmap_min_unitigs.find(minz);
 
         mhr = min_h_res;
 
         while (it != hmap_min_unitigs.end()){ // If the minimizer is found
 
-            const packed_tiny_vector& v = it.getVal1();
-            const uint8_t flag_v = it.getVal2();
+            const packed_tiny_vector& v = it.getVector();
+            const uint8_t flag_v = it.getVectorSize();
             const int v_sz = v.size(flag_v);
 
             it = hmap_min_unitigs.end();
@@ -1492,6 +1486,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
                             if (v_um[j].isEmpty && ((it_km = h_kmers_ccov.find(km_rep[j])) != h_kmers_ccov.end())){
 
                                 v_um[j].partialCopy(const_UnitigMap<U, G>(it_km.getHash(), 0, 1, k_, false, true, km_succ[j] == km_rep[j], this));
+
                                 if (++nb_found == limit) return v_um;
                             }
                         }
@@ -1523,6 +1518,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
                             if (v_um[idx].isEmpty && (v_kmers[unitig_id].first == km_rep[idx])){
 
                                 v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, km_succ[idx] == km_rep[idx], this));
+
                                 if (++nb_found == limit) return v_um;
                             }
                             else {
@@ -1532,6 +1528,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
                                 if (v_um[idx].isEmpty && (v_kmers[unitig_id].first == km_rep[idx])){
 
                                     v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, km_succ[idx] == km_rep[idx], this));
+
                                     if (++nb_found == limit) return v_um;
                                 }
                             }
@@ -1551,6 +1548,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
                                 if (v_um[idx].isEmpty){
 
                                     v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, true, this));
+
                                     if (++nb_found == limit) return v_um;
                                 }
                             }
@@ -1564,6 +1562,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
                                 if (v_um[idx].isEmpty){
 
                                     v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, false, this));
+
                                     if (++nb_found == limit) return v_um;
                                 }
                             }
@@ -1577,6 +1576,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
                                 if (v_um[idx].isEmpty){
 
                                     v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, true, this));
+
                                     if (++nb_found == limit) return v_um;
                                 }
 
@@ -1591,6 +1591,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
                                 if (v_um[idx].isEmpty){
 
                                     v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, false, this));
+
                                     if (++nb_found == limit) return v_um;
                                 }
                             }
@@ -1640,14 +1641,14 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
 
         const minHashResult& min_h_res = *it_it_min;
         Minimizer minz(Minimizer(&km_tmp[min_h_res.pos]).rep());
-        hmap_min_unitigs_t::const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
+        MinimizerIndex::const_iterator it = hmap_min_unitigs.find(minz);
 
         mhr = min_h_res;
 
         while (it != hmap_min_unitigs.end()){ // If the minimizer is found
 
-            const packed_tiny_vector& v = it.getVal1();
-            const uint8_t flag_v = it.getVal2();
+            const packed_tiny_vector& v = it.getVector();
+            const uint8_t flag_v = it.getVectorSize();
             const int v_sz = v.size(flag_v);
 
             it = hmap_min_unitigs.end();
@@ -1668,6 +1669,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
                             if (v_um[j].isEmpty && ((it_km = h_kmers_ccov.find(km_rep[j])) != h_kmers_ccov.end())){
 
                                 v_um[j] = UnitigMap<U, G>(it_km.getHash(), 0, 1, k_, false, true, km_succ[j] == km_rep[j], this);
+
                                 if (++nb_found == limit) return v_um;
                             }
                         }
@@ -1699,6 +1701,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
                             if (v_um[idx].isEmpty && (v_kmers[unitig_id].first == km_rep[idx])){
 
                                 v_um[idx] = UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, km_succ[idx] == km_rep[idx], this);
+
                                 if (++nb_found == limit) return v_um;
                             }
                             else {
@@ -1708,6 +1711,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
                                 if (v_um[idx].isEmpty && (v_kmers[unitig_id].first == km_rep[idx])){
 
                                     v_um[idx] = UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, km_succ[idx] == km_rep[idx], this);
+
                                     if (++nb_found == limit) return v_um;
                                 }
                             }
@@ -1727,6 +1731,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
                                 if (v_um[idx].isEmpty){
 
                                     v_um[idx] = UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, true, this);
+
                                     if (++nb_found == limit) return v_um;
                                 }
                             }
@@ -1740,6 +1745,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
                                 if (v_um[idx].isEmpty){
 
                                     v_um[idx] = UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, false, this);
+
                                     if (++nb_found == limit) return v_um;
                                 }
                             }
@@ -1753,6 +1759,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
                                 if (v_um[idx].isEmpty){
 
                                     v_um[idx] = UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, true, this);
+
                                     if (++nb_found == limit) return v_um;
                                 }
 
@@ -1767,6 +1774,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
                                 if (v_um[idx].isEmpty){
 
                                     v_um[idx] = UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, false, this);
+
                                     if (++nb_found == limit) return v_um;
                                 }
                             }
@@ -2609,12 +2617,16 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
         fp_candidate = new tiny_vector<Kmer, 2>[bf.getNbBlocks()];
         locks_fp = vector<SpinLock>(nb_locks);
 
-        MinimizerHashTable_2Val hmap_min_unitigs_tmp(nb_non_unique_minimizers * 1.05);
+        //MinimizerHashTable_2Val hmap_min_unitigs_tmp(nb_non_unique_minimizers * 1.05);
+        MinimizerIndex hmap_min_unitigs_tmp(nb_non_unique_minimizers * 1.05);
+
         hmap_min_unitigs = move(hmap_min_unitigs_tmp);
     }
     else {
 
-        MinimizerHashTable_2Val hmap_min_unitigs_tmp(nb_unique_minimizers * 1.05);
+        //MinimizerHashTable_2Val hmap_min_unitigs_tmp(nb_unique_minimizers * 1.05);
+        MinimizerIndex hmap_min_unitigs_tmp(nb_unique_minimizers * 1.05);
+
         hmap_min_unitigs = move(hmap_min_unitigs_tmp);
     }
 
@@ -3489,10 +3501,10 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 
                 const minHashResult& min_h_res = *it_it_min;
                 Minimizer minz_rep = Minimizer(&c_str[min_h_res.pos]).rep(); //Get the minimizer to insert
-
-                std::pair<hmap_min_unitigs_t::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
-                size_t flag = p.first.getVal2();
-                size_t v_sz = p.first->size(flag);
+                std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
+                packed_tiny_vector* pck_tinyv = &(p.first.getVector());
+                size_t flag = p.first.getVectorSize();
+                size_t v_sz = pck_tinyv->size(flag);
 
                 pos = min_h_res.pos;
                 pos_id_unitig = (pos_id_unitig & mask) | ((size_t) pos);
@@ -3501,33 +3513,34 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 
                     mhr = min_h_res;
 
-                    while ((v_sz >= max_abundance_lim) || ((v_sz > 0) && (((*(p.first))(v_sz-1, flag) & mask) == mask))){
+                    while ((v_sz >= max_abundance_lim) || ((v_sz > 0) && (((*pck_tinyv)(v_sz-1, flag) & mask) == mask))){
 
                         mhr_tmp = it_min.getNewMin(mhr);
                         isForbidden = true;
 
                         if (mhr_tmp.hash != mhr.hash){
 
-                            if (((*(p.first))(v_sz-1, flag) & mask) != mask){ // Minimizer was never signaled before as overcrowded
+                            if (((*pck_tinyv)(v_sz-1, flag) & mask) != mask){ // Minimizer was never signaled before as overcrowded
 
                                 // If minimizer bin already contains abundant k-mer, just set flag for unitig overcrowding
-                                if (((*(p.first))(v_sz-1, flag) & MASK_CONTIG_ID) == MASK_CONTIG_ID) (*(p.first))(v_sz-1, flag) |= MASK_CONTIG_TYPE;
-                                else p.first.getVal2() = (flag = p.first->push_back(mask, flag));
+                                if (((*pck_tinyv)(v_sz-1, flag) & MASK_CONTIG_ID) == MASK_CONTIG_ID) (*pck_tinyv)(v_sz-1, flag) |= MASK_CONTIG_TYPE;
+                                else p.first.getVectorSize() = (flag = pck_tinyv->push_back(mask, flag));
                             }
 
                             mhr = mhr_tmp;
                             minz_rep = Minimizer(&c_str[mhr.pos]).rep();
 
                             p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
-                            flag = p.first.getVal2();
-                            v_sz = p.first->size(flag);
+                            pck_tinyv = &(p.first.getVector());
+                            flag = p.first.getVectorSize();
+                            v_sz = pck_tinyv->size(flag);
                         }
                         else break;
                     }
                 }
 
-                packed_tiny_vector& v = p.first.getVal1();
-                uint8_t& flag_v = p.first.getVal2();
+                packed_tiny_vector& v = p.first.getVector();
+                uint8_t& flag_v = p.first.getVectorSize();
 
                 if (v_sz == 0) flag_v = v.push_back(pos_id_unitig, flag_v); //Newly created vector, just push unitig ID
                 else if (isShort && (v_sz >= min_abundance_lim)){ //The minimizer (is/might be) too abundant
@@ -3571,10 +3584,9 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 
                     const minHashResult& min_h_res = *it_it_min;
                     Minimizer minz_rep = Minimizer(&c_str[min_h_res.pos]).rep(); //Get the minimizer to insert
-
-                    std::pair<hmap_min_unitigs_t::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
-                    packed_tiny_vector& v = p.first.getVal1();
-                    uint8_t& flag_v = p.first.getVal2();
+                    std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
+                    packed_tiny_vector& v = p.first.getVector();
+                    uint8_t& flag_v = p.first.getVectorSize();
                     const size_t v_sz = v.size(flag_v);
 
                     if ((v_sz > 0) && ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID)) v(v_sz-1, flag_v)++;
@@ -3595,6 +3607,265 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
     }
     else if (id_unitig == v_unitigs.size()) v_unitigs.push_back(new Unitig<U>(c_str)); //Push unitig to list of unitigs
     else v_unitigs[id_unitig] = new Unitig<U>(c_str);
+
+    return isAbundant;
+}
+
+template<typename U, typename G>
+void CompactedDBG<U, G>::moveToAbundant() {
+
+    MinimizerIndex::iterator it = hmap_min_unitigs.begin();
+    MinimizerIndex::iterator it_end = hmap_min_unitigs.end();
+
+    vector<pair<size_t, string>> to_move;
+
+    char km_tmp[MAX_KMER_SIZE];
+
+    Kmer km_rep;
+
+    to_move.reserve(16);
+
+    while (it != it_end){
+
+        const packed_tiny_vector* pck_tinyv = &(it.getVector());
+        const size_t flag = it.getVectorSize();
+        const size_t v_sz = pck_tinyv->size(flag);
+
+        if (v_sz >= min_abundance_lim){
+
+            for (size_t i = 0; i < v_sz; ++i){
+
+                if (static_cast<bool>((*pck_tinyv)(i, flag) | MASK_CONTIG_TYPE)){
+
+                    size_t unitig_id = (*pck_tinyv)(i, flag) >> 32;
+                    string unitig_str = v_kmers[unitig_id].first.toString();
+
+                    to_move.push_back({move(unitig_id), move(unitig_str)});
+                }
+            }
+
+            if (min_abundance_lim > (v_sz - to_move.size())){
+
+                for (const auto& p : to_move) deleteUnitig_(true, false, p.first, p.second);
+
+                for (const auto& p : to_move){
+
+                    const char* c_str = p.second.c_str();
+                    const size_t len = p.second.length();
+
+                    km_rep = Kmer(c_str).rep();
+                    c_str = km_tmp;
+
+                    km_rep.toString(km_tmp);
+
+                    minHashIterator<RepHash> it_min = minHashIterator<RepHash>(c_str, len, k_, g_, RepHash(), true), it_min_end;
+
+                    for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){
+
+                        if (last_pos_min < it_min.getPosition()){ //If current minimizer was not seen before
+
+                            minHashResultIterator<RepHash> it_it_min = *it_min, it_it_min_end;
+
+                            while (it_it_min != it_it_min_end){
+
+                                const minHashResult& min_h_res = *it_it_min;
+                                Minimizer minz_rep = Minimizer(&c_str[min_h_res.pos]).rep(); //Get the minimizer to insert
+
+                                std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
+                                packed_tiny_vector& v = p.first.getVector();
+                                uint8_t& flag_v = p.first.getVectorSize();
+                                const size_t v_sz = v.size(flag_v);
+
+                                if ((v_sz > 0) && ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID)) v(v_sz-1, flag_v)++;
+                                else flag_v = v.push_back(MASK_CONTIG_ID + 1, flag_v);
+
+                                last_pos_min = min_h_res.pos;
+                                ++it_it_min;
+                            }
+                        }
+                    }
+
+                    h_kmers_ccov.insert(km_rep, CompressedCoverage_t<U>(1));
+                }
+            }
+
+            to_move.clear();
+        }
+
+        ++it;
+    }
+}
+
+template<typename U, typename G>
+bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_unitig, SpinLock& lck_unitig, SpinLock& lck_kmer, const bool enable_abundant){
+
+    int pos;
+
+    const size_t len = str_unitig.size();
+    size_t pos_id_unitig = id_unitig << 32;
+
+    const size_t mask = MASK_CONTIG_ID | MASK_CONTIG_TYPE;
+
+    bool isShort = false, isAbundant = false, isForbidden = false;
+
+    const char* c_str = str_unitig.c_str();
+
+    char km_tmp[MAX_KMER_SIZE];
+
+    Kmer km_rep;
+
+    if (len == k_){ // Unitig to add is short, maybe abundant as well
+
+        isShort = true;
+
+        pos_id_unitig |= MASK_CONTIG_TYPE;
+
+        km_rep = Kmer(c_str).rep();
+        km_rep.toString(km_tmp);
+        c_str = km_tmp;
+    }
+
+    minHashIterator<RepHash> it_min(c_str, len, k_, g_, RepHash(), true), it_min_end;
+    minHashResult mhr, mhr_tmp;
+
+    for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){
+
+        //If current minimizer was not seen before
+        if ((last_pos_min < it_min.getPosition()) || isForbidden){
+
+            minHashResultIterator<RepHash> it_it_min = *it_min, it_it_min_end;
+            isForbidden = false;
+
+            while (it_it_min != it_it_min_end){
+
+                const minHashResult& min_h_res = *it_it_min;
+                Minimizer minz_rep = Minimizer(&c_str[min_h_res.pos]).rep(); //Get the minimizer to insert
+
+                pos = min_h_res.pos;
+                pos_id_unitig = (pos_id_unitig & mask) | ((size_t) pos);
+
+                std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert_p(minz_rep, packed_tiny_vector(), 0);
+                packed_tiny_vector* pck_tinyv = &(p.first.getVector());
+                size_t flag = p.first.getVectorSize();
+                size_t v_sz = pck_tinyv->size(flag);
+
+                if (!isShort){
+
+                    mhr = min_h_res;
+
+                    while ((v_sz >= max_abundance_lim) || ((v_sz > 0) && (((*pck_tinyv)(v_sz-1, flag) & mask) == mask))){
+
+                        mhr_tmp = it_min.getNewMin(mhr);
+                        isForbidden = true;
+
+                        if (mhr_tmp.hash != mhr.hash){
+
+                            if (((*pck_tinyv)(v_sz-1, flag) & mask) != mask){ // Minimizer was never signaled before as overcrowded
+
+                                // If minimizer bin already contains abundant k-mer, just set flag for unitig overcrowding
+                                if (((*pck_tinyv)(v_sz-1, flag) & MASK_CONTIG_ID) == MASK_CONTIG_ID) (*pck_tinyv)(v_sz-1, flag) |= MASK_CONTIG_TYPE;
+                                else p.first.getVectorSize() = (flag = pck_tinyv->push_back(mask, flag));
+                            }
+
+                            hmap_min_unitigs.release_p(p.first);
+
+                            mhr = mhr_tmp;
+                            minz_rep = Minimizer(&c_str[mhr.pos]).rep();
+
+                            p = hmap_min_unitigs.insert_p(minz_rep, packed_tiny_vector(), 0);
+                            pck_tinyv = &(p.first.getVector());
+                            flag = p.first.getVectorSize();
+                            v_sz = pck_tinyv->size(flag);
+                        }
+                        else break;
+                    }
+                }
+
+                packed_tiny_vector& v = p.first.getVector();
+                uint8_t& flag_v = p.first.getVectorSize();
+
+                if (v_sz == 0) flag_v = v.push_back(pos_id_unitig, flag_v); //Newly created vector, just push unitig ID
+                else if (enable_abundant && isShort && (v_sz >= min_abundance_lim)){ //The minimizer (is/might be) too abundant
+
+                    hmap_min_unitigs.release_p(p.first);
+
+                    isShort = false;
+                    isAbundant = true;
+                    it_min = it_min_end;
+
+                    break;
+                }
+                else if ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID){ //If minimizer is abundant or crowded
+
+                    if ((v_sz == 1) || (v(v_sz-2, flag_v) != pos_id_unitig)) flag_v = v.insert(pos_id_unitig, v_sz-1, flag_v);
+                }
+                else if (v(v_sz-1, flag_v) != pos_id_unitig) flag_v = v.push_back(pos_id_unitig, flag_v);
+
+                hmap_min_unitigs.release_p(p.first);
+
+                last_pos_min = min_h_res.pos;
+                ++it_it_min;
+            }
+        }
+    }
+
+    if (enable_abundant && isAbundant){
+
+        deleteUnitig_(false, true, id_unitig, str_unitig);
+
+        it_min = minHashIterator<RepHash>(c_str, len, k_, g_, RepHash(), true);
+
+        for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){
+
+            if (last_pos_min < it_min.getPosition()){ //If current minimizer was not seen before
+
+                minHashResultIterator<RepHash> it_it_min = *it_min, it_it_min_end;
+
+                while (it_it_min != it_it_min_end){
+
+                    const minHashResult& min_h_res = *it_it_min;
+                    Minimizer minz_rep = Minimizer(&c_str[min_h_res.pos]).rep(); //Get the minimizer to insert
+
+                    std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert_p(minz_rep, packed_tiny_vector(), 0);
+                    packed_tiny_vector& v = p.first.getVector();
+                    uint8_t& flag_v = p.first.getVectorSize();
+                    const size_t v_sz = v.size(flag_v);
+
+                    if ((v_sz > 0) && ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID)) v(v_sz-1, flag_v)++;
+                    else flag_v = v.push_back(MASK_CONTIG_ID + 1, flag_v);
+
+                    hmap_min_unitigs.release_p(p.first);
+
+                    last_pos_min = min_h_res.pos;
+                    ++it_it_min;
+                }
+            }
+        }
+
+        lck_kmer.acquire();
+        h_kmers_ccov.insert(km_rep, CompressedCoverage_t<U>(1));
+        lck_kmer.release();
+    }
+    else if (isShort){
+
+        lck_kmer.acquire();
+
+        if (id_unitig >= v_kmers.size()) v_kmers.resize(id_unitig + 1);
+
+        v_kmers[id_unitig] = make_pair(km_rep,  CompressedCoverage_t<U>(1));
+
+        lck_kmer.release();
+    }
+    else {
+
+        lck_unitig.acquire();
+
+        if (id_unitig >= v_unitigs.size()) v_unitigs.resize(id_unitig + 1);
+
+        v_unitigs[id_unitig] = new Unitig<U>(c_str); //Push unitig to list of unitigs
+
+        lck_unitig.release();
+    }
 
     return isAbundant;
 }
@@ -3646,19 +3917,19 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 
                 const minHashResult& min_h_res = *it_it_min;
                 Minimizer minz_rep = Minimizer(&c_str[min_h_res.pos]).rep(); //Get the minimizer to insert
-
-                std::pair<hmap_min_unitigs_t::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
-                size_t flag = p.first.getVal2();
-                size_t v_sz = p.first->size(flag);
+                std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
+                packed_tiny_vector* pck_tinyv = &(p.first.getVector());
+                size_t flag = p.first.getVectorSize();
+                size_t v_sz = pck_tinyv->size(flag);
 
                 pos = min_h_res.pos;
                 pos_id_unitig = (pos_id_unitig & mask) | ((size_t) pos);
 
                 for (i = 0; i < v_sz; ++i){
 
-                    if (((*(p.first))(i, flag) & mask) == pos_id_unitig_r){
+                    if (((*pck_tinyv)(i, flag) & mask) == pos_id_unitig_r){
 
-                        (*(p.first))(i, flag) = pos_id_unitig;
+                        (*pck_tinyv)(i, flag) = pos_id_unitig;
                         break;
                     }
                 }
@@ -3667,32 +3938,33 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 
                     mhr = min_h_res;
 
-                    while ((i == v_sz) && ((v_sz >= max_abundance_lim) || ((v_sz > 0) && (((*(p.first))(v_sz-1, flag) & mask) == mask)))){
+                    while ((i == v_sz) && ((v_sz >= max_abundance_lim) || ((v_sz > 0) && (((*pck_tinyv)(v_sz-1, flag) & mask) == mask)))){
 
                         mhr_tmp = it_min.getNewMin(mhr);
                         isForbidden = true;
 
                         if (mhr_tmp.hash != mhr.hash){
 
-                            if (((*(p.first))(v_sz-1, flag) & mask) != mask){ // Minimizer was never signaled before as overcrowded
+                            if (((*pck_tinyv)(v_sz-1, flag) & mask) != mask){ // Minimizer was never signaled before as overcrowded
 
                                 // If minimizer bin already contains abundant k-mer, just set flag for unitig overcrowding
-                                if (((*(p.first))(v_sz-1, flag) & MASK_CONTIG_ID) == MASK_CONTIG_ID) (*(p.first))(v_sz-1, flag) |= MASK_CONTIG_TYPE;
-                                else p.first.getVal2() = (flag = p.first->push_back(mask, flag));
+                                if (((*pck_tinyv)(v_sz-1, flag) & MASK_CONTIG_ID) == MASK_CONTIG_ID) (*pck_tinyv)(v_sz-1, flag) |= MASK_CONTIG_TYPE;
+                                else p.first.getVectorSize() = (flag = pck_tinyv->push_back(mask, flag));
                             }
 
                             mhr = mhr_tmp;
                             minz_rep = Minimizer(&c_str[mhr.pos]).rep();
 
                             p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
-                            flag = p.first.getVal2();
-                            v_sz = p.first->size(flag);
+                            pck_tinyv = &(p.first.getVector());
+                            flag = p.first.getVectorSize();
+                            v_sz = pck_tinyv->size(flag);
 
                             for (i = 0; i < v_sz; ++i){
 
-                                if (((*(p.first))(i, flag) & mask) == pos_id_unitig_r){
+                                if (((*pck_tinyv)(i, flag) & mask) == pos_id_unitig_r){
 
-                                    (*(p.first))(i, flag) = pos_id_unitig;
+                                    (*pck_tinyv)(i, flag) = pos_id_unitig;
                                     break;
                                 }
                             }
@@ -3707,8 +3979,8 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 
                 if (i == v_sz){
 
-                    packed_tiny_vector& v = p.first.getVal1();
-                    uint8_t& flag_v = p.first.getVal2();
+                    packed_tiny_vector& v = p.first.getVector();
+                    uint8_t& flag_v = p.first.getVectorSize();
 
                     if (v_sz == 0) flag_v = v.push_back(pos_id_unitig, flag_v); //Newly created vector, just push unitig ID
                     else if (isShort && (v_sz >= min_abundance_lim)){ //The minimizer (is/might be) too abundant
@@ -3753,10 +4025,9 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 
                     const minHashResult& min_h_res = *it_it_min;
                     Minimizer minz_rep = Minimizer(&c_str[min_h_res.pos]).rep(); //Get the minimizer to insert
-
-                    std::pair<hmap_min_unitigs_t::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
-                    packed_tiny_vector& v = p.first.getVal1();
-                    uint8_t& flag_v = p.first.getVal2();
+                    std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
+                    packed_tiny_vector& v = p.first.getVector();
+                    uint8_t& flag_v = p.first.getVectorSize();
                     const size_t v_sz = v.size(flag_v);
 
                     if ((v_sz > 0) && ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID)) v(v_sz-1, flag_v)++;
@@ -3812,7 +4083,6 @@ void CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, cons
         h_sz = (v_unitigs[id_a]->length() / 4) + (v_unitigs[id_b]->length() / 4);
     }
 
-
     MinimizerHashTable<uint8_t> minimizers(h_sz);
 
     bool isForbidden = false;
@@ -3836,7 +4106,7 @@ void CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, cons
 
                 const minHashResult& min_h_res = *it_it_min;
                 Minimizer minz_rep = Minimizer(&s[min_h_res.pos]).rep();
-                hmap_min_unitigs_t::iterator it_h = hmap_min_unitigs.find(minz_rep);
+                MinimizerIndex::iterator it_h = hmap_min_unitigs.find(minz_rep);
 
                 if (it_h != hmap_min_unitigs.end()){
 
@@ -3844,8 +4114,8 @@ void CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, cons
 
                         minimizers.insert(minz_rep, 0);
 
-                        packed_tiny_vector& v = it_h.getVal1();
-                        const uint8_t flag_v = it_h.getVal2();
+                        packed_tiny_vector& v = it_h.getVector();
+                        const uint8_t flag_v = it_h.getVectorSize();
                         const size_t v_sz = v.size(flag_v);
 
                         for (size_t i = 0; i < v_sz; ++i){
@@ -3856,14 +4126,12 @@ void CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, cons
                         }
                     }
 
-                    //size_t v_sz = it_h->size();
-                    packed_tiny_vector* v = &(it_h.getVal1());
-                    uint8_t flag_v = it_h.getVal2();
+                    packed_tiny_vector* v = &(it_h.getVector());
+                    uint8_t flag_v = it_h.getVectorSize();
                     size_t v_sz = v->size(flag_v);
 
                     mhr = min_h_res;
 
-                    //while (((*it_h)[v_sz-1] & mask) == mask){
                     while (((*v)(v_sz-1, flag_v) & mask) == mask){
 
                         mhr_tmp = it_min.getNewMin(mhr); //Recompute a new (different) minimizer for current k-mer
@@ -3880,8 +4148,8 @@ void CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, cons
 
                                 minimizers.insert(minz_rep, 0);
 
-                                packed_tiny_vector& v_tmp = it_h.getVal1();
-                                const uint8_t flag_v_tmp = it_h.getVal2();
+                                packed_tiny_vector& v_tmp = it_h.getVector();
+                                const uint8_t flag_v_tmp = it_h.getVectorSize();
                                 const size_t v_sz_tmp = v_tmp.size(flag_v_tmp);
 
                                 for (size_t i = 0; i < v_sz_tmp; ++i){
@@ -3899,9 +4167,8 @@ void CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, cons
                             }
 
                             mhr = mhr_tmp;
-
-                            v = &(it_h.getVal1());
-                            flag_v = it_h.getVal2();
+                            v = &(it_h.getVector());
+                            flag_v = it_h.getVectorSize();
                             v_sz = v->size(flag_v);
                         }
                         else break;
@@ -3933,7 +4200,7 @@ void CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, cons
 
                 const minHashResult& min_h_res = *it_it_min;
                 Minimizer minz_rep = Minimizer(&s[min_h_res.pos]).rep();
-                hmap_min_unitigs_t::iterator it_h = hmap_min_unitigs.find(minz_rep);
+                MinimizerIndex::iterator it_h = hmap_min_unitigs.find(minz_rep);
 
                 if (it_h != hmap_min_unitigs.end()){
 
@@ -3941,8 +4208,8 @@ void CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, cons
 
                         minimizers.insert(minz_rep, 0);
 
-                        packed_tiny_vector& v = it_h.getVal1();
-                        const uint8_t flag_v = it_h.getVal2();
+                        packed_tiny_vector& v = it_h.getVector();
+                        const uint8_t flag_v = it_h.getVectorSize();
                         const size_t v_sz = v.size(flag_v);
 
                         for (size_t i = 0; i < v_sz; ++i){
@@ -3951,8 +4218,8 @@ void CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, cons
                         }
                     }
 
-                    packed_tiny_vector* v = &(it_h.getVal1());
-                    uint8_t flag_v = it_h.getVal2();
+                    packed_tiny_vector* v = &(it_h.getVector());
+                    uint8_t flag_v = it_h.getVectorSize();
                     size_t v_sz = v->size(flag_v);
 
                     mhr = min_h_res;
@@ -3973,8 +4240,8 @@ void CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, cons
 
                                 minimizers.insert(minz_rep, 0);
 
-                                packed_tiny_vector& v_tmp = it_h.getVal1();
-                                const uint8_t flag_v_tmp = it_h.getVal2();
+                                packed_tiny_vector& v_tmp = it_h.getVector();
+                                const uint8_t flag_v_tmp = it_h.getVectorSize();
                                 const size_t v_sz_tmp = v_tmp.size(flag_v_tmp);
 
                                 for (size_t i = 0; i < v_sz_tmp; ++i){
@@ -3987,8 +4254,8 @@ void CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, cons
                             }
 
                             mhr = mhr_tmp;
-                            v = &(it_h.getVal1());
-                            flag_v = it_h.getVal2();
+                            v = &(it_h.getVector());
+                            flag_v = it_h.getVectorSize();
                             v_sz = v->size(flag_v);
                         }
                         else break;
@@ -4029,7 +4296,7 @@ bool CompactedDBG<U, G>::mergeUnitig(const string& seq, const bool verbose){
     size_t nb_prev_succ = 0xFFFFFFFFFFFFFFFF;
 
     size_t added = 0;
-    size_t split_before = 0, split_after;
+    size_t split_before = 0, split_after = 0;
 
     bool prev_found = true;
 
@@ -4147,7 +4414,6 @@ bool CompactedDBG<U, G>::mergeUnitig(const string& seq, const bool verbose){
 
                     if (!um.isAbundant && !um.isShort){
 
-                        //if (um.strand) ++(um.dist);
                         um.strand += um.strand;
                         if ((um.dist != 0) && (um.dist != um.size - k_ + 1)) kht.insert(um.getUnitigHead(), vector<size_t>()).first->push_back(um.dist);
                     }
@@ -4162,7 +4428,6 @@ bool CompactedDBG<U, G>::mergeUnitig(const string& seq, const bool verbose){
 
                     if (!um.isAbundant && !um.isShort){
 
-                        //if (!um.strand) ++(um.dist);
                         um.dist += !um.strand;
                         if ((um.dist != 0) && (um.dist != um.size - k_ + 1)) kht.insert(um.getUnitigHead(), vector<size_t>()).first->push_back(um.dist);
                     }
@@ -4302,7 +4567,6 @@ bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, const bool verbo
 
                     if (!um.isAbundant && !um.isShort){
 
-                        //if (um.strand) ++(um.dist);
                         um.dist += um.strand;
                         if ((um.dist != 0) && (um.dist != um.size - k_ + 1)) unmapRead(um);
                     }
@@ -4317,7 +4581,6 @@ bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, const bool verbo
 
                     if (!um.isAbundant && !um.isShort){
 
-                        //if (!um.strand) ++(um.dist);
                         um.dist += !um.strand;
                         if ((um.dist != 0) && (um.dist != um.size - k_ + 1)) unmapRead(um);
                     }
@@ -4461,7 +4724,6 @@ bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, LockGraph& lck_g
 
                     if (!um.isAbundant && !um.isShort){
 
-                        //if (um.strand) ++(um.dist);
                         um.dist += um.strand;
                         if ((um.dist != 0) && (um.dist != um.size - k_ + 1)){
 
@@ -4484,8 +4746,8 @@ bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, LockGraph& lck_g
 
                     if (!um.isAbundant && !um.isShort){
 
-                        //if (!um.strand) ++(um.dist);
                         um.dist += !um.strand;
+
                         if ((um.dist != 0) && (um.dist != um.size - k_ + 1)){
 
                             const size_t lock_unitig_id = um.pos_unitig + (v_kmers.size() & (static_cast<size_t>(!um.isShort) - 1))
@@ -4608,13 +4870,12 @@ typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::deleteUnitig_(
 
                     const minHashResult& min_h_res = *it_it_min;
                     Minimizer minz_rep = Minimizer(&km_str[min_h_res.pos]).rep(); // Get canonical minimizer
-
-                    hmap_min_unitigs_t::iterator it_h = hmap_min_unitigs.find(minz_rep); // Look for the minimizer in the hash table
+                    MinimizerIndex::iterator it_h = hmap_min_unitigs.find(minz_rep);
 
                     if (it_h != hmap_min_unitigs.end()){ // If the minimizer is found
 
-                        packed_tiny_vector& v = it_h.getVal1();
-                        uint8_t& flag_v = it_h.getVal2();
+                        packed_tiny_vector& v = it_h.getVector();
+                        uint8_t& flag_v = it_h.getVectorSize();
 
                         const size_t last_pos_v = v.size(flag_v) - 1;
 
@@ -4654,7 +4915,6 @@ typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::deleteUnitig_(
         const size_t len = str.size();
 
         minHashIterator<RepHash> it_min(s, len, k_, g_, RepHash(), true), it_min_end;
-
         minHashResult mhr, mhr_tmp;
 
         // The unitig is deleted but its space in the unitig vector is not because:
@@ -4684,14 +4944,14 @@ typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::deleteUnitig_(
 
                     const minHashResult& min_h_res = *it_it_min;
                     Minimizer minz_rep = Minimizer(&s[min_h_res.pos]).rep(); // Get canonical minimizer
-                    hmap_min_unitigs_t::iterator it_h = hmap_min_unitigs.find(minz_rep); // Look for the minimizer in the hash table
+                    MinimizerIndex::iterator it_h = hmap_min_unitigs.find(minz_rep);
 
                     mhr = min_h_res;
 
                     while (it_h != hmap_min_unitigs.end()){ // If the minimizer is found
 
-                        packed_tiny_vector& v = it_h.getVal1();
-                        uint8_t& flag_v = it_h.getVal2();
+                        packed_tiny_vector& v = it_h.getVector();
+                        uint8_t& flag_v = it_h.getVectorSize();
                         const size_t v_sz = v.size(flag_v);
 
                         for (size_t i = 0; i < v_sz; i++){
@@ -4748,7 +5008,6 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::deleteUnitig_( 
         minHashIterator<RepHash> it_min(km_str, k_, k_, g_, RepHash(), true), it_min_end;
 
         it_h->ccov.clear();
-
         h_kmers_ccov.erase(it_h);
 
         for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){ // Iterate over minimizers of unitig to delete
@@ -4761,13 +5020,12 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::deleteUnitig_( 
 
                     const minHashResult& min_h_res = *it_it_min;
                     Minimizer minz_rep = Minimizer(&km_str[min_h_res.pos]).rep(); // Get canonical minimizer
-
-                    hmap_min_unitigs_t::iterator it_h = hmap_min_unitigs.find(minz_rep); // Look for the minimizer in the hash table
+                    MinimizerIndex::iterator it_h = hmap_min_unitigs.find(minz_rep);
 
                     if (it_h != hmap_min_unitigs.end()){ // If the minimizer is found
 
-                        packed_tiny_vector& v = it_h.getVal1();
-                        uint8_t& flag_v = it_h.getVal2();
+                        packed_tiny_vector& v = it_h.getVector();
+                        uint8_t& flag_v = it_h.getVectorSize();
 
                         const size_t last_pos_v = v.size(flag_v) - 1;
 
@@ -4807,7 +5065,6 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::deleteUnitig_( 
         const size_t len = str.size();
 
         minHashIterator<RepHash> it_min(s, len, k_, g_, RepHash(), true), it_min_end;
-
         minHashResult mhr, mhr_tmp;
 
         // The unitig is deleted but its space in the unitig vector is not because:
@@ -4834,14 +5091,14 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::deleteUnitig_( 
 
                     const minHashResult& min_h_res = *it_it_min;
                     Minimizer minz_rep = Minimizer(&s[min_h_res.pos]).rep(); // Get canonical minimizer
-                    hmap_min_unitigs_t::iterator it_h = hmap_min_unitigs.find(minz_rep); // Look for the minimizer in the hash table
+                    MinimizerIndex::iterator it_h = hmap_min_unitigs.find(minz_rep);
 
                     mhr = min_h_res;
 
                     while (it_h != hmap_min_unitigs.end()){ // If the minimizer is found
 
-                        packed_tiny_vector& v = it_h.getVal1();
-                        uint8_t& flag_v = it_h.getVal2();
+                        packed_tiny_vector& v = it_h.getVector();
+                        uint8_t& flag_v = it_h.getVectorSize();
                         const size_t v_sz = v.size(flag_v);
 
                         for (size_t i = 0; i < v_sz; i++){
@@ -4869,6 +5126,143 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::deleteUnitig_( 
                                 it_h = hmap_min_unitigs.find(minz_rep);
                             }
                             else break;
+                        }
+                    }
+
+                    last_pos_min = min_h_res.pos;
+                    ++it_it_min;
+                }
+            }
+        }
+    }
+}
+
+template<typename U, typename G>
+void CompactedDBG<U, G>::deleteUnitig_(const bool isShort, const bool isAbundant, const size_t id_unitig, const string& str){
+
+    const char* s = str.c_str();
+    const size_t len = str.size();
+
+    if (isAbundant){
+
+        minHashIterator<RepHash> it_min(s, k_, k_, g_, RepHash(), true), it_min_end;
+
+        for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){ // Iterate over minimizers of unitig to delete
+
+            if (last_pos_min < it_min.getPosition()){ // If a new minimizer hash is found in unitig to delete
+
+                minHashResultIterator<RepHash> it_it_min = *it_min, it_it_min_end;
+
+                while (it_it_min != it_it_min_end){ // Iterate over minimizers of current k-mer in unitig to delete
+
+                    const minHashResult& min_h_res = *it_it_min;
+                    Minimizer minz_rep = Minimizer(&s[min_h_res.pos]).rep(); // Get canonical minimizer
+                    MinimizerIndex::iterator it_h = hmap_min_unitigs.find_p(minz_rep);
+
+                    if (it_h != hmap_min_unitigs.end()){ // If the minimizer is found
+
+                        packed_tiny_vector& v = it_h.getVector();
+                        uint8_t& flag_v = it_h.getVectorSize();
+
+                        const size_t last_pos_v = v.size(flag_v) - 1;
+
+                        v(last_pos_v, flag_v)--;
+
+                        if (((v(last_pos_v, flag_v) & RESERVED_ID) == 0) && ((v(last_pos_v, flag_v) & MASK_CONTIG_TYPE) != MASK_CONTIG_TYPE)){
+
+                            if (last_pos_v == 0){
+
+                                hmap_min_unitigs.release_p(it_h);
+                                hmap_min_unitigs.erase(minz_rep);
+                            }
+                            else {
+
+                                flag_v = v.remove(v.size(flag_v) - 1, flag_v);
+                                hmap_min_unitigs.release_p(it_h);
+                            }
+                        }
+                        else hmap_min_unitigs.release_p(it_h);
+                    }
+
+                    last_pos_min = min_h_res.pos;
+                    ++it_it_min;
+                }
+            }
+        }
+    }
+    else {
+
+        bool isForbidden = false;
+
+        size_t pos_id_unitig = id_unitig << 32;
+        const size_t mask = MASK_CONTIG_ID | MASK_CONTIG_TYPE;
+
+        if (isShort) pos_id_unitig |= MASK_CONTIG_TYPE;
+
+        minHashIterator<RepHash> it_min(s, len, k_, g_, RepHash(), true), it_min_end;
+        minHashResult mhr, mhr_tmp;
+
+        for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){ // Iterate over minimizers of unitig to delete
+
+            if ((last_pos_min < it_min.getPosition()) || isForbidden){ // If a new minimizer hash is found in unitig to delete
+
+                minHashResultIterator<RepHash> it_it_min = *it_min, it_it_min_end;
+                isForbidden = false;
+
+                while (it_it_min != it_it_min_end){ // Iterate over minimizers of current k-mer in unitig to delete
+
+                    const minHashResult& min_h_res = *it_it_min;
+                    Minimizer minz_rep = Minimizer(&s[min_h_res.pos]).rep(); // Get canonical minimizer
+                    MinimizerIndex::iterator it_h = hmap_min_unitigs.find_p(minz_rep);
+
+                    mhr = min_h_res;
+
+                    while (it_h != hmap_min_unitigs.end()){ // If the minimizer is found
+
+                        packed_tiny_vector& v = it_h.getVector();
+                        uint8_t& flag_v = it_h.getVectorSize();
+                        const size_t v_sz = v.size(flag_v);
+
+                        for (size_t i = 0; i < v_sz; i++){
+
+                            if ((v(i, flag_v) & mask) == pos_id_unitig){
+
+                                flag_v = v.remove(i, flag_v);
+                                break;
+                            }
+                        }
+
+                         if (v.size(flag_v) == 0){
+
+                            hmap_min_unitigs.release_p(it_h);
+                            hmap_min_unitigs.erase(minz_rep);
+                            it_h = hmap_min_unitigs.end();
+                        }
+                        else if (!isShort && ((v(v_sz-1, flag_v) & mask) == mask)){ //Minimizer bin is overcrowded
+
+                            mhr_tmp = it_min.getNewMin(mhr); //Recompute a new (different) minimizer for current k-mer
+                            isForbidden = true;
+
+                            if (mhr_tmp.hash != mhr.hash){
+
+                                hmap_min_unitigs.release_p(it_h);
+
+                                mhr = mhr_tmp;
+                                minz_rep = Minimizer(&s[mhr.pos]).rep();
+                                it_h = hmap_min_unitigs.find(minz_rep);
+                            }
+                            else {
+
+                                hmap_min_unitigs.release_p(it_h);
+                                it_h = hmap_min_unitigs.end();
+
+                                break;
+                            }
+                        }
+                        else {
+
+                            hmap_min_unitigs.release_p(it_h);
+                            it_h = hmap_min_unitigs.end();
                         }
                     }
 
@@ -5072,14 +5466,14 @@ UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const preAllocMinHashIt
 
         const minHashResult& min_h_res = *it_it_min;
         Minimizer minz = Minimizer(&it_min.s[min_h_res.pos]).rep();
-        hmap_min_unitigs_t::const_iterator it = hmap_min_unitigs.find(minz); // Look for the minimizer in the hash table
+        MinimizerIndex::const_iterator it = hmap_min_unitigs.find(minz);
 
         mhr = min_h_res;
 
         while (it != hmap_min_unitigs.end()){ // If the minimizer is found
 
-            const packed_tiny_vector& v = it.getVal1();
-            const uint8_t flag_v = it.getVal2();
+            const packed_tiny_vector& v = it.getVector();
+            const uint8_t flag_v = it.getVectorSize();
             const int v_sz = v.size(flag_v);
 
             it = hmap_min_unitigs.end();
@@ -6908,21 +7302,6 @@ void CompactedDBG<U, G>::writeFASTA(const string& graphfilename) const {
         graph << ">" << i << "\n" << it.getKey().toString() << "\n";
     }
 
-    /*for (size_t j = 0; j < v_unitigs_sz; ++j, ++i) {
-
-        graph << ">" << i << "\n" << v_unitigs[j]->seq.toString() << (i == graph_sz - 1 ? "\0" : "\n");
-    }
-
-    for (size_t j = 0; j < v_kmers_sz; ++j, ++i) {
-
-        graph << ">" << i << "\n" << v_kmers[j].first.toString() << (i == graph_sz - 1 ? "\0" : "\n");
-    }
-
-    for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it, ++i) {
-
-        graph << ">" << i << "\n" << it.getKey().toString() << (i == graph_sz - 1 ? "\0" : "\n");
-    }*/
-
     graphfile.close();
 }
 
@@ -7371,8 +7750,8 @@ void CompactedDBG<U, G>::writeGFA(const string& graphfilename, const size_t nb_t
     graph.close();
 }
 
-template<typename U, typename G>
-void CompactedDBG<U, G>::readGFA(const string& graphfilename) {
+/*template<typename U, typename G>
+void CompactedDBG<U, G>::readGFA(const string& graphfilename, const size_t nb_threads) {
 
     size_t graph_file_id = 0;
 
@@ -7390,9 +7769,9 @@ void CompactedDBG<U, G>::readGFA(const string& graphfilename) {
 
         r = graph.read(graph_file_id, new_file_opened, true);
     }
-}
+}*/
 
-template<typename U, typename G>
+/*template<typename U, typename G>
 void CompactedDBG<U, G>::readFASTA(const string& graphfilename) {
 
     size_t graph_file_id = 0;
@@ -7402,6 +7781,140 @@ void CompactedDBG<U, G>::readFASTA(const string& graphfilename) {
     FastqFile ff(vector<string>(1, graphfilename));
 
     while (ff.read_next(seq, graph_file_id) != -1) addUnitig(seq, (seq.length() == k_) ? v_kmers.size() : v_unitigs.size());
+}*/
+
+template<typename U, typename G>
+void CompactedDBG<U, G>::readGFA(const string& graphfilename, const size_t nb_threads) {
+
+    const size_t block_sz = 1024;
+
+    std::atomic<size_t> v_kmers_sz;
+    std::atomic<size_t> v_unitigs_sz;
+
+    bool new_file_opened = false;
+    bool is_first = true;
+    bool stop = false;
+
+    size_t graph_file_id = 0;
+
+    SpinLock lck_unitig, lck_kmer;
+
+    GFA_Parser graph(graphfilename);
+
+    graph.open_read();
+
+    GFA_Parser::GFA_line r = graph.read(graph_file_id, new_file_opened, true);
+
+    vector<thread> workers; // need to keep track of threads so we can join them
+
+    mutex mutex_file;
+
+    v_kmers_sz = 0;
+    v_unitigs_sz = 0;
+
+    hmap_min_unitigs.init_threads();
+
+    for (size_t t = 0; t < nb_threads; ++t){
+
+        workers.emplace_back(
+
+            [&]{
+
+                vector<string> seq;
+
+                while (true) {
+
+                    {
+                        unique_lock<mutex> lock(mutex_file);
+
+                        if (stop) return;
+
+                        seq.clear();
+
+                        for (size_t i = 0; (i < block_sz) && !stop; ++i){
+
+                            if (!is_first) r = graph.read(graph_file_id, new_file_opened, true);
+                            if (r.first != nullptr) seq.push_back(r.first->seq);
+
+                            stop = ((r.first == nullptr) && (r.second == nullptr));
+                            is_first = false;
+                        }
+                    }
+
+                    for (const auto& s : seq) addUnitig(s, (s.length() == k_) ? v_kmers_sz++ : v_unitigs_sz++, lck_unitig, lck_kmer, false);
+                }
+            }
+        );
+    }
+
+    for (auto& t : workers) t.join();
+
+    hmap_min_unitigs.release_threads();
+    moveToAbundant();
+}
+
+template<typename U, typename G>
+void CompactedDBG<U, G>::readFASTA(const string& graphfilename, const size_t nb_threads) {
+
+    const size_t block_sz = 1024;
+
+    size_t graph_file_id = 0;
+
+    bool stop = false;
+
+    std::atomic<size_t> v_kmers_sz;
+    std::atomic<size_t> v_unitigs_sz;
+
+    string seq;
+
+    SpinLock lck_unitig, lck_kmer;
+
+    FastqFile ff(vector<string>(1, graphfilename));
+
+    vector<thread> workers; // need to keep track of threads so we can join them
+
+    mutex mutex_file;
+
+    v_kmers_sz = 0;
+    v_unitigs_sz = 0;
+
+    hmap_min_unitigs.init_threads();
+
+    for (size_t t = 0; t < nb_threads; ++t){
+
+        workers.emplace_back(
+
+            [&]{
+
+                vector<string> v_seq;
+
+                while (true) {
+
+                    {
+                        unique_lock<mutex> lock(mutex_file);
+
+                        if (stop) return;
+
+                        v_seq.clear();
+
+                        for (size_t i = 0; (i < block_sz) && !stop; ++i){
+
+                            stop = (ff.read_next(seq, graph_file_id) == -1);
+
+                            if (!stop && !seq.empty()) v_seq.push_back(seq);
+                        }
+                    }
+
+                    for (const auto& s : v_seq) addUnitig(s, (s.length() == k_) ? v_kmers_sz++ : v_unitigs_sz++, lck_unitig, lck_kmer, false);
+                }
+            }
+        );
+    }
+
+    for (auto& t : workers) t.join();
+
+    hmap_min_unitigs.release_threads();
+    moveToAbundant();
 }
 
 template<typename U, typename G>

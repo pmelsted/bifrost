@@ -481,7 +481,7 @@ bool ColoredCDBG<U>::read(const string& input_graph_filename, const string& inpu
 
         if (verbose) cout << "ColoredCDBG::read(): Reading graph." << endl;
 
-        if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::read(input_graph_filename, verbose)) return false; // Read graph
+        if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::read(input_graph_filename, nb_threads, verbose)) return false; // Read graph
 
         if (verbose) cout << "ColoredCDBG::read(): Reading colors." << endl;
 

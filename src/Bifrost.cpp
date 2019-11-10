@@ -9,12 +9,6 @@ void PrintVersion() {
     cout <<  BFG_VERSION << endl;
 }
 
-// use:  PrintCite();
-// post: Information of how to cite this software has been printed to cerr
-void PrintCite() {
-    cout << "The paper describing this software has not been published." << endl;
-}
-
 void PrintUsage() {
 
     cout << endl << "Bifrost " << BFG_VERSION << endl << endl;
@@ -42,8 +36,6 @@ void PrintUsage() {
     cout << "   > Optional with required argument:" << endl << endl <<
     "   -k, --kmer-length        Length of k-mers (default is 31)" << endl <<
     "   -m, --min-length         Length of minimizers (default is 23)" << endl <<
-    //"   -n, --num-kmers          Estimated number of k-mers with 1+ occurrences in the input files (default: KmerStream estimation)" << endl <<
-    //"   -N, --num-kmers2         Estimated number of k-mers with 2+ occurrences in the input files (default: KmerStream estimation)" << endl <<
     "   -b, --bloom-bits         Number of Bloom filter bits per k-mer with 1+ occurrences in the input files (default is 14)" << endl <<
     "   -B, --bloom-bits2        Number of Bloom filter bits per k-mer with 2+ occurrences in the input files (default is 14)" << endl <<
     "   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default is no input)" << endl <<
@@ -329,13 +321,6 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
             cerr << "Error: Chunk size of reads to share among threads cannot be less than or equal to 0." << endl;
             ret = false;
         }
-
-       /* if (opt.nb_non_unique_kmers > opt.nb_unique_kmers){
-
-            cerr << "Error: The estimated number of non unique k-mers ";
-            cerr << "cannot be greater than the estimated number of unique k-mers." << endl;
-            ret = false;
-        }*/
 
         if (opt.outFilenameBBF.length() != 0){
 
