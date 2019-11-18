@@ -601,7 +601,7 @@ class CompactedDBG {
 
         bool addUnitig(const string& str_unitig, const size_t id_unitig);
         bool addUnitig(const string& str_unitig, const size_t id_unitig, const size_t id_unitig_r, const size_t is_short_r);
-        bool addUnitig(const string& str_unitig, const size_t id_unitig, SpinLock& lck_unitig, SpinLock& lck_kmer, const bool enable_abundant = true);
+        bool addUnitig(const string& str_unitig, const size_t id_unitig, SpinLock& lck_unitig, SpinLock& lck_kmer/*, const bool enable_abundant = true*/);
         void swapUnitigs(const bool isShort, const size_t id_a, const size_t id_b);
 
         bool mergeUnitig(const string& seq, const bool verbose = false);
