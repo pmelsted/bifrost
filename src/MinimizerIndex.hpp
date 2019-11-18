@@ -757,6 +757,8 @@ class MinimizerIndex {
             table_tinyv = new packed_tiny_vector[size_];
             table_tinyv_sz = new uint8_t[size_];
 
+            if (!lck_min.empty()) lck_min = vector<SpinLock>((size_ + lck_min_block_sz - 1) / lck_min_block_sz);
+
             std::fill(table_keys, table_keys + size_, empty_key);
 
             memset(table_tinyv_sz, packed_tiny_vector::FLAG_EMPTY, size_ * sizeof(uint8_t));
@@ -1412,7 +1414,7 @@ class MinimizerIndex {
 
         pair<iterator, bool> insert_p(const Minimizer& key, const packed_tiny_vector& v, const uint8_t& flag) {
 
-            size_t h = key.hash();
+            size_t h = key.hash(), h_tmp;
 
             lck_edit_table.acquire_reader();
 
@@ -1436,7 +1438,7 @@ class MinimizerIndex {
 
             lck_min[id_block].acquire_reader();
 
-            for (size_t h_tmp;; h = (h+1) & end_table) {
+            while (true) {
 
                 if ((h / lck_min_block_sz) != id_block){
 
@@ -1454,24 +1456,21 @@ class MinimizerIndex {
 
                         if (is_deleted){
 
-                            if ((h_tmp / lck_min_block_sz) != id_block){
+                            const size_t id_block2 = h_tmp / lck_min_block_sz;
 
-                                lck_min[id_block].release_writer();
-                                h = h_tmp;
-                                id_block = h / lck_min_block_sz;
-                                lck_min[id_block].acquire_writer();
+                            if (id_block2 == id_block) h = h_tmp;
+                            else {
 
-                                if (table_keys[h] != deleted_key){
+                                lck_min[id_block2].acquire_writer();
 
-                                    lck_min[id_block].release_writer_acquire_reader();
+                                if (table_keys[h_tmp] == deleted_key){
 
-                                    h = (h-1) & end_table;
-                                    is_deleted = false;
-
-                                    continue;
+                                    lck_min[id_block].release_writer();
+                                    h = h_tmp;
+                                    id_block = id_block2;
                                 }
+                                else lck_min[id_block2].release_writer();
                             }
-                            else h = h_tmp;
                         }
                         else --num_empty;
 
@@ -1486,21 +1485,18 @@ class MinimizerIndex {
 
                         return {iterator(this, h), true};
                     }
-                    else {
+                    else lck_min[id_block].release_writer_acquire_reader();
+                }
+                else if (table_keys[h] == key) return {iterator(this, h), false};
+                else {
 
-                        lck_min[id_block].release_writer_acquire_reader();
+                    if (!is_deleted && (table_keys[h] == deleted_key)) {
 
-                        h = (h-1) & end_table;
+                        is_deleted = true;
+                        h_tmp = h;
                     }
-                }
-                else if (table_keys[h] == key){
 
-                    return {iterator(this, h), false};
-                }
-                else if (!is_deleted && (table_keys[h] == deleted_key)) {
-
-                    is_deleted = true;
-                    h_tmp = h;
+                    h = (h+1) & end_table;
                 }
             }
 
@@ -1601,6 +1597,12 @@ class MinimizerIndex {
                     old_table_tinyv[i].destruct(old_table_tinyv_sz[i]);
                 }
             }
+
+            lck_edit_table.acquire_reader();
+
+            if (!lck_min.empty()) lck_min = vector<SpinLockRW>((size_ + lck_min_block_sz - 1) / lck_min_block_sz);
+
+            lck_edit_table.release_reader();
 
             delete[] old_table_keys;
             delete[] old_table_tinyv;
