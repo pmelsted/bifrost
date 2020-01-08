@@ -3029,26 +3029,28 @@ bool CompactedDBG<U, G>::bwStepBBF(const Kmer km, Kmer& front, char& c, bool& ha
     bool neigh_bw[4] = {false, false, false, false};
     uint64_t hashes_bw[4];
 
-    front.backwardBase('A').toString(km_tmp);
+    RepHash rep_h(k_), rep_h_cpy;
 
-    RepHash rep_h(k_ - 1), rep_h_cpy;
-    rep_h.init(km_tmp + 1);
+    front.toString(km_tmp);
+    rep_h.init(km_tmp);
 
     rep_h_cpy = rep_h;
-    rep_h_cpy.extendBW(alpha[0]);
+    rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[0]);
     hashes_bw[0] = rep_h_cpy.hash();
 
     rep_h_cpy = rep_h;
-    rep_h_cpy.extendBW(alpha[1]);
+    rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[1]);
     hashes_bw[1] = rep_h_cpy.hash();
 
     rep_h_cpy = rep_h;
-    rep_h_cpy.extendBW(alpha[2]);
+    rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[2]);
     hashes_bw[2] = rep_h_cpy.hash();
 
     rep_h_cpy = rep_h;
-    rep_h_cpy.extendBW(alpha[3]);
+    rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[3]);
     hashes_bw[3] = rep_h_cpy.hash();
+
+    std::memmove(km_tmp + 1, km_tmp, (k_ - 1) * sizeof(char));
 
     const uint64_t it_min_h_bw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
 
@@ -3103,25 +3105,26 @@ bool CompactedDBG<U, G>::bwStepBBF(const Kmer km, Kmer& front, char& c, bool& ha
 
         const Kmer bw(front.backwardBase(alpha[j]));
 
-        bw.forwardBase('A').toString(km_tmp);
-
+        bw.toString(km_tmp);
         rep_h.init(km_tmp);
 
         rep_h_cpy = rep_h;
-        rep_h_cpy.extendFW(alpha[0]);
+        rep_h_cpy.updateFW(km_tmp[0], alpha[0]);
         hashes_fw[0] = rep_h_cpy.hash();
 
         rep_h_cpy = rep_h;
-        rep_h_cpy.extendFW(alpha[1]);
+        rep_h_cpy.updateFW(km_tmp[0], alpha[1]);
         hashes_fw[1] = rep_h_cpy.hash();
 
         rep_h_cpy = rep_h;
-        rep_h_cpy.extendFW(alpha[2]);
+        rep_h_cpy.updateFW(km_tmp[0], alpha[2]);
         hashes_fw[2] = rep_h_cpy.hash();
 
         rep_h_cpy = rep_h;
-        rep_h_cpy.extendFW(alpha[3]);
+        rep_h_cpy.updateFW(km_tmp[0], alpha[3]);
         hashes_fw[3] = rep_h_cpy.hash();
+
+        std::memmove(km_tmp, km_tmp + 1, (k_ - 1) * sizeof(char));
 
         const uint64_t it_min_h_fw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
 
@@ -3205,26 +3208,28 @@ bool CompactedDBG<U, G>::fwStepBBF(const Kmer km, Kmer& end, char& c, bool& has_
     bool neigh_fw[4] = {false, false, false, false};
     uint64_t hashes_fw[4];
 
-    end.forwardBase('A').toString(km_tmp);
+    RepHash rep_h(k_), rep_h_cpy;
 
-    RepHash rep_h(k_ - 1), rep_h_cpy;
+    end.toString(km_tmp);
     rep_h.init(km_tmp);
 
     rep_h_cpy = rep_h;
-    rep_h_cpy.extendFW(alpha[0]);
+    rep_h_cpy.updateFW(km_tmp[0], alpha[0]);
     hashes_fw[0] = rep_h_cpy.hash();
 
     rep_h_cpy = rep_h;
-    rep_h_cpy.extendFW(alpha[1]);
+    rep_h_cpy.updateFW(km_tmp[0], alpha[1]);
     hashes_fw[1] = rep_h_cpy.hash();
 
     rep_h_cpy = rep_h;
-    rep_h_cpy.extendFW(alpha[2]);
+    rep_h_cpy.updateFW(km_tmp[0], alpha[2]);
     hashes_fw[2] = rep_h_cpy.hash();
 
     rep_h_cpy = rep_h;
-    rep_h_cpy.extendFW(alpha[3]);
+    rep_h_cpy.updateFW(km_tmp[0], alpha[3]);
     hashes_fw[3] = rep_h_cpy.hash();
+
+    std::memmove(km_tmp, km_tmp + 1, (k_ - 1) * sizeof(char));
 
     const uint64_t it_min_h_fw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
 
@@ -3280,25 +3285,26 @@ bool CompactedDBG<U, G>::fwStepBBF(const Kmer km, Kmer& end, char& c, bool& has_
 
         const Kmer fw(end.forwardBase(alpha[j]));
 
-        fw.backwardBase('A').toString(km_tmp); // check bw from fw link
-
-        rep_h.init(km_tmp + 1);
+        fw.toString(km_tmp);
+        rep_h.init(km_tmp);
 
         rep_h_cpy = rep_h;
-        rep_h_cpy.extendBW(alpha[0]);
+        rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[0]);
         hashes_bw[0] = rep_h_cpy.hash();
 
         rep_h_cpy = rep_h;
-        rep_h_cpy.extendBW(alpha[1]);
+        rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[1]);
         hashes_bw[1] = rep_h_cpy.hash();
 
         rep_h_cpy = rep_h;
-        rep_h_cpy.extendBW(alpha[2]);
+        rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[2]);
         hashes_bw[2] = rep_h_cpy.hash();
 
         rep_h_cpy = rep_h;
-        rep_h_cpy.extendBW(alpha[3]);
+        rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[3]);
         hashes_bw[3] = rep_h_cpy.hash();
+
+        std::memmove(km_tmp + 1, km_tmp, (k_ - 1) * sizeof(char));
 
         const uint64_t it_min_h_bw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
 
@@ -8007,15 +8013,15 @@ vector<Kmer> CompactedDBG<U, G>::extractMercyKmers(BlockedBloomFilter& bf_uniq_k
 
         if ((*it_a == 1) || (*it_a == 3)){ // Corresponding k-mer has no predecessor in the graph
 
+            bool pres_neigh_bw[4] = {false, false, false, false};
+            uint64_t hashes_bw[4];
+
             const Kmer km_a = it_a.getKey();
 
             km_a.toString(km_tmp); // Get the k-mer
 
-            RepHash rep_h(k_ - 1), rep_h_cpy; // Prepare its hash
+            /*RepHash rep_h(k_ - 1), rep_h_cpy; // Prepare its hash
             rep_h.init(km_tmp + 1);
-
-            bool pres_neigh_bw[4] = {false, false, false, false};
-            uint64_t hashes_bw[4];
 
             for (i = 0; i != 4; ++i) {
 
@@ -8023,7 +8029,23 @@ vector<Kmer> CompactedDBG<U, G>::extractMercyKmers(BlockedBloomFilter& bf_uniq_k
                 rep_h_cpy.extendBW(alpha[i]);
 
                 hashes_bw[i] = rep_h_cpy.hash(); // Prepare the hash of its predecessor
+            }*/
+
+            //---------------
+            RepHash rep_h(k_), rep_h_cpy;
+
+            rep_h.init(km_tmp);
+
+            for (i = 0; i != 4; ++i) {
+
+                rep_h_cpy = rep_h;
+                rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[i]);
+
+                hashes_bw[i] = rep_h_cpy.hash(); // Prepare the hash of its predecessor
             }
+
+            std::memmove(km_tmp + 1, km_tmp, (k_ - 1) * sizeof(char));
+            //---------------
 
             // Query the MBBF for all possible predecessors
             bf_uniq_km.contains(hashes_bw, minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash(), pres_neigh_bw, 4);
@@ -8069,15 +8091,15 @@ vector<Kmer> CompactedDBG<U, G>::extractMercyKmers(BlockedBloomFilter& bf_uniq_k
 
         if ((*it_a == 2) || (*it_a == 3)){ // Corresponding k-mer has no successor in the graph
 
+            bool pres_neigh_fw[4] = {false, false, false, false};
+            uint64_t hashes_fw[4];
+
             const Kmer km_a = it_a.getKey();
 
             km_a.toString(km_tmp); // Get the k-mer
 
-            RepHash rep_h(k_ - 1), rep_h_cpy; // Prepare its hash
+            /*RepHash rep_h(k_ - 1), rep_h_cpy; // Prepare its hash
             rep_h.init(km_tmp + 1);
-
-            bool pres_neigh_fw[4] = {false, false, false, false};
-            uint64_t hashes_fw[4];
 
             for (i = 0; i != 4; ++i) {
 
@@ -8085,7 +8107,23 @@ vector<Kmer> CompactedDBG<U, G>::extractMercyKmers(BlockedBloomFilter& bf_uniq_k
                 rep_h_cpy.extendFW(alpha[i]);
 
                 hashes_fw[i] = rep_h_cpy.hash(); // Prepare the hash of its successor
+            }*/
+
+            //---------------
+            RepHash rep_h(k_), rep_h_cpy; // Prepare its hash
+
+            rep_h.init(km_tmp);
+
+            for (i = 0; i != 4; ++i) {
+
+                rep_h_cpy = rep_h;
+                rep_h_cpy.updateFW(km_tmp[0], alpha[i]);
+
+                hashes_fw[i] = rep_h_cpy.hash(); // Prepare the hash of its successor
             }
+
+            std::memmove(km_tmp, km_tmp + 1, (k_ - 1) * sizeof(char));
+            //---------------
 
             // Query the MBBF for all possible predecessors
             bf_uniq_km.contains(hashes_fw, minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash(), pres_neigh_fw, 4);
