@@ -19,11 +19,11 @@ void PrintUsage() {
     "   update                  Update a compacted (possible colored) de Bruijn graph with new sequences" << endl << endl;
     cout << "[GENERAL_PARAMETERS]:" << endl << endl;
     cout << "   > Mandatory with required argument:" << endl << endl <<
-    "   -s, --input-seq-files    Input sequence files (FASTA/FASTQ possibly gzipped)" << endl <<
-    "                            Input sequence files can be provided as a list in a TXT file (one file per line)" << endl <<
+    "   -s, --input-seq-file     Input sequence file (FASTA/FASTQ possibly gzipped)" << endl <<
+    "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl <<
     "                            K-mers with exactly 1 occurrence in the input sequence files will be discarded" << endl <<
-    "   -r, --input-ref-files    Input reference files (FASTA/FASTQ possibly gzipped and GFA)" << endl <<
-    "                            Input reference files can be provided as a list in a TXT file (one file per line)" << endl <<
+    "   -r, --input-ref-file     Input reference file (FASTA/FASTQ possibly gzipped and GFA)" << endl <<
+    "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl <<
     "                            All k-mers of the input reference files are used" << endl <<
     "   -o, --output-file        Prefix for output file(s)" << endl <<
     endl << "   > Optional with required argument:" << endl << endl <<
@@ -63,8 +63,8 @@ void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
 
     static struct option long_options[] = {
 
-        {"input-seq-files",     required_argument,  0, 's'},
-        {"input-ref-files",     required_argument,  0, 'r'},
+        {"input-seq-file",     required_argument,  0, 's'},
+        {"input-ref-file",     required_argument,  0, 'r'},
         {"input-graph-file",    required_argument,  0, 'g'},
         {"output-file",         required_argument,  0, 'o'},
         {"threads",             required_argument,  0, 't'},
@@ -96,24 +96,12 @@ void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
 
             switch (c) {
 
-                case 's': {
-
-                    for (--optind; (optind < argc) && (*argv[optind] != '-'); ++optind){
-
-                          opt.filename_seq_in.push_back(argv[optind]);
-                    }
-
+                case 's':
+                    opt.filename_seq_in.push_back(optarg);
                     break;
-                }
-                case 'r': {
-
-                    for (--optind; (optind < argc) && (*argv[optind] != '-'); ++optind){
-
-                          opt.filename_ref_in.push_back(argv[optind]);
-                    }
-
+                case 'r':
+                    opt.filename_ref_in.push_back(optarg);
                     break;
-                }
                 case 'g':
                     opt.filename_graph_in = optarg;
                     break;

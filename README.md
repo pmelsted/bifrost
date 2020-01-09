@@ -108,11 +108,11 @@ Usage: Bifrost [COMMAND] [GENERAL_PARAMETERS] [COMMAND_PARAMETERS]
 
    > Mandatory with required argument:
 
-   -s, --input-seq-files    Input sequence files (FASTA/FASTQ possibly gzipped)
-                            Input sequence files can be provided as a list in a TXT file (one file per line)
+   -s, --input-seq-file     Input sequence file (FASTA/FASTQ possibly gzipped)
+                            Multiple files can be provided as a list in a TXT file (one file per line)
                             K-mers with exactly 1 occurrence in the input sequence files will be discarded
-   -r, --input-ref-files    Input reference files (FASTA/FASTQ possibly gzipped and GFA)
-                            Input reference files can be provided as a list in a TXT file (one file per line)
+   -r, --input-ref-file     Input reference file (FASTA/FASTQ possibly gzipped and GFA)
+                            Multiple files can be provided as a list in a TXT file (one file per line)
                             All k-mers of the input reference files are used
    -o, --output-file        Prefix for output file(s)
 
@@ -161,9 +161,9 @@ Usage: Bifrost [COMMAND] [GENERAL_PARAMETERS] [COMMAND_PARAMETERS]
 
 1. **Build a compacted de Bruijn graph from read files and clean the graph**
    ```
-   Bifrost build -t 4 -k 31 -i -d -o AB_graph -s A.fastq B.fastq
+   Bifrost build -t 4 -k 31 -i -d -o AB_graph -s A.fastq -s B.fastq
    ```
-   The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq* and *B.fastq* (`-s A.fastq B.fastq`). By using parameter `-s`, files *A.fastq* and *B.fastq* are filtered: 31-mers occurring exactly once in *A* and *B* are discarded from the construction. Graph simplification steps are performed after building (`-i -d`) and the graph is written to file *AB_graph.gfa* (`-o AB_graph`).
+   The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq* and *B.fastq* (`-s A.fastq -s B.fastq`). By using parameter `-s`, files *A.fastq* and *B.fastq* are filtered: 31-mers occurring exactly once in *A* and *B* are discarded from the construction. Graph simplification steps are performed after building (`-i -d`) and the graph is written to file *AB_graph.gfa* (`-o AB_graph`).
 
 2. **Build a compacted de Bruijn graph from a reference genome file**
    ```
@@ -173,9 +173,9 @@ Usage: Bifrost [COMMAND] [GENERAL_PARAMETERS] [COMMAND_PARAMETERS]
 
 3. **Building a compacted and colored de Bruijn graph from read files and reference genome files, clean the graph**
    ```
-   Bifrost build -t 4 -k 31 -c -i -d -o ABC -s A.fastq B.fastq -r C.fasta
+   Bifrost build -t 4 -k 31 -c -i -d -o ABC -s A.fastq -s B.fastq -r C.fasta
    ```
-   Combining the two previous examples, the compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq*, *B.fastq* (`-s A.fastq B.fastq`) and file *C.fasta* (`-r C.fasta`). Graph simplification steps are performed after building (`-i -d`). The graph is colored (`-c`), meaning that each k-mer of the graph unitigs keeps track of whether it occurs in *A*, *B* or *C*. The graph is written to file *ABC.gfa* and the colors are written to file *ABC.bfg_colors* (`-o ABC`).
+   Combining the two previous examples, the compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq*, *B.fastq* (`-s A.fastq -s B.fastq`) and file *C.fasta* (`-r C.fasta`). Graph simplification steps are performed after building (`-i -d`). The graph is colored (`-c`), meaning that each k-mer of the graph unitigs keeps track of whether it occurs in *A*, *B* or *C*. The graph is written to file *ABC.gfa* and the colors are written to file *ABC.bfg_colors* (`-o ABC`).
 
 4. **Updating a compacted de Bruijn graph with a reference genome file**
    ```
@@ -185,9 +185,9 @@ Usage: Bifrost [COMMAND] [GENERAL_PARAMETERS] [COMMAND_PARAMETERS]
 
 5. **Updating a compacted and colored de Bruijn graph with read files and clean the graph**
    ```
-   Bifrost update -t 4 -i -d -o ABCEF -s E.fastq F.fastq -g ABC.gfa -f ABC.bfg_colors
+   Bifrost update -t 4 -i -d -o ABCEF -s E.fastq -s F.fastq -g ABC.gfa -f ABC.bfg_colors
    ```
-   The compacted and colored de Bruijn graph *ABC* (`-g ABC.gfa -f ABC.bfg_colors`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of files *E.fastq* and *F.fastq* (`-s E.fastq F.fastq`). Graph simplification steps are performed after merging (`-i -d`). The graph is written to file *ABCEF.gfa* and the colors are written to file *ABCEF.bfg_colors* (`-o ABCEF`).
+   The compacted and colored de Bruijn graph *ABC* (`-g ABC.gfa -f ABC.bfg_colors`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of files *E.fastq* and *F.fastq* (`-s E.fastq -s F.fastq`). Graph simplification steps are performed after merging (`-i -d`). The graph is written to file *ABCEF.gfa* and the colors are written to file *ABCEF.bfg_colors* (`-o ABCEF`).
 
 ## API
 
@@ -246,6 +246,14 @@ In this case, the maximum *k* allowed is 63. Keep in mind that increasing the ma
 
 ## FAQ
 
+**Can I provide in input multiple files?**
+
+Yes, use parameter `-r` or `-s` for each file to input.
+
+**Can I provide in input a file which is a list of files?**
+
+Yes, a text file containing one input filename per line with no empty lines can be given in input.
+
 **What are the accepted input file formats?**
 
 FASTA, FASTQ and GFA. Input FASTA and FASTQ files can be compressed with gzip (extension .gz). If you input a GFA file for the construction, you probably want to use the `-r` parameter for that file.
@@ -253,10 +261,6 @@ FASTA, FASTQ and GFA. Input FASTA and FASTQ files can be compressed with gzip (e
 **Can I mix different file formats in input?**
 
 Yes, as long as they are FASTA, FASTQ and GFA.
-
-**Can I provide in input a file which is a list of files?**
-
-Yes, a text file containing one input filename per line with no empty lines can be given in input.
 
 **If I input a GFA file for building the de Bruijn graph, does it need to contain an already compacted de Bruijn graph?**
 
@@ -269,6 +273,10 @@ Yes. Input your assembled genomes with parameter `-r` and your reads with parame
 **In which order are inserted the colors?**
 
 A color corresponds to an input file the graph was built/updated from. The order in which the colors are inserted is the same as the order of the files given by parameter `-r` and parameter `-s`. However, in case both parameters `-r` and `-s` are used, no assumption can be made on whether the files given by parameter `-s` will be inserted before or after the ones given by parameter `-r`.
+
+**Different runs of Bifrost on the same dataset with the same parameters produces graphs with different unitigs. Which graph is correct?**
+
+All of them. The difference between the graphs resides in circular unitigs (unitigs connecting to themselves) which are their own connected components ("isolated"). These unitigs can have a different sequence from one run to another because the starting position will be different, yet they represent exactly the same sequence. As an example, circular unitig ATAT composed of 3-mers can also be represented with sequence TATA.
 
 ## Troubleshooting
 
