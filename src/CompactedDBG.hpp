@@ -170,7 +170,7 @@ struct CDBG_Build_opt {
 * is when you call the method UnitigMap::getGraph(): with a const_UnitigMap, this method returns
 * a pointer to a constant CompactedDBG (you can't modify it).
 */
-template<typename U, typename G> using const_UnitigMap = UnitigMap<U, G, true>;
+template<typename U = void, typename G = void> using const_UnitigMap = UnitigMap<U, G, true>;
 
 /** @class CDBG_Data_t
 * @brief If data are to be associated with the unitigs of the compacted de Bruijn graph, those data
@@ -443,6 +443,16 @@ class CompactedDBG {
         */
         UnitigMap<U, G> findUnitig(const char* s, const size_t pos, const size_t len);
 
+        /** Find the unitig containing the k-mer starting at a given position in a query sequence and extends the mapping (if the k-mer is found, the
+        * function extends the mapping from the k-mer as long as the query sequence and the unitig matches).
+        * @param s is a pointer to an array of character containing the sequence to query.
+        * @param pos is the position of the first k-mer to find in the sequence to query.
+        * @param len is the length of s.
+        * @return const_UnitigMap<U, G> object containing the mapping information to the unitig having the queried k-mer (if present).
+        * If the k-mer is found, the function extends the mapping from the k-mer as long as the query sequence and the unitig matches (um.len >= 1).
+        */
+        const_UnitigMap<U, G> findUnitig(const char* s, const size_t pos, const size_t len) const;
+
         /** Performs exact and/or inexact search of the k-mers of a sequence query in the Compacted de Bruijn graph.
         * @param seq is a string representing the sequence to be searched (the query).
         * @param exact is a boolean indicating if the exact k-mers of string seq must be searched.
@@ -456,7 +466,22 @@ class CompactedDBG {
         * operation makes the match to be inexact or at what position the edit operation takes place.
         */
         vector<pair<size_t, UnitigMap<U, G>>> searchSequence(   const string& seq, const bool exact, const bool insertion, const bool deletion,
-                                                                const bool substitution, const bool or_exclusive_match = false) const;
+                                                                const bool substitution, const bool or_exclusive_match = false);
+
+        /** Performs exact and/or inexact search of the k-mers of a sequence query in the Compacted de Bruijn graph.
+        * @param seq is a string representing the sequence to be searched (the query).
+        * @param exact is a boolean indicating if the exact k-mers of string seq must be searched.
+        * @param insertion is a boolean indicating if the inexact k-mers of string seq, with one insertion, must be searched.
+        * @param deletion is a boolean indicating if the inexact k-mers of string seq, with one deletion, must be searched.
+        * @param substitution is a boolean indicating if the inexact k-mers of string seq, with one substitution, must be searched.
+        * @param or_exclusive_match is a boolean indicating to NOT search for the inexact k-mers at any given position in seq
+        * if the exact corresponding k-mer at that position is found in the graph. This option might lead to a substantial running time decrease.
+        * @return a vector of pair<size_t, const_UnitigMap<U, G>> objects. Each such pair has two elements: the position of the k-mer match in sequence seq
+        * and the corresponding k-mer match in the graph. Note that no information is given on whether the match is exact or inexact, nor on what edit
+        * operation makes the match to be inexact or at what position the edit operation takes place.
+        */
+        vector<pair<size_t, const_UnitigMap<U, G>>> searchSequence( const string& seq, const bool exact, const bool insertion, const bool deletion,
+                                                                    const bool substitution, const bool or_exclusive_match = false) const;
 
         /** Add a sequence to the Compacted de Bruijn graph. Non-{A,C,G,T} characters such as Ns are discarded.
         * The function automatically breaks the sequence into unitig(s). Those unitigs can be stored as the reverse-complement
@@ -597,7 +622,9 @@ class CompactedDBG {
 
         UnitigMap<U, G> findUnitig(const Kmer& km, const char* s, const size_t pos);
         UnitigMap<U, G> findUnitig(const Kmer& km, const char* s, const size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h);
+
         UnitigMap<U, G> findUnitig(const char* s, const size_t pos, const size_t len, const minHashIterator<RepHash>& it_min);
+        const_UnitigMap<U, G> findUnitig(const char* s, const size_t pos, const size_t len, const minHashIterator<RepHash>& it_min) const;
 
         bool addUnitig(const string& str_unitig, const size_t id_unitig);
         bool addUnitig(const string& str_unitig, const size_t id_unitig, const size_t id_unitig_r, const size_t is_short_r);

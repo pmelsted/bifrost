@@ -276,7 +276,7 @@ A color corresponds to an input file the graph was built/updated from. The order
 
 **Different runs of Bifrost on the same dataset with the same parameters produces graphs with different unitigs. Which graph is correct?**
 
-All of them. The difference between the graphs resides in circular unitigs (unitigs connecting to themselves) which are their own connected components ("isolated"). These unitigs can have a different sequence from one run to another because the starting position will be different, yet they represent exactly the same sequence. As an example, circular unitig ATAT composed of 3-mers can also be represented with sequence TATA.
+All of them. The difference between the graphs resides in circular unitigs (unitigs connecting to themselves) which are their own connected components ("isolated"). These unitigs can have a different sequence from one run to another because the starting position will be different, yet they represent exactly the same sequence. As an example, circular unitig ATAT composed of 3-mers can also be represented with sequence TATA. The number of unitigs will remain the same from one graph to another.
 
 ## Troubleshooting
 

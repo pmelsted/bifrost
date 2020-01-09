@@ -36,8 +36,8 @@ struct CCDBG_Build_opt : CDBG_Build_opt {
     CCDBG_Build_opt() : outputColors(true) {}
 };
 
-template<typename U> using UnitigColorMap = UnitigMap<DataAccessor<U>, DataStorage<U>>;
-template<typename U> using const_UnitigColorMap = const_UnitigMap<DataAccessor<U>, DataStorage<U>>;
+template<typename U = void> using UnitigColorMap = UnitigMap<DataAccessor<U>, DataStorage<U>>;
+template<typename U = void> using const_UnitigColorMap = const_UnitigMap<DataAccessor<U>, DataStorage<U>>;
 
 /** @class CCDBG_Data_t
 * @brief If data are to be associated with the unitigs of the colored and compacted de Bruijn graph, those data
@@ -334,9 +334,9 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         */
         inline size_t getNbColors() const { return this->getData()->getNbColors(); }
 
-        void checkColors(const vector<string>& filename_seq_in) const;
-
     private:
+
+        void checkColors(const vector<string>& filename_seq_in) const;
 
         void initUnitigColors(const CCDBG_Build_opt& opt, const size_t max_nb_hash = 31);
         void buildUnitigColors(const size_t nb_threads);
