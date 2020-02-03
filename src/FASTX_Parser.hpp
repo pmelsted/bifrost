@@ -1,5 +1,5 @@
-#ifndef BFG_FASTX_H
-#define BFG_FASTX_H
+#ifndef BIFROST_FASTX_PARSER_HPP
+#define BIFROST_FASTX_PARSER_HPP
 
 #include <stdio.h>
 #include <string.h>

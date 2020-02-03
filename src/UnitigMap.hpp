@@ -1,5 +1,5 @@
-#ifndef BFG_UNITIGMAP_HPP
-#define BFG_UNITIGMAP_HPP
+#ifndef BIFROST_UNITIGMAP_HPP
+#define BIFROST_UNITIGMAP_HPP
 
 #include <string>
 #include "Common.hpp"

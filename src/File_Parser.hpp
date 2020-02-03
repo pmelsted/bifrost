@@ -1,5 +1,5 @@
-#ifndef BFG_FILE_PARSER_HPP
-#define BFG_FILE_PARSER_HPP
+#ifndef BIFROST_FILE_PARSER_HPP
+#define BIFROST_FILE_PARSER_HPP
 
 #include <sstream>
 
@@ -192,6 +192,12 @@ class FileParser {
             }
 
             return !invalid;
+        }
+
+        const char* getNameString() const {
+
+            if (invalid || !reading_fastx) return nullptr;
+            return ff.get_kseq()->name.s;
         }
 
         const char* getQualityScoreString() const {

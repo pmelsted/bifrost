@@ -1,5 +1,5 @@
-#ifndef BFG_COLOR_HPP
-#define BFG_COLOR_HPP
+#ifndef BIFROST_COLORSET_HPP
+#define BIFROST_COLORSET_HPP
 
 #include "roaring.hh"
 

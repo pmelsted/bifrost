@@ -1,5 +1,5 @@
-#ifndef BFG_COMPACTED_DBG_HPP
-#define BFG_COMPACTED_DBG_HPP
+#ifndef BIFROST_COMPACTED_DBG_HPP
+#define BIFROST_COMPACTED_DBG_HPP
 
 #include <cmath>
 #include <cstdlib>
@@ -47,7 +47,9 @@
 #define RESERVED_ID (0xffffffff)
 
 #define DEFAULT_K 31
-#define DEFAULT_G 23
+
+#define DEFAULT_G_DEC1 8
+#define DEFAULT_G_DEC2 4
 
 /** @file src/CompactedDBG.hpp
 * Interface for the Compacted de Bruijn graph API.
@@ -125,11 +127,10 @@ using namespace std;
 struct CDBG_Build_opt {
 
     bool verbose;
+
     size_t nb_threads;
     size_t read_chunksize;
 
-    //size_t nb_unique_kmers;
-    //size_t nb_non_unique_kmers;
     size_t nb_bits_unique_kmers_bf;
     size_t nb_bits_non_unique_kmers_bf;
 
@@ -139,30 +140,36 @@ struct CDBG_Build_opt {
     vector<string> filename_seq_in;
     vector<string> filename_ref_in;
 
-    // The following members are not used by CompactedDBG<U, G>::build
+    // The following members are NOT used by CompactedDBG<U, G>::build
     // but you can set them to use them as parameters for other functions
     // such as CompactedDBG<U, G>::simplify, CompactedDBG<U, G>::read or
     // CompactedDBG<U, G>::write.
 
-    size_t k, g;
+    int k, g;
 
     bool build;
     bool update;
+    bool query;
 
     bool clipTips;
     bool deleteIsolated;
     bool useMercyKmers;
 
     bool outputGFA;
+    bool inexact_search;
+
+    double ratio_kmers;
 
     string prefixFilenameOut;
 
     string filename_graph_in;
 
-    CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(DEFAULT_G), /*nb_unique_kmers(0), nb_non_unique_kmers(0),*/
-                        nb_bits_unique_kmers_bf(14), nb_bits_non_unique_kmers_bf(14), read_chunksize(64),
-                        build(false), update(false), clipTips(false), deleteIsolated(false), useMercyKmers(false),
-                        outputGFA(true), verbose(false) {}
+    vector<string> filename_query_in;
+
+    CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(-1), nb_bits_unique_kmers_bf(14),
+                        nb_bits_non_unique_kmers_bf(14), read_chunksize(64), ratio_kmers(0.8),
+                        build(false), update(false), query(false), clipTips(false), deleteIsolated(false),
+                        inexact_search(false), useMercyKmers(false), outputGFA(true), verbose(false) {}
 };
 
 /** @typedef const_UnitigMap
@@ -314,9 +321,14 @@ class CompactedDBG {
 
         /** Constructor (set up an empty compacted dBG).
         * @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
+        */
+        CompactedDBG(const int kmer_length = DEFAULT_K);
+
+        /** Constructor (set up an empty compacted dBG).
+        * @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
         * @param minimizer_length is the length g of minimizers (g < k) used in the graph.
         */
-        CompactedDBG(const int kmer_length = DEFAULT_K, const int minimizer_length = DEFAULT_G);
+        CompactedDBG(const int kmer_length, const int minimizer_length);
 
         /** Copy constructor (copy a compacted de Bruijn graph).
         * This function is expensive in terms of time and memory as the content of a compacted
@@ -550,6 +562,9 @@ class CompactedDBG {
         */
         size_t length() const;
 
+        /** Return the number of k-mers in the graph.
+        * @return An integer which corresponds to the number of k-mers in the graph.
+        */
         size_t nbKmers() const;
 
         /** Return a boolean indicating if the graph is invalid (wrong input parameters/files, error occurring during a method, etc.).
@@ -593,6 +608,9 @@ class CompactedDBG {
         bool mergeData(CompactedDBG<U, G>&& o, const size_t nb_threads = 1, const bool verbose = false);
 
     private:
+
+        bool search(const vector<string>& query_filenames, const string& out_filename_prefix,
+                    const double ratio_kmers, const bool inexact_search, const size_t nb_threads) const;
 
         bool filter(const CDBG_Build_opt& opt, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers);
         bool construct(const CDBG_Build_opt& opt, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers);
@@ -694,8 +712,14 @@ class CompactedDBG {
         void mapRead(const const_UnitigMap<U, G>& um, LockGraph& lck_g);
         void unmapRead(const const_UnitigMap<U, G>& um);
 
-        void setKmerGmerLength(const int kmer_length, const int minimizer_length);
+        void setKmerGmerLength(const int kmer_length, const int minimizer_length = -1);
         void print() const;
+
+        vector<pair<size_t, UnitigMap<U, G>>> searchSequence(   const string& seq, const bool exact, const bool insertion, const bool deletion,
+                                                                const bool substitution, const double ratio_kmers, const bool or_exclusive_match);
+
+        vector<pair<size_t, const_UnitigMap<U, G>>> searchSequence( const string& seq, const bool exact, const bool insertion, const bool deletion,
+                                                                    const bool substitution, const double ratio_kmers, const bool or_exclusive_match) const;
 
         int k_;
         int g_;
@@ -721,5 +745,6 @@ class CompactedDBG {
 };
 
 #include "CompactedDBG.tcc"
+#include "Search.tcc"
 
 #endif

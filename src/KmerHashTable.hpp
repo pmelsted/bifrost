@@ -1,5 +1,5 @@
-#ifndef BFG_KMERHASHTABLE_HPP
-#define BFG_KMERHASHTABLE_HPP
+#ifndef BIFROST_KMER_HASHTABLE_HPP
+#define BIFROST_KMER_HASHTABLE_HPP
 
 #include <utility>
 #include <string>

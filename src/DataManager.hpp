@@ -1,5 +1,5 @@
-#ifndef BFG_DATAMANAGER_HPP
-#define BFG_DATAMANAGER_HPP
+#ifndef BIFROST_DATA_MANAGER_HPP
+#define BIFROST_DATA_MANAGER_HPP
 
 #include "ColorSet.hpp"
 #include "CompactedDBG.hpp"

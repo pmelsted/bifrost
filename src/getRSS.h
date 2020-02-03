@@ -1,5 +1,5 @@
-#ifndef BFG_GETRSS_HPP
-#define BFG_GETRSS_HPP
+#ifndef BIFROST_GETRSS_HPP
+#define BIFROST_GETRSS_HPP
 
 /*
  * Author:  David Robert Nadeau

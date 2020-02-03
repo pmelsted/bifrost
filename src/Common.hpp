@@ -1,5 +1,5 @@
-#ifndef BFG_COMMON_HPP
-#define BFG_COMMON_HPP
+#ifndef BIFROST_COMMON_HPP
+#define BIFROST_COMMON_HPP
 
 #include <cassert>
 #include <algorithm>

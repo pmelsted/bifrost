@@ -1,5 +1,5 @@
-#ifndef UNITIG_ITERATOR_HPP
-#define UNITIG_ITERATOR_HPP
+#ifndef BIFROST_UNITIG_ITERATOR_HPP
+#define BIFROST_UNITIG_ITERATOR_HPP
 
 #include "UnitigMap.hpp"
 #include "KmerHashTable.hpp"

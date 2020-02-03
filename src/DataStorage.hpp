@@ -1,12 +1,12 @@
-#ifndef BFG_DATASTORAGE_HPP
-#define BFG_DATASTORAGE_HPP
+#ifndef BIFROST_DATA_STORAGE_HPP
+#define BIFROST_DATA_STORAGE_HPP
 
 #include <atomic>
 
 #include "ColorSet.hpp"
 #include "CompactedDBG.hpp"
 
-#define BFG_COLOREDCDBG_FORMAT_VERSION 1
+#define BFG_COLOREDCDBG_FORMAT_VERSION 2
 
 template<typename Unitig_data_t> class ColoredCDBG;
 template<typename Unitig_data_t> class DataAccessor;
@@ -59,8 +59,8 @@ class DataStorage {
 
         vector<string> getSubUnitigColorNames(const const_UnitigColorMap<U>& um) const;
 
-        bool write(const string prefix_output_filename, const size_t nb_threads, const bool verbose = false) const;
-        bool read(const string& filename_colors, bool verbose = false);
+        bool write(const string& prefix_output_filename, const bool verbose = false) const;
+        bool read(const string& filename_colors, const size_t nb_threads = 1, const bool verbose = false);
 
         bool addUnitigColors(const UnitigColorMap<U>& um_dest, const const_UnitigColorMap<U>& um_src);
         UnitigColors joinUnitigColors(const const_UnitigColorMap<U>& um_dest, const const_UnitigColorMap<U>& um_src) const;

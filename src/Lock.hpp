@@ -1,5 +1,5 @@
-#ifndef BFG_LOCK_HPP
-#define BFG_LOCK_HPP
+#ifndef BIFROST_SPINLOCK_HPP
+#define BIFROST_SPINLOCK_HPP
 
 #include <vector>
 

@@ -1,5 +1,5 @@
-#ifndef BFG_KMER_HPP
-#define BFG_KMER_HPP
+#ifndef BIFROST_KMER_HPP
+#define BIFROST_KMER_HPP
 
 #ifndef MAX_KMER_SIZE
 #define MAX_KMER_SIZE 32

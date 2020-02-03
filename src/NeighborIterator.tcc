@@ -1,5 +1,5 @@
-#ifndef NEIGHBOR_ITERATOR_TCC
-#define NEIGHBOR_ITERATOR_TCC
+#ifndef BIFROST_NEIGHBOR_ITERATOR_TCC
+#define BIFROST_NEIGHBOR_ITERATOR_TCC
 
 #include "CompactedDBG.hpp"
 #include "UnitigMap.hpp"

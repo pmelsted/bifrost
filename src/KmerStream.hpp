@@ -1,5 +1,5 @@
-#ifndef BFG_KMERSTREAM_HPP
-#define BFG_KMERSTREAM_HPP
+#ifndef BIFROST_KMERSTREAM_HPP
+#define BIFROST_KMERSTREAM_HPP
 
 #include <iostream>
 #include <string>
@@ -232,13 +232,15 @@ class ReadHasherMinimizer {
 
                 if (last_valid){
 
+                    const size_t min_pos = min_it.getPosition();
+
                     sc_km(hf.hash());
 
-                    if (min_it.getPosition() != prev_pos_min){
+                    if (min_pos != prev_pos_min){
 
-                        sc_min(Minimizer(&s[min_it.getPosition()]).rep().hash());
+                        sc_min(Minimizer(&s[min_pos]).rep().hash());
 
-                        prev_pos_min = min_it.getPosition();
+                        prev_pos_min = min_pos;
                     }
                 }
             }
@@ -290,13 +292,15 @@ class ReadHasherMinimizer {
 
                         if (last_valid){
 
+                            const size_t min_pos = min_it.getPosition();
+
                             sc_km(hf.hash());
 
-                            if (min_it.getPosition() != prev_pos_min){
+                            if (min_pos != prev_pos_min){
 
-                                sc_min(Minimizer(&str[min_it.getPosition()]).rep().hash());
+                                sc_min(Minimizer(&str[min_pos]).rep().hash());
 
-                                prev_pos_min = min_it.getPosition();
+                                prev_pos_min = min_pos;
                             }
                         }
                     }
@@ -740,7 +744,7 @@ class KmerStream {
                 invalid = true;
             }
 
-            if (g == 0){
+            if (g <= 0){
 
                 cerr << "KmerStream::KmerStream(): Length g of minimizers cannot be less than or equal to 0" << endl;
                 invalid = true;
@@ -1003,7 +1007,7 @@ class KmerStream {
 
                 std::transform(seq.begin(), seq.end(), seq.begin(), ::toupper);
 
-                rsh(seq.c_str(), seq.length(), nullptr, 0);
+                rsh(seq.c_str(), seq.length());
             }
 
             fp.close();

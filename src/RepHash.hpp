@@ -1,5 +1,5 @@
-#ifndef KALLISTO_REPHASH_H
-#define KALLISTO_REPHASH_H
+#ifndef BIFROST_REPHASH_HPP
+#define BIFROST_REPHASH_HPP
 
 #include <stdint.h>
 #include <cassert>
@@ -14,7 +14,7 @@ static const unsigned char twin[32] = {
     24, 25, 26, 27, 28, 29, 30, 31
 };
 
-#if MAX_KMER_SIZE <= 63
+#if MAX_KMER_SIZE <= 64
 
 static const uint64_t hvals[4] = {
     2053695854357871005ULL, 5073395517033431291ULL,

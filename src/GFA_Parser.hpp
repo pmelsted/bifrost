@@ -1,5 +1,5 @@
-#ifndef BFG_GFA_PARSER_HPP
-#define BFG_GFA_PARSER_HPP
+#ifndef BIFROST_GFA_PARSER_HPP
+#define BIFROST_GFA_PARSER_HPP
 
 #include <string>
 #include <cstring>

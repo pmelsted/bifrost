@@ -1,5 +1,5 @@
-#ifndef BFG_STREAMCOUNTER_HPP
-#define BFG_STREAMCOUNTER_HPP
+#ifndef BIFROST_STREAMCOUNTER_HPP
+#define BIFROST_STREAMCOUNTER_HPP
 
 #include <sstream>
 #include <stdint.h>

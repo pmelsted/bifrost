@@ -1,5 +1,5 @@
-#ifndef KALLISTO_TINYVECTOR_H
-#define KALLISTO_TINYVECTOR_H
+#ifndef BIFROST_TINYVECTOR_HPP
+#define BIFROST_TINYVECTOR_HPP
 
 #include <vector>
 #include <algorithm>

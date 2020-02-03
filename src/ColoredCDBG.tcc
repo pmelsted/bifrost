@@ -1,5 +1,5 @@
-#ifndef BFG_COLOREDCDBG_TCC
-#define BFG_COLOREDCDBG_TCC
+#ifndef BIFROST_COLOREDCDBG_TCC
+#define BIFROST_COLOREDCDBG_TCC
 
 template<typename U>
 ColoredCDBG<U>::ColoredCDBG(int kmer_length, int minimizer_length) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(kmer_length, minimizer_length){
@@ -58,7 +58,9 @@ ColoredCDBG<U>& ColoredCDBG<U>::operator+=(const ColoredCDBG& o) {
 template<typename U>
 bool ColoredCDBG<U>::operator==(const ColoredCDBG& o) const {
 
-    if (!invalid && !this->invalid && !o.invalid && (this->k_ == o.k_) && (this->size() == o.size())){
+    if (!invalid && !this->isInvalid() && !o.isInvalid() && (this->getK() == o.getK()) && (this->size() == o.size())){
+
+        const size_t k = this->getK();
 
         for (const auto& unitig : *this){
 
@@ -68,7 +70,7 @@ bool ColoredCDBG<U>::operator==(const ColoredCDBG& o) const {
             else {
 
                 unitig_o.dist = 0;
-                unitig_o.len = unitig_o.size - this->k_ + 1;
+                unitig_o.len = unitig_o.size - k + 1;
 
                 const string unitig_o_str = unitig_o.strand ? unitig_o.referenceUnitigToString() : reverse_complement(unitig_o.referenceUnitigToString());
 
@@ -419,7 +421,7 @@ bool ColoredCDBG<U>::write(const string& prefix_output_filename, const size_t nb
 
     if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::write(prefix_output_filename, nb_threads, true, verbose)) return false; // Write graph
 
-    return this->getData()->write(prefix_output_filename, nb_threads, verbose); // Write colors
+    return this->getData()->write(prefix_output_filename, verbose); // Write colors
 }
 
 template<typename U>
@@ -485,7 +487,7 @@ bool ColoredCDBG<U>::read(const string& input_graph_filename, const string& inpu
 
         if (verbose) cout << "ColoredCDBG::read(): Reading colors." << endl;
 
-        if (!this->getData()->read(input_colors_filename, verbose)) return false; // Read colors
+        if (!this->getData()->read(input_colors_filename, nb_threads, verbose)) return false; // Read colors
 
         if (verbose) cout << "ColoredCDBG::read(): Joining unitigs to their color sets." << endl;
 
@@ -1266,6 +1268,693 @@ vector<string> ColoredCDBG<U>::getColorNames() const {
     }
 
     return this->getData()->color_names;
+}
+
+
+/*template<typename U>
+void ColoredCDBG<U>::searchSequence(const string& seq, const bool exact, const bool insertion, const bool deletion, const bool substitution) const {
+
+    if (invalid){
+
+        cerr << "ColoredCDBG::searchSequence(): Graph is invalid and cannot be searched" << endl;
+
+        return;
+    }
+
+    if (seq.length() < k_){
+
+        cerr << "ColoredCDBG::searchSequence(): Query length is shorter than k-mer size" << endl;
+
+        return;
+    }
+
+    const size_t nb_colors = getNbColors();
+
+    string seqs;
+
+    vector<Roaring> color_occ_r(nb_colors);
+    vector<uint32_t> color_occ_u(nb_colors);
+
+    auto worker_func = [&](const bool subst, const bool ins, const bool del, const size_t shift){
+
+        const bool subst_or_ind = (subst || ins);
+        const bool inexact = (subst_or_ind || del);
+
+        const size_t ins_mask = static_cast<size_t>(!ins) - 1;
+        const size_t del_mask = static_cast<size_t>(!del) - 1;
+
+        const size_t end = 1ULL << (static_cast<size_t>(subst_or_ind) << 2);
+        const size_t seq_len = seq.length();
+
+        auto processUnitigMap = [&](const_UnitigColorMap<U> um, const size_t pos_seq){
+
+            if (um.strand){
+
+                size_t j = um.dist;
+
+                const size_t end_pos = um.dist + um.len;
+
+                while (j < end_pos){
+
+                    size_t l_pos_seq = pos_seq + j - um.dist;
+
+                    const size_t shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
+
+                    l_pos_seq -= (ins_mask & shift_pos_seq);
+                    l_pos_seq += (del_mask & shift_pos_seq);
+
+                    if (l_pos_seq + k_ - 1 >= seq_len) break;
+                    else ++j;
+                }
+
+                um.len = j - um.dist;
+
+                const UnitigColors* uc = um.getData()->getUnitigColors(um);
+
+                UnitigColors::const_iterator it_uc = uc->begin(um);
+                UnitigColors::const_iterator it_uc_end = uc->end();
+
+                if (inexact){
+
+                    for (; it_uc != it_uc_end; ++it_uc) color_occ_r[it_uc.getColorID()].add(it_uc.getKmerPosition() - um.dist + p.first);
+                }
+                else {
+
+                    for (; it_uc != it_uc_end; ++it_uc) color_occ_u[it_uc.getColorID()] += 1;
+                }
+            }
+            else {
+
+                const size_t end_pos = um.dist + um.len;
+
+                size_t j = end_pos - 1;
+
+                while (j >= um.dist){
+
+                    size_t l_pos_seq = pos_seq + um.dist + um.len - j - 1;
+
+                    const size_t shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
+
+                    l_pos_seq -= (ins_mask & shift_pos_seq);
+                    l_pos_seq += (del_mask & shift_pos_seq);
+
+                    if (l_pos_seq + k_ - 1 >= seq_len) break;
+                    else --j;
+                }
+
+                um.dist = j + 1;
+                um.len = end_pos - j;
+
+                const UnitigColors* uc = um.getData()->getUnitigColors(um);
+
+                UnitigColors::const_iterator it_uc = uc->begin(um);
+                UnitigColors::const_iterator it_uc_end = uc->end();
+
+                if (inexact){
+
+                    for (; it_uc != it_uc_end; ++it_uc) color_occ_r[it_uc.getColorID()].add(max_pos_um - it_uc.getKmerPosition() + p.first);
+                }
+                else {
+
+                    for (; it_uc != it_uc_end; ++it_uc) color_occ_u[it_uc.getColorID()] += 1;
+                }
+            }
+        };
+
+        for (size_t i = 0; i != end; ++i){
+
+            if (subst_or_ind){
+
+                for (size_t j = shift; j < seqs.length(); j += k_) seqs[j] = alpha[i];
+            }
+
+            minHashIterator<RepHash> mhi = minHashIterator<RepHash>(seqs.c_str(), seqs.length(), k_, g_, RepHash(), true);
+            minHashResultIterator<RepHash> it_min = *mhi, it_min_end;
+            minHashResult mhr = *it_min;
+
+            Minimizer minz = Minimizer(seqs.c_str() + mhr.pos).rep();
+
+            pair<size_t, bool> minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
+
+            for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
+
+                mhr = *it_min;
+                minz = Minimizer(seqs.c_str() + mhr.pos).rep();
+                minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
+            }
+
+            size_t pos_seq = 0;
+            size_t l_pos_seq = 0;
+            size_t shift_pos_seq = 0;
+
+            shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
+
+            l_pos_seq -= (ins_mask & shift_pos_seq);
+            l_pos_seq += (del_mask & shift_pos_seq);
+
+            if (minz_pres.second){ // If at least one minimizer was present, search the kmer
+
+                const const_UnitigColorMap<U> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
+
+                if (!um.isEmpty){
+
+                    processUnitigMap(um, pos_seq);
+
+                    pos_seq += um.len - 1;
+                    mhi += pos_seq - mhi.getKmerPosition();
+                }
+            }
+
+            ++pos_seq;
+            ++mhi;
+
+            while (pos_seq < seqs.length() - k_ + 1){
+
+                shift_pos_seq = (pos_seq / k_) + (pos_seq % k_ > shift);
+                l_pos_seq = pos_seq - (ins_mask & shift_pos_seq) + (del_mask & shift_pos_seq);
+
+                it_min = *mhi;
+                mhr = *it_min;
+
+                // If minimizers of new kmer are different from minimizers of previous kmer
+                // or if minimizers are the same but they were present, search them again
+                if ((mhr.pos != minz_pres.first) || minz_pres.second){
+
+                    if (mhr.pos != minz_pres.first){
+
+                        minz = Minimizer(seqs.c_str() + mhr.pos).rep();
+                        minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
+
+                        for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
+
+                            mhr = *it_min;
+                            minz = Minimizer(seqs.c_str() + mhr.pos).rep();
+                            minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
+                        }
+                    }
+
+                    if (minz_pres.second) { // If the k-mer has already been searched in the past, discard
+
+                        const const_UnitigColorMap<U> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
+
+                        if (!um.isEmpty){
+
+                            processUnitigMap(um, pos_seq);
+
+                            pos_seq += um.len - 1;
+                            mhi += pos_seq - mhi.getKmerPosition();
+                        }
+                    }
+                }
+
+                ++pos_seq;
+                ++mhi;
+            }
+        }
+    };
+
+    if (exact){
+
+        for (size_t i = 0; i < seq.length() - k_ + 1; ++i) {
+
+            const const_UnitigColorMap<U> um = findUnitig(seq.c_str(), i, seq.length());
+
+            if (!um.isEmpty) { // Read maps to a Unitig
+
+                if (um.strand){
+
+                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({i + j - um.dist, um.getKmerMapping(j)});
+                }
+                else {
+
+                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({i + um.dist + um.len - j - 1, um.getKmerMapping(j)});
+                }
+
+                i += um.len - 1;
+            }
+        }
+    }
+
+    if (substitution){
+
+        for (size_t i = 0; i != k_; ++i){
+
+            seqs = seq;
+            worker_func(true, false, false, i);
+        }
+    }
+
+    if (insertion){
+
+        for (size_t i = 0; i != k_; ++i){
+
+            std::stringstream ss;
+
+            for (size_t j = 0; j < i; ++j) ss << seq[j];
+
+            for (size_t j = i, cpt = 0; j < seq.length(); ++j, ++cpt) {
+
+                if (cpt % (k_ - 1) == 0) ss << alpha[0];
+
+                ss << seq[j];
+            }
+
+            seqs = ss.str();
+
+            worker_func(false, true, false, i);
+        }
+    }
+
+    if (deletion){
+
+        const size_t sz = v_um.size();
+
+        for (size_t i = 0; i != k_; ++i){
+
+            std::stringstream ss;
+
+            for (size_t j = 0; j < i; ++j) ss << seq[j];
+
+            for (size_t j = i, cpt = 0; j < seq.length(); ++j, ++cpt) {
+
+                if (cpt % (k_ + 1) != 0) ss << seq[j];
+            }
+
+            seqs = ss.str();
+
+            worker_func(false, false, true, i);
+        }
+    }
+
+    return v_um;
+}*/
+
+template<typename U>
+bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string& out_filename_prefix,
+                            const double ratio_kmers, const bool inexact_search, const size_t nb_threads) const {
+
+    if (invalid){
+
+        cerr << "ColoredCDBG::search(): Graph is invalid and cannot be searched" << endl;
+        return false;
+    }
+
+    if (nb_threads > std::thread::hardware_concurrency()){
+
+        cerr << "ColoredCDBG::search(): Number of threads cannot be greater than or equal to " << std::thread::hardware_concurrency() << "." << endl;
+        return false;
+    }
+
+    if (nb_threads <= 0){
+
+        cerr << "ColoredCDBG::search(): Number of threads cannot be less than or equal to 0." << endl;
+        return false;
+    }
+
+    const string out_tmp = out_filename_prefix + ".tsv";
+
+    FILE* fp_tmp = fopen(out_tmp.c_str(), "w");
+
+    if (fp_tmp == NULL) {
+
+        cerr << "ColoredCDBG::search(): Could not open file " << out_tmp << " for writing." << endl;
+        return false;
+    }
+    else {
+
+        fclose(fp_tmp);
+
+        if (std::remove(out_tmp.c_str()) != 0) cerr << "ColoredCDBG::search(): Could not remove temporary file " << out_tmp << endl;
+    }
+
+    string s;
+
+    size_t file_id = 0;
+
+    const size_t k = this->getK();
+
+    const size_t max_len_seq = 1024;
+    const size_t thread_seq_buf_sz = 64 * max_len_seq;
+
+    FileParser fp(query_filenames);
+
+    ofstream outfile;
+    ostream out(0);
+
+    outfile.open(out_tmp.c_str());
+    out.rdbuf(outfile.rdbuf());
+    out.sync_with_stdio(false);
+
+    const char query_pres[2] = {'\t', '1'};
+    const char query_abs[2] = {'\t', '0'};
+
+    const size_t l_query_res = 2;
+    const size_t nb_colors = getNbColors();
+
+    auto processCounts = [&](const vector<pair<size_t, const_UnitigColorMap<U>>>& v_um, Roaring* color_occ_r, uint32_t* color_occ_u){
+
+        struct hash_pair {
+
+            size_t operator() (const pair<size_t, pair<Kmer, size_t>>& p) const {
+
+                return static_cast<size_t>(XXH64((const void *)&p, sizeof(pair<size_t, pair<Kmer, size_t>>), 0));
+            }
+        };
+
+        unordered_set<pair<size_t, pair<Kmer, size_t>>, hash_pair> s_um;
+
+        typename unordered_set<pair<size_t, pair<Kmer, size_t>>, hash_pair>::const_iterator it;
+
+        for (const auto& p : v_um){
+
+            s_um.insert({p.first, {p.second.strand ? p.second.getUnitigHead() : p.second.getUnitigTail().twin(), p.second.dist}});
+        }
+
+        for (const auto& p : v_um){
+
+            const_UnitigColorMap<U> um = p.second;
+
+            size_t pos_query = p.first;
+
+            if (um.strand) {
+
+                const Kmer head = um.getUnitigHead();
+
+                size_t pos_unitig = um.dist;
+
+                it = s_um.find({pos_query, {head, um.dist}});
+
+                if (it != s_um.end()) {
+
+                    s_um.erase(it);
+
+                    while ((pos_unitig + k) < um.size){
+
+                        ++pos_query;
+                        ++pos_unitig;
+
+                        it = s_um.find({pos_query, {head, pos_unitig}});
+
+                        if (it == s_um.end()) break;
+                        else {
+
+                            ++(um.len);
+
+                            s_um.erase(it);
+                        }
+                    }
+
+                    const UnitigColors* uc = um.getData()->getUnitigColors(um);
+
+                    UnitigColors::const_iterator it_uc = uc->begin(um);
+                    UnitigColors::const_iterator it_uc_end = uc->end();
+
+                    if (inexact_search){
+
+                        for (; it_uc != it_uc_end; ++it_uc) color_occ_r[it_uc.getColorID()].add(it_uc.getKmerPosition() - um.dist + p.first);
+                    }
+                    else {
+
+                        for (; it_uc != it_uc_end; ++it_uc) color_occ_u[it_uc.getColorID()] += 1;
+                    }
+                }
+            }
+            else {
+
+                const Kmer head = um.getUnitigTail().twin();
+                const size_t max_pos_um = um.dist + um.len - 1;
+
+                it = s_um.find({pos_query, {head, um.dist}});
+
+                if (it != s_um.end()) {
+
+                    s_um.erase(it);
+
+                    while (um.dist > 0){
+
+                        ++pos_query;
+
+                        it = s_um.find({pos_query, {head, um.dist - 1}});
+
+                        if (it == s_um.end()) break;
+                        else {
+
+                            --(um.dist);
+                            ++(um.len);
+
+                            s_um.erase(it);
+                        }
+                    }
+
+                    const UnitigColors* uc = um.getData()->getUnitigColors(um);
+
+                    UnitigColors::const_iterator it_uc = uc->begin(um);
+                    UnitigColors::const_iterator it_uc_end = uc->end();
+
+                    if (inexact_search){
+
+                        for (; it_uc != it_uc_end; ++it_uc) color_occ_r[it_uc.getColorID()].add(max_pos_um - it_uc.getKmerPosition() + p.first);
+                    }
+                    else {
+
+                        for (; it_uc != it_uc_end; ++it_uc) color_occ_u[it_uc.getColorID()] += 1;
+                    }
+                }
+            }
+        }
+
+        if (inexact_search){
+
+            for (size_t i = 0; i < nb_colors; ++i) color_occ_u[i] = color_occ_r[i].cardinality();
+        }
+    };
+
+    auto searchQuery = [&](const string& query, Roaring* color_occ_r, uint32_t* color_occ_u, const size_t nb_km_min){
+
+        size_t nb_color_pres = 0;
+
+        const vector<pair<size_t, const_UnitigColorMap<U>>> v_um_e = this->searchSequence(query, true, false, false, false, false);
+
+        processCounts(v_um_e, color_occ_r, color_occ_u); // Extract k-mer occurrences for each color
+
+        if (inexact_search){
+
+            for (size_t j = 0, nb_color_pres = 0; j < nb_colors; ++j) nb_color_pres += (color_occ_u[j] >= nb_km_min);
+
+            if (nb_color_pres == nb_colors) return;
+
+            const vector<pair<size_t, const_UnitigColorMap<U>>> v_um_d = this->searchSequence(query, false, false, true, false, false);
+
+            processCounts(v_um_d, color_occ_r, color_occ_u); // Extract k-mer occurrences for each color
+
+            for (size_t j = 0, nb_color_pres = 0; j < nb_colors; ++j) nb_color_pres += (color_occ_u[j] >= nb_km_min);
+
+            if (nb_color_pres == nb_colors) return;
+
+            const vector<pair<size_t, const_UnitigColorMap<U>>> v_um_m = this->searchSequence(query, false, false, false, true, false);
+
+            processCounts(v_um_m, color_occ_r, color_occ_u); // Extract k-mer occurrences for each color
+
+            for (size_t j = 0, nb_color_pres = 0; j < nb_colors; ++j) nb_color_pres += (color_occ_u[j] >= nb_km_min);
+
+            if (nb_color_pres == nb_colors) return;
+
+            const vector<pair<size_t, const_UnitigColorMap<U>>> v_um_i = this->searchSequence(query, false, true, false, false, false);
+
+            processCounts(v_um_i, color_occ_r, color_occ_u); // Extract k-mer occurrences for each color
+        }
+    };
+
+    auto writeCounts = [&](const char* query_name, const uint32_t* color_occ, char* buffer_res, size_t& pos_buffer_out, const size_t nb_km_min){
+
+        const size_t l_query_name = strlen(query_name);
+
+        if (pos_buffer_out + l_query_name >= thread_seq_buf_sz){ // If next result cannot fit in the buffer
+
+            out.write(buffer_res, pos_buffer_out); // Write result buffer
+            pos_buffer_out = 0; // Reset position to 0;
+        }
+
+        // Copy new result to buffer
+        std::memcpy(buffer_res + pos_buffer_out, query_name, l_query_name * sizeof(char));
+
+        pos_buffer_out += l_query_name;
+
+        for (size_t i = 0; i < nb_colors; ++i){
+
+            if (pos_buffer_out + l_query_res >= thread_seq_buf_sz){ // If next result cannot fit in the buffer
+
+                out.write(buffer_res, pos_buffer_out); // Write result buffer
+                pos_buffer_out = 0; // Reset position to 0;
+            }
+
+            std::memcpy(buffer_res + pos_buffer_out, (color_occ[i] >= nb_km_min) ? query_pres : query_abs, l_query_res * sizeof(char));
+
+            pos_buffer_out += l_query_res;
+        }
+
+        if (pos_buffer_out + 1 >= thread_seq_buf_sz){ // If next result cannot fit in the buffer
+
+            out.write(buffer_res, pos_buffer_out); // Write result buffer
+            pos_buffer_out = 0; // Reset position to 0;
+        }
+
+        buffer_res[pos_buffer_out] = '\n';
+
+        ++pos_buffer_out;
+    };
+
+    // Write header to TSV file
+    {
+        const vector<string> color_names = getColorNames();
+
+        out << "query_name";
+
+        for (const auto& name : color_names) out << '\t' << name;
+
+        out << '\n';
+    }
+
+    if (nb_threads == 1){
+
+        char* buffer_res = new char[thread_seq_buf_sz];
+
+        uint32_t* color_occ_u = new uint32_t[nb_colors]();
+
+        Roaring* color_occ_r = inexact_search ? new Roaring[nb_colors] : nullptr;
+
+        size_t pos_buffer_out = 0;
+
+        while (fp.read(s, file_id)){
+
+            const size_t nb_km_min = static_cast<double>(s.length() - k + 1) * ratio_kmers;
+
+            searchQuery(s, color_occ_r, color_occ_u, nb_km_min);
+            writeCounts(fp.getNameString(), color_occ_u, buffer_res, pos_buffer_out, nb_km_min); // Output presence/absence for each color
+
+            std::memset(color_occ_u, 0, nb_colors * sizeof(uint32_t));
+
+            if (inexact_search){
+
+                for (size_t j = 0; j < nb_colors; ++j) color_occ_r[j] = Roaring(); // Reset k-mer occurences for each color
+            }
+        }
+
+        // Flush unresult written to final output
+        if (pos_buffer_out > 0) out.write(buffer_res, pos_buffer_out);
+
+        delete[] buffer_res;
+        delete[] color_occ_u;
+
+        if (color_occ_r != nullptr) delete[] color_occ_r;
+    }
+    else {
+
+        bool stop = false;
+
+        vector<thread> workers; // need to keep track of threads so we can join them
+        vector<vector<string>> buffers_seq(nb_threads);
+        vector<vector<string>> buffers_name(nb_threads);
+
+        char** buffer_res = new char*[nb_threads];
+        uint32_t** color_occ_u = new uint32_t*[nb_threads];
+        Roaring** color_occ_r = new Roaring*[nb_threads];
+
+        mutex mutex_files_in, mutex_file_out;
+
+        for (size_t t = 0; t < nb_threads; ++t){
+
+            buffer_res[t] = new char[thread_seq_buf_sz];
+            color_occ_u[t] = new uint32_t[nb_colors]();
+            color_occ_r[t] = inexact_search ? new Roaring[nb_colors] : nullptr;
+
+            workers.emplace_back(
+
+                [&, t]{
+
+                    while (true) {
+
+                        {
+                            if (stop) return;
+
+                            size_t buffer_sz = 0;
+
+                            unique_lock<mutex> lock(mutex_files_in);
+
+                            stop = !fp.read(s, file_id);
+
+                            while (!stop){
+
+                                buffer_sz += s.length();
+
+                                buffers_seq[t].push_back(move(s));
+                                buffers_name[t].push_back(string(fp.getNameString()));
+
+                                if (buffer_sz >= thread_seq_buf_sz) break;
+                                else stop = !fp.read(s, file_id);
+                            }
+                        }
+
+                        size_t pos_buffer_out = 0;
+
+                        const size_t buffers_seq_sz = buffers_seq[t].size();
+
+                        for (size_t i = 0; i < buffers_seq_sz; ++i){
+
+                            const size_t nb_km_min = static_cast<double>(buffers_seq[t][i].length() - k + 1) * ratio_kmers;
+
+                            searchQuery(buffers_seq[t][i], color_occ_r[t], color_occ_u[t], nb_km_min);
+
+                            if ((pos_buffer_out + buffers_name[t][i].length() + nb_colors * l_query_res + 2) >= thread_seq_buf_sz){
+
+                                unique_lock<mutex> lock(mutex_file_out);
+
+                                writeCounts(buffers_name[t][i].c_str(), color_occ_u[t], buffer_res[t], pos_buffer_out, nb_km_min); // Output presence/absence for each color
+                            }
+                            else writeCounts(buffers_name[t][i].c_str(), color_occ_u[t], buffer_res[t], pos_buffer_out, nb_km_min);
+
+                            std::memset(color_occ_u[t], 0, nb_colors * sizeof(uint32_t));
+
+                            if (inexact_search){
+
+                                for (size_t j = 0; j < nb_colors; ++j) color_occ_r[t][j] = Roaring(); // Reset k-mer occurences for each color
+                            }
+                        }
+
+                        if (pos_buffer_out > 0){
+
+                            unique_lock<mutex> lock(mutex_file_out);
+
+                            out.write(buffer_res[t], pos_buffer_out);
+                        }
+
+                        // Clear buffers for next round
+                        buffers_seq[t].clear();
+                        buffers_name[t].clear();
+                    }
+                }
+            );
+        }
+
+        for (auto& t : workers) t.join();
+
+        for (size_t t = 0; t < nb_threads; ++t){
+
+            delete[] buffer_res[t];
+            delete[] color_occ_u[t];
+
+            if (color_occ_r[t] != nullptr) delete[] color_occ_r[t];
+        }
+
+        delete[] buffer_res;
+        delete[] color_occ_u;
+        delete[] color_occ_r;
+    }
+
+    outfile.close();
+    fp.close();
+
+    return true;
 }
 
 template<typename U>

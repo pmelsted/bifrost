@@ -1,5 +1,5 @@
-#ifndef BFG_KMER_ITERATOR_HPP
-#define BFG_KMER_ITERATOR_HPP
+#ifndef BIFROST_KMER_ITERATOR_HPP
+#define BIFROST_KMER_ITERATOR_HPP
 
 #include <iostream>
 #include <iterator>

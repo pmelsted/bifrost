@@ -6,78 +6,130 @@ using namespace std;
 // use:  PrintVersion();
 // post: The version of the program has been printed to cout
 void PrintVersion() {
+
     cout <<  BFG_VERSION << endl;
 }
 
 void PrintUsage() {
 
-    cout << endl << "Bifrost " << BFG_VERSION << endl << endl;
-    cout << "Highly parallel construction and indexing of colored and compacted de Bruijn graphs" << endl << endl;
-    cout << "Usage: Bifrost [COMMAND] [GENERAL_PARAMETERS] [COMMAND_PARAMETERS]" << endl << endl;
-    cout << "[COMMAND]:" << endl << endl <<
-    "   build                   Build a compacted de Bruijn graph, with or without colors" << endl <<
-    "   update                  Update a compacted (possible colored) de Bruijn graph with new sequences" << endl << endl;
-    cout << "[GENERAL_PARAMETERS]:" << endl << endl;
-    cout << "   > Mandatory with required argument:" << endl << endl <<
-    "   -s, --input-seq-file     Input sequence file (FASTA/FASTQ possibly gzipped)" << endl <<
-    "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl <<
-    "                            K-mers with exactly 1 occurrence in the input sequence files will be discarded" << endl <<
-    "   -r, --input-ref-file     Input reference file (FASTA/FASTQ possibly gzipped and GFA)" << endl <<
-    "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl <<
-    "                            All k-mers of the input reference files are used" << endl <<
-    "   -o, --output-file        Prefix for output file(s)" << endl <<
-    endl << "   > Optional with required argument:" << endl << endl <<
-    "   -t, --threads            Number of threads (default is 1)" << endl <<
-    endl << "   > Optional with no argument:" << endl << endl <<
-    "   -i, --clip-tips          Clip tips shorter than k k-mers in length" << endl <<
-    "   -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl <<
-    "   -v, --verbose            Print information messages during execution" << endl << endl;
-    cout << "[COMMAND_PARAMETERS]: build" << endl << endl;
-    cout << "   > Optional with required argument:" << endl << endl <<
-    "   -k, --kmer-length        Length of k-mers (default is 31)" << endl <<
-    "   -m, --min-length         Length of minimizers (default is 23)" << endl <<
-    "   -b, --bloom-bits         Number of Bloom filter bits per k-mer with 1+ occurrences in the input files (default is 14)" << endl <<
-    "   -B, --bloom-bits2        Number of Bloom filter bits per k-mer with 2+ occurrences in the input files (default is 14)" << endl <<
-    "   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default is no input)" << endl <<
-    "   -w, --write-mbbf         Output Blocked Bloom Filter file (default is no output)" << endl <<
-    "   -u, --chunk-size         Read chunk size per thread (default is 64)" << endl <<
-    endl << "   > Optional with no argument:" << endl << endl <<
-    "   -c, --colors             Color the compacted de Bruijn graph (default is no coloring)" << endl <<
-    "   -y, --keep-mercy         Keep low coverage k-mers connecting tips" << endl <<
-    "   -a, --fasta              Output file is in FASTA format (only sequences) instead of GFA" << endl << endl;
-    cout << "[COMMAND_PARAMETERS]: update" << endl << endl;
-    cout << "   > Mandatory with required argument:" << endl << endl <<
-    "   -g, --input-graph-file   Input graph file to update (GFA format)" << endl <<
-    endl << "   > Optional with required argument:" << endl << endl <<
-    "   -f, --input-color-file   Input color file associated with the input graph file to update" << endl <<
-    "   -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)" << endl <<
-    "   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or 23)" << endl << endl;
+    cout << "Bifrost" << endl << endl;
+
+    cout << "Highly parallel construction, indexing and querying of colored and compacted de Bruijn graphs" << endl << endl;
+
+    cout << "Usage: Bifrost [COMMAND] [PARAMETERS]" << endl << endl;
+
+    cout << "[COMMAND]:" << endl << endl;
+
+    cout << "   build                   Build a compacted de Bruijn graph, with or without colors" << endl;
+    cout << "   update                  Update a compacted (possible colored) de Bruijn graph with new sequences" << endl;
+    //cout << "   query                   Query a compacted (possible colored) de Bruijn graph" << endl << endl;
+
+    cout << "[PARAMETERS]: build" << endl << endl;
+
+    cout << "   > Mandatory with required argument:" << endl << endl;
+
+    cout << "   -s, --input-seq-file     Input sequence file (FASTA/FASTQ possibly gzipped)" << endl;
+    cout << "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl;
+    cout << "                            K-mers with exactly 1 occurrence in the input sequence files will be discarded" << endl;
+    cout << "   -r, --input-ref-file     Input reference file (FASTA/FASTQ possibly gzipped and GFA)" << endl;
+    cout << "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl;
+    cout << "                            All k-mers of the input reference files are used" << endl;
+    cout << "   -o, --output-file        Prefix for output file(s)" << endl << endl;
+
+    cout << "   > Optional with required argument:" << endl << endl;
+
+    cout << "   -t, --threads            Number of threads (default is 1)" << endl;
+    cout << "   -k, --kmer-length        Length of k-mers (default is 31)" << endl;
+    cout << "   -m, --min-length         Length of minimizers (default is automatically chosen)" << endl;
+    cout << "   -b, --bloom-bits         Number of Bloom filter bits per k-mer with 1+ occurrences in the input files (default is 14)" << endl;
+    cout << "   -B, --bloom-bits2        Number of Bloom filter bits per k-mer with 2+ occurrences in the input files (default is 14)" << endl;
+    cout << "   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default is no input)" << endl;
+    cout << "   -w, --write-mbbf         Output Blocked Bloom Filter file (default is no output)" << endl;
+    cout << "   -u, --chunk-size         Read chunk size per thread (default is 64)" << endl << endl;
+
+    cout << "   > Optional with no argument:" << endl << endl;
+
+    cout << "   -c, --colors             Color the compacted de Bruijn graph (default is no coloring)" << endl;
+    cout << "   -y, --keep-mercy         Keep low coverage k-mers connecting tips" << endl;
+    cout << "   -i, --clip-tips          Clip tips shorter than k k-mers in length" << endl;
+    cout << "   -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl;
+    cout << "   -a, --fasta              Output file is in FASTA format (only sequences) instead of GFA" << endl;
+    cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
+
+    cout << "[PARAMETERS]: update" << endl << endl;
+
+    cout << "  > Mandatory with required argument:" << endl << endl;
+
+    cout << "   -g, --input-graph-file   Input graph file to update (GFA format)" << endl;
+    cout << "   -s, --input-seq-file     Input sequence file (FASTA/FASTQ possibly gzipped)" << endl;
+    cout << "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl;
+    cout << "                            K-mers with exactly 1 occurrence in the input sequence files will be discarded" << endl;
+    cout << "   -r, --input-ref-file     Input reference file (FASTA/FASTQ possibly gzipped and GFA)" << endl;
+    cout << "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl;
+    cout << "                            All k-mers of the input reference files are used" << endl;
+    cout << "   -o, --output-file        Prefix for output file(s)" << endl << endl;
+
+    cout << "   > Optional with required argument:" << endl << endl;
+
+    cout << "   -f, --input-color-file   Input color file associated with the input graph file to update" << endl;
+    cout << "   -t, --threads            Number of threads (default is 1)" << endl;
+    cout << "   -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)" << endl;
+    cout << "   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or automatically chosen)" << endl << endl;
+
+    cout << "   > Optional with no argument:" << endl << endl;
+
+    cout << "   -i, --clip-tips          Clip tips shorter than k k-mers in length" << endl;
+    cout << "   -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl;
+    cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
+
+    /*cout << "[PARAMETERS]: query" << endl << endl;
+
+    cout << "  > Mandatory with required argument:" << endl << endl;
+
+    cout << "   -g, --input-graph-file   Input graph file to query (GFA format)" << endl;
+    cout << "   -q, --input-query-file   Input query file (FASTA/FASTQ possibly gzipped)" << endl;
+    cout << "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl;
+    cout << "   -o, --output-file        Prefix for output file" << endl;
+    cout << "   -e, --ratio-kmers        Ratio of k-mers from queries that must occur in the graph (default is 0.8)" << endl << endl;
+
+    cout << "   > Optional with required argument:" << endl << endl;
+
+    cout << "   -f, --input-color-file   Input color file associated with the input graph file to query" << endl;
+    cout << "                            Presence/absence of queries will be output for each color" << endl;
+    cout << "   -t, --threads            Number of threads (default is 1)" << endl;
+    cout << "   -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)" << endl;
+    cout << "   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or or automatically chosen)" << endl << endl;
+
+    cout << "   > Optional with no argument:" << endl << endl;
+
+    cout << "   -n, --inexact            Graph is searched with exact and inexact k-mers (1 substitution or indel) from queries" << endl;
+    cout << "   -v, --verbose            Print information messages during execution" << endl << endl;*/
 }
 
 void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
 
     int option_index = 0, c;
 
-    //const char* opt_string = "s:r:g:o:t:k:m:n:N:b:B:l:w:u:f:idvcya";
-    const char* opt_string = "s:r:g:o:t:k:m:b:B:l:w:u:f:idvcya";
+    const char* opt_string = "s:r:q:g:f:o:t:k:m:e:b:B:l:w:u:nidvcya";
 
     static struct option long_options[] = {
 
-        {"input-seq-file",     required_argument,  0, 's'},
-        {"input-ref-file",     required_argument,  0, 'r'},
+        {"input-seq-file",      required_argument,  0, 's'},
+        {"input-ref-file",      required_argument,  0, 'r'},
+        {"input-query-file",    required_argument,  0, 'q'},
         {"input-graph-file",    required_argument,  0, 'g'},
+        {"input-color-file",    required_argument,  0, 'f'},
         {"output-file",         required_argument,  0, 'o'},
         {"threads",             required_argument,  0, 't'},
         {"kmer-length",         required_argument,  0, 'k'},
         {"min-length",          required_argument,  0, 'm'},
-        //{"num-kmers",           required_argument,  0, 'n'},
-        //{"num-kmers2",          required_argument,  0, 'N'},
+        {"ratio-kmers",         required_argument,  0, 'e'},
         {"bloom-bits",          required_argument,  0, 'b'},
         {"bloom-bits2",         required_argument,  0, 'B'},
         {"load-mbbf",           required_argument,  0, 'l'},
         {"write-mbbf",          required_argument,  0, 'w'},
         {"chunk-size",          required_argument,  0, 'u'},
-        {"input-color-file",    required_argument,  0, 'f'},
+        {"inexact_search",      no_argument,        0, 'n'},
         {"clip-tips",           no_argument,        0, 'i'},
         {"del-isolated",        no_argument,        0, 'd'},
         {"verbose",             no_argument,        0, 'v'},
@@ -89,8 +141,9 @@ void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
 
     if (strcmp(argv[1], "build") == 0) opt.build = true;
     else if (strcmp(argv[1], "update") == 0) opt.update = true;
+    else if (strcmp(argv[1], "query") == 0) opt.query = true;
 
-    if (opt.build || opt.update){
+    if (opt.build || opt.update || opt.query){
 
         while ((c = getopt_long(argc, argv, opt_string, long_options, &option_index)) != -1) {
 
@@ -101,6 +154,9 @@ void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                     break;
                 case 'r':
                     opt.filename_ref_in.push_back(optarg);
+                    break;
+                case 'q':
+                    opt.filename_query_in.push_back(optarg);
                     break;
                 case 'g':
                     opt.filename_graph_in = optarg;
@@ -120,12 +176,9 @@ void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                 case 'm':
                     opt.g = atoi(optarg);
                     break;
-                /*case 'n':
-                    opt.nb_unique_kmers = atoi(optarg);
+                case 'e':
+                    opt.ratio_kmers = atof(optarg);
                     break;
-                case 'N':
-                    opt.nb_non_unique_kmers = atoi(optarg);
-                    break;*/
                 case 'b':
                     opt.nb_bits_unique_kmers_bf = atoi(optarg);
                     break;
@@ -140,6 +193,9 @@ void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                     break;
                 case 'u':
                     opt.read_chunksize = atoi(optarg);
+                    break;
+                case 'n':
+                    opt.inexact_search = true;
                     break;
                 case 'i':
                     opt.clipTips = true;
@@ -234,9 +290,9 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
 
     // Check general parameters
 
-    if (!opt.build && !opt.update){
+    if (!opt.build && !opt.update && !opt.query){
 
-        cerr << "Error: No command selected (can be 'build' or 'update')." << endl;
+        cerr << "Error: No command selected (can be 'build' or 'update' or 'query')." << endl;
         ret = false;
     }
 
@@ -252,9 +308,9 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
         ret = false;
     }
 
-    if (opt.k <= 0){
+    if (opt.k <= 2){
 
-        cerr << "Error: Length k of k-mers cannot be less than or equal to 0." << endl;
+        cerr << "Error: Length k of k-mers cannot be less than 3." << endl;
         ret = false;
     }
 
@@ -264,42 +320,81 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
         ret = false;
     }
 
-    if (opt.g <= 0){
+    if (opt.g == 0){
 
-        cerr << "Error: Length m of minimizers cannot be less than or equal to 0." << endl;
+        cerr << "Error: Length m of minimizers cannot be equal to 0." << endl;
         ret = false;
     }
 
-    if (opt.g > opt.k - 2){
+    if ((opt.g >= 0) && (opt.g > opt.k - 2)) {
 
         cerr << "Error: Length m of minimizers cannot exceed k - 2 (" << (opt.k - 2) << ")." << endl;
         ret = false;
     }
 
-    const string out = opt.prefixFilenameOut + (opt.outputGFA ? ".gfa" : ".fasta");
+    if (opt.query){  // Check param. command build
 
-    FILE* fp = fopen(out.c_str(), "w");
+        const string out = opt.prefixFilenameOut + ".tsv";
 
-    if (fp == NULL) {
+        FILE* fp = fopen(out.c_str(), "w");
 
-        cerr << "Error: Could not open file for writing output graph in GFA format: " << out << "." << endl;
-        ret = false;
+        if (fp == NULL) {
+
+            cerr << "Error: Could not open file for writing output of query in TSV format: " << out << "." << endl;
+            ret = false;
+        }
+        else {
+
+            fclose(fp);
+            if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << "." << endl;
+        }
+
+        if (opt.filename_query_in.size() == 0) {
+
+            cerr << "Error: Missing input query files." << endl;
+            ret = false;
+        }
+        else check_files(opt.filename_query_in);
+
+        if ((opt.ratio_kmers < 0.0) || (opt.ratio_kmers > 1.0)) {
+
+            cerr << "Error: Ratio of k-mers from queries that must occur in the graph cannot be less than 0.0 or more than 1.0 (" << opt.ratio_kmers << ")." << endl;
+            ret = false;
+        }
+
+        if (opt.g > opt.k - 2){
+
+            cerr << "Error: Length m of minimizers cannot exceed k - 2 (" << (opt.k - 2) << ")." << endl;
+            ret = false;
+        }
     }
     else {
 
-        fclose(fp);
-        if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << "." << endl;
-    }
+        const string out = opt.prefixFilenameOut + (opt.outputGFA ? ".gfa" : ".fasta");
 
-    if ((opt.filename_seq_in.size() + opt.filename_ref_in.size()) == 0) {
+        FILE* fp = fopen(out.c_str(), "w");
 
-        cerr << "Error: Missing input files." << endl;
-        ret = false;
-    }
-    else {
+        if (fp == NULL) {
 
-        check_files(opt.filename_seq_in);
-        check_files(opt.filename_ref_in);
+            cerr << "Error: Could not open file for writing output graph in GFA format: " << out << "." << endl;
+            ret = false;
+        }
+        else {
+
+            fclose(fp);
+            if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << "." << endl;
+        }
+
+        if ((opt.filename_seq_in.size() + opt.filename_ref_in.size()) == 0) {
+
+            cerr << "Error: Missing input files." << endl;
+            ret = false;
+        }
+        else {
+
+            check_files(opt.filename_seq_in);
+            check_files(opt.filename_ref_in);
+        }
     }
 
     if (opt.build){ // Check param. command build
@@ -351,16 +446,16 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
         }
     }
 
-    if (opt.update){
+    if (opt.update || opt.query){
 
         if (opt.filename_graph_in.length() == 0){
 
-            cerr << "Error: No graph file to update was provided in input." << endl;
+            cerr << "Error: No graph file was provided in input." << endl;
             ret = false;
         }
         else if (!check_file_exists(opt.filename_graph_in)){
 
-            cerr << "Error: The graph file to update does not exist." << endl;
+            cerr << "Error: The graph file does not exist." << endl;
             ret = false;
         }
         else {
@@ -415,12 +510,12 @@ int main(int argc, char **argv){
 
             if (opt.outputColors){
 
-                ColoredCDBG<> cdbg(opt.k, opt.g);
+                ColoredCDBG<> ccdbg(opt.k, opt.g);
 
-                cdbg.buildGraph(opt);
-                cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                cdbg.buildColors(opt);
-                cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
+                ccdbg.buildGraph(opt);
+                ccdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+                ccdbg.buildColors(opt);
+                ccdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
             }
             else {
 
@@ -433,32 +528,32 @@ int main(int argc, char **argv){
         }
         else if (opt.update){
 
-            if (opt.filename_colors_in.length() != 0){ // If colors in or out
+            if (opt.filename_colors_in.size() != 0){ // If colors in or out
 
-                ColoredCDBG<> cdbg1(opt.k, opt.g);
-                ColoredCDBG<> cdbg2(opt.k, opt.g);
+                ColoredCDBG<> ccdbg1(opt.k, opt.g);
+                ColoredCDBG<> ccdbg2(opt.k, opt.g);
 
-                cdbg1.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
-                cdbg2.buildGraph(opt);
-                cdbg2.buildColors(opt);
+                ccdbg1.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
+                ccdbg2.buildGraph(opt);
+                ccdbg2.buildColors(opt);
 
-                const size_t cdbg1_len = cdbg1.length();
-                const size_t cdbg2_len = cdbg2.length();
+                const size_t ccdbg1_len = ccdbg1.length();
+                const size_t ccdbg2_len = ccdbg2.length();
 
-                ColoredCDBG<>& cdbg_a = (cdbg1_len > cdbg2_len) ? cdbg1 : cdbg2;
-                ColoredCDBG<>& cdbg_b = (cdbg1_len > cdbg2_len) ? cdbg2 : cdbg1;
+                ColoredCDBG<>& ccdbg_a = (ccdbg1_len > ccdbg2_len) ? ccdbg1 : ccdbg2;
+                ColoredCDBG<>& ccdbg_b = (ccdbg1_len > ccdbg2_len) ? ccdbg2 : ccdbg1;
 
-                cdbg_a.merge(move(cdbg_b), opt.nb_threads, opt.verbose);
+                ccdbg_a.merge(move(ccdbg_b), opt.nb_threads, opt.verbose);
 
-                cdbg_a.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                cdbg_a.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
+                ccdbg_a.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+                ccdbg_a.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
             }
             else {
 
                 CompactedDBG<> cdbg1(opt.k, opt.g);
                 CompactedDBG<> cdbg2(opt.k, opt.g);
 
-                cdbg1.read(opt.filename_graph_in, opt.verbose);
+                cdbg1.read(opt.filename_graph_in, opt.nb_threads, opt.verbose);
                 cdbg2.build(opt);
 
                 const size_t cdbg1_len = cdbg1.length();
@@ -473,6 +568,25 @@ int main(int argc, char **argv){
                 cdbg_a.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
                 cdbg_a.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
             }
+        }
+        else if (opt.query){
+
+            cout << "Querying function is not yet available" << endl;
+
+            /*if (opt.filename_colors_in.size() != 0){
+
+                ColoredCDBG<> ccdbg(opt.k, opt.g);
+
+                ccdbg.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
+                ccdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.inexact_search, opt.nb_threads);
+            }
+            else {
+
+                CompactedDBG<> cdbg(opt.k, opt.g);
+
+                cdbg.read(opt.filename_graph_in, opt.nb_threads, opt.verbose);
+                cdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.inexact_search, opt.nb_threads);
+            }*/
         }
     }
 }

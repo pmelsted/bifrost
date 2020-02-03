@@ -1,5 +1,5 @@
-#ifndef UNITIG_ITERATOR_TCC
-#define UNITIG_ITERATOR_TCC
+#ifndef BIFROST_UNITIG_ITERATOR_TCC
+#define BIFROST_UNITIG_ITERATOR_TCC
 
 #include "CompactedDBG.hpp"
 

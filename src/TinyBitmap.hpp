@@ -1,5 +1,5 @@
-#ifndef BFG_TINYBITMAP_HPP
-#define BFG_TINYBITMAP_HPP
+#ifndef BIFROST_TINYBITMAP_HPP
+#define BIFROST_TINYBITMAP_HPP
 
 #include <algorithm>
 #include <cstdlib>

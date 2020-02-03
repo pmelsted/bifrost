@@ -1,5 +1,5 @@
-#ifndef BFG_RW_SPINLOCK_HPP
-#define BFG_RW_SPINLOCK_HPP
+#ifndef BIFROST_RW_SPINLOCK_HPP
+#define BIFROST_RW_SPINLOCK_HPP
 
 #include <thread>
 #include <atomic>

@@ -1,5 +1,5 @@
-#ifndef BFG_UNITIG_HPP
-#define BFG_UNITIG_HPP
+#ifndef BIFROST_UNITIG_HPP
+#define BIFROST_UNITIG_HPP
 
 #include "Common.hpp"
 #include "Kmer.hpp"

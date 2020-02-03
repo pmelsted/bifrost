@@ -1,5 +1,5 @@
-#ifndef BFG_COLOREDCDBG_HPP
-#define BFG_COLOREDCDBG_HPP
+#ifndef BIFROST_COLOREDCDBG_HPP
+#define BIFROST_COLOREDCDBG_HPP
 
 #include <iostream>
 #include <random>
@@ -162,9 +162,14 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
 
         /** Constructor (set up an empty colored cdBG).
         * @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
+        */
+        ColoredCDBG(int kmer_length = DEFAULT_K);
+
+        /** Constructor (set up an empty colored cdBG).
+        * @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
         * @param minimizer_length is the length g of minimizers (g < k) used in the graph.
         */
-        ColoredCDBG(int kmer_length = DEFAULT_K, int minimizer_length = DEFAULT_G);
+        ColoredCDBG(int kmer_length, int minimizer_length);
 
         /** Copy constructor (copy a colored cdBG).
         * This function is expensive in terms of time and memory as the content of a colored and compacted
@@ -335,6 +340,9 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         inline size_t getNbColors() const { return this->getData()->getNbColors(); }
 
     private:
+
+        bool search(const vector<string>& query_filenames, const string& out_filename_prefix,
+                    const double ratio_kmers, const bool inexact_search, const size_t nb_threads) const;
 
         void checkColors(const vector<string>& filename_seq_in) const;
 

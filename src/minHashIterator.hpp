@@ -1,5 +1,5 @@
-#ifndef BFG_MINHASHITERATOR_H
-#define BFG_MINHASHITERATOR_H
+#ifndef BIFROST_MINHASHITERATOR_HPP
+#define BIFROST_MINHASHITERATOR_HPP
 
 #include <stdint.h>
 #include <deque>

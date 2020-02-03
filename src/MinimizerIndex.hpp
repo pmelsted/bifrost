@@ -1,5 +1,5 @@
-#ifndef BFG_MINIMIZER_IDX_HPP
-#define BFG_MINIMIZER_IDX_HPP
+#ifndef BIFROST_MINIMIZER_IDX_HPP
+#define BIFROST_MINIMIZER_IDX_HPP
 
 #include <utility>
 #include <string>
@@ -1598,11 +1598,7 @@ class MinimizerIndex {
                 }
             }
 
-            lck_edit_table.acquire_reader();
-
             if (!lck_min.empty()) lck_min = vector<SpinLockRW>((size_ + lck_min_block_sz - 1) / lck_min_block_sz);
-
-            lck_edit_table.release_reader();
 
             delete[] old_table_keys;
             delete[] old_table_tinyv;

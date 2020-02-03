@@ -1,5 +1,5 @@
-#ifndef BFG_HASHID_TCC
-#define BFG_HASHID_TCC
+#ifndef BIFROST_HASHID_TCC
+#define BIFROST_HASHID_TCC
 
 template<typename U>
 DataAccessor<U>::DataAccessor(const uint8_t id) : da_id(id) {}
