@@ -563,7 +563,6 @@ bool DataStorage<U>::write(const string& prefix_output_filename, const bool verb
     const size_t nb_colors = color_names.size();
 
     const size_t block_sz = 1024;
-    const size_t empty_address = 0xFFFFFFFFFFFFFFFFULL;
 
     const char nl = '\n';
 
@@ -692,7 +691,6 @@ inline bool DataStorage<void>::write(const string& prefix_output_filename, const
     const size_t nb_colors = color_names.size();
 
     const size_t block_sz = 1024;
-    const size_t empty_address = 0xFFFFFFFFFFFFFFFFULL;
 
     const char nl = '\n';
 
@@ -1018,12 +1016,12 @@ bool DataStorage<U>::read(const string& filename_colors, const size_t nb_threads
 
             for (auto& t : workers) t.join();
 
-            if (pos_f_cs != nullptr) delete[] pos_f_cs;
-
             colorsfile_in.open(filename_colors.c_str(), ios_base::in | ios_base::binary);
             colors_in.rdbuf(colorsfile_in.rdbuf());
             colors_in.seekg(colors_in_pos);
         }
+
+        if (pos_f_cs != nullptr) delete[] pos_f_cs;
     }
 
     for (size_t i = 0, sz, pos; (i < overflow_sz) && colors_in.good(); ++i){
@@ -1272,12 +1270,12 @@ inline bool DataStorage<void>::read(const string& filename_colors, const size_t 
 
             for (auto& t : workers) t.join();
 
-            if (pos_f_cs != nullptr) delete[] pos_f_cs;
-
             colorsfile_in.open(filename_colors.c_str(), ios_base::in | ios_base::binary);
             colors_in.rdbuf(colorsfile_in.rdbuf());
             colors_in.seekg(colors_in_pos);
         }
+
+        if (pos_f_cs != nullptr) delete[] pos_f_cs;
     }
 
     for (size_t i = 0, sz, pos; (i < overflow_sz) && colors_in.good(); ++i){
