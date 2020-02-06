@@ -659,6 +659,135 @@ bool DataStorage<U>::write(const string& prefix_output_filename, const bool verb
     return ret;
 }
 
+template<>
+inline bool DataStorage<void>::write(const string& prefix_output_filename, const bool verbose) const {
+
+    if (verbose) cout << endl << "DataStorage::write(): Writing colors to disk" << endl;
+
+    const string out = prefix_output_filename + ".bfg_colors";
+
+    FILE* fp = fopen(out.c_str(), "wb");
+
+    if (fp == NULL) {
+
+        cerr << "DataStorage::write(): Could not open file " << out << " for writing color sets" << endl;
+        return false;
+    }
+    else {
+
+        fclose(fp);
+
+        if (std::remove(out.c_str()) != 0) cerr << "DataStorage::write(): Could not remove temporary file " << out << endl;
+    }
+
+    ofstream colorsfile_out;
+    ostream colors_out(nullptr);
+
+    colorsfile_out.open(out.c_str(), ios_base::out | ios_base::binary);
+    colors_out.rdbuf(colorsfile_out.rdbuf());
+    //colors_out.sync_with_stdio(false);
+
+    const size_t format_version = BFG_COLOREDCDBG_FORMAT_VERSION;
+    const size_t overflow_sz = overflow.size();
+    const size_t nb_colors = color_names.size();
+
+    const size_t block_sz = 1024;
+    const size_t empty_address = 0xFFFFFFFFFFFFFFFFULL;
+
+    const char nl = '\n';
+
+    streampos pos_f_cs;
+
+    vector<streampos> v_pos_f_cs;
+
+    //Write the file format version number
+    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&format_version), sizeof(size_t));
+    //Write number of different seeds for hash function
+    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&nb_seeds), sizeof(size_t));
+   //Write number of colors in the graph
+    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&nb_colors), sizeof(size_t));
+    //Write number of color sets in the graph
+    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&nb_cs), sizeof(size_t));
+    //Write number of elements allocated
+    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&sz_cs), sizeof(size_t));
+    //Write number of SharedUnitigColors allocated
+    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&sz_shared_cs), sizeof(size_t));
+    //Write number of (kmer, color set) overflowing
+    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&overflow_sz), sizeof(size_t));
+    //Write the hash function seeds of the graph
+    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(seeds), nb_seeds * sizeof(uint64_t));
+    // Write the block size of the color sets
+    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&block_sz), sizeof(size_t));
+
+    pos_f_cs = colors_out.tellp();
+
+    const size_t nb_pos_shared_cs = (sz_shared_cs / block_sz) + static_cast<size_t>((sz_shared_cs % block_sz) != 0);
+    const size_t nb_pos_cs = (sz_cs / block_sz) + static_cast<size_t>((sz_cs % block_sz) != 0);
+
+    for (size_t i = 0; (i < nb_pos_shared_cs) && colors_out.good(); ++i){
+        // Reserve space to write positions in file of shared colorsets blocks
+        colors_out.write(reinterpret_cast<const char*>(&pos_f_cs), sizeof(streampos));
+    }
+
+    for (size_t i = 0; (i < nb_pos_cs) && colors_out.good(); ++i){
+        // Reserve space to write positions in file of non-shared colorsets blocks
+        colors_out.write(reinterpret_cast<const char*>(&pos_f_cs), sizeof(streampos));
+    }
+
+    for (size_t i = 0; (i < nb_colors) && colors_out.good(); ++i){
+        //Write the color names of the graph
+        colors_out.write(color_names[i].c_str(), color_names[i].size() * sizeof(char));
+        colors_out.write(&nl, sizeof(char));
+    }
+
+    for (uint64_t i = 0, j = ((sz_cs >> 6) + ((sz_cs & 0x3F) != 0)), e; (i != j) && colors_out.good(); ++i){
+
+        e = unitig_cs_link[i].load();
+        colors_out.write(reinterpret_cast<const char*>(&e), sizeof(uint64_t));
+    }
+
+    for (size_t i = 0; (i < sz_shared_cs) && colors_out.good(); ++i){
+
+        if (i % block_sz == 0) v_pos_f_cs.push_back(colors_out.tellp());
+
+        if (shared_color_sets[i].first.write(colors_out)){
+
+            colors_out.write(reinterpret_cast<const char*>(&(shared_color_sets[i].second)), sizeof(size_t));
+        }
+    }
+
+    for (size_t i = 0; (i < sz_cs) && colors_out.good(); ++i){
+
+        if (i % block_sz == 0) v_pos_f_cs.push_back(colors_out.tellp());
+
+        color_sets[i].write(colors_out, false); //Write the color sets
+    }
+
+    unordered_map<pair<Kmer, size_t>, size_t>::const_iterator it(overflow.begin());
+    const unordered_map<pair<Kmer, size_t>, size_t>::const_iterator it_end(overflow.end());
+
+    for (; (it != it_end) && colors_out.good(); ++it){
+
+        it->first.first.write(colors_out); // Write the k-mer
+
+        colors_out.write(reinterpret_cast<const char*>(&(it->first.second)), sizeof(size_t)); // Write the unitig length
+        colors_out.write(reinterpret_cast<const char*>(&(it->second)), sizeof(size_t)); // Write the position
+    }
+
+    if (colors_out.good()){
+
+        colors_out.seekp(pos_f_cs); // Re-position cursor to array of position of shared color sets at the beginning
+
+        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&v_pos_f_cs[0]), v_pos_f_cs.size() * sizeof(streampos));
+    }
+
+    const bool ret = colors_out.good();
+
+    colorsfile_out.close();
+
+    return ret;
+}
+
 template<typename U>
 bool DataStorage<U>::read(const string& filename_colors, const size_t nb_threads, const bool verbose) {
 
@@ -746,14 +875,6 @@ bool DataStorage<U>::read(const string& filename_colors, const size_t nb_threads
 
             colors_in.read(reinterpret_cast<char*>(&e), sizeof(uint64_t));
             unitig_cs_link[i] = e;
-        }
-
-        for (size_t i = 0; (i < sz_shared_cs) && colors_in.good(); ++i){
-
-            if (shared_color_sets[i].first.read(colors_in)){
-
-                colors_in.read(reinterpret_cast<char*>(&(shared_color_sets[i].second)), sizeof(size_t));
-            }
         }
 
         readSharedColorSets(shared_color_sets, colors_in, sz_shared_cs);
@@ -923,135 +1044,6 @@ bool DataStorage<U>::read(const string& filename_colors, const size_t nb_threads
 }
 
 template<>
-inline bool DataStorage<void>::write(const string& prefix_output_filename, const bool verbose) const {
-
-    if (verbose) cout << endl << "DataStorage::write(): Writing colors to disk" << endl;
-
-    const string out = prefix_output_filename + ".bfg_colors";
-
-    FILE* fp = fopen(out.c_str(), "wb");
-
-    if (fp == NULL) {
-
-        cerr << "DataStorage::write(): Could not open file " << out << " for writing color sets" << endl;
-        return false;
-    }
-    else {
-
-        fclose(fp);
-
-        if (std::remove(out.c_str()) != 0) cerr << "DataStorage::write(): Could not remove temporary file " << out << endl;
-    }
-
-    ofstream colorsfile_out;
-    ostream colors_out(nullptr);
-
-    colorsfile_out.open(out.c_str(), ios_base::out | ios_base::binary);
-    colors_out.rdbuf(colorsfile_out.rdbuf());
-    //colors_out.sync_with_stdio(false);
-
-    const size_t format_version = BFG_COLOREDCDBG_FORMAT_VERSION;
-    const size_t overflow_sz = overflow.size();
-    const size_t nb_colors = color_names.size();
-
-    const size_t block_sz = 1024;
-    const size_t empty_address = 0xFFFFFFFFFFFFFFFFULL;
-
-    const char nl = '\n';
-
-    streampos pos_f_cs;
-
-    vector<streampos> v_pos_f_cs;
-
-    //Write the file format version number
-    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&format_version), sizeof(size_t));
-    //Write number of different seeds for hash function
-    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&nb_seeds), sizeof(size_t));
-   //Write number of colors in the graph
-    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&nb_colors), sizeof(size_t));
-    //Write number of color sets in the graph
-    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&nb_cs), sizeof(size_t));
-    //Write number of elements allocated
-    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&sz_cs), sizeof(size_t));
-    //Write number of SharedUnitigColors allocated
-    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&sz_shared_cs), sizeof(size_t));
-    //Write number of (kmer, color set) overflowing
-    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&overflow_sz), sizeof(size_t));
-    //Write the hash function seeds of the graph
-    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(seeds), nb_seeds * sizeof(uint64_t));
-    // Write the block size of the color sets
-    if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&block_sz), sizeof(size_t));
-
-    pos_f_cs = colors_out.tellp();
-
-    const size_t nb_pos_shared_cs = (sz_shared_cs / block_sz) + static_cast<size_t>((sz_shared_cs % block_sz) != 0);
-    const size_t nb_pos_cs = (sz_cs / block_sz) + static_cast<size_t>((sz_cs % block_sz) != 0);
-
-    for (size_t i = 0; (i < nb_pos_shared_cs) && colors_out.good(); ++i){
-        // Reserve space to write positions in file of shared colorsets blocks
-        colors_out.write(reinterpret_cast<const char*>(&pos_f_cs), sizeof(streampos));
-    }
-
-    for (size_t i = 0; (i < nb_pos_cs) && colors_out.good(); ++i){
-        // Reserve space to write positions in file of non-shared colorsets blocks
-        colors_out.write(reinterpret_cast<const char*>(&pos_f_cs), sizeof(streampos));
-    }
-
-    for (size_t i = 0; (i < nb_colors) && colors_out.good(); ++i){
-        //Write the color names of the graph
-        colors_out.write(color_names[i].c_str(), color_names[i].size() * sizeof(char));
-        colors_out.write(&nl, sizeof(char));
-    }
-
-    for (uint64_t i = 0, j = ((sz_cs >> 6) + ((sz_cs & 0x3F) != 0)), e; (i != j) && colors_out.good(); ++i){
-
-        e = unitig_cs_link[i].load();
-        colors_out.write(reinterpret_cast<const char*>(&e), sizeof(uint64_t));
-    }
-
-    for (size_t i = 0; (i < sz_shared_cs) && colors_out.good(); ++i){
-
-        if (i % block_sz == 0) v_pos_f_cs.push_back(colors_out.tellp());
-
-        if (shared_color_sets[i].first.write(colors_out)){
-
-            colors_out.write(reinterpret_cast<const char*>(&(shared_color_sets[i].second)), sizeof(size_t));
-        }
-    }
-
-    for (size_t i = 0; (i < sz_cs) && colors_out.good(); ++i){
-
-        if (i % block_sz == 0) v_pos_f_cs.push_back(colors_out.tellp());
-
-        color_sets[i].write(colors_out, false); //Write the color sets
-    }
-
-    unordered_map<pair<Kmer, size_t>, size_t>::const_iterator it(overflow.begin());
-    const unordered_map<pair<Kmer, size_t>, size_t>::const_iterator it_end(overflow.end());
-
-    for (; (it != it_end) && colors_out.good(); ++it){
-
-        it->first.first.write(colors_out); // Write the k-mer
-
-        colors_out.write(reinterpret_cast<const char*>(&(it->first.second)), sizeof(size_t)); // Write the unitig length
-        colors_out.write(reinterpret_cast<const char*>(&(it->second)), sizeof(size_t)); // Write the position
-    }
-
-    if (colors_out.good()){
-
-        colors_out.seekp(pos_f_cs); // Re-position cursor to array of position of shared color sets at the beginning
-
-        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&v_pos_f_cs[0]), v_pos_f_cs.size() * sizeof(streampos));
-    }
-
-    const bool ret = colors_out.good();
-
-    colorsfile_out.close();
-
-    return ret;
-}
-
-template<>
 inline bool DataStorage<void>::read(const string& filename_colors, const size_t nb_threads, const bool verbose) {
 
     if (verbose) cout << endl << "DataStorage::read(): Reading color sets from disk" << endl;
@@ -1137,14 +1129,6 @@ inline bool DataStorage<void>::read(const string& filename_colors, const size_t 
 
             colors_in.read(reinterpret_cast<char*>(&e), sizeof(uint64_t));
             unitig_cs_link[i] = e;
-        }
-
-        for (size_t i = 0; (i < sz_shared_cs) && colors_in.good(); ++i){
-
-            if (shared_color_sets[i].first.read(colors_in)){
-
-                colors_in.read(reinterpret_cast<char*>(&(shared_color_sets[i].second)), sizeof(size_t));
-            }
         }
 
         readSharedColorSets(shared_color_sets, colors_in, sz_shared_cs);
