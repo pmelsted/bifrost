@@ -933,7 +933,7 @@ bool DataStorage<U>::read(const string& filename_colors, const size_t nb_threads
 
                 workers.emplace_back(
 
-                    [&, t]{
+                    [&]{
 
                         ifstream colorsfile_in_t;
                         istream colors_in_t(nullptr);
@@ -977,7 +977,7 @@ bool DataStorage<U>::read(const string& filename_colors, const size_t nb_threads
 
                 workers.emplace_back(
 
-                    [&, t]{
+                    [&]{
 
                         ifstream colorsfile_in_t;
                         istream colors_in_t(nullptr);
@@ -1038,7 +1038,7 @@ bool DataStorage<U>::read(const string& filename_colors, const size_t nb_threads
 
     colorsfile_in.close();
 
-    return true;
+    return ret;
 }
 
 template<>
@@ -1187,7 +1187,7 @@ inline bool DataStorage<void>::read(const string& filename_colors, const size_t 
 
                 workers.emplace_back(
 
-                    [&, t]{
+                    [&]{
 
                         ifstream colorsfile_in_t;
                         istream colors_in_t(nullptr);
@@ -1231,7 +1231,7 @@ inline bool DataStorage<void>::read(const string& filename_colors, const size_t 
 
                 workers.emplace_back(
 
-                    [&, t]{
+                    [&]{
 
                         ifstream colorsfile_in_t;
                         istream colors_in_t(nullptr);
@@ -1292,7 +1292,7 @@ inline bool DataStorage<void>::read(const string& filename_colors, const size_t 
 
     colorsfile_in.close();
 
-    return true;
+    return ret;
 }
 
 template<typename U>
