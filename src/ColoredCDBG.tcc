@@ -2,6 +2,12 @@
 #define BIFROST_COLOREDCDBG_TCC
 
 template<typename U>
+ColoredCDBG<U>::ColoredCDBG(int kmer_length) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(kmer_length){
+
+    invalid = this->isInvalid();
+}
+
+template<typename U>
 ColoredCDBG<U>::ColoredCDBG(int kmer_length, int minimizer_length) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(kmer_length, minimizer_length){
 
     invalid = this->isInvalid();
