@@ -5,9 +5,6 @@ project(Bifrost)
 # Can be replaced with a larger and appropriate number (a power of 2). Actual k-mer size is MAX_KMER_SIZE-1.
 set(MAX_KMER_SIZE "32")
 
-set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=c11 -march=native -DXXH_NAMESPACE=BIFROST_HASH_")
-set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-std=c++11 -march=native -DXXH_NAMESPACE=BIFROST_HASH_")
-
 #set_property(SOURCE xxhash.c APPEND_STRING PROPERTY COMPILE_FLAGS " -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef")
 set_property(SOURCE BlockedBloomFilter.cpp APPEND_STRING PROPERTY COMPILE_FLAGS " -funroll-loops")
 

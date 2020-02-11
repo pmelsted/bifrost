@@ -4,6 +4,8 @@ file(GLOB headers *.h *.hpp *.hh *.tcc)
 list(REMOVE_ITEM sources Bifrost.cpp)
 
 add_definitions(-DMAX_KMER_SIZE=${MAX_KMER_SIZE})
+set(BIFROST_COMPILER_FLAGS "-march=native")
+set(BIFROST_COMPILER_DEFINITIONS "-DXXH_NAMESPACE=BIFROST_HASH_")
 
 add_library(bifrost_static STATIC ${sources} ${headers})
 add_library(bifrost_dynamic SHARED ${sources} ${headers})
@@ -13,6 +15,15 @@ set_target_properties(bifrost_dynamic PROPERTIES OUTPUT_NAME "bifrost")
 
 target_include_directories(bifrost_static PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(bifrost_dynamic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_compile_features(bifrost_static PUBLIC cxx_std_11)
+target_compile_features(bifrost_dynamic PUBLIC cxx_std_11)
+
+target_compile_options(bifrost_static PUBLIC "${BIFROST_COMPILER_FLAGS}")
+target_compile_options(bifrost_dynamic PUBLIC "${BIFROST_COMPILER_FLAGS}")
+
+target_compile_definitions(bifrost_static PRIVATE "${BIFROST_COMPILER_DEFINITIONS}")
+target_compile_definitions(bifrost_dynamic PRIVATE "${BIFROST_COMPILER_DEFINITIONS}")
 
 add_executable(Bifrost Bifrost.cpp)
 
@@ -56,6 +67,9 @@ else()
 endif(ZLIB_FOUND)
 
 target_link_libraries(Bifrost bifrost_dynamic)
+target_compile_features(Bifrost PUBLIC cxx_std_11)
+target_compile_options(Bifrost PUBLIC "${BIFROST_COMPILER_FLAGS}")
+target_compile_definitions(Bifrost PRIVATE "${BIFROST_COMPILER_DEFINITIONS}")
 
 install(TARGETS Bifrost DESTINATION bin)
 install(TARGETS bifrost_dynamic DESTINATION lib)
