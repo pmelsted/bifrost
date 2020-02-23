@@ -339,10 +339,11 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         */
         inline size_t getNbColors() const { return this->getData()->getNbColors(); }
 
-    private:
-
         bool search(const vector<string>& query_filenames, const string& out_filename_prefix,
-                    const double ratio_kmers, const bool inexact_search, const size_t nb_threads) const;
+                    const double ratio_kmers, const bool inexact_search, const size_t nb_threads,
+                    const bool verbose = false) const;
+
+    private:
 
         void checkColors(const vector<string>& filename_seq_in) const;
 

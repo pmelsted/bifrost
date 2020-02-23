@@ -1466,8 +1466,6 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
 
     while (it_it_min != it_it_min_end){
 
-            size_t i = 0;
-
         const minHashResult& min_h_res = *it_it_min;
         Minimizer minz(Minimizer(&km_tmp[min_h_res.pos]).rep());
         MinimizerIndex::const_iterator it = hmap_min_unitigs.find(minz);
@@ -2173,7 +2171,7 @@ bool CompactedDBG<U, G>::mergeData(const CompactedDBG<U, G>& o, const size_t nb_
 
             workers.emplace_back(
 
-                [&, t]{
+                [&]{
 
                     typename CompactedDBG<U, G>::const_iterator l_a, l_b;
 
@@ -4577,7 +4575,6 @@ bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, const bool verbo
     }
 
     size_t nxt_pos_insert_v_unitigs = v_unitigs.size();
-    size_t v_unitigs_sz = v_unitigs.size();
     size_t v_kmers_sz = v_kmers.size();
 
     size_t nb_curr_pred = 0;
@@ -4737,8 +4734,6 @@ bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, LockGraph& lck_g
     bool prev_found = true;
 
     string curr_unitig;
-
-    char km_tmp[MAX_KMER_SIZE];
 
     const char* str_seq = seq.c_str();
 
@@ -5331,8 +5326,8 @@ typename std::enable_if<!is_void, bool>::type CompactedDBG<U, G>::extractUnitig_
 
         const pair<size_t, size_t> lowpair = unitig->ccov.lowCoverageInfo();
 
-        const size_t totalcoverage = unitig->coveragesum - lowpair.second;
-        const size_t ccov_size = unitig->ccov.size();
+        //const size_t totalcoverage = unitig->coveragesum - lowpair.second;
+        //const size_t ccov_size = unitig->ccov.size();
 
         const string str = unitig->seq.toString();
 
@@ -5958,7 +5953,7 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>
 
                     workers.emplace_back(
 
-                        [&, t]{
+                        [&]{
 
                             auto l_it_kmer = v_kmers.begin();
                             auto l_it_kmer_end = v_kmers.end();
@@ -6007,7 +6002,7 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>
 
                     workers.emplace_back(
 
-                        [&, t]{
+                        [&]{
 
                             auto l_it_unitig = v_unitigs.begin();
                             auto l_it_unitig_end = v_unitigs.end();
@@ -6081,7 +6076,6 @@ template<typename U, typename G>
 template<bool is_void>
 typename std::enable_if<!is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_(vector<Kmer>* v_joins, const size_t nb_threads) {
 
-    size_t i;
     size_t joined = 0;
     size_t cov_full = CompressedCoverage::getFullCoverage();
     size_t v_unitigs_size = v_unitigs.size();
@@ -6270,7 +6264,6 @@ template<typename U, typename G>
 template<bool is_void>
 typename std::enable_if<is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_(vector<Kmer>* v_joins, const size_t nb_threads) {
 
-    size_t i;
     size_t joined = 0;
     size_t cov_full = CompressedCoverage::getFullCoverage();
     size_t v_unitigs_size = v_unitigs.size();
@@ -7065,7 +7058,6 @@ void CompactedDBG<U, G>::writeFASTA(const string& graphfilename) const {
 
     const size_t v_unitigs_sz = v_unitigs.size();
     const size_t v_kmers_sz = v_kmers.size();
-    const size_t graph_sz = size();
 
     size_t i = 0;
 
@@ -7131,7 +7123,7 @@ void CompactedDBG<U, G>::writeGFA(const string& graphfilename, const size_t nb_t
     const size_t v_unitigs_sz = v_unitigs.size();
     const size_t v_kmers_sz = v_kmers.size();
 
-    size_t i, labelA, labelB, id = v_unitigs_sz + v_kmers_sz + 1;
+    size_t labelA, labelB, id = v_unitigs_sz + v_kmers_sz + 1;
 
     const string header_tag("BV:Z:" + string(BFG_VERSION) + "\t" + "KL:Z:" + to_string(k_) + "\t" + "ML:Z:" + to_string(g_));
 

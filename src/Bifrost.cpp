@@ -22,7 +22,7 @@ void PrintUsage() {
 
     cout << "   build                   Build a compacted de Bruijn graph, with or without colors" << endl;
     cout << "   update                  Update a compacted (possible colored) de Bruijn graph with new sequences" << endl;
-    //cout << "   query                   Query a compacted (possible colored) de Bruijn graph" << endl << endl;
+    cout << "   query                   Query a compacted (possible colored) de Bruijn graph" << endl << endl;
 
     cout << "[PARAMETERS]: build" << endl << endl;
 
@@ -82,7 +82,7 @@ void PrintUsage() {
     cout << "   -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl;
     cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
 
-    /*cout << "[PARAMETERS]: query" << endl << endl;
+    cout << "[PARAMETERS]: query" << endl << endl;
 
     cout << "  > Mandatory with required argument:" << endl << endl;
 
@@ -103,7 +103,7 @@ void PrintUsage() {
     cout << "   > Optional with no argument:" << endl << endl;
 
     cout << "   -n, --inexact            Graph is searched with exact and inexact k-mers (1 substitution or indel) from queries" << endl;
-    cout << "   -v, --verbose            Print information messages during execution" << endl << endl;*/
+    cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
 }
 
 void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
@@ -571,22 +571,20 @@ int main(int argc, char **argv){
         }
         else if (opt.query){
 
-            cout << "Querying function is not yet available" << endl;
-
-            /*if (opt.filename_colors_in.size() != 0){
+            if (opt.filename_colors_in.size() != 0){
 
                 ColoredCDBG<> ccdbg(opt.k, opt.g);
 
                 ccdbg.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
-                ccdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.inexact_search, opt.nb_threads);
+                ccdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.inexact_search, opt.nb_threads, opt.verbose);
             }
             else {
 
                 CompactedDBG<> cdbg(opt.k, opt.g);
 
                 cdbg.read(opt.filename_graph_in, opt.nb_threads, opt.verbose);
-                cdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.inexact_search, opt.nb_threads);
-            }*/
+                cdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.inexact_search, opt.nb_threads, opt.verbose);
+            }
         }
     }
 }
