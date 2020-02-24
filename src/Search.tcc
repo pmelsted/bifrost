@@ -35,7 +35,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
         const size_t ins_mask = static_cast<size_t>(!ins) - 1;
         const size_t del_mask = static_cast<size_t>(!del) - 1;
 
-        const size_t end = 1ULL << (static_cast<size_t>(subst_or_ind) << 2);
+        const size_t end = 1ULL << ((static_cast<size_t>(!subst_or_ind) - 1) & 0x2ULL);
         const size_t seq_len = seq.length();
 
         auto processUnitigMap = [&](const UnitigMap<U, G>& um, const size_t pos_seq){
@@ -296,7 +296,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
         const size_t ins_mask = static_cast<size_t>(!ins) - 1;
         const size_t del_mask = static_cast<size_t>(!del) - 1;
 
-        const size_t end = 1ULL << (static_cast<size_t>(subst_or_ind) << 2);
+        const size_t end = 1ULL << ((static_cast<size_t>(!subst_or_ind) - 1) & 0x2ULL);
         const size_t seq_len = seq.length();
 
         auto processUnitigMap = [&](const UnitigMap<U, G>& um, const size_t pos_seq){
@@ -559,7 +559,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
         const size_t ins_mask = static_cast<size_t>(!ins) - 1;
         const size_t del_mask = static_cast<size_t>(!del) - 1;
 
-        const size_t end = 1ULL << (static_cast<size_t>(subst_or_ind) << 2);
+        const size_t end = 1ULL << ((static_cast<size_t>(!subst_or_ind) - 1) & 0x2ULL);
         const size_t seq_len = seq.length();
 
         auto processUnitigMap = [&](const const_UnitigMap<U, G>& um, const size_t pos_seq){
@@ -820,7 +820,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
         const size_t ins_mask = static_cast<size_t>(!ins) - 1;
         const size_t del_mask = static_cast<size_t>(!del) - 1;
 
-        const size_t end = 1ULL << (static_cast<size_t>(subst_or_ind) << 2);
+        const size_t end = 1ULL << ((static_cast<size_t>(!subst_or_ind) - 1) & 0x2ULL);
         const size_t seq_len = seq.length();
 
         auto processUnitigMap = [&](const const_UnitigMap<U, G>& um, const size_t pos_seq){
