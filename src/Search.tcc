@@ -35,7 +35,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
         const size_t ins_mask = static_cast<size_t>(!ins) - 1;
         const size_t del_mask = static_cast<size_t>(!del) - 1;
 
-        const size_t end = 1ULL << (static_cast<size_t>(subst_or_ind) << 2);
+        const size_t end = 1ULL << ((static_cast<size_t>(!subst_or_ind) - 1) & 0x2ULL);
         const size_t seq_len = seq.length();
 
         auto processUnitigMap = [&](const UnitigMap<U, G>& um, const size_t pos_seq){
@@ -296,7 +296,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
         const size_t ins_mask = static_cast<size_t>(!ins) - 1;
         const size_t del_mask = static_cast<size_t>(!del) - 1;
 
-        const size_t end = 1ULL << (static_cast<size_t>(subst_or_ind) << 2);
+        const size_t end = 1ULL << ((static_cast<size_t>(!subst_or_ind) - 1) & 0x2ULL);
         const size_t seq_len = seq.length();
 
         auto processUnitigMap = [&](const UnitigMap<U, G>& um, const size_t pos_seq){
@@ -559,7 +559,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
         const size_t ins_mask = static_cast<size_t>(!ins) - 1;
         const size_t del_mask = static_cast<size_t>(!del) - 1;
 
-        const size_t end = 1ULL << (static_cast<size_t>(subst_or_ind) << 2);
+        const size_t end = 1ULL << ((static_cast<size_t>(!subst_or_ind) - 1) & 0x2ULL);
         const size_t seq_len = seq.length();
 
         auto processUnitigMap = [&](const const_UnitigMap<U, G>& um, const size_t pos_seq){
@@ -820,7 +820,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
         const size_t ins_mask = static_cast<size_t>(!ins) - 1;
         const size_t del_mask = static_cast<size_t>(!del) - 1;
 
-        const size_t end = 1ULL << (static_cast<size_t>(subst_or_ind) << 2);
+        const size_t end = 1ULL << ((static_cast<size_t>(!subst_or_ind) - 1) & 0x2ULL);
         const size_t seq_len = seq.length();
 
         auto processUnitigMap = [&](const const_UnitigMap<U, G>& um, const size_t pos_seq){
@@ -1091,6 +1091,8 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
 
     if (verbose) cout << "CompactedDBG::search(): Querying graph." << endl;
 
+    const CompactedDBG<U, G>& dbg = *this;
+
     string s;
 
     size_t file_id = 0;
@@ -1131,8 +1133,8 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
             const char* query_name = fp.getNameString();
             const size_t l_query_name = strlen(query_name);
 
-            const vector<pair<size_t, const_UnitigMap<U, G>>> v = searchSequence(   s, true, inexact_search, inexact_search, inexact_search,
-                                                                                    ratio_kmers, true);
+            const vector<pair<size_t, const_UnitigMap<U, G>>> v = dbg.searchSequence(   s, true, inexact_search, inexact_search, inexact_search,
+                                                                                        ratio_kmers, true);
 
             //for (const auto& p : v) cout << p.first << " " << s.substr(p.first, 31) << " " << p.second.mappedSequenceToString() << endl;
 
@@ -1239,8 +1241,8 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
                                 const size_t nb_km_min = static_cast<double>(buffers_seq[t][i].length() - k_ + 1) * ratio_kmers;
                                 const size_t l_name = buffers_name[t][i].length();
 
-                                const vector<pair<size_t, const_UnitigMap<U, G>>> v = searchSequence(   buffers_seq[t][i], true, inexact_search, inexact_search, inexact_search,
-                                                                                                        ratio_kmers, true);
+                                const vector<pair<size_t, const_UnitigMap<U, G>>> v = dbg.searchSequence(   buffers_seq[t][i], true, inexact_search, inexact_search, inexact_search,
+                                                                                                            ratio_kmers, true);
 
                                 if (inexact_search){
 
