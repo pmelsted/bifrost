@@ -7,12 +7,12 @@ using namespace std;
 // post: The version of the program has been printed to cout
 void PrintVersion() {
 
-    cout <<  BFG_VERSION << endl;
+    cout << BFG_VERSION << endl;
 }
 
 void PrintUsage() {
 
-    cout << "Bifrost" << endl << endl;
+    cout << "Bifrost " << BFG_VERSION << endl << endl;
 
     cout << "Highly parallel construction, indexing and querying of colored and compacted de Bruijn graphs" << endl << endl;
 

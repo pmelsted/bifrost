@@ -19,7 +19,7 @@
 ## Table of Contents
 
 * [Requirements](https://github.com/pmelsted/bifrost#requirements)
-* [Compilation and Installation](https://github.com/pmelsted/bifrost#compilation-and-installation)
+* [Installation](https://github.com/pmelsted/bifrost#installation)
 * [Binary usage](https://github.com/pmelsted/bifrost#binary-usage)
 * [API](https://github.com/pmelsted/bifrost#api)
 * [FAQ](https://github.com/pmelsted/bifrost#faq)
@@ -29,6 +29,8 @@
 * [License](https://github.com/pmelsted/bifrost#license)
 
 ## Requirements
+
+If you intend to install Bifrost using Homebrew, you can directly go to Section [Installation](#installation).
 
 * 64 bits POSIX-compliant operating system
 * C++11 capable compiler:
@@ -59,27 +61,37 @@ sudo apt-get install build-essential cmake zlib1g-dev
 ```
 5. Use the opened Ubuntu terminal for compiling, installing and running Bifrost (see next section). See [Troubleshooting](#troubleshooting) if you have any problem during the installation.
 
-## Compilation and Installation
+## Installation
 
-```
-cd <bifrost_directory>
-mkdir build
-cd build
-cmake ..
-make
-make install
-```
+* From Homebrew:
 
-`make install` might requires `sudo` (`sudo make install`) to proceed. See [Troubleshooting](#troubleshooting) if you have any problem during the installation.
+  Contribution of @tseemann.
 
-By default, the installation creates:
-* a binary (*Bifrost*)
-* a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS)
-* a static library (*libbifrost.a*).
+  ```
+  brew install brewsci/bio/bifrost
+  ```
+
+* From source
+
+  ```
+  cd <bifrost_directory>
+  mkdir build
+  cd build
+  cmake ..
+  make
+  make install
+  ```
+
+  `make install` might requires `sudo` (`sudo make install`) to proceed. See [Troubleshooting](#troubleshooting) if you have any problem during the installation.
+
+  By default, the installation creates:
+  * a binary (*Bifrost*)
+  * a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS)
+  * a static library (*libbifrost.a*)
 
 ### Large *k*-mers
 
-The default maximum *k*-mer size supported is 31. To work with larger *k* in the binary, you must replace *MAX_KMER_SIZE* with a larger multiple of 32. This can be done in two ways:
+The default maximum *k*-mer size supported is 31. To work with larger *k* in the binary, you must install Bifrost from source and replace *MAX_KMER_SIZE* with a larger multiple of 32. This can be done in two ways:
 
 * At the compilation step:
 ```

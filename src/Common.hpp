@@ -29,7 +29,7 @@
 #define BFG_INLINE inline
 #endif
 
-#define BFG_VERSION "0.2"
+#define BFG_VERSION "1.0"
 #define BFG_BUG_EMAIL "guillaumeholley@gmail.com"
 
 using namespace std;
