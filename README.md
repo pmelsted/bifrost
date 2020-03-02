@@ -65,11 +65,11 @@ sudo apt-get install build-essential cmake zlib1g-dev
 
 * From Homebrew:
 
-  Contribution of @tseemann.
-
   ```
   brew install brewsci/bio/bifrost
   ```
+
+  Contribution of Torsten Seemann.
 
 * From source
 
