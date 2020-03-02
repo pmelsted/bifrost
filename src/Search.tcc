@@ -451,20 +451,31 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
                 if (um.strand){
 
-                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({i + j - um.dist, um.getKmerMapping(j)});
+                    for (size_t j = um.dist; j < um.dist + um.len; ++j){
+
+                        const size_t l_pos = i + j - um.dist;
+
+                        v_um.push_back({l_pos, um.getKmerMapping(j)});
+                        r_pos.add(l_pos);
+                    }
                 }
                 else {
 
-                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({i + um.dist + um.len - j - 1, um.getKmerMapping(j)});
+                    for (size_t j = um.dist; j < um.dist + um.len; ++j){
+
+                        const size_t l_pos = i + um.dist + um.len - j - 1;
+
+                        v_um.push_back({l_pos, um.getKmerMapping(j)});
+                        r_pos.add(l_pos);
+                    }
                 }
+
+                if (r_pos.cardinality() >= nb_km_min) return v_um;
 
                 i += um.len - 1;
             }
         }
 
-        for (const auto& p : v_um) r_pos.add(p.first);
-
-        if (r_pos.cardinality() >= nb_km_min) return v_um;
         if (or_exclusive_match) r = r_pos;
     }
 
@@ -975,20 +986,31 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
                 if (um.strand){
 
-                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({i + j - um.dist, um.getKmerMapping(j)});
+                    for (size_t j = um.dist; j < um.dist + um.len; ++j){
+
+                        const size_t l_pos = i + j - um.dist;
+
+                        v_um.push_back({l_pos, um.getKmerMapping(j)});
+                        r_pos.add(l_pos);
+                    }
                 }
                 else {
 
-                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({i + um.dist + um.len - j - 1, um.getKmerMapping(j)});
+                    for (size_t j = um.dist; j < um.dist + um.len; ++j){
+
+                        const size_t l_pos = i + um.dist + um.len - j - 1;
+
+                        v_um.push_back({l_pos, um.getKmerMapping(j)});
+                        r_pos.add(l_pos);
+                    }
                 }
+
+                if (r_pos.cardinality() >= nb_km_min) return v_um;
 
                 i += um.len - 1;
             }
         }
 
-        for (const auto& p : v_um) r_pos.add(p.first);
-
-        if (r_pos.cardinality() >= nb_km_min) return v_um;
         if (or_exclusive_match) r = r_pos;
     }
 
