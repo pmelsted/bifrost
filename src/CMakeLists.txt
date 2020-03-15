@@ -4,8 +4,17 @@ file(GLOB headers *.h *.hpp *.hh *.tcc)
 list(REMOVE_ITEM sources Bifrost.cpp)
 
 add_definitions(-DMAX_KMER_SIZE=${MAX_KMER_SIZE})
-set(BIFROST_COMPILER_FLAGS "-march=native")
-set(BIFROST_COMPILER_DEFINITIONS "-DXXH_NAMESPACE=BIFROST_HASH_")
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # Make sure to add trailing space
+    set(PROFILE_FLAGS "$<$<CONFIG:Profile>:-pg> ")
+else()
+    set(PROFILE_FLAGS "")
+endif()
+
+set(BIFROST_COMPILER_FLAGS "${PROFILE_FLAGS}-march=native")
+set(BIFROST_LINKER_FLAGS "${PROFILE_FLAGS}")
+set(BIFROST_COMPILER_DEFINITIONS "XXH_NAMESPACE=BIFROST_HASH_")
 
 add_library(bifrost_static STATIC ${sources} ${headers})
 add_library(bifrost_dynamic SHARED ${sources} ${headers})
@@ -21,6 +30,9 @@ target_compile_features(bifrost_dynamic PUBLIC cxx_std_11)
 
 target_compile_options(bifrost_static PUBLIC "${BIFROST_COMPILER_FLAGS}")
 target_compile_options(bifrost_dynamic PUBLIC "${BIFROST_COMPILER_FLAGS}")
+
+target_link_options(bifrost_static PUBLIC "${BIFROST_LINKER_FLAGS}")
+target_link_options(bifrost_dynamic PUBLIC "${BIFROST_LINKER_FLAGS}")
 
 target_compile_definitions(bifrost_static PRIVATE "${BIFROST_COMPILER_DEFINITIONS}")
 target_compile_definitions(bifrost_dynamic PRIVATE "${BIFROST_COMPILER_DEFINITIONS}")
@@ -69,7 +81,10 @@ endif(ZLIB_FOUND)
 target_link_libraries(Bifrost bifrost_dynamic)
 target_compile_features(Bifrost PUBLIC cxx_std_11)
 target_compile_options(Bifrost PUBLIC "${BIFROST_COMPILER_FLAGS}")
+target_link_options(Bifrost PUBLIC "${BIFROST_LINKER_FLAGS}")
 target_compile_definitions(Bifrost PRIVATE "${BIFROST_COMPILER_DEFINITIONS}")
+
+set_property(SOURCE BlockedBloomFilter.cpp APPEND_STRING PROPERTY COMPILE_FLAGS " -funroll-loops")
 
 install(TARGETS Bifrost DESTINATION bin)
 install(TARGETS bifrost_dynamic DESTINATION lib)
