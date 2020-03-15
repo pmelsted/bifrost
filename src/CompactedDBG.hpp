@@ -592,6 +592,10 @@ class CompactedDBG {
         */
         inline const G* getData() const { return data.getData(); }
 
+        bool search(const vector<string>& query_filenames, const string& out_filename_prefix,
+                    const double ratio_kmers, const bool inexact_search, const size_t nb_threads,
+                    const size_t verbose = false) const;
+
     protected:
 
         bool annotateSplitUnitigs(const CompactedDBG<U, G>& o, const size_t nb_threads = 1, const bool verbose = false);
@@ -608,9 +612,6 @@ class CompactedDBG {
         bool mergeData(CompactedDBG<U, G>&& o, const size_t nb_threads = 1, const bool verbose = false);
 
     private:
-
-        bool search(const vector<string>& query_filenames, const string& out_filename_prefix,
-                    const double ratio_kmers, const bool inexact_search, const size_t nb_threads) const;
 
         bool filter(const CDBG_Build_opt& opt, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers);
         bool construct(const CDBG_Build_opt& opt, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers);

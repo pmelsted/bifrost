@@ -73,13 +73,13 @@ class FileParser {
 
             if (!invalid){
 
-                if (files_fastx.size() != 0){
+                if (!files_fastx.empty()){
 
                     ff = FastqFile(files_fastx);
                     reading_fastx = (files[0] == files_fastx[0]);
                 }
 
-                if (files_gfa.size() != 0){
+                if (!files_gfa.empty()){
 
                     gfap = GFA_Parser(files_gfa);
                     invalid = !gfap.open_read();
@@ -107,7 +107,7 @@ class FileParser {
                             ++files_it; //Increment iterator to next file to read
 
                             // Check if next file to read is FASTA/FASTQ format
-                            reading_fastx = ((ret != -1) && (files[files_it] == files_fastx[files_fastx_it]));
+                            reading_fastx = ((ret != -1) && !files_fastx.empty() && (files[files_it] == files_fastx[files_fastx_it]));
 
                             return read(seq, file_id); // We read the next line of the file
                         }
@@ -126,7 +126,7 @@ class FileParser {
                             ++files_it; //Increment iterator to next file to read
 
                             // Check if next file to read is FASTA/FASTQ format
-                            reading_fastx = (files[files_it] == files_fastx[files_fastx_it]);
+                            reading_fastx = !files_fastx.empty() && (files[files_it] == files_fastx[files_fastx_it]);
 
                             return read(seq, file_id); // We read the next line of the file
                         }
@@ -160,7 +160,7 @@ class FileParser {
                             ++files_it; //Increment iterator to next file to read
 
                             // Check if next file to read is FASTA/FASTQ format
-                            reading_fastx = ((ret != -1) && (files[files_it] == files_fastx[files_fastx_it]));
+                            reading_fastx = ((ret != -1) && !files_fastx.empty() && (files[files_it] == files_fastx[files_fastx_it]));
 
                             return read(ss, file_id); // We read the next line of the file
                         }
@@ -179,7 +179,7 @@ class FileParser {
                             ++files_it; //Increment iterator to next file to read
 
                             // Check if next file to read is FASTA/FASTQ format
-                            reading_fastx = (files[files_it] == files_fastx[files_fastx_it]);
+                            reading_fastx = !files_fastx.empty() && (files[files_it] == files_fastx[files_fastx_it]);
 
                             return read(ss, file_id); // We read the next line of the file
                         }

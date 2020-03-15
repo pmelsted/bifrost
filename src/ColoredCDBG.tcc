@@ -644,7 +644,7 @@ void ColoredCDBG<U>::initUnitigColors(const CCDBG_Build_opt& opt, const size_t m
 
         workers.emplace_back(
 
-            [&, t]{
+            [&]{
 
                 typename ColoredCDBG<U>::iterator l_a, l_b;
 
@@ -697,7 +697,7 @@ void ColoredCDBG<U>::resizeDataUC(const size_t sz, const size_t nb_threads, cons
 
         workers.emplace_back(
 
-            [&, t]{
+            [&]{
 
                 typename ColoredCDBG<U>::iterator l_a, l_b;
 
@@ -763,7 +763,7 @@ inline void ColoredCDBG<void>::resizeDataUC(const size_t sz, const size_t nb_thr
 
         workers.emplace_back(
 
-            [&, t]{
+            [&]{
 
                 typename ColoredCDBG<void>::iterator l_a, l_b;
 
@@ -1014,7 +1014,7 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
                     workers.emplace_back(
 
-                        [&, t]{
+                        [&]{
 
                             typename ColoredCDBG<U>::iterator l_a, l_b;
 
@@ -1276,288 +1276,10 @@ vector<string> ColoredCDBG<U>::getColorNames() const {
     return this->getData()->color_names;
 }
 
-
-/*template<typename U>
-void ColoredCDBG<U>::searchSequence(const string& seq, const bool exact, const bool insertion, const bool deletion, const bool substitution) const {
-
-    if (invalid){
-
-        cerr << "ColoredCDBG::searchSequence(): Graph is invalid and cannot be searched" << endl;
-
-        return;
-    }
-
-    if (seq.length() < k_){
-
-        cerr << "ColoredCDBG::searchSequence(): Query length is shorter than k-mer size" << endl;
-
-        return;
-    }
-
-    const size_t nb_colors = getNbColors();
-
-    string seqs;
-
-    vector<Roaring> color_occ_r(nb_colors);
-    vector<uint32_t> color_occ_u(nb_colors);
-
-    auto worker_func = [&](const bool subst, const bool ins, const bool del, const size_t shift){
-
-        const bool subst_or_ind = (subst || ins);
-        const bool inexact = (subst_or_ind || del);
-
-        const size_t ins_mask = static_cast<size_t>(!ins) - 1;
-        const size_t del_mask = static_cast<size_t>(!del) - 1;
-
-        const size_t end = 1ULL << (static_cast<size_t>(subst_or_ind) << 2);
-        const size_t seq_len = seq.length();
-
-        auto processUnitigMap = [&](const_UnitigColorMap<U> um, const size_t pos_seq){
-
-            if (um.strand){
-
-                size_t j = um.dist;
-
-                const size_t end_pos = um.dist + um.len;
-
-                while (j < end_pos){
-
-                    size_t l_pos_seq = pos_seq + j - um.dist;
-
-                    const size_t shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
-
-                    l_pos_seq -= (ins_mask & shift_pos_seq);
-                    l_pos_seq += (del_mask & shift_pos_seq);
-
-                    if (l_pos_seq + k_ - 1 >= seq_len) break;
-                    else ++j;
-                }
-
-                um.len = j - um.dist;
-
-                const UnitigColors* uc = um.getData()->getUnitigColors(um);
-
-                UnitigColors::const_iterator it_uc = uc->begin(um);
-                UnitigColors::const_iterator it_uc_end = uc->end();
-
-                if (inexact){
-
-                    for (; it_uc != it_uc_end; ++it_uc) color_occ_r[it_uc.getColorID()].add(it_uc.getKmerPosition() - um.dist + p.first);
-                }
-                else {
-
-                    for (; it_uc != it_uc_end; ++it_uc) color_occ_u[it_uc.getColorID()] += 1;
-                }
-            }
-            else {
-
-                const size_t end_pos = um.dist + um.len;
-
-                size_t j = end_pos - 1;
-
-                while (j >= um.dist){
-
-                    size_t l_pos_seq = pos_seq + um.dist + um.len - j - 1;
-
-                    const size_t shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
-
-                    l_pos_seq -= (ins_mask & shift_pos_seq);
-                    l_pos_seq += (del_mask & shift_pos_seq);
-
-                    if (l_pos_seq + k_ - 1 >= seq_len) break;
-                    else --j;
-                }
-
-                um.dist = j + 1;
-                um.len = end_pos - j;
-
-                const UnitigColors* uc = um.getData()->getUnitigColors(um);
-
-                UnitigColors::const_iterator it_uc = uc->begin(um);
-                UnitigColors::const_iterator it_uc_end = uc->end();
-
-                if (inexact){
-
-                    for (; it_uc != it_uc_end; ++it_uc) color_occ_r[it_uc.getColorID()].add(max_pos_um - it_uc.getKmerPosition() + p.first);
-                }
-                else {
-
-                    for (; it_uc != it_uc_end; ++it_uc) color_occ_u[it_uc.getColorID()] += 1;
-                }
-            }
-        };
-
-        for (size_t i = 0; i != end; ++i){
-
-            if (subst_or_ind){
-
-                for (size_t j = shift; j < seqs.length(); j += k_) seqs[j] = alpha[i];
-            }
-
-            minHashIterator<RepHash> mhi = minHashIterator<RepHash>(seqs.c_str(), seqs.length(), k_, g_, RepHash(), true);
-            minHashResultIterator<RepHash> it_min = *mhi, it_min_end;
-            minHashResult mhr = *it_min;
-
-            Minimizer minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-
-            pair<size_t, bool> minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
-
-            for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
-
-                mhr = *it_min;
-                minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-                minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
-            }
-
-            size_t pos_seq = 0;
-            size_t l_pos_seq = 0;
-            size_t shift_pos_seq = 0;
-
-            shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
-
-            l_pos_seq -= (ins_mask & shift_pos_seq);
-            l_pos_seq += (del_mask & shift_pos_seq);
-
-            if (minz_pres.second){ // If at least one minimizer was present, search the kmer
-
-                const const_UnitigColorMap<U> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
-
-                if (!um.isEmpty){
-
-                    processUnitigMap(um, pos_seq);
-
-                    pos_seq += um.len - 1;
-                    mhi += pos_seq - mhi.getKmerPosition();
-                }
-            }
-
-            ++pos_seq;
-            ++mhi;
-
-            while (pos_seq < seqs.length() - k_ + 1){
-
-                shift_pos_seq = (pos_seq / k_) + (pos_seq % k_ > shift);
-                l_pos_seq = pos_seq - (ins_mask & shift_pos_seq) + (del_mask & shift_pos_seq);
-
-                it_min = *mhi;
-                mhr = *it_min;
-
-                // If minimizers of new kmer are different from minimizers of previous kmer
-                // or if minimizers are the same but they were present, search them again
-                if ((mhr.pos != minz_pres.first) || minz_pres.second){
-
-                    if (mhr.pos != minz_pres.first){
-
-                        minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-                        minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
-
-                        for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
-
-                            mhr = *it_min;
-                            minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-                            minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
-                        }
-                    }
-
-                    if (minz_pres.second) { // If the k-mer has already been searched in the past, discard
-
-                        const const_UnitigColorMap<U> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
-
-                        if (!um.isEmpty){
-
-                            processUnitigMap(um, pos_seq);
-
-                            pos_seq += um.len - 1;
-                            mhi += pos_seq - mhi.getKmerPosition();
-                        }
-                    }
-                }
-
-                ++pos_seq;
-                ++mhi;
-            }
-        }
-    };
-
-    if (exact){
-
-        for (size_t i = 0; i < seq.length() - k_ + 1; ++i) {
-
-            const const_UnitigColorMap<U> um = findUnitig(seq.c_str(), i, seq.length());
-
-            if (!um.isEmpty) { // Read maps to a Unitig
-
-                if (um.strand){
-
-                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({i + j - um.dist, um.getKmerMapping(j)});
-                }
-                else {
-
-                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({i + um.dist + um.len - j - 1, um.getKmerMapping(j)});
-                }
-
-                i += um.len - 1;
-            }
-        }
-    }
-
-    if (substitution){
-
-        for (size_t i = 0; i != k_; ++i){
-
-            seqs = seq;
-            worker_func(true, false, false, i);
-        }
-    }
-
-    if (insertion){
-
-        for (size_t i = 0; i != k_; ++i){
-
-            std::stringstream ss;
-
-            for (size_t j = 0; j < i; ++j) ss << seq[j];
-
-            for (size_t j = i, cpt = 0; j < seq.length(); ++j, ++cpt) {
-
-                if (cpt % (k_ - 1) == 0) ss << alpha[0];
-
-                ss << seq[j];
-            }
-
-            seqs = ss.str();
-
-            worker_func(false, true, false, i);
-        }
-    }
-
-    if (deletion){
-
-        const size_t sz = v_um.size();
-
-        for (size_t i = 0; i != k_; ++i){
-
-            std::stringstream ss;
-
-            for (size_t j = 0; j < i; ++j) ss << seq[j];
-
-            for (size_t j = i, cpt = 0; j < seq.length(); ++j, ++cpt) {
-
-                if (cpt % (k_ + 1) != 0) ss << seq[j];
-            }
-
-            seqs = ss.str();
-
-            worker_func(false, false, true, i);
-        }
-    }
-
-    return v_um;
-}*/
-
 template<typename U>
 bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string& out_filename_prefix,
-                            const double ratio_kmers, const bool inexact_search, const size_t nb_threads) const {
+                            const double ratio_kmers, const bool inexact_search, const size_t nb_threads,
+                            const bool verbose) const {
 
     if (invalid){
 
@@ -1592,6 +1314,8 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
         if (std::remove(out_tmp.c_str()) != 0) cerr << "ColoredCDBG::search(): Could not remove temporary file " << out_tmp << endl;
     }
+
+    if (verbose) cout << "ColoredCDBG::search(): Querying graph." << endl;
 
     string s;
 
@@ -1775,6 +1499,8 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
         const size_t l_query_name = strlen(query_name);
 
+        bool is_found = false;
+
         if (pos_buffer_out + l_query_name >= thread_seq_buf_sz){ // If next result cannot fit in the buffer
 
             out.write(buffer_res, pos_buffer_out); // Write result buffer
@@ -1797,6 +1523,7 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
             std::memcpy(buffer_res + pos_buffer_out, (color_occ[i] >= nb_km_min) ? query_pres : query_abs, l_query_res * sizeof(char));
 
             pos_buffer_out += l_query_res;
+            is_found = is_found || (color_occ[i] >= nb_km_min);
         }
 
         if (pos_buffer_out + 1 >= thread_seq_buf_sz){ // If next result cannot fit in the buffer
@@ -1808,6 +1535,8 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
         buffer_res[pos_buffer_out] = '\n';
 
         ++pos_buffer_out;
+
+        return is_found;
     };
 
     // Write header to TSV file
@@ -1830,13 +1559,16 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
         Roaring* color_occ_r = inexact_search ? new Roaring[nb_colors] : nullptr;
 
         size_t pos_buffer_out = 0;
+        size_t nb_queries_found = 0;
 
         while (fp.read(s, file_id)){
 
             const size_t nb_km_min = static_cast<double>(s.length() - k + 1) * ratio_kmers;
 
             searchQuery(s, color_occ_r, color_occ_u, nb_km_min);
-            writeCounts(fp.getNameString(), color_occ_u, buffer_res, pos_buffer_out, nb_km_min); // Output presence/absence for each color
+
+            // Output presence/absence for each color in the buffer, return if query is present in at least one color
+            nb_queries_found += static_cast<size_t>(writeCounts(fp.getNameString(), color_occ_u, buffer_res, pos_buffer_out, nb_km_min));
 
             std::memset(color_occ_u, 0, nb_colors * sizeof(uint32_t));
 
@@ -1853,6 +1585,7 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
         delete[] color_occ_u;
 
         if (color_occ_r != nullptr) delete[] color_occ_r;
+        if (verbose) cout << "CompactedDBG::search(): Found " << nb_queries_found << " queries in at least one color. " << endl;
     }
     else {
 
@@ -1862,11 +1595,15 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
         vector<vector<string>> buffers_seq(nb_threads);
         vector<vector<string>> buffers_name(nb_threads);
 
+        std::atomic<size_t> nb_queries_found;
+
         char** buffer_res = new char*[nb_threads];
         uint32_t** color_occ_u = new uint32_t*[nb_threads];
         Roaring** color_occ_r = new Roaring*[nb_threads];
 
         mutex mutex_files_in, mutex_file_out;
+
+        nb_queries_found = 0;
 
         for (size_t t = 0; t < nb_threads; ++t){
 
@@ -1909,15 +1646,20 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
                             const size_t nb_km_min = static_cast<double>(buffers_seq[t][i].length() - k + 1) * ratio_kmers;
 
+                            bool is_found = false;
+
                             searchQuery(buffers_seq[t][i], color_occ_r[t], color_occ_u[t], nb_km_min);
 
                             if ((pos_buffer_out + buffers_name[t][i].length() + nb_colors * l_query_res + 2) >= thread_seq_buf_sz){
 
                                 unique_lock<mutex> lock(mutex_file_out);
 
-                                writeCounts(buffers_name[t][i].c_str(), color_occ_u[t], buffer_res[t], pos_buffer_out, nb_km_min); // Output presence/absence for each color
+                                // Output presence/absence for each color
+                                is_found = writeCounts(buffers_name[t][i].c_str(), color_occ_u[t], buffer_res[t], pos_buffer_out, nb_km_min);
                             }
-                            else writeCounts(buffers_name[t][i].c_str(), color_occ_u[t], buffer_res[t], pos_buffer_out, nb_km_min);
+                            else is_found = writeCounts(buffers_name[t][i].c_str(), color_occ_u[t], buffer_res[t], pos_buffer_out, nb_km_min);
+
+                            nb_queries_found += static_cast<size_t>(is_found);
 
                             std::memset(color_occ_u[t], 0, nb_colors * sizeof(uint32_t));
 
@@ -1955,6 +1697,8 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
         delete[] buffer_res;
         delete[] color_occ_u;
         delete[] color_occ_r;
+
+        if (verbose) cout << "CompactedDBG::search(): Found " << nb_queries_found << " queries in at least one color. " << endl;
     }
 
     outfile.close();
