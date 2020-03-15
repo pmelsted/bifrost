@@ -40,3 +40,4 @@ data/
 core
 man/
 example/output/
+.DS_Store
