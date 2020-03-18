@@ -79,7 +79,6 @@ CompactedDBG<U, G>& CompactedDBG<U, G>::operator=(const CompactedDBG& o){
 
     data = o.data;
 
-    //v_unitigs.reserve(o.v_unitigs.size());
     v_unitigs = vector<Unitig<U>*>(o.v_unitigs.size(), nullptr);
 
     for (size_t i = 0; i < o.v_unitigs.size(); ++i){
@@ -4479,7 +4478,7 @@ bool CompactedDBG<U, G>::mergeUnitig(const string& seq, const bool verbose){
 
                     if (!um.isAbundant && !um.isShort){
 
-                        um.strand += um.strand;
+                        um.dist += um.strand;
                         if ((um.dist != 0) && (um.dist != um.size - k_ + 1)) kht.insert(um.getUnitigHead(), vector<size_t>()).first->push_back(um.dist);
                     }
                 }
