@@ -30,7 +30,7 @@
 
 ## Requirements
 
-If you intend to install Bifrost using Homebrew, you can directly go to Section [Installation](#installation).
+If you intend to install Bifrost using Bioconda or Homebrew, you can directly go to Section [Installation](#installation).
 
 * 64 bits POSIX-compliant operating system
 * C++11 capable compiler:
@@ -69,7 +69,11 @@ sudo apt-get install build-essential cmake zlib1g-dev
   brew install brewsci/bio/bifrost
   ```
 
-  Contribution of Torsten Seemann.
+* From Bioconda (Linux only):
+
+  ```
+  conda -c bioconda bifrost
+  ```
 
 * From source
 
@@ -296,7 +300,7 @@ You can also link to the Bifrost static library (*libbifrost.a*) for better perf
 <path_to_lib_folder>/libbifrost.a -pthread -lz
 ```
 
-The default maximum *k*-mer size supported is 31. To work with larger *k*, the code using the Bifrost API must be compiled and linked with the flag `-DMAX_KMER_SIZE=x` where `x` is a larger and appropriate number (a power of 2), such as:
+The default maximum *k*-mer size supported is 31. To work with larger *k*, the code using the Bifrost API must be compiled and linked with the flag `-DMAX_KMER_SIZE=x` where `x` is a larger multiple of 32, such as:
 ```
 -DMAX_KMER_SIZE=64 -O3 -std=c++11 -march=native
 ```
