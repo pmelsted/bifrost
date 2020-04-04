@@ -63,13 +63,13 @@ sudo apt-get install build-essential cmake zlib1g-dev
 
 ## Installation
 
-* From Homebrew:
+* From [Homebrew](https://brew.sh):
 
   ```
   brew install brewsci/bio/bifrost
   ```
 
-* From Bioconda (Linux only):
+* From [Bioconda](https://bioconda.github.io) (Linux only):
 
   ```
   conda -c bioconda bifrost
@@ -85,7 +85,7 @@ sudo apt-get install build-essential cmake zlib1g-dev
   make install
   ```
 
-  `make install` might requires `sudo` (`sudo make install`) to proceed. If you want to install Bifrost in a non-default path, replace `cmake ..` with `cmake -DCMAKE_INSTALL_PREFIX=/my/path/ ..` where */my/path/* is where you want to see the Bifrost files installed. Do not forget to had this path to your environment variables (see [Troubleshooting](#troubleshooting)). If you encounter any problem during the installation, see the see [Troubleshooting](#troubleshooting) section.
+  `make install` might requires `sudo` (`sudo make install`) to proceed. If you want to install Bifrost in a non-default path, replace `cmake ..` with `cmake -DCMAKE_INSTALL_PREFIX=/my/path/ ..` where `/my/path/` is where you want to see the Bifrost files installed. Do not forget to had this path to your environment variables (see [Troubleshooting](#troubleshooting)). If you encounter any problem during the installation, see the see [Troubleshooting](#troubleshooting) section.
 
   By default, the installation creates:
   * a binary (*Bifrost*)
