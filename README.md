@@ -78,15 +78,14 @@ sudo apt-get install build-essential cmake zlib1g-dev
 * From source
 
   ```
-  cd <bifrost_directory>
-  mkdir build
-  cd build
+  git clone https://github.com/pmelsted/bifrost.git
+  cd bifrost && mkdir build && cd build
   cmake ..
   make
   make install
   ```
 
-  `make install` might requires `sudo` (`sudo make install`) to proceed. See [Troubleshooting](#troubleshooting) if you have any problem during the installation.
+  `make install` might requires `sudo` (`sudo make install`) to proceed. If you want to install Bifrost in a non-default path, replace `cmake ..` with `cmake -DCMAKE_INSTALL_PREFIX=/my/path/ ..` where */my/path/* is where you want to see the Bifrost files installed. Do not forget to had this path to your environment variables (see [Troubleshooting](#troubleshooting)). If you encounter any problem during the installation, see the see [Troubleshooting](#troubleshooting) section.
 
   By default, the installation creates:
   * a binary (*Bifrost*)
