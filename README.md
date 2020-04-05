@@ -32,7 +32,7 @@
 
 To install Bifrost using Bioconda or Homebrew, go directly to Section [Installation](#installation). To install from source, you will need:
 
-* C++11 capable compiler:
+* C++11 compiler:
     * [GCC](https://gcc.gnu.org/) 4.8.5 or later
     * [Clang](http://clang.llvm.org/) 3.5 or later
 * [Cmake](https://cmake.org/) 2.8.12 or later
@@ -84,7 +84,7 @@ sudo apt-get install build-essential cmake zlib1g-dev
   make install
   ```
 
-  `make install` might requires `sudo` (`sudo make install`) to proceed. If you want to install Bifrost in a non-default path, replace `cmake ..` with `cmake -DCMAKE_INSTALL_PREFIX=/my/path/ ..` where `/my/path/` is where you want to see the Bifrost files installed. Do not forget to had this path to your environment variables (see [Troubleshooting](#troubleshooting)). If you encounter any problem during the installation, see the see [Troubleshooting](#troubleshooting) section.
+  `make install` might requires `sudo` (`sudo make install`) to proceed. If you want to install Bifrost in a non-default path, replace `cmake ..` with `cmake -DCMAKE_INSTALL_PREFIX=/my/path/ ..` where `/my/path/` is where you want to see the Bifrost files installed. Do not forget to had this path to your environment variables (see [Troubleshooting](#troubleshooting)). If you encounter any problem during the installation, see the [Troubleshooting](#troubleshooting) section.
 
   By default, the installation creates:
   * a binary (*Bifrost*)
