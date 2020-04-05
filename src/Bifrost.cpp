@@ -3,8 +3,6 @@
 
 using namespace std;
 
-// use:  PrintVersion();
-// post: The version of the program has been printed to cout
 void PrintVersion() {
 
     cout << BFG_VERSION << endl;
@@ -106,7 +104,7 @@ void PrintUsage() {
     cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
 }
 
-void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
+int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
 
     int option_index = 0, c;
 
@@ -138,6 +136,9 @@ void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
         {"fasta",               no_argument,        0, 'a'},
         {0,                     0,                  0,  0 }
     };
+
+    if (strcmp(argv[1], "--version") == 0) return 1; // Print version
+    else if (strcmp(argv[1], "--help") == 0) return 2; // print help
 
     if (strcmp(argv[1], "build") == 0) opt.build = true;
     else if (strcmp(argv[1], "update") == 0) opt.update = true;
@@ -219,6 +220,8 @@ void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
             }
         }
     }
+
+    return 0;
 }
 
 bool check_ProgramOptions(CCDBG_Build_opt& opt) {
@@ -503,87 +506,91 @@ int main(int argc, char **argv){
 
         opt.outputColors = false; // We dont know yet if we want colors or not
 
-        parse_ProgramOptions(argc, argv, opt); // Parse input parameters
+        const int print = parse_ProgramOptions(argc, argv, opt); // Parse input parameters
 
-        if (!check_ProgramOptions(opt)) return 0; // Check if input parameters are valid
-        else if (opt.build){ // We want to build the graph
+        if (print == 1) PrintVersion();
+        else if (print == 2) PrintUsage();
+        else if (check_ProgramOptions(opt)) {
 
-            if (opt.outputColors){
+            if (opt.build){ // Build the graph
 
-                ColoredCDBG<> ccdbg(opt.k, opt.g);
+                if (opt.outputColors){
 
-                ccdbg.buildGraph(opt);
-                ccdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                ccdbg.buildColors(opt);
-                ccdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
+                    ColoredCDBG<> ccdbg(opt.k, opt.g);
+
+                    ccdbg.buildGraph(opt);
+                    ccdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+                    ccdbg.buildColors(opt);
+                    ccdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
+                }
+                else {
+
+                    CompactedDBG<> cdbg(opt.k, opt.g);
+
+                    cdbg.build(opt);
+                    cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+                    cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
+                }
             }
-            else {
+            else if (opt.update){
 
-                CompactedDBG<> cdbg(opt.k, opt.g);
+                if (opt.filename_colors_in.size() != 0){ // If colors in or out
 
-                cdbg.build(opt);
-                cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
+                    ColoredCDBG<> ccdbg1(opt.k, opt.g);
+                    ColoredCDBG<> ccdbg2(opt.k, opt.g);
+
+                    ccdbg1.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
+                    ccdbg2.buildGraph(opt);
+                    ccdbg2.buildColors(opt);
+
+                    const size_t ccdbg1_len = ccdbg1.length();
+                    const size_t ccdbg2_len = ccdbg2.length();
+
+                    ColoredCDBG<>& ccdbg_a = (ccdbg1_len > ccdbg2_len) ? ccdbg1 : ccdbg2;
+                    ColoredCDBG<>& ccdbg_b = (ccdbg1_len > ccdbg2_len) ? ccdbg2 : ccdbg1;
+
+                    ccdbg_a.merge(move(ccdbg_b), opt.nb_threads, opt.verbose);
+
+                    ccdbg_a.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+                    ccdbg_a.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
+                }
+                else {
+
+                    CompactedDBG<> cdbg1(opt.k, opt.g);
+                    CompactedDBG<> cdbg2(opt.k, opt.g);
+
+                    cdbg1.read(opt.filename_graph_in, opt.nb_threads, opt.verbose);
+                    cdbg2.build(opt);
+
+                    const size_t cdbg1_len = cdbg1.length();
+                    const size_t cdbg2_len = cdbg2.length();
+
+                    CompactedDBG<>& cdbg_a = (cdbg1_len > cdbg2_len) ? cdbg1 : cdbg2;
+                    CompactedDBG<>& cdbg_b = (cdbg1_len > cdbg2_len) ? cdbg2 : cdbg1;
+
+                    cdbg_a.merge(cdbg_b, opt.nb_threads, opt.verbose);
+                    cdbg_b.clear();
+
+                    cdbg_a.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+                    cdbg_a.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
+                }
             }
-        }
-        else if (opt.update){
+            else if (opt.query){
 
-            if (opt.filename_colors_in.size() != 0){ // If colors in or out
+                if (opt.filename_colors_in.size() != 0){
 
-                ColoredCDBG<> ccdbg1(opt.k, opt.g);
-                ColoredCDBG<> ccdbg2(opt.k, opt.g);
+                    ColoredCDBG<> ccdbg(opt.k, opt.g);
 
-                ccdbg1.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
-                ccdbg2.buildGraph(opt);
-                ccdbg2.buildColors(opt);
+                    ccdbg.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
+                    ccdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.inexact_search, opt.nb_threads, opt.verbose);
+                }
+                else {
 
-                const size_t ccdbg1_len = ccdbg1.length();
-                const size_t ccdbg2_len = ccdbg2.length();
+                    CompactedDBG<> cdbg(opt.k, opt.g);
 
-                ColoredCDBG<>& ccdbg_a = (ccdbg1_len > ccdbg2_len) ? ccdbg1 : ccdbg2;
-                ColoredCDBG<>& ccdbg_b = (ccdbg1_len > ccdbg2_len) ? ccdbg2 : ccdbg1;
-
-                ccdbg_a.merge(move(ccdbg_b), opt.nb_threads, opt.verbose);
-
-                ccdbg_a.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                ccdbg_a.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
-            }
-            else {
-
-                CompactedDBG<> cdbg1(opt.k, opt.g);
-                CompactedDBG<> cdbg2(opt.k, opt.g);
-
-                cdbg1.read(opt.filename_graph_in, opt.nb_threads, opt.verbose);
-                cdbg2.build(opt);
-
-                const size_t cdbg1_len = cdbg1.length();
-                const size_t cdbg2_len = cdbg2.length();
-
-                CompactedDBG<>& cdbg_a = (cdbg1_len > cdbg2_len) ? cdbg1 : cdbg2;
-                CompactedDBG<>& cdbg_b = (cdbg1_len > cdbg2_len) ? cdbg2 : cdbg1;
-
-                cdbg_a.merge(cdbg_b, opt.nb_threads, opt.verbose);
-                cdbg_b.clear();
-
-                cdbg_a.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                cdbg_a.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
-            }
-        }
-        else if (opt.query){
-
-            if (opt.filename_colors_in.size() != 0){
-
-                ColoredCDBG<> ccdbg(opt.k, opt.g);
-
-                ccdbg.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
-                ccdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.inexact_search, opt.nb_threads, opt.verbose);
-            }
-            else {
-
-                CompactedDBG<> cdbg(opt.k, opt.g);
-
-                cdbg.read(opt.filename_graph_in, opt.nb_threads, opt.verbose);
-                cdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.inexact_search, opt.nb_threads, opt.verbose);
+                    cdbg.read(opt.filename_graph_in, opt.nb_threads, opt.verbose);
+                    cdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.inexact_search, opt.nb_threads, opt.verbose);
+                }
             }
         }
     }
