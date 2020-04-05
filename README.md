@@ -213,53 +213,59 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
 
 ### Examples
 
-1. **Build a compacted de Bruijn graph from read files and clean the graph**
-   ```
-   Bifrost build -t 4 -k 31 -i -d -s A.fastq -s B.fastq -o AB_graph 
-   ```
-   The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq* and *B.fastq* (`-s A.fastq -s B.fastq`). By using parameter `-s`, files *A.fastq* and *B.fastq* are filtered: 31-mers occurring exactly once in *A* and *B* are discarded from the construction. Graph simplification steps are performed after building (`-i -d`) and the graph is written to file *AB_graph.gfa* (`-o AB_graph`).
+- **Build**
 
-2. **Build a compacted de Bruijn graph from a reference genome file**
-   ```
-   Bifrost build -t 4 -k 31 -r C.fasta -o C_graph 
-   ```
-   The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of file *C.fasta* (`-r C.fasta`). By using parameter `-r`, file *C.fasta* is NOT filtered: all 31-mers occurring in *C* are used during the construction. The graph is written to file *C_graph.gfa* (`-o C_graph`).
+  1. **Build a compacted de Bruijn graph from read files and clean the graph**
+     ```
+     Bifrost build -t 4 -k 31 -i -d -s A.fastq -s B.fastq -o AB_graph 
+     ```
+     The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq* and *B.fastq* (`-s A.fastq -s B.fastq`). By using parameter `-s`, files *A.fastq* and *B.fastq* are filtered: 31-mers occurring exactly once in *A* and *B* are discarded from the construction. Graph simplification steps are performed after building (`-i -d`) and the graph is written to file *AB_graph.gfa* (`-o AB_graph`).
 
-3. **Build a compacted and colored de Bruijn graph from read files and reference genome files, clean the graph**
-   ```
-   Bifrost build -t 4 -k 31 -c -i -d -s A.fastq -s B.fastq -r C.fasta -o ABC 
-   ```
-   Combining the two previous examples, the compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq*, *B.fastq* (`-s A.fastq -s B.fastq`) and file *C.fasta* (`-r C.fasta`). Graph simplification steps are performed after building (`-i -d`). The graph is colored (`-c`), meaning that each k-mer of the graph unitigs keeps track of whether it occurs in *A*, *B* or *C*. The graph is written to file *ABC.gfa* and the colors are written to file *ABC.bfg_colors* (`-o ABC`).
+  2. **Build a compacted de Bruijn graph from a reference genome file**
+     ```
+     Bifrost build -t 4 -k 31 -r C.fasta -o C_graph 
+     ```
+     The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of file *C.fasta* (`-r C.fasta`). By using parameter `-r`, file *C.fasta* is NOT filtered: all 31-mers occurring in *C* are used during the construction. The graph is written to file *C_graph.gfa* (`-o C_graph`).
 
-4. **Update a compacted de Bruijn graph with a reference genome file**
-   ```
-   Bifrost update -t 4 -r D.fasta -g C_graph.gfa -o CD_graph 
-   ```
-   The compacted de Bruijn graph *C* (`-g C_graph.gfa`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of file *D.fasta* (`-r D.fasta`). By using parameter `-r`, file *D.fasta* is NOT filtered: all *k*-mers occurring in *D* are used during the merging. The graph is written to file *CD_graph.gfa* (`-o CD_graph`).
+  3. **Build a compacted and colored de Bruijn graph from read files and reference genome files, clean the graph**
+     ```
+     Bifrost build -t 4 -k 31 -c -i -d -s A.fastq -s B.fastq -r C.fasta -o ABC 
+     ```
+     Combining the two previous examples, the compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq*, *B.fastq* (`-s A.fastq -s B.fastq`) and file *C.fasta* (`-r C.fasta`). Graph simplification steps are performed after building (`-i -d`). The graph is colored (`-c`), meaning that each k-mer of the graph unitigs keeps track of whether it occurs in *A*, *B* or *C*. The graph is written to file *ABC.gfa* and the colors are written to file *ABC.bfg_colors* (`-o ABC`).
 
-5. **Update a compacted and colored de Bruijn graph with read files and clean the graph**
-   ```
-   Bifrost update -t 4 -i -d -s E.fastq -s F.fastq -g ABC.gfa -f ABC.bfg_colors -o ABCEF 
-   ```
-   The compacted and colored de Bruijn graph *ABC* (`-g ABC.gfa -f ABC.bfg_colors`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of files *E.fastq* and *F.fastq* (`-s E.fastq -s F.fastq`). Graph simplification steps are performed after merging (`-i -d`). The graph is written to file *ABCEF.gfa* and the colors are written to file *ABCEF.bfg_colors* (`-o ABCEF`).
+- **Update**
 
-6. **Query a compacted de Bruijn graph for presence/absence of queries in the graph**
-   ```
-   Bifrost query -t 4 -e 0.8 -g ABCEF.gfa -q queries.fasta -o presence_queries 
-   ```
-   The compacted de Bruijn graph *ABCEF* (`-g ABCEF.gfa`) is queried (`query`) with 4 threads (`-t 4`) for the presence/absence of sequences from file *queries.fasta* (`-q queries.fasta`). At least 80% of each query *k*-mers must be found in the graph to have the query reported as present (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, column is presence/absence in graph, intersection of a row and a column is a binary value indicating presence/absence of the query in graph (1 is present, 0 is not present).
+  1. **Update a compacted de Bruijn graph with a reference genome file**
+     ```
+     Bifrost update -t 4 -r D.fasta -g C_graph.gfa -o CD_graph 
+     ```
+     The compacted de Bruijn graph *C* (`-g C_graph.gfa`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of file *D.fasta* (`-r D.fasta`). By using parameter `-r`, file *D.fasta* is NOT filtered: all *k*-mers occurring in *D* are used during the merging. The graph is written to file *CD_graph.gfa* (`-o CD_graph`).
 
-7. **Query a compacted de Bruijn graph for presence/absence of queries in the graph in inexact mode**
-   ```
-   Bifrost query -t 4 -e 0.8 -n -g ABCEF.gfa -q queries.fasta -o presence_queries 
-   ```
-   The compacted de Bruijn graph *ABCEF* (`-g ABCEF.gfa`) is queried (`query`) with 4 threads (`-t 4`) for the presence/absence of sequences from file *queries.fasta* (`-q queries.fasta`). At least 80% of each query *k*-mers must be found in the graph to have the query reported as present (`-e 0.8`). Queries are searched for exact and inexact *k*-mers (`-n`): *k*-mers with up to one substitution or indel. The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, column is presence/absence in graph, intersection of a row and a column is a binary value indicating presence/absence of the query in graph (1 is present, 0 is not present).
+  2. **Update a compacted and colored de Bruijn graph with read files and clean the graph**
+     ```
+     Bifrost update -t 4 -i -d -s E.fastq -s F.fastq -g ABC.gfa -f ABC.bfg_colors -o ABCEF 
+     ```
+     The compacted and colored de Bruijn graph *ABC* (`-g ABC.gfa -f ABC.bfg_colors`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of files *E.fastq* and *F.fastq* (`-s E.fastq -s F.fastq`). Graph simplification steps are performed after merging (`-i -d`). The graph is written to file *ABCEF.gfa* and the colors are written to file *ABCEF.bfg_colors* (`-o ABCEF`).
 
-8. **Query a colored and compacted de Bruijn graph for presence/absence of queries in each color of the graph**
-   ```
-   Bifrost query -t 4 -e 0.8 -g ABCEF.gfa -f ABCEF.bfg_colors -q queries.fasta -o presence_queries 
-   ```
-   The compacted and colored de Bruijn graph *ABCEF* (`-g ABCEF.gfa -f ABCEF.bfg_colors`) is queried (`query`) with 4 threads (`-t 4`) for the sequences of file *queries.fasta* (`-q queries.fasta`). At least 80% of each query *k*-mers must be found in a color of the graph to have the query reported as present for that color (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, columns are the colors, intersection of a row and a column is a binary value indicating presence/absence of the query in the color of the graph (1 is present, 0 is not present).
+- **Query**
+
+  1. **Query a compacted de Bruijn graph for presence/absence of queries in the graph**
+     ```
+     Bifrost query -t 4 -e 0.8 -g ABCEF.gfa -q queries.fasta -o presence_queries 
+     ```
+     The compacted de Bruijn graph *ABCEF* (`-g ABCEF.gfa`) is queried (`query`) with 4 threads (`-t 4`) for the presence/absence of sequences from file *queries.fasta* (`-q queries.fasta`). At least 80% of each query *k*-mers must be found in the graph to have the query reported as present (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, column is presence/absence in graph, intersection of a row and a column is a binary value indicating presence/absence of the query in graph (1 is present, 0 is not present).
+
+  2. **Query a compacted de Bruijn graph for presence/absence of queries in the graph in inexact mode**
+     ```
+     Bifrost query -t 4 -e 0.8 -n -g ABCEF.gfa -q queries.fasta -o presence_queries 
+     ```
+     The compacted de Bruijn graph *ABCEF* (`-g ABCEF.gfa`) is queried (`query`) with 4 threads (`-t 4`) for the presence/absence of sequences from file *queries.fasta* (`-q queries.fasta`). At least 80% of each query *k*-mers must be found in the graph to have the query reported as present (`-e 0.8`). Queries are searched for exact and inexact *k*-mers (`-n`): *k*-mers with up to one substitution or indel. The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, column is presence/absence in graph, intersection of a row and a column is a binary value indicating presence/absence of the query in graph (1 is present, 0 is not present).
+
+  3. **Query a colored and compacted de Bruijn graph for presence/absence of queries in each color of the graph**
+     ```
+     Bifrost query -t 4 -e 0.8 -g ABCEF.gfa -f ABCEF.bfg_colors -q queries.fasta -o presence_queries 
+     ```
+     The compacted and colored de Bruijn graph *ABCEF* (`-g ABCEF.gfa -f ABCEF.bfg_colors`) is queried (`query`) with 4 threads (`-t 4`) for the sequences of file *queries.fasta* (`-q queries.fasta`). At least 80% of each query *k*-mers must be found in a color of the graph to have the query reported as present for that color (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, columns are the colors, intersection of a row and a column is a binary value indicating presence/absence of the query in the color of the graph (1 is present, 0 is not present).
 
 ## API
 
