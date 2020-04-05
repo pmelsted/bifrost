@@ -2,9 +2,18 @@
 #define BIFROST_FILE_PARSER_HPP
 
 #include <sstream>
+#include <stdio.h>
+#include <string.h>
+#include <zlib.h>
 
 #include "FASTX_Parser.hpp"
 #include "GFA_Parser.hpp"
+
+#ifndef KSEQ_INIT_READY
+#define KSEQ_INIT_READY
+#include "kseq.h"
+KSEQ_INIT(gzFile, gzread);
+#endif
 
 class FileParser {
 
@@ -35,38 +44,17 @@ class FileParser {
                     }
                     else {
 
-                        const size_t last_point = s.find_last_of(".");
+                        const int format = FileParser::getFileFormat(s.c_str());
 
-                        string s_ext = s.substr(last_point + 1);
+                        if (format == -1){
 
-                        if ((s_ext == "gz")){
+                            cerr << "FileParser::FileParser(): Input file " << s << " does not exist, is ill-formed or is not in FASTA/FASTQ/GFA format." << endl;
 
-                            s_ext = s.substr(s.find_last_of(".", last_point - 1) + 1);
-
-                            if ((s_ext == "fasta.gz") || (s_ext == "fa.gz") || (s_ext == "fna.gz") || (s_ext == "fastq.gz") || (s_ext == "fq.gz")){
-
-                                files_fastx.push_back(s);
-                            }
-                            else {
-
-                                cerr << "FileParser::FileParser(): Input files must be in FASTA (*.fasta, *.fa, *.fna, *.fasta.gz, *.fa.gz, *.fna.gz)" <<
-                                " or FASTQ (*.fastq, *.fq, *.fastq.gz, *.fq.gz) or GFA (*.gfa) format" << endl;
-
-                                invalid = true;
-                            }
+                            invalid = true;
                         }
-                        else {
-
-                            if ((s_ext == "fasta") || (s_ext == "fa") || (s_ext == "fna") || (s_ext == "fastq") || (s_ext == "fq")) files_fastx.push_back(s);
-                            else if (s_ext == "gfa") files_gfa.push_back(s);
-                            else {
-
-                                cerr << "FileParser::FileParser(): Input files must be in FASTA (*.fasta, *.fa, *.fna, *.fasta.gz, *.fa.gz, *.fna.gz)" <<
-                                " or FASTQ (*.fastq, *.fq, *.fastq.gz, *.fq.gz) or GFA (*.gfa) format" << endl;
-
-                                invalid = true;
-                            }
-                        }
+                        else if (format == 0) files_fastx.push_back(s); // FASTA
+                        else if (format == 1) files_fastx.push_back(s); // FASTQ
+                        else if (format == 2) files_gfa.push_back(s); // GFA
                     }
                 }
             }
@@ -210,6 +198,52 @@ class FileParser {
 
             ff.close();
             gfap.close();
+        }
+
+        // Returns 0 for FASTA, 1 for FASTQ, 2 for GFA, -1 otherwise
+        static int getFileFormat(const char* filename) {
+
+            char gfa_header[] = "H\tVN:Z:";
+
+            const size_t sz_gfa_header = strlen(static_cast<char*>(gfa_header));
+            const size_t sz_buffer = 16384;
+
+            char buffer[sz_buffer];
+
+            int ret_v = -1;
+
+            gzFile fp = gzopen(filename, "r");
+
+            if (fp == Z_NULL) return ret_v; // Couldn't open file, return undetermined file format
+
+            const int l_read = gzread(fp, buffer, sz_buffer - 1);
+
+            buffer[l_read] = '\0';
+
+            if (l_read != 0) { // Must contain at least one character, otherwise return undertermined file format
+
+                if ((buffer[0] == '>') || (buffer[0] == '@')) { // File is FASTA or FASTQ format
+
+                    gzrewind(fp); // Put back file cursor to beginning;
+
+                    kseq_t* kseq = kseq_init(fp); // Initialize kseq
+
+                    if (kseq != NULL){
+
+                        const int r = kseq_read(kseq); // Read first record of FASTA or FASTQ file
+
+                        // If file contains at least 1 record with a name and sequence, returns 0: FASTA, 1: FASTQ
+                        if ((r >= 0) && (kseq->name.l >= 1) && (kseq->seq.l >= 1)) ret_v = static_cast<int>(kseq->qual.l == kseq->seq.l);
+
+                        kseq_destroy(kseq);
+                    }
+                }
+                else if (strncmp(buffer, static_cast<char*>(gfa_header), sz_gfa_header) == 0) ret_v = 2; // GFA
+            }
+
+            gzclose(fp);
+
+            return ret_v;
         }
 
     private:

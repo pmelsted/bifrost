@@ -337,19 +337,27 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
 
     if (opt.query){  // Check param. command build
 
-        const string out = opt.prefixFilenameOut + ".tsv";
+        if (opt.prefixFilenameOut.length() == 0) {
 
-        FILE* fp = fopen(out.c_str(), "w");
-
-        if (fp == NULL) {
-
-            cerr << "Error: Could not open file for writing output of query in TSV format: " << out << "." << endl;
+            cerr << "Error: No output filename prefix given." << endl;
             ret = false;
         }
         else {
 
-            fclose(fp);
-            if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << "." << endl;
+            const string out = opt.prefixFilenameOut + ".tsv";
+
+            FILE* fp = fopen(out.c_str(), "w");
+
+            if (fp == NULL) {
+
+                cerr << "Error: Could not open file for writing output of query in TSV format: " << out << "." << endl;
+                ret = false;
+            }
+            else {
+
+                fclose(fp);
+                if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << "." << endl;
+            }
         }
 
         if (opt.filename_query_in.size() == 0) {
@@ -373,19 +381,27 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
     }
     else {
 
-        const string out = opt.prefixFilenameOut + (opt.outputGFA ? ".gfa" : ".fasta");
+        if (opt.prefixFilenameOut.length() == 0) {
 
-        FILE* fp = fopen(out.c_str(), "w");
-
-        if (fp == NULL) {
-
-            cerr << "Error: Could not open file for writing output graph in GFA format: " << out << "." << endl;
+            cerr << "Error: No output filename prefix given." << endl;
             ret = false;
         }
         else {
 
-            fclose(fp);
-            if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << "." << endl;
+            const string out = opt.prefixFilenameOut + (opt.outputGFA ? ".gfa" : ".fasta");
+
+            FILE* fp = fopen(out.c_str(), "w");
+
+            if (fp == NULL) {
+
+                cerr << "Error: Could not open file for writing output graph in GFA format: " << out << "." << endl;
+                ret = false;
+            }
+            else {
+
+                fclose(fp);
+                if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << "." << endl;
+            }
         }
 
         if ((opt.filename_seq_in.size() + opt.filename_ref_in.size()) == 0) {

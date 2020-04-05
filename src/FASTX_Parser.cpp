@@ -8,7 +8,7 @@ FastqFile::FastqFile(const vector<string> files) : kseq(NULL), fnames(files), fi
     fp = gzopen(fnit->c_str(), "r");
     kseq = kseq_init(fp);
 
-    std::ios::sync_with_stdio(false);
+    //std::ios::sync_with_stdio(false);
 }
 
 FastqFile::FastqFile(FastqFile&& o) : fp(o.fp), kseq(o.kseq), fnames(o.fnames), file_no(o.file_no) {

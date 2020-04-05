@@ -510,33 +510,22 @@ bool CompactedDBG<U, G>::read(const string& input_filename, const size_t nb_thre
 
     if (verbose) cout << endl << "CompactedDBG::read(): Reading graph from disk" << endl;
 
-    const size_t last_point = input_filename.find_last_of(".");
+    const int format = FileParser::getFileFormat(input_filename.c_str());
 
-    string s_ext = input_filename.substr(last_point + 1);
+    if (format == -1){
 
-    if ((s_ext == "gz")){
+        cerr << "CompactedDBG::read(): Input file " << input_filename << " does not exist, is ill-formed or is not in FASTA/FASTQ/GFA format." << endl;
 
-        s_ext = input_filename.substr(input_filename.find_last_of(".", last_point - 1) + 1);
-
-        if ((s_ext != "fasta.gz") && (s_ext != "fa.gz") && (s_ext != "fna.gz")) {
-
-            cerr << "CompactedDBG::read(): Input files must be in FASTA (*.fasta, *.fa, *.fna, *.fasta.gz, *.fa.gz, *.fna.gz)" <<
-            " or GFA (*.gfa) format" << endl;
-            cerr << "CompactedDBG::read(): Erroneous file is " << input_filename << endl;
-
-            return false;
-        }
+        return false;
     }
-    else if ((s_ext != "fasta") && (s_ext != "fa") && (s_ext != "fna") && (s_ext != "gfa")) {
+    else if ((format != 0) && (format != 2)){
 
-        cerr << "CompactedDBG::read(): Input files must be in FASTA (*.fasta, *.fa, *.fna, *.fasta.gz, *.fa.gz, *.fna.gz)" <<
-        " or GFA (*.gfa) format" << endl;
-        cerr << "CompactedDBG::read(): Erroneous file is " << input_filename << endl;
+        cerr << "CompactedDBG::read(): Input file must be in FASTA or GFA format." << endl;
 
         return false;
     }
 
-    if (s_ext == "gfa"){
+    if (format == 2){ // GFA format
 
         FILE* fp = fopen(input_filename.c_str(), "r");
 
