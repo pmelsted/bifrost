@@ -49,12 +49,13 @@ target_link_libraries(bifrost_static PUBLIC ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(bifrost_dynamic PUBLIC ${CMAKE_THREAD_LIBS_INIT})
 
 find_package(ZLIB REQUIRED)
-target_link_libraries(bifrost_static PUBLIC ${ZLIB_LIBRARIES})
-target_link_libraries(bifrost_dynamic PUBLIC ${ZLIB_LIBRARIES})
 
 if (ZLIB_FOUND)
-    target_include_directories(bifrost_static PRIVATE ${ZLIB_INCLUDE_DIRS})
-    target_include_directories(bifrost_dynamic PRIVATE ${ZLIB_INCLUDE_DIRS})
+    target_link_libraries(bifrost_static PUBLIC ${ZLIB_LIBRARIES})
+    target_link_libraries(bifrost_dynamic PUBLIC ${ZLIB_LIBRARIES})
+
+    target_include_directories(bifrost_static PUBLIC ${ZLIB_INCLUDE_DIRS})
+    target_include_directories(bifrost_dynamic PUBLIC ${ZLIB_INCLUDE_DIRS})
 else()
     message(FATAL_ERROR "zlib not found. Required for to output files")
 endif(ZLIB_FOUND)
