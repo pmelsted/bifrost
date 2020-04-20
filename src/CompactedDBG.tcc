@@ -2043,14 +2043,14 @@ bool CompactedDBG<U, G>::annotateSplitUnitigs(const CompactedDBG<U, G>& o, const
         else {
 
             const size_t chunk = 100;
-            //const size_t nb_locks = nb_threads * 1024;
+            const size_t nb_locks = nb_threads * 1024;
 
             vector<thread> workers; // need to keep track of threads so we can join them
 
             typename CompactedDBG<U, G>::const_iterator g_a(o.begin());
             typename CompactedDBG<U, G>::const_iterator g_b(o.end());
 
-            LockGraph lck_g(nb_threads);
+            LockGraph lck_g(nb_locks);
 
             mutex mutex_o_unitig;
 
@@ -2609,7 +2609,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
 
     vector<SpinLock> locks_fp;
 
-    LockGraph lck_g(opt.nb_threads);
+    LockGraph lck_g(nb_locks);
 
     if (!reference_mode){
 
@@ -4775,10 +4775,10 @@ bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, LockGraph& lck_g
                     if (!um.isAbundant && !um.isShort){
 
                         um.dist += um.strand;
+                        
                         if ((um.dist != 0) && (um.dist != um.size - k_ + 1)){
 
-                            const size_t lock_unitig_id = um.pos_unitig + (v_kmers.size() & (static_cast<size_t>(!um.isShort) - 1))
-                                                            + (h_kmers_ccov.size() & (static_cast<size_t>(!um.isAbundant) - 1));
+                            const size_t lock_unitig_id = um.getUnitigHead().hash();
 
                             lck_g.lock_unitig(lock_unitig_id);
                             unmapRead(um);
@@ -4800,8 +4800,7 @@ bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, LockGraph& lck_g
 
                         if ((um.dist != 0) && (um.dist != um.size - k_ + 1)){
 
-                            const size_t lock_unitig_id = um.pos_unitig + (v_kmers.size() & (static_cast<size_t>(!um.isShort) - 1))
-                                                            + (h_kmers_ccov.size() & (static_cast<size_t>(!um.isAbundant) - 1));
+                            const size_t lock_unitig_id = um.getUnitigHead().hash();
 
                             lck_g.lock_unitig(lock_unitig_id);
                             unmapRead(um);
@@ -4838,8 +4837,7 @@ bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, LockGraph& lck_g
                 if ((cm.dist != 0) && (cm.dist != cm.size - k_ + 1)){
 
                     const size_t len = cm.len;
-                    const size_t lock_unitig_id = cm.pos_unitig + (v_kmers.size() & (static_cast<size_t>(!cm.isShort) - 1))
-                                                    + (h_kmers_ccov.size() & (static_cast<size_t>(!cm.isAbundant) - 1));
+                    const size_t lock_unitig_id = cm.getUnitigHead().hash();
 
                     cm.len = 1;
 
@@ -4857,8 +4855,7 @@ bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, LockGraph& lck_g
                 if ((cm.dist != 0) && (cm.dist != cm.size - k_ + 1)){
 
                     const size_t len = cm.len;
-                    const size_t lock_unitig_id = cm.pos_unitig + (v_kmers.size() & (static_cast<size_t>(!cm.isShort) - 1))
-                                                    + (h_kmers_ccov.size() & (static_cast<size_t>(!cm.isAbundant) - 1));
+                    const size_t lock_unitig_id = cm.getUnitigHead().hash();
 
                     cm.len = 1;
 
