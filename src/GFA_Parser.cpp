@@ -1,26 +1,22 @@
 #include "GFA_Parser.hpp"
 
 GFA_Parser::GFA_Parser() : file_open_write(false), file_open_read(false), file_no(0), v_gfa(0), graph_out(nullptr), graph_in(nullptr),
-                           graphfile_in(nullptr), graphfile_out(nullptr)/*, buffer(nullptr), buff_sz(0)*/ {}
+                           graphfile_in(nullptr), graphfile_out(nullptr) {}
 
-GFA_Parser::GFA_Parser(const string& filename/*, const size_t buffer_size*/) :  file_open_write(false), file_open_read(false), file_no(0),
-                                                                            v_gfa(0), graph_out(nullptr), graph_in(nullptr),
-                                                                            graphfile_in(nullptr), graphfile_out(nullptr)/*,
-                                                                            buff_sz(buffer_size), buffer(nullptr)*/ {
+GFA_Parser::GFA_Parser(const string& filename) :    file_open_write(false), file_open_read(false), file_no(0),
+                                                    v_gfa(0), graph_out(nullptr), graph_in(nullptr),
+                                                    graphfile_in(nullptr), graphfile_out(nullptr) {
 
     graph_filenames.push_back(filename);
 
     size_t pos_match_point = graph_filenames[0].find_last_of(".");
 
     if ((pos_match_point == string::npos) || (graph_filenames[0].substr(pos_match_point + 1) != "gfa")) graph_filenames[0].append(".gfa");
-
-    //buffer = new char[buff_sz]();
 }
 
-GFA_Parser::GFA_Parser(const vector<string>& filenames/*, const size_t buffer_size*/) : file_open_write(false), file_open_read(false), file_no(0),
-                                                                                    v_gfa(0), graph_out(nullptr), graph_in(nullptr),
-                                                                                    graphfile_in(nullptr), graphfile_out(nullptr)/*,
-                                                                                    buff_sz(buffer_size), buffer(nullptr)*/ {
+GFA_Parser::GFA_Parser(const vector<string>& filenames) :   file_open_write(false), file_open_read(false), file_no(0),
+                                                            v_gfa(0), graph_out(nullptr), graph_in(nullptr),
+                                                            graphfile_in(nullptr), graphfile_out(nullptr) {
 
     graph_filenames = filenames;
 
@@ -30,19 +26,15 @@ GFA_Parser::GFA_Parser(const vector<string>& filenames/*, const size_t buffer_si
 
         if ((pos_match_point == string::npos) || (filename.substr(pos_match_point + 1) != "gfa")) filename.append(".gfa");
     }
-
-    //buffer = new char[buff_sz]();
 }
 
 GFA_Parser::GFA_Parser(GFA_Parser&& o) :    graph_filenames(o.graph_filenames), graphfile_out(move(o.graphfile_out)),
                                             graphfile_in(move(o.graphfile_in)), graph_out(nullptr), graph_in(nullptr),
-                                            v_gfa(o.v_gfa), file_no(o.file_no)/*, buff_sz(o.buff_sz), buffer(o.buffer)*/,
+                                            v_gfa(o.v_gfa), file_no(o.file_no),
                                             file_open_write(o.file_open_write), file_open_read(o.file_open_read) {
 
     if (file_open_write) graph_out.rdbuf(graphfile_out->rdbuf());
     if (file_open_read) graph_in.rdbuf(graphfile_in->rdbuf());
-
-    //o.buffer = nullptr;
 
     o.file_open_write = false;
     o.file_open_read = false;
@@ -51,8 +43,6 @@ GFA_Parser::GFA_Parser(GFA_Parser&& o) :    graph_filenames(o.graph_filenames), 
 GFA_Parser& GFA_Parser::operator=(GFA_Parser&& o){
 
     if (this != &o) {
-
-        //if (buffer != nullptr) delete[] buffer;
 
         close();
 
@@ -63,17 +53,12 @@ GFA_Parser& GFA_Parser::operator=(GFA_Parser&& o){
 
         v_gfa = o.v_gfa;
         file_no = o.file_no;
-        //buff_sz = o.buff_sz;
-
-        //buffer = o.buffer;
 
         file_open_write = o.file_open_write;
         file_open_read = o.file_open_read;
 
         if (file_open_write) graph_out.rdbuf(graphfile_out->rdbuf());
         if (file_open_read) graph_in.rdbuf(graphfile_in->rdbuf());
-
-        //o.buffer = nullptr;
 
         o.file_open_write = false;
         o.file_open_read = false;
@@ -83,8 +68,6 @@ GFA_Parser& GFA_Parser::operator=(GFA_Parser&& o){
 }
 
 GFA_Parser::~GFA_Parser() {
-
-    //if (buffer != nullptr) delete[] buffer;
 
     close();
 }
@@ -118,13 +101,13 @@ bool GFA_Parser::open_write(const size_t version_GFA, const string tags_line_hea
 
     if (file_open_write){
 
-        if (graphfile_out == nullptr) graphfile_out = unique_ptr<ofstream>(new ofstream());
+        if (graphfile_out == nullptr) graphfile_out = new ofstream();
 
         graphfile_out->open(filename.c_str(), ios_base::out);
         graphfile_out->rdbuf()->pubsetbuf(buffer_stream, sizeof(buffer_stream));
 
         graph_out.rdbuf(graphfile_out->rdbuf());
-        graph_out.sync_with_stdio(false);
+        //graph_out.sync_with_stdio(false);
 
         graph_out << "H\tVN:Z:" << (v_gfa == 1 ? "1" : "2") << ".0";
 
@@ -168,16 +151,13 @@ bool GFA_Parser::open(const size_t idx_filename){
 
         if (file_open_read) {
 
-            if (graphfile_in == nullptr) graphfile_in = unique_ptr<ifstream>(new ifstream());
+            if (graphfile_in == nullptr) graphfile_in = new ifstream();
 
             graphfile_in->open(graph_filenames[idx_filename], ios_base::in);
             graphfile_in->rdbuf()->pubsetbuf(buffer_stream, sizeof(buffer_stream));
 
             graph_in.rdbuf(graphfile_in->rdbuf());
-            graph_in.sync_with_stdio(false);
-
-            //graph_in.getline(buffer, buff_sz); // Read and discard header
-            //const string header(buffer);
+            //graph_in.sync_with_stdio(false);
 
             string header;
 
@@ -214,11 +194,19 @@ void GFA_Parser::close(){
     if (file_open_write){
 
         graphfile_out->close();
+
+        delete graphfile_out;
+
+        graphfile_out = nullptr;
         file_open_write = false;
     }
     else if (file_open_read){
 
         graphfile_in->close();
+
+        delete graphfile_in;
+
+        graphfile_in = nullptr;
         file_open_read = false;
     }
 }
@@ -294,206 +282,6 @@ bool GFA_Parser::write_edge(const string vertexA_id, const size_t pos_start_over
 
     return true;
 }
-
-// Read the next Segment line or Edge line of the current GFA file (all other lines are ignored):
-// - If a Segment line could be read, returns (S, nullptr) with S being a pointer to a Segment struct
-//containing the info of the line.
-// - If an Edge line could be read, returns (nullptr, E) with E being a pointer to an Edge struct
-//containing the info of the line.
-// - If (nullptr, nullptr) is returned, nothing else could be read and there was no file left to read.
-//
-// file_id is an unsigned integer indicating the ID of the currently read file (first read file has ID 0
-// second has ID 1, etc.)
-
-/*
-GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
-
-    if (file_open_read){
-
-        vector<string> line_fields;
-
-        while (graph_in.getline(buffer, buff_sz).good()){
-
-            if (buffer[0] == 'S'){ // Segment line
-
-                char* buffer_tmp = &buffer[2];
-                char* prev_buffer_tmp = NULL;
-
-                const char* end_buffer = &buffer[strlen(buffer)];
-
-                while ((prev_buffer_tmp = strchr(buffer_tmp, '\t')) != NULL){
-
-                    line_fields.push_back(string(buffer_tmp, prev_buffer_tmp - buffer_tmp));
-                    buffer_tmp = prev_buffer_tmp + 1;
-                }
-
-                if (end_buffer - buffer_tmp != 0) line_fields.push_back(string(buffer_tmp, end_buffer - buffer_tmp));
-
-                const size_t line_fields_sz = line_fields.size();
-
-                s.clear();
-
-                if (v_gfa == 1){ // GFA format version 1
-
-                    if (line_fields_sz < 2){
-
-                        cerr << "GFA_Parser::read(): Missing fields in Segment line" << endl;
-                        close();
-                    }
-
-                    s.id = move(line_fields[0]);
-                    s.seq = move(line_fields[1]);
-
-                    for (size_t i = 2; i < line_fields_sz; ++i) s.tags.push_back(move(line_fields[i]));
-                }
-                else {
-
-                    if (line_fields_sz < 3){
-
-                        cerr << "GFA_Parser::read(): Missing fields in Segment line" << endl;
-                        close();
-                    }
-
-                    s.id = move(line_fields[0]);
-                    s.len = sscanf(line_fields[1].c_str(), "%zu", &(s.len));
-                    s.seq = move(line_fields[2]);
-
-                    for (size_t i = 3; i < line_fields_sz; ++i) s.tags.push_back(move(line_fields[i]));
-                }
-
-                file_id = file_no;
-
-                return make_pair(&s, nullptr);
-            }
-            else if ((v_gfa == 1) && (buffer[0] == 'L')){ // Link line, only GFA v1
-
-                char* buffer_tmp = &buffer[2];
-                char* prev_buffer_tmp = NULL;
-
-                const char* end_buffer = &buffer[strlen(buffer)];
-
-                while ((prev_buffer_tmp = strchr(buffer_tmp, '\t')) != NULL){
-
-                    line_fields.push_back(string(buffer_tmp, prev_buffer_tmp - buffer_tmp));
-                    buffer_tmp = prev_buffer_tmp + 1;
-                }
-
-                if (end_buffer - buffer_tmp != 0) line_fields.push_back(string(buffer_tmp, end_buffer - buffer_tmp));
-
-                const size_t line_fields_sz = line_fields.size();
-
-                e.clear();
-
-                if (line_fields_sz < 4){
-
-                    cerr << "GFA_Parser::read(): Missing fields in Link line" << endl;
-                    close();
-                }
-
-                e.vertexA_id = move(line_fields[0]);
-                e.vertexB_id = move(line_fields[2]);
-
-                if (line_fields[1] == "+") e.strand_overlapA = true;
-                else if (line_fields[1] == "-") e.strand_overlapA = false;
-                else {
-
-                    cerr << "GFA_Parser::read(): Orientation of Segment A on Link line is not + or -" << endl;
-                    close();
-                }
-
-                if (line_fields[3] == "+") e.strand_overlapB = true;
-                else if (line_fields[3] == "-") e.strand_overlapB = false;
-                else {
-
-                    cerr << "GFA_Parser::read(): Orientation of Segment B on Link line is not + or -" << endl;
-                    close();
-                }
-
-                file_id = file_no;
-
-                return make_pair(nullptr, &e);
-            }
-            else if ((v_gfa == 2) && (buffer[0] == 'E')){ // Edge line, only GFA v2
-
-                char* buffer_tmp = &buffer[2];
-                char* prev_buffer_tmp = NULL;
-
-                const char* end_buffer = &buffer[strlen(buffer)];
-
-                while ((prev_buffer_tmp = strchr(buffer_tmp, '\t')) != NULL){
-
-                    line_fields.push_back(string(buffer_tmp, prev_buffer_tmp - buffer_tmp));
-                    buffer_tmp = prev_buffer_tmp + 1;
-                }
-
-                if (end_buffer - buffer_tmp != 0) line_fields.push_back(string(buffer_tmp, end_buffer - buffer_tmp));
-
-                const size_t line_fields_sz = line_fields.size();
-
-                e.clear();
-
-                if (line_fields_sz < 8){
-
-                    cerr << "GFA_Parser::read(): Missing fields in Edge line" << endl;
-                    close();
-                }
-
-                e.edge_id = line_fields[0];
-
-                const char ca = line_fields[1][line_fields[1].length() - 1]; // Last char. of line_fields[1];
-
-                e.strand_overlapA = (ca != '-');
-
-                if ((ca == '-') || (ca == '-')) e.vertexA_id = line_fields[1].substr(0, line_fields[1].length() - 1);
-                else e.vertexA_id = move(line_fields[1]);
-
-                sscanf(line_fields[2].c_str(), "%zu", &(e.pos_start_overlapA));
-                sscanf(line_fields[3].c_str(), "%zu", &(e.pos_end_overlapA));
-
-                const char cb = line_fields[4][line_fields[4].length() - 1]; // Last char. of line_fields[4];
-
-                e.strand_overlapB = (cb != '-');
-
-                if ((cb == '-') || (cb == '-')) e.vertexB_id = line_fields[4].substr(0, line_fields[4].length() - 1);
-                else e.vertexB_id = move(line_fields[4]);
-
-                sscanf(line_fields[5].c_str(), "%zu", &(e.pos_start_overlapB));
-                sscanf(line_fields[6].c_str(), "%zu", &(e.pos_end_overlapB));
-
-                file_id = file_no;
-
-                return make_pair(nullptr, &e);
-            }
-
-            line_fields.clear();
-        }
-
-        if (graph_in.getline(buffer, buff_sz).eof()){
-
-            close();
-
-            if ((file_open_read = open(file_no + 1))){
-
-                ++file_no;
-
-                file_id = file_no;
-
-                return read(file_id);
-            }
-        }
-        else if (graph_in.getline(buffer, buff_sz).fail()){
-
-            cerr << "GFA_Parser::read(): Error while reading" << endl;
-            close();
-        }
-    }
-    else cerr << "GFA_Parser::read(): Input file is not open in reading mode" << endl;
-
-    file_id = file_no;
-
-    return make_pair(nullptr, nullptr);
-}
-*/
 
 GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
 
@@ -681,214 +469,6 @@ GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
 
     return make_pair(nullptr, nullptr);
 }
-
-// Read the next Segment line or Edge line of the current GFA file (all other lines are ignored):
-// - If a Segment line could be read, returns (S, nullptr) with S being a pointer to a Segment struct
-//containing the info of the line.
-// - If an Edge line could be read, returns (nullptr, E) with E being a pointer to an Edge struct
-//containing the info of the line.
-// - If no line could be read and the end of the current file is reached, then the next file is opened,
-// new_file_opened = true and pair(nullptr, nullptr) is returned. Note that the first line of the next file
-// is not read yet and another call to read() is necessary to read it.
-// - If no line is read and the end of the current file is reached and the current file was the last file to read,
-// new_file_opened = false and pair(nullptr, nullptr) is returned.
-//
-// file_id is an unsigned integer indicating the ID of the currently read file (first read file has ID 0, second ID 1, etc.)
-// skip_edges is a boolean indicating if Edge lines should be ignored (true) or not (false) while reading
-
-/*
-GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_opened, const bool skip_edges) {
-
-    new_file_opened = false;
-
-    if (file_open_read){
-
-        vector<string> line_fields;
-
-        while (graph_in.getline(buffer, buff_sz).good()){
-
-            if (buffer[0] == 'S'){ // Segment line
-
-                char* buffer_tmp = &buffer[2];
-                char* prev_buffer_tmp = NULL;
-
-                const char* end_buffer = &buffer[strlen(buffer)];
-
-                while ((prev_buffer_tmp = strchr(buffer_tmp, '\t')) != NULL){
-
-                    line_fields.push_back(string(buffer_tmp, prev_buffer_tmp - buffer_tmp));
-                    buffer_tmp = prev_buffer_tmp + 1;
-                }
-
-                if (end_buffer - buffer_tmp != 0) line_fields.push_back(string(buffer_tmp, end_buffer - buffer_tmp));
-
-                const size_t line_fields_sz = line_fields.size();
-
-                s.clear();
-
-                if (v_gfa == 1){ // GFA format version 1
-
-                    if (line_fields_sz < 2){
-
-                        cerr << "GFA_Parser::read(): Missing fields in Segment line" << endl;
-                        close();
-                    }
-
-                    s.id = move(line_fields[0]);
-                    s.seq = move(line_fields[1]);
-
-                    for (size_t i = 2; i < line_fields_sz; ++i) s.tags.push_back(move(line_fields[i]));
-                }
-                else {
-
-                    if (line_fields_sz < 3){
-
-                        cerr << "GFA_Parser::read(): Missing fields in Segment line" << endl;
-                        close();
-                    }
-
-                    s.id = move(line_fields[0]);
-                    s.len = sscanf(line_fields[1].c_str(), "%zu", &(s.len));
-                    s.seq = move(line_fields[2]);
-
-                    for (size_t i = 3; i < line_fields_sz; ++i) s.tags.push_back(move(line_fields[i]));
-                }
-
-                file_id = file_no;
-
-                return make_pair(&s, nullptr);
-            }
-            else if (!skip_edges){
-
-                if ((v_gfa == 1) && (buffer[0] == 'L')){ // Link line, only GFA v1
-
-                    char* buffer_tmp = &buffer[2];
-                    char* prev_buffer_tmp = NULL;
-
-                    const char* end_buffer = &buffer[strlen(buffer)];
-
-                    while ((prev_buffer_tmp = strchr(buffer_tmp, '\t')) != NULL){
-
-                        line_fields.push_back(string(buffer_tmp, prev_buffer_tmp - buffer_tmp));
-                        buffer_tmp = prev_buffer_tmp + 1;
-                    }
-
-                    if (end_buffer - buffer_tmp != 0) line_fields.push_back(string(buffer_tmp, end_buffer - buffer_tmp));
-
-                    const size_t line_fields_sz = line_fields.size();
-
-                    e.clear();
-
-                    if (line_fields_sz < 4){
-
-                        cerr << "GFA_Parser::read(): Missing fields in Link line" << endl;
-                        close();
-                    }
-
-                    e.vertexA_id = move(line_fields[0]);
-                    e.vertexB_id = move(line_fields[2]);
-
-                    if (line_fields[1] == "+") e.strand_overlapA = true;
-                    else if (line_fields[1] == "-") e.strand_overlapA = false;
-                    else {
-
-                        cerr << "GFA_Parser::read(): Orientation of Segment A on Link line is not + or -" << endl;
-                        close();
-                    }
-
-                    if (line_fields[3] == "+") e.strand_overlapB = true;
-                    else if (line_fields[3] == "-") e.strand_overlapB = false;
-                    else {
-
-                        cerr << "GFA_Parser::read(): Orientation of Segment B on Link line is not + or -" << endl;
-                        close();
-                    }
-
-                    file_id = file_no;
-
-                    return make_pair(nullptr, &e);
-                }
-                else if ((v_gfa == 2) && (buffer[0] == 'E')){ // Edge line, only GFA v2
-
-                    char* buffer_tmp = &buffer[2];
-                    char* prev_buffer_tmp = NULL;
-
-                    const char* end_buffer = &buffer[strlen(buffer)];
-
-                    while ((prev_buffer_tmp = strchr(buffer_tmp, '\t')) != NULL){
-
-                        line_fields.push_back(string(buffer_tmp, prev_buffer_tmp - buffer_tmp));
-                        buffer_tmp = prev_buffer_tmp + 1;
-                    }
-
-                    if (end_buffer - buffer_tmp != 0) line_fields.push_back(string(buffer_tmp, end_buffer - buffer_tmp));
-
-                    const size_t line_fields_sz = line_fields.size();
-
-                    e.clear();
-
-                    if (line_fields_sz < 8){
-
-                        cerr << "GFA_Parser::read(): Missing fields in Edge line" << endl;
-                        close();
-                    }
-
-                    e.edge_id = move(line_fields[0]);
-
-                    const char ca = line_fields[1][line_fields[1].length() - 1]; // Last char. of line_fields[1];
-
-                    e.strand_overlapA = (ca != '-');
-
-                    if ((ca == '-') || (ca == '-')) e.vertexA_id = line_fields[1].substr(0, line_fields[1].length() - 1);
-                    else e.vertexA_id = move(line_fields[1]);
-
-                    sscanf(line_fields[2].c_str(), "%zu", &(e.pos_start_overlapA));
-                    sscanf(line_fields[3].c_str(), "%zu", &(e.pos_end_overlapA));
-
-                    const char cb = line_fields[4][line_fields[4].length() - 1]; // Last char. of line_fields[4];
-
-                    e.strand_overlapB = (cb != '-');
-
-                    if ((cb == '-') || (cb == '-')) e.vertexB_id = line_fields[4].substr(0, line_fields[4].length() - 1);
-                    else e.vertexB_id = move(line_fields[4]);
-
-                    sscanf(line_fields[5].c_str(), "%zu", &(e.pos_start_overlapB));
-                    sscanf(line_fields[6].c_str(), "%zu", &(e.pos_end_overlapB));
-
-                    file_id = file_no;
-
-                    return make_pair(nullptr, &e);
-                }
-            }
-
-            line_fields.clear();
-        }
-
-        if (graph_in.getline(buffer, buff_sz).eof()){
-
-            close();
-
-            if ((file_open_read = open(file_no + 1))){
-
-                ++file_no;
-
-                file_id = file_no;
-                new_file_opened = true;
-            }
-        }
-        else if (graph_in.getline(buffer, buff_sz).fail()){
-
-            cerr << "GFA_Parser::read(): Error while reading" << endl;
-            close();
-        }
-    }
-    else cerr << "GFA_Parser::read(): Input file is not open in reading mode" << endl;
-
-    file_id = file_no;
-
-    return make_pair(nullptr, nullptr);
-}
-*/
 
 GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_opened, const bool skip_edges) {
 

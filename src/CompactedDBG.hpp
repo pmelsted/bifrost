@@ -27,6 +27,7 @@
 #include "FASTX_Parser.hpp"
 #include "GFA_Parser.hpp"
 #include "Kmer.hpp"
+#include "KmerCovIndex.hpp"
 #include "KmerHashTable.hpp"
 #include "KmerIterator.hpp"
 #include "KmerStream.hpp"
@@ -580,7 +581,7 @@ class CompactedDBG {
         /** Return the number of unitigs in the graph.
         * @return Number of unitigs in the graph.
         */
-        inline size_t size() const { return v_unitigs.size() + v_kmers.size() + h_kmers_ccov.size(); }
+        inline size_t size() const { return v_unitigs.size() + km_unitigs.size() + h_kmers_ccov.size(); }
 
         /** Return a pointer to the graph data. Pointer is nullptr if type of graph data is void.
         * @return A pointer to the graph data. Pointer is nullptr if type of graph data is void.
@@ -689,6 +690,7 @@ class CompactedDBG {
         typename std::enable_if<is_void, size_t>::type joinUnitigs_(vector<Kmer>* v_joins = nullptr, const size_t nb_threads = 1);
 
         void moveToAbundant();
+        void setFullCoverage(const size_t cov) const;
 
         void createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>& joins, const size_t nb_threads) const;
         bool checkJoin(const Kmer& a, const const_UnitigMap<U, G>& cm_a, Kmer& b) const;
@@ -711,7 +713,9 @@ class CompactedDBG {
 
         void mapRead(const const_UnitigMap<U, G>& um);
         void mapRead(const const_UnitigMap<U, G>& um, LockGraph& lck_g);
+
         void unmapRead(const const_UnitigMap<U, G>& um);
+        void unmapRead(const const_UnitigMap<U, G>& um, LockGraph& lck_g);
 
         void setKmerGmerLength(const int kmer_length, const int minimizer_length = -1);
         void print() const;
@@ -734,8 +738,8 @@ class CompactedDBG {
         typedef KmerHashTable<CompressedCoverage_t<U>> h_kmers_ccov_t;
 
         vector<Unitig<U>*> v_unitigs;
-        vector<pair<Kmer, CompressedCoverage_t<U>>> v_kmers;
 
+        KmerCovIndex<U> km_unitigs;
         MinimizerIndex hmap_min_unitigs;
 
         h_kmers_ccov_t h_kmers_ccov;

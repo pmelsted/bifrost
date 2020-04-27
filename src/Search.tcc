@@ -1129,7 +1129,7 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
 
     outfile.open(out_tmp.c_str());
     out.rdbuf(outfile.rdbuf());
-    out.sync_with_stdio(false);
+    //out.sync_with_stdio(false);
 
     const char query_pres[3] = {'\t', '1', '\n'};
     const char query_abs[3] = {'\t', '0', '\n'};

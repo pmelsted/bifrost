@@ -20,23 +20,19 @@ class CompressedSequence {
     public:
 
         CompressedSequence();
+        ~CompressedSequence();
+
+        CompressedSequence(const char *s);
+        CompressedSequence(const string& s);
+        CompressedSequence(const Kmer& km);
+
         CompressedSequence(const CompressedSequence& o); // Copy constructor
         CompressedSequence(CompressedSequence&& o); // Move constructor
-
-        ~CompressedSequence();
 
         CompressedSequence& operator=(const CompressedSequence& o); // Copy assignment
         CompressedSequence& operator=(CompressedSequence&& o); // Move assignment
 
-        explicit CompressedSequence(const char *s);
-        explicit CompressedSequence(const string& s);
-        explicit CompressedSequence(const Kmer& km);
-
-        const char operator[](size_t index) const;
-
         void clear();
-
-        size_t size() const;
 
         void toString(char *s, const size_t offset, const size_t length) const;
         string toString(const size_t offset, const size_t length) const;
@@ -54,10 +50,8 @@ class CompressedSequence {
         //  void setSequence(const CompressedSequence &o, size_t length, size_t offset = 0, bool reversed=false);
         void setSequence(const CompressedSequence& o, const size_t start, const size_t length, const size_t offset = 0, const bool reversed = false);
         void setSequence(const char *s, const size_t length, const size_t offset = 0, const bool reversed = false);
-        void setSequence(const string& s, const size_t length, const size_t offset = 0, const bool reversed=false);
-        void setSequence(const Kmer& km, const size_t length, const size_t offset = 0, const bool reversed=false);
-
-        void reserveLength(const size_t new_length);
+        void setSequence(const string& s, const size_t length, const size_t offset = 0, const bool reversed = false);
+        void setSequence(const Kmer& km, const size_t length, const size_t offset = 0, const bool reversed = false);
 
         CompressedSequence rev() const;
 
@@ -66,19 +60,67 @@ class CompressedSequence {
 
         int64_t findKmer(const Kmer& km) const;
 
-        bool isShort() const;
+        BFG_INLINE void reserveLength(const size_t new_length) {
+
+            if (round_to_bytes(new_length) > capacity()) _resize_and_copy(round_to_bytes(new_length), size());
+        }
+
+        BFG_INLINE char operator[](const size_t idx) const {
+
+            return bases[(getPointer()[idx >> 2] >> ((idx & 0x3) << 1)) & 0x03];
+        }
+
+        BFG_INLINE bool isShort() const {
+
+            return ((asBits._size & 0x01) == 1);
+        }
+
+        BFG_INLINE size_t size() const {
+
+            if (isShort()) return (asBits._size >> 1);
+
+            return (asPointer._length >> 1);
+        }
 
     private:
 
-        inline size_t round_to_bytes(const size_t len) const { return (len+3)/4; }
         void _resize_and_copy(const size_t new_cap, const size_t copy_limit);
-        void initShort();
-        void setSize(const size_t size);
 
-        size_t capacity() const;
-        const unsigned char *getPointer() const;
+        BFG_INLINE void initShort() {
 
-        static const uint8_t shortMask = 1;
+            asBits._size = 1; // short and size 0
+
+            memset(&asBits._arr[0], 0, 31); // clear other bits
+        }
+
+        BFG_INLINE size_t round_to_bytes(const size_t len) const {
+
+            return (len+3)/4;
+        }
+
+        BFG_INLINE size_t capacity() const {
+
+            if (isShort()) return 31; // 31 bytes
+
+            return asPointer._capacity;
+        }
+
+        BFG_INLINE void setSize(const size_t size) {
+
+            if (isShort()) asBits._size = ((0x7F & size) << 1) | 0x01; // set short flag
+            else asPointer._length = (0x7FFFFFFF & size) << 1;
+        }
+
+        BFG_INLINE const unsigned char* getPointer() const {
+
+            if (isShort()) return &(asBits._arr[0]);
+
+            return asPointer._data;
+        }
+
+        static const char bases[256];
+        static const uint8_t bits[256];
+        static const uint8_t revBits[256];
 
         union {
 

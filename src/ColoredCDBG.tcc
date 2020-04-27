@@ -1333,7 +1333,7 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
     outfile.open(out_tmp.c_str());
     out.rdbuf(outfile.rdbuf());
-    out.sync_with_stdio(false);
+    //out.sync_with_stdio(false);
 
     const char query_pres[2] = {'\t', '1'};
     const char query_abs[2] = {'\t', '0'};

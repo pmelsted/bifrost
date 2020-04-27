@@ -52,6 +52,37 @@ BFG_INLINE size_t cstrMatch(const char* a, const char* b) {
     return a - a_;
 }
 
+BFG_INLINE char reverse_complement(const char nuc){
+
+    const char c = nuc & 0xDF;
+
+    if (isDNA(c)){
+
+        const size_t x = (c & 4) >> 1;
+
+        return alpha[3 - (x + ((x ^ (c & 2)) >> 1))];
+    }
+    else {
+
+        switch(c) {
+
+            case 'N': return 'N';
+            case 'R': return 'Y';
+            case 'Y': return 'R';
+            case 'S': return 'S';
+            case 'W': return 'W';
+            case 'K': return 'M';
+            case 'M': return 'K';
+            case 'B': return 'V';
+            case 'D': return 'H';
+            case 'H': return 'D';
+            case 'V': return 'B';
+            case '.': return '.';
+            default: return c;
+        }
+    }
+}
+
 BFG_INLINE string reverse_complement(const string& s){
 
     string seq(s);
@@ -67,6 +98,25 @@ BFG_INLINE string reverse_complement(const string& s){
             const size_t x = (c & 4) >> 1;
 
             seq[i] = alpha[3 - (x + ((x ^ (c & 2)) >> 1))];
+        }
+        else {
+
+            switch(c) {
+
+                case 'N': seq[i] = 'N'; break;
+                case 'R': seq[i] = 'Y'; break;
+                case 'Y': seq[i] = 'R'; break;
+                case 'S': seq[i] = 'S'; break;
+                case 'W': seq[i] = 'W'; break;
+                case 'K': seq[i] = 'M'; break;
+                case 'M': seq[i] = 'K'; break;
+                case 'B': seq[i] = 'V'; break;
+                case 'D': seq[i] = 'H'; break;
+                case 'H': seq[i] = 'D'; break;
+                case 'V': seq[i] = 'B'; break;
+                case '.': seq[i] = '.'; break;
+                default: seq[i] = c;
+            }
         }
     }
 
@@ -88,6 +138,25 @@ BFG_INLINE string reverse_complement(const char* s){
             const size_t x = (c & 4) >> 1;
 
             seq[i] = alpha[3 - (x + ((x ^ (c & 2)) >> 1))];
+        }
+        else {
+
+            switch(c) {
+
+                case 'N': seq[i] = 'N'; break;
+                case 'R': seq[i] = 'Y'; break;
+                case 'Y': seq[i] = 'R'; break;
+                case 'S': seq[i] = 'S'; break;
+                case 'W': seq[i] = 'W'; break;
+                case 'K': seq[i] = 'M'; break;
+                case 'M': seq[i] = 'K'; break;
+                case 'B': seq[i] = 'V'; break;
+                case 'D': seq[i] = 'H'; break;
+                case 'H': seq[i] = 'D'; break;
+                case 'V': seq[i] = 'B'; break;
+                case '.': seq[i] = '.'; break;
+                default: seq[i] = c;
+            }
         }
     }
 
