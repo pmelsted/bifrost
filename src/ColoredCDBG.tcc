@@ -791,7 +791,7 @@ inline void ColoredCDBG<void>::resizeDataUC(const size_t sz, const size_t nb_thr
                             const pair<DataAccessor<void>, pair<UnitigColors*, void*>> p  = new_ds.insert(*it_unitig);
 
                             *(it_unitig->getData()) = p.first;
-                            *(p.second.first) = move(*uc);
+                            *(p.second.first) = std::move(*uc);
                         }
                     }
                 }
@@ -801,7 +801,7 @@ inline void ColoredCDBG<void>::resizeDataUC(const size_t sz, const size_t nb_thr
 
     for (auto& t : workers) t.join();
 
-    *ds = move(new_ds);
+    *ds = std::move(new_ds);
 
     //cout << "Number of unitigs not hashed is " << ds->overflow.size() << " on " << ds->nb_cs << " unitigs." << endl;
 }

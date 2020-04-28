@@ -68,6 +68,41 @@ KmerCovIndex<T>& KmerCovIndex<T>::operator=(const KmerCovIndex<T>& o) {
     return *this;
 }
 
+/*template<typename T>
+KmerCovIndex<T>& KmerCovIndex<T>::move(KmerCovIndex<void>&& o) {
+
+    if (this != &o){
+
+        clear();
+
+        if (is_void<T>::value) *this = move(o);
+        else {
+
+            sz = o.sz;
+            shift_div = o.shift_div;
+            mask_mod = o.mask_mod;
+
+            v_blocks = vector<Block<T>*>(o.v_blocks.size(), nullptr);
+
+            for (size_t i = 0; i < v_blocks.size(); ++i) {
+
+                v_blocks[i] = new Block<T>;
+                v_blocks[i]->bc_cov = move(o.v_blocks[i]->bc_cov);
+
+                std::copy(o.v_blocks[i]->km_block, o.v_blocks[i]->km_block + block_sz, v_blocks[i]->km_block);
+
+                delete o.v_blocks[i];
+
+                o.v_blocks[i] = nullptr;
+            }
+        }
+
+        o.clear();
+    }
+
+    return *this;
+}*/
+
 template<>
 inline KmerCovIndex<void>& KmerCovIndex<void>::operator=(const KmerCovIndex<void>& o) {
 
@@ -104,7 +139,7 @@ KmerCovIndex<T>& KmerCovIndex<T>::operator=(KmerCovIndex<T>&& o) {
         shift_div = o.shift_div;
         mask_mod = o.mask_mod;
 
-        v_blocks = move(o.v_blocks);
+        v_blocks = std::move(o.v_blocks);
 
         o.clear();
     }

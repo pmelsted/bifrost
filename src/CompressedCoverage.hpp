@@ -165,6 +165,8 @@ class CompressedCoverage {
 template<typename T> struct CompressedCoverage_t {
 
     CompressedCoverage_t(size_t sz = 0, bool full = false) : ccov(sz, full) {}
+    CompressedCoverage_t(const CompressedCoverage& c) : ccov(c) {}
+    CompressedCoverage_t(CompressedCoverage&& c) : ccov(move(c)) {}
 
     BFG_INLINE const T* getData() const { return &data; }
     BFG_INLINE T* getData() { return &data; }
@@ -176,6 +178,8 @@ template<typename T> struct CompressedCoverage_t {
 template<> struct CompressedCoverage_t<void> {
 
     CompressedCoverage_t(size_t sz = 0, bool full = false) : ccov(sz, full) {}
+    CompressedCoverage_t(const CompressedCoverage& c) : ccov(c) {}
+    CompressedCoverage_t(CompressedCoverage&& c) : ccov(move(c)) {}
 
     BFG_INLINE const void* getData() const { return nullptr; }
     BFG_INLINE void* getData() { return nullptr; }

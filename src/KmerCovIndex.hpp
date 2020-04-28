@@ -36,6 +36,8 @@ class KmerCovIndex {
         void remove(const size_t idx);
         void resize(const size_t new_sz);
 
+        //KmerCovIndex<T>& move(KmerCovIndex<void>&& o);
+
         BFG_INLINE static void setFullCoverage(const size_t cov_max) {
 
             cov_full = min(cov_max, static_cast<size_t>(2));

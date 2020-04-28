@@ -24,6 +24,8 @@ class Unitig {
     public:
 
         Unitig() {}
+        Unitig(const CompressedSequence& s, const CompressedCoverage& c) : seq(s), cov(c) {}
+        Unitig(CompressedSequence&& s, CompressedCoverage&& c) : seq(move(s)), cov(move(c)) {}
         Unitig(const char* s, bool full = false) : seq(s), cov(seq.size() - Kmer::k + 1, full) {}
 
         BFG_INLINE size_t numKmers() const {
@@ -81,6 +83,8 @@ class Unitig<void> {
     public:
 
         Unitig() {}
+        Unitig(const CompressedSequence& s, const CompressedCoverage& c) : seq(s), cov(c) {}
+        Unitig(CompressedSequence&& s, CompressedCoverage&& c) : seq(move(s)), cov(move(c)) {}
         Unitig(const char* s, bool full = false) : seq(s), cov(seq.size() - Kmer::k + 1, full) {}
 
         BFG_INLINE size_t numKmers() const {

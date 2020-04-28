@@ -336,14 +336,14 @@ class CompactedDBG {
         * de Bruijn graph is copied.  After the call to this function, the same graph exists twice in memory.
         * @param o is a constant reference to the compacted de Bruijn graph to copy.
         */
-        CompactedDBG(const CompactedDBG& o); // Copy constructor
+        CompactedDBG(const CompactedDBG<U, G>& o); // Copy constructor
 
         /** Move constructor (move a compacted de Bruijn graph).
         * The content of o is moved ("transfered") to a new compacted de Bruijn graph.
         * The compacted de Bruijn graph referenced by o will be empty after the call to this constructor.
         * @param o is a reference on a reference to the compacted de Bruijn graph to move.
         */
-        CompactedDBG(CompactedDBG&& o); // Move constructor
+        CompactedDBG(CompactedDBG<U, G>&& o); // Move constructor
 
         /** Destructor.
         */
@@ -355,7 +355,7 @@ class CompactedDBG {
         * @param o is a constant reference to the compacted de Bruijn graph to copy.
         * @return a reference to the compacted de Bruijn which is the copy.
         */
-        CompactedDBG<U, G>& operator=(const CompactedDBG& o);
+        CompactedDBG<U, G>& operator=(const CompactedDBG<U, G>& o);
 
         /** Move assignment operator (move a compacted de Bruijn graph).
         * The content of o is moved ("transfered") to a new compacted de Bruijn graph.
@@ -363,7 +363,7 @@ class CompactedDBG {
         * @param o is a reference on a reference to the compacted de Bruijn graph to move.
         * @return a reference to the compacted de Bruijn which has (and owns) the content of o.
         */
-        CompactedDBG<U, G>& operator=(CompactedDBG&& o);
+        CompactedDBG<U, G>& operator=(CompactedDBG<U, G>&& o);
 
         /** Addition assignment operator (merge a compacted de Bruijn graph).
         * After merging, all unitigs of o have been added to and compacted with the current compacted de Bruijn graph (this).
@@ -376,19 +376,19 @@ class CompactedDBG {
         * @param o is a constant reference to the compacted de Bruijn graph to merge.
         * @return a reference to the current compacted de Bruijn after merging.
         */
-        CompactedDBG<U, G>& operator+=(const CompactedDBG& o);
+        CompactedDBG<U, G>& operator+=(const CompactedDBG<U, G>& o);
 
         /** Equality operator.
         * @return a boolean indicating if two compacted de Bruijn graphs have the same unitigs (does not compare the data
         * associated with the unitigs).
         */
-        bool operator==(const CompactedDBG& o) const;
+        bool operator==(const CompactedDBG<U, G>& o) const;
 
         /** Inequality operator.
         * @return a boolean indicating if two compacted de Bruijn graphs have different unitigs (does not compare the data
         * associated with the unitigs).
         */
-        inline bool operator!=(const CompactedDBG& o) const;
+        inline bool operator!=(const CompactedDBG<U, G>& o) const;
 
         /** Clear the graph: empty the graph and reset its parameters.
         */
@@ -614,6 +614,8 @@ class CompactedDBG {
 
     private:
 
+        //CompactedDBG<U, G>& move(CompactedDBG<void, void>&& o);
+
         bool filter(const CDBG_Build_opt& opt, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers);
         bool construct(const CDBG_Build_opt& opt, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers);
 
@@ -626,7 +628,7 @@ class CompactedDBG {
         inline size_t find(const preAllocMinHashIterator<RepHash>& it_min_h) const {
 
             const int pos = it_min_h.getPosition();
-            return (hmap_min_unitigs.find(Minimizer(&it_min_h.s[pos]).rep()) != hmap_min_unitigs.end() ? 0 : pos - it_min_h.p);
+            return (hmap_min_unitigs.find(Minimizer(it_min_h.s + pos).rep()) != hmap_min_unitigs.end() ? 0 : pos - it_min_h.p);
         }
 
         UnitigMap<U, G> find(const char* s, const size_t pos_km, const minHashIterator<RepHash>& it_min, const bool extremities_only = false);

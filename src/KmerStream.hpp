@@ -238,7 +238,7 @@ class ReadHasherMinimizer {
 
                     if (min_pos != prev_pos_min){
 
-                        sc_min(Minimizer(&s[min_pos]).rep().hash());
+                        sc_min(Minimizer(s + min_pos).rep().hash());
 
                         prev_pos_min = min_pos;
                     }
@@ -298,7 +298,7 @@ class ReadHasherMinimizer {
 
                             if (min_pos != prev_pos_min){
 
-                                sc_min(Minimizer(&str[min_pos]).rep().hash());
+                                sc_min(Minimizer(str + min_pos).rep().hash());
 
                                 prev_pos_min = min_pos;
                             }
@@ -567,7 +567,7 @@ class ReadQualityHasherMinimizer {
 
                     if (min_it.getPosition() != prev_pos_min){
 
-                        sc_min(Minimizer(&s[min_it.getPosition()]).rep().hash());
+                        sc_min(Minimizer(s + min_it.getPosition()).rep().hash());
 
                         prev_pos_min = min_it.getPosition();
                     }
@@ -628,7 +628,7 @@ class ReadQualityHasherMinimizer {
 
                             if (min_it.getPosition() != prev_pos_min){
 
-                                sc_min(Minimizer(&str[min_it.getPosition()]).rep().hash());
+                                sc_min(Minimizer(str + min_it.getPosition()).rep().hash());
 
                                 prev_pos_min = min_it.getPosition();
                             }

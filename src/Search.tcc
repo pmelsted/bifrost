@@ -1244,7 +1244,7 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
 
                                     buffer_sz += s.length();
 
-                                    buffers_seq[t].push_back(move(s));
+                                    buffers_seq[t].push_back(std::move(s));
                                     buffers_name[t].push_back(string(fp.getNameString()));
 
                                     if (buffer_sz >= thread_seq_buf_sz) break;

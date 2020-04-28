@@ -200,7 +200,7 @@ class minHashIterator {
 
                 if ((h <= mhr.hash) && (h > mhr_discard.hash)){
 
-                    if (((h == mhr.hash) && (Minimizer(&s[j]).rep() < Minimizer(&s[mhr.pos]).rep())) || (h != mhr.hash)){
+                    if (((h == mhr.hash) && (Minimizer(s + j).rep() < Minimizer(s + mhr.pos).rep())) || (h != mhr.hash)){
 
                         mhr.hash = h;
                         mhr.pos = j;
@@ -488,7 +488,7 @@ class preAllocMinHashIterator {
 
                 if ((h <= mhr.hash) && (h > mhr_discard.hash)){
 
-                    if (((h == mhr.hash) && (Minimizer(&s[j]).rep() < Minimizer(&s[mhr.pos]).rep())) || (h != mhr.hash)) {
+                    if (((h == mhr.hash) && (Minimizer(s + j).rep() < Minimizer(s + mhr.pos).rep())) || (h != mhr.hash)) {
 
                         mhr.hash = h;
                         mhr.pos = j;
@@ -739,7 +739,7 @@ struct minHashKmer {
 
                 if (h_v > min_v){
 
-                    if ((p == 0) || (h_v < h) || ((h_v == h) && (Minimizer(&s[j+1]).rep() < Minimizer(&s[pos[0]]).rep()))){
+                    if ((p == 0) || (h_v < h) || ((h_v == h) && (Minimizer(s + j + 1).rep() < Minimizer(s + pos[0]).rep()))){
 
                         h = h_v;
                         p = 1;

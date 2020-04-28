@@ -14,9 +14,7 @@ class StreamCounter {
 
         StreamCounter(double e_, int seed_ = 0) : MAX_TABLE(32), maxVal(3ULL), countWidth(2), countsPerLong(32), e(e_), seed(seed_), sumCount(0) {
 
-            size_t numcounts = (size_t)(48.0/(e*e) + 1); // approx 3 std-dev, true with 0.001 prob.
-
-            if (numcounts < 8192) numcounts = 8192;
+            const size_t numcounts = max(static_cast<size_t>(48.0/(e*e) + 1), static_cast<size_t>(8192)); // approx 3 std-dev, true with 0.001 prob.
 
             size = (numcounts + countsPerLong - 1) / countsPerLong; // size is number of uint64_t's use
             size = roundUpPowerOfTwo(size);
@@ -27,15 +25,6 @@ class StreamCounter {
             table = new uint64_t[size * MAX_TABLE]();
 
         }
-
-        /*
-        StreamCounter(const StreamCounter& o) : seed(o.seed), e(o.e), size(o.size), maxCount(o.maxCount), mask(o.mask),
-                                                MAX_TABLE(o.MAX_TABLE), countWidth(o.countWidth), countsPerLong(o.countsPerLong),
-                                                maxVal(o.maxVal), sumCount(0) {
-            // copy constructor, creates object of same size with same seed, but empty data
-            M = new size_t[MAX_TABLE]();
-            table = new uint64_t[size * MAX_TABLE]();
-        }*/
 
         StreamCounter(const StreamCounter& o) : seed(o.seed), e(o.e), size(o.size), maxCount(o.maxCount), mask(o.mask),
                                                 MAX_TABLE(o.MAX_TABLE), countWidth(o.countWidth), countsPerLong(o.countsPerLong),
@@ -77,6 +66,73 @@ class StreamCounter {
                 ++M[w];
             }
         }
+
+        /*void update(const uint64_t h) {
+
+            ++sumCount;
+
+            // hashval is XXX .. XXX1000.. (w times) ..00 0
+            const uint64_t w = __builtin_ctzll(h);
+
+            if (w >= MAX_TABLE) w = MAX_TABLE - 1;
+            if (M[w] == size * countsPerLong * maxVal) return;
+
+            // hashval is now XXXX...XX, random
+            const uint64_t hval = h >> (w + 1); // shift away pattern of XXX10000
+            const uint64_t index = hval & mask;
+            const uint64_t wordindex = w * size + (index / countsPerLong);
+            const uint64_t bitshift = countWidth * (index & (countsPerLong - 1));
+            const uint64_t bitmask = maxVal << bitshift;
+            const uint64_t val = (table[wordindex] & bitmask) >> bitshift;
+
+            if (val != maxVal){
+
+                table[wordindex] = ((((val + 1) & maxVal) << bitshift) & bitmask) | (table[wordindex] & ~bitmask);
+                ++M[w];
+            }
+        }
+
+        void update_p(const uint64_t h) {
+
+            ++sumCount;
+
+            // hashval is XXX .. XXX1000.. (w times) ..00 0
+            const uint64_t w = __builtin_ctzll(h);
+
+            if (w >= MAX_TABLE) w = MAX_TABLE - 1;
+            if (M[w] == size * countsPerLong * maxVal) return;
+
+            // hashval is now XXXX...XX, random
+            const uint64_t hval = h >> (w + 1); // shift away pattern of XXX10000
+            const uint64_t index = hval & mask;
+
+            const uint64_t wordindex = w * size + (index / countsPerLong);
+            const uint64_t bitshift = countWidth * (index & (countsPerLong - 1));
+            const uint64_t bitmask = maxVal << bitshift;
+
+            uint64_t old_val = table[wordindex];
+            uint64_t val = ((old_val & bitmask) >> bitshift);
+            uint64_t new_val = ((((val + 1) & maxVal) << bitshift) & bitmask) | (old_val & ~bitmask);
+
+            while ((val != maxVal) && !table[wordindex].compare_exchange_weak(old_val, new_val)){
+
+                old_val = table[wordindex];
+                val = ((old_val & bitmask) >> bitshift);
+                new_val = ((((val + 1) & maxVal) << bitshift) & bitmask) | (old_val & ~bitmask);
+            }
+
+            if (val != maxVal) {
+
+                old_val = M[w];
+                new_val = old_val + 1;
+
+                while (!M[w].compare_exchange_weak(old_val, new_val)) {
+
+                    old_val = M[w];
+                    new_val = old_val + 1;
+                }
+            }
+        }*/
 
         bool join(const StreamCounter& o) {
 
@@ -355,6 +411,50 @@ class StreamCounter {
 
             table[wordindex] = (((val & maxVal) << (countWidth * bitindex)) & bitmask) | (table[wordindex] & ~bitmask);
         }
+
+        /*void incVal_p(const size_t index, const size_t w) {
+
+            const size_t wordindex = w * size + (index / countsPerLong);
+            const size_t bitshift = countWidth * (index & (countsPerLong - 1));
+            const uint64_t bitmask = maxVal << bitshift;
+
+            uint64_t old_val = table[wordindex];
+            uint64_t val = ((old_val & bitmask) >> bitshift);
+            uint64_t new_val = ((((val + 1) & maxVal) << bitshift) & bitmask) | (old_val & ~bitmask);
+
+            while ((val != maxVal) && !table[wordindex].compare_exchange_weak(old_val, new_val)){
+
+                old_val = table[wordindex];
+                val = ((old_val & bitmask) >> bitshift);
+                new_val = ((((val + 1) & maxVal) << bitshift) & bitmask) | (old_val & ~bitmask);
+            }
+
+            if (val != maxVal) {
+
+                old_val = M[w];
+                new_val = old_val + 1;
+
+                while (!M[w].compare_exchange_weak(old_val, new_val)) {
+
+                    old_val = M[w];
+                    new_val = old_val + 1;
+                }
+            }
+        }
+
+        void incVal(const size_t index, const size_t w) {
+
+            const size_t wordindex = w * size + (index / countsPerLong);
+            const size_t bitshift = countWidth * (index & (countsPerLong - 1));
+            const uint64_t bitmask = maxVal << bitshift;
+            const uint64_t val = (table[wordindex] & bitmask) >> bitshift;
+
+            if (val != maxVal){
+
+                table[wordindex] = ((((val + 1) & maxVal) << bitshift) & bitmask) | (table[wordindex] & ~bitmask);
+                ++M[w];
+            }
+        }*/
 
         int seed;
         double e;
