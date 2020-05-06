@@ -17,7 +17,7 @@
 #define RETRY_THRESHOLD 100
 #define RETRY_THRESHOLD_MAX 1023
 
-class SpinLock {
+/*class SpinLock {
 
     public:
 
@@ -53,6 +53,28 @@ class SpinLock {
 
         std::atomic<uint32_t> _bits;
         const int padding[15];
+};*/
+
+class SpinLock {
+
+    public:
+
+        SpinLock() : lock(ATOMIC_FLAG_INIT), padding{0} {}
+
+        BFG_INLINE void acquire() {
+
+            while (lock.test_and_set(std::memory_order_acquire));
+        }
+
+        BFG_INLINE void release() {
+
+            lock.clear(std::memory_order_release);
+        }
+
+    private:
+
+        std::atomic_flag lock;
+        const char padding[63];
 };
 
 class SpinLockRW {

@@ -11,6 +11,8 @@
 template<typename T = void>
 class KmerCovIndex {
 
+    template<typename X> friend class KmerCovIndex;
+
     public:
 
         KmerCovIndex();
@@ -35,8 +37,6 @@ class KmerCovIndex {
         bool swap(const size_t idx1, const size_t idx2);
         void remove(const size_t idx);
         void resize(const size_t new_sz);
-
-        //KmerCovIndex<T>& move(KmerCovIndex<void>&& o);
 
         BFG_INLINE static void setFullCoverage(const size_t cov_max) {
 
@@ -100,6 +100,8 @@ class KmerCovIndex {
                 v_blocks[idx >> shift_div]->lck.release();
             }
         }
+
+        KmerCovIndex<T>& toData(KmerCovIndex<void>&& o, const size_t nb_threads = 1);
 
     private:
 

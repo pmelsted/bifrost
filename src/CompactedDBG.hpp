@@ -317,6 +317,8 @@ class CompactedDBG {
         template<typename U, typename G, bool is_const> friend class unitigIterator;
         template<typename U, typename G, bool is_const> friend class neighborIterator;
 
+        template<typename X, typename Y> friend class CompactedDBG;
+
         typedef unitigIterator<U, G, false> iterator; /**< An iterator for the unitigs of the graph. No specific order is assumed. */
         typedef unitigIterator<U, G, true> const_iterator; /**< A constant iterator for the unitigs of the graph. No specific order is assumed. */
 
@@ -614,7 +616,7 @@ class CompactedDBG {
 
     private:
 
-        //CompactedDBG<U, G>& move(CompactedDBG<void, void>&& o);
+        CompactedDBG<U, G>& toDataGraph(CompactedDBG<void, void>&& o, const size_t nb_threads = 1);
 
         bool filter(const CDBG_Build_opt& opt, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers);
         bool construct(const CDBG_Build_opt& opt, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers);
@@ -695,6 +697,8 @@ class CompactedDBG {
         void setFullCoverage(const size_t cov) const;
 
         void createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>& joins, const size_t nb_threads) const;
+        void createJoinHT(vector<Kmer>* v_joins, KmerHashTable<char>& joins, const size_t nb_threads) const;
+
         bool checkJoin(const Kmer& a, const const_UnitigMap<U, G>& cm_a, Kmer& b) const;
         void check_fp_tips(KmerHashTable<bool>& ignored_km_tips);
         size_t removeUnitigs(bool rmIsolated, bool clipTips, vector<Kmer>& v);

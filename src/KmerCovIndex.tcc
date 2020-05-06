@@ -68,40 +68,58 @@ KmerCovIndex<T>& KmerCovIndex<T>::operator=(const KmerCovIndex<T>& o) {
     return *this;
 }
 
-/*template<typename T>
-KmerCovIndex<T>& KmerCovIndex<T>::move(KmerCovIndex<void>&& o) {
+template<typename T>
+KmerCovIndex<T>& KmerCovIndex<T>::toData(KmerCovIndex<void>&& o, const size_t nb_threads) {
 
-    if (this != &o){
+    sz = o.sz;
+    shift_div = o.shift_div;
+    mask_mod = o.mask_mod;
 
-        clear();
+    v_blocks = vector<Block<T>*>(o.v_blocks.size(), nullptr);
 
-        if (is_void<T>::value) *this = move(o);
-        else {
+    auto copyBlock = [&](const size_t start, const size_t end){
 
-            sz = o.sz;
-            shift_div = o.shift_div;
-            mask_mod = o.mask_mod;
+        for (size_t i = start; i < end; ++i) {
 
-            v_blocks = vector<Block<T>*>(o.v_blocks.size(), nullptr);
+            v_blocks[i] = new Block<T>;
+            v_blocks[i]->bc_cov = move(o.v_blocks[i]->bc_cov);
 
-            for (size_t i = 0; i < v_blocks.size(); ++i) {
+            std::copy(o.v_blocks[i]->km_block, o.v_blocks[i]->km_block + block_sz, v_blocks[i]->km_block);
 
-                v_blocks[i] = new Block<T>;
-                v_blocks[i]->bc_cov = move(o.v_blocks[i]->bc_cov);
+            delete o.v_blocks[i];
 
-                std::copy(o.v_blocks[i]->km_block, o.v_blocks[i]->km_block + block_sz, v_blocks[i]->km_block);
+            o.v_blocks[i] = nullptr;
+        }
+    };
 
-                delete o.v_blocks[i];
+    if ((nb_threads == 1) || (v_blocks.size() < nb_threads)) copyBlock(0, v_blocks.size());
+    else {
 
-                o.v_blocks[i] = nullptr;
-            }
+        vector<thread> workers;
+
+        const size_t slice = (v_blocks.size() / nb_threads) + 1;
+
+        for (size_t t = 0; t < nb_threads; ++t){
+
+            workers.emplace_back(
+
+                [&, t]{
+
+                    const size_t start = t * slice;
+                    const size_t end = min(start + slice, v_blocks.size());
+
+                    if (start < v_blocks.size()) copyBlock(start, end);
+                }
+            );
         }
 
-        o.clear();
+        for (auto& t : workers) t.join();
     }
 
+    o.clear();
+
     return *this;
-}*/
+}
 
 template<>
 inline KmerCovIndex<void>& KmerCovIndex<void>::operator=(const KmerCovIndex<void>& o) {

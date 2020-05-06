@@ -62,19 +62,19 @@ sudo apt-get install build-essential cmake zlib1g-dev
 
 ## Installation
 
-* From [Homebrew](https://brew.sh):
+* From [Homebrew](https://brew.sh) (Bifrost v1.0.3):
 
   ```
   brew install brewsci/bio/bifrost
   ```
 
-* From [Bioconda](https://bioconda.github.io) (Linux only):
+* From [Bioconda](https://bioconda.github.io) (Bifrost v1.0.3, Linux only):
 
   ```
   conda -c bioconda bifrost
   ```
 
-* From source
+* From source (Bifrost v1.0.4)
 
   ```
   git clone https://github.com/pmelsted/bifrost.git

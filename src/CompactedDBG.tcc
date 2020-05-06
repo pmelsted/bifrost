@@ -90,60 +90,79 @@ CompactedDBG<U, G>& CompactedDBG<U, G>::operator=(const CompactedDBG<U, G>& o){
     return *this;
 }
 
-/*template<typename U, typename G>
-CompactedDBG<U, G>& CompactedDBG<U, G>::move(CompactedDBG<void, void>&& o) {
+template<typename U, typename G>
+CompactedDBG<U, G>& CompactedDBG<U, G>::toDataGraph(CompactedDBG<void, void>&& o, const size_t nb_threads) {
 
-    if (this != &o) {
+    clear();
 
-        clear();
+    k_ = o.k_;
+    g_ = o.g_;
+    invalid = o.invalid;
 
-        if (is_void<U>::value && is_void<G>::value) *this = std::move(o);
-        else {
+    km_unitigs.toData(std::move(o.km_unitigs), nb_threads);
 
-            k_ = o.k_;
-            g_ = o.g_;
-            invalid = o.invalid;
+    hmap_min_unitigs = std::move(o.hmap_min_unitigs);
+    bf = std::move(o.bf);
 
-            km_unitigs.move(o.km_unitigs);
+    data = wrapperData<G>();
 
-            //h_kmers_ccov = o.h_kmers_ccov;
-            hmap_min_unitigs = std::move(o.hmap_min_unitigs);
-            bf = std::move(o.bf);
+    v_unitigs = vector<Unitig<U>*>(o.v_unitigs.size(), nullptr);
 
-            data = wrapperData<G>();
+    auto moveUnitigs = [&](const size_t start, const size_t end){
 
-            v_unitigs = vector<Unitig<U>*>(o.v_unitigs.size(), nullptr);
+        for (size_t i = start; i < end; ++i){
 
-            for (size_t i = 0; i < v_unitigs.size(); ++i){
+            v_unitigs[i] = new Unitig<U>(std::move(o.v_unitigs[i]->getSeq()), std::move(o.v_unitigs[i]->getCov()));
 
-                v_unitigs[i] = new Unitig<U>(std::move(o.v_unitigs[i]->getSeq()), std::move(o.v_unitigs[i]->getCov()));
-
-                delete o.v_unitigs[i];
-            }
-
-            o.v_unitigs.clear();
-
-            KmerHashTable<CompressedCoverage_t<void>>::const_iterator it_s = o.h_kmers_ccov.begin();
-            KmerHashTable<CompressedCoverage_t<void>>::const_iterator it_e = o.h_kmers_ccov.end();
-
-            h_kmers_ccov = KmerHashTable<CompressedCoverage_t<U>>(o.h_kmers_ccov.size());
-
-            while (it_s != it_e) {
-
-                Kmer km = it_s.getKey();
-
-                h_kmers_ccov.insert(move(km), move(it_s->ccov));
-
-                ++it_s;
-            }
-
-            o.h_kmers_ccov.clear();
-            o.clear();
+            delete o.v_unitigs[i];
         }
+    };
+
+    if ((nb_threads == 1) || (v_unitigs.size() < 1024)) moveUnitigs(0, v_unitigs.size());
+    else {
+
+        vector<thread> workers;
+
+        const size_t slice = (v_unitigs.size() / nb_threads) + 1;
+
+        for (size_t t = 0; t < nb_threads; ++t){
+
+            workers.emplace_back(
+
+                [&, t]{
+
+                    const size_t start = t * slice;
+                    const size_t end = min(start + slice, v_unitigs.size());
+
+                    if (start < v_unitigs.size()) moveUnitigs(start, end);
+                }
+            );
+        }
+
+        for (auto& t : workers) t.join();
     }
 
+    o.v_unitigs.clear();
+
+    KmerHashTable<CompressedCoverage_t<void>>::const_iterator it_s = o.h_kmers_ccov.begin();
+    KmerHashTable<CompressedCoverage_t<void>>::const_iterator it_e = o.h_kmers_ccov.end();
+
+    h_kmers_ccov = KmerHashTable<CompressedCoverage_t<U>>(o.h_kmers_ccov.size());
+
+    while (it_s != it_e) {
+
+        Kmer km = it_s.getKey();
+
+        h_kmers_ccov.insert(move(km), move(it_s->ccov));
+
+        ++it_s;
+    }
+
+    o.h_kmers_ccov.clear();
+    o.clear();
+
     return *this;
-}*/
+}
 
 template<typename U, typename G>
 CompactedDBG<U, G>& CompactedDBG<U, G>::operator=(CompactedDBG<U, G>&& o){
@@ -231,7 +250,7 @@ void CompactedDBG<U, G>::clear(){
     bf.clear();
 }
 
-template<typename U, typename G>
+/*template<typename U, typename G>
 bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
 
     size_t max_threads = std::thread::hardware_concurrency();
@@ -431,6 +450,267 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
                     cout << "CompactedDBG::build(): Estimated number of minimizers occurring twice or more: " << nb_non_unique_minimizers << endl;
                 }
             }
+
+            if (opt.inFilenameBBF.length() != 0){
+
+                FILE* fp = fopen(opt.inFilenameBBF.c_str(), "rb");
+
+                if (fp == NULL) {
+
+                    cerr << "CompactedDBG::build(): Could not open input Blocked Bloom filter file " << opt.inFilenameBBF << "." << endl;
+                    construct_finished = false;
+                }
+                else {
+
+                    construct_finished = bf.ReadBloomFilter(fp);
+
+                    fclose(fp);
+                }
+            }
+            else construct_finished = filter(opt, nb_unique_kmers, nb_non_unique_kmers);
+
+            if (construct_finished){
+
+                if (opt.outFilenameBBF.length() != 0){
+
+                    FILE* fp = fopen(opt.outFilenameBBF.c_str(), "wb");
+
+                    if (fp == NULL) {
+
+                        cerr << "CompactedDBG::build(): Could not open Blocked Bloom filter file " << opt.outFilenameBBF << " for writing." << endl;
+                        construct_finished = false;
+                    }
+                    else {
+
+                        bf.WriteBloomFilter(fp);
+
+                        fclose(fp);
+                    }
+                }
+
+                if (construct_finished) construct_finished = construct(opt, nb_unique_minimizers, nb_non_unique_minimizers); // Construction step
+
+                bf.clear();
+            }
+        }
+    }
+
+    return construct_finished;
+}*/
+
+template<typename U, typename G>
+bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
+
+    size_t max_threads = std::thread::hardware_concurrency();
+
+    bool construct_finished = true;
+
+    const int k_cpy = k_;
+    const int g_cpy = g_;
+    const bool invalid_cpy = invalid;
+
+    if (invalid){
+
+        cerr << "CompactedDBG::build(): Graph is invalid and cannot be built" << endl;
+        construct_finished = false;
+    }
+
+    if (opt.nb_threads <= 0){
+
+        cerr << "CompactedDBG::build(): Number of threads cannot be less than or equal to 0" << endl;
+        construct_finished = false;
+    }
+
+    if (opt.nb_threads > max_threads){
+
+        cerr << "CompactedDBG::build(): Number of threads cannot exceed " << max_threads << "threads" << endl;
+        construct_finished = false;
+    }
+
+    if (opt.read_chunksize <= 0){
+
+        cerr << "CompactedDBG::build(): Chunk size of reads to share among threads cannot be less than or equal to 0" << endl;
+        construct_finished = false;
+    }
+
+    if (opt.outFilenameBBF.length() != 0){
+
+        FILE* fp = fopen(opt.outFilenameBBF.c_str(), "wb");
+
+        if (fp == NULL) {
+
+            cerr << "CompactedDBG::build(): Could not open Blocked Bloom filter file " << opt.outFilenameBBF << " for writing." << endl;
+            construct_finished = false;
+        }
+        else {
+
+            fclose(fp);
+
+            if (std::remove(opt.outFilenameBBF.c_str()) != 0){
+
+                cerr << "CompactedDBG::build(): Could not remove temporary file " << opt.outFilenameBBF << "." << endl;
+            }
+        }
+    }
+
+    if (opt.inFilenameBBF.length() != 0){
+
+        if (check_file_exists(opt.inFilenameBBF)){
+
+            FILE* fp = fopen(opt.inFilenameBBF.c_str(), "rb");
+
+            if (fp == NULL) {
+
+                cerr << "CompactedDBG::build(): Could not read input Blocked Bloom filter file " << opt.inFilenameBBF << "." << endl;
+                construct_finished = false;
+            }
+            else fclose(fp);
+        }
+        else {
+
+            cerr << "CompactedDBG::build(): Input Blocked Bloom filter file " << opt.inFilenameBBF << " does not exist." << endl;
+            construct_finished = false;
+        }
+    }
+
+    if (opt.filename_seq_in.size() + opt.filename_ref_in.size() == 0){
+
+        cerr << "CompactedDBG::build(): Number of FASTA/FASTQ files in input cannot be 0." << endl;
+        construct_finished = false;
+    }
+    else {
+
+        for (const auto& file : opt.filename_seq_in){
+
+            if (check_file_exists(file)){
+
+                FILE* fp = fopen(file.c_str(), "r");
+
+                if (fp == NULL) {
+
+                    cerr << "CompactedDBG::build(): Could not open input FASTA/FASTQ file " << file << endl;
+                    construct_finished = false;
+                }
+                else fclose(fp);
+            }
+            else {
+
+                cerr << "CompactedDBG::build(): Input file " << opt.inFilenameBBF << " does not exist." << endl;
+                construct_finished = false;
+            }
+        }
+
+        for (const auto& file : opt.filename_ref_in){
+
+            if (check_file_exists(file)){
+
+                FILE* fp = fopen(file.c_str(), "r");
+
+                if (fp == NULL) {
+
+                    cerr << "CompactedDBG::build(): Could not open input FASTA/FASTQ file " << file << endl;
+                    construct_finished = false;
+                }
+                else fclose(fp);
+            }
+            else {
+
+                cerr << "CompactedDBG::build(): Input file " << opt.inFilenameBBF << " does not exist." << endl;
+                construct_finished = false;
+            }
+        }
+    }
+
+    clear();
+
+    k_ = k_cpy;
+    g_ = g_cpy;
+    invalid = invalid_cpy;
+
+    if (construct_finished){
+
+        if ((opt.filename_seq_in.size() != 0) && (opt.filename_ref_in.size() != 0)){
+
+            CompactedDBG<void, void> graph_seq(k_, g_);
+            CompactedDBG<void, void> graph_ref(k_, g_);
+
+            CDBG_Build_opt opt_seq(opt);
+            CDBG_Build_opt opt_ref(opt);
+
+            opt_seq.filename_ref_in.clear();
+            opt_ref.filename_seq_in.clear();
+
+            construct_finished = graph_seq.build(opt_seq);
+
+            if (construct_finished) construct_finished = graph_ref.build(opt_ref);
+
+            if (construct_finished){
+
+                if (graph_ref.length() < graph_seq.length()){
+
+                    construct_finished = graph_seq.merge(std::move(graph_ref), opt.nb_threads, opt.verbose);
+
+                    if (construct_finished) toDataGraph(std::move(graph_seq), opt.nb_threads);
+                }
+                else {
+
+                    construct_finished = graph_ref.merge(std::move(graph_seq), opt.nb_threads, opt.verbose);
+
+                    if (construct_finished) toDataGraph(std::move(graph_ref), opt.nb_threads);
+                }
+            }
+
+            setFullCoverage(2);
+        }
+        else if (!is_void<U>::value) {
+
+            CompactedDBG<void, void> graph(k_, g_);
+
+            construct_finished = graph.build(opt);
+
+            if (construct_finished) toDataGraph(std::move(graph), opt.nb_threads);
+        }
+        else {
+
+            const bool reference_mode = (opt.filename_ref_in.size() != 0);
+
+            size_t nb_unique_kmers, nb_unique_minimizers;
+            size_t nb_non_unique_kmers, nb_non_unique_minimizers;
+
+            {
+                const vector<string>& v_files = reference_mode ? opt.filename_ref_in : opt.filename_seq_in;
+
+                KmerStream_Build_opt kms_opt;
+
+                kms_opt.threads = opt.nb_threads;
+                kms_opt.verbose = opt.verbose;
+                kms_opt.k = k_;
+                kms_opt.g = g_;
+                kms_opt.q = 0;
+
+                for (const auto& s : v_files) kms_opt.files.push_back(s);
+
+                KmerStream kms(kms_opt);
+
+                nb_unique_kmers = max(1UL, kms.KmerF0());
+                nb_unique_minimizers = max(1UL, kms.MinimizerF0());
+                nb_non_unique_kmers = reference_mode ? 0 : max(1UL, nb_unique_kmers - min(nb_unique_kmers, kms.Kmerf1()));
+                nb_non_unique_minimizers = reference_mode ? 0 : max(1UL, nb_unique_minimizers - min(nb_unique_minimizers, kms.Minimizerf1()));
+
+                if (opt.verbose){
+
+                    cout << "CompactedDBG::build(): Estimated number of k-mers occurring at least once: " << nb_unique_kmers << endl;
+                    cout << "CompactedDBG::build(): Estimated number of minimizer occurring at least once: " << nb_unique_minimizers << endl;
+
+                    if (!reference_mode){
+
+                        cout << "CompactedDBG::build(): Estimated number of k-mers occurring twice or more: " << nb_non_unique_kmers << endl;
+                        cout << "CompactedDBG::build(): Estimated number of minimizers occurring twice or more: " << nb_non_unique_minimizers << endl;
+                    }
+                }
+            }
+
+            setFullCoverage(reference_mode ? 1 : 2);
 
             if (opt.inFilenameBBF.length() != 0){
 
@@ -2580,35 +2860,39 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_uniqu
 
         mutex mutex_file;
 
-        char* buffer_seq = new char[opt.nb_threads * thread_seq_buf_sz]();
-        size_t* buffer_seq_sz = new size_t[opt.nb_threads]();
-
         for (size_t t = 0; t < opt.nb_threads; ++t){
 
             workers.emplace_back(
 
-                [&, t]{
+                [&]{
+
+                    char* buffer_seq = new char[thread_seq_buf_sz]();
+
+                    size_t buffer_seq_sz = 0;
 
                     while (true) {
 
                         {
                             unique_lock<mutex> lock(mutex_file);
 
-                            if (stop) return;
+                            if (stop) {
 
-                            stop = reading_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t]);
+                                delete[] buffer_seq;
+                                return;
+                            }
+
+                            stop = reading_function(buffer_seq, buffer_seq_sz);
                         }
 
-                        worker_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t]);
+                        worker_function(buffer_seq, buffer_seq_sz);
                     }
+
+                    delete[] buffer_seq;
                 }
             );
         }
 
         for (auto& t : workers) t.join();
-
-        delete[] buffer_seq;
-        delete[] buffer_seq_sz;
     }
 
     fp.close();
@@ -2681,14 +2965,12 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
         fp_candidate = new tiny_vector<Kmer, 2>[bf.getNbBlocks()];
         locks_fp = vector<SpinLock>(nb_locks);
 
-        //MinimizerHashTable_2Val hmap_min_unitigs_tmp(nb_non_unique_minimizers * 1.05);
         MinimizerIndex hmap_min_unitigs_tmp(nb_non_unique_minimizers * 1.05);
 
         hmap_min_unitigs = std::move(hmap_min_unitigs_tmp);
     }
     else {
 
-        //MinimizerHashTable_2Val hmap_min_unitigs_tmp(nb_unique_minimizers * 1.05);
         MinimizerIndex hmap_min_unitigs_tmp(nb_unique_minimizers * 1.05);
 
         hmap_min_unitigs = std::move(hmap_min_unitigs_tmp);
@@ -2874,37 +3156,41 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
 
         mutex mutex_file;
 
-        char* buffer_seq = new char[opt.nb_threads * thread_seq_buf_sz];
-        size_t* buffer_seq_sz = new size_t[opt.nb_threads];
-
         if (opt.verbose) cout << "CompactedDBG::construct(): Extract approximate unitigs" << endl;
 
         for (size_t t = 0; t < opt.nb_threads; ++t){
 
             workers.emplace_back(
 
-                [&, t]{
+                [&]{
+
+                    char* buffer_seq = new char[thread_seq_buf_sz];
+
+                    size_t buffer_seq_sz = 0;
 
                     while (true) {
 
                         {
                             unique_lock<mutex> lock(mutex_file);
 
-                            if (stop) return;
+                            if (stop) {
 
-                            stop = reading_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t]);
+                                delete[] buffer_seq;
+                                return;
+                            }
+
+                            stop = reading_function(buffer_seq, buffer_seq_sz);
                         }
 
-                        worker_function(&buffer_seq[t * thread_seq_buf_sz], buffer_seq_sz[t]);
+                        worker_function(buffer_seq, buffer_seq_sz);
                     }
+
+                    delete[] buffer_seq;
                 }
             );
         }
 
         for (auto& t : workers) t.join();
-
-        delete[] buffer_seq;
-        delete[] buffer_seq_sz;
     }
 
     fp.close();
@@ -6051,6 +6337,326 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>
     }
 }
 
+template<typename U, typename G>
+void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<char>& joins, const size_t nb_threads) const {
+
+    const size_t v_unitigs_size = v_unitigs.size();
+    const size_t v_kmers_size = km_unitigs.size();
+
+    const size_t chunk = 1024;
+
+    if (v_joins == nullptr){
+
+        if (nb_threads == 1){
+
+            for (typename h_kmers_ccov_t::const_iterator it_ccov(h_kmers_ccov.begin()); it_ccov != h_kmers_ccov.end(); ++it_ccov) {
+
+                const Kmer tail(it_ccov.getKey());
+                const Kmer head_twin(tail.twin());
+
+                Kmer fw, bw;
+
+                const const_UnitigMap<U, G> cm(it_ccov.getHash(), 0, 1, k_, false, true, true, this);
+
+                if ((joins.find(tail) == joins.end()) && checkJoin(tail, cm, fw)) joins.insert(fw.twin(), tail.getChar(0));
+                if ((joins.find(head_twin) == joins.end()) && checkJoin(head_twin, cm, bw)) joins.insert(bw.twin(), head_twin.getChar(0));
+            }
+
+            for (size_t i = 0; i != v_kmers_size; ++i) {
+
+                const Kmer tail = km_unitigs.getKmer(i);
+                const Kmer head_twin = tail.twin();
+
+                Kmer fw, bw;
+
+                const const_UnitigMap<U, G> cm(i, 0, 1, k_, true, false, true, this);
+
+                if ((joins.find(tail) == joins.end()) && checkJoin(tail, cm, fw)) joins.insert(fw.twin(), tail.getChar(0));
+                if ((joins.find(head_twin) == joins.end()) && checkJoin(head_twin, cm, bw)) joins.insert(bw.twin(), head_twin.getChar(0));
+            }
+
+            for (size_t i = 0; i != v_unitigs_size; ++i) {
+
+                const CompressedSequence& seq = v_unitigs[i]->getSeq();
+
+                const Kmer head_twin(seq.getKmer(0).twin());
+                const Kmer tail(seq.getKmer(seq.size() - k_));
+
+                Kmer fw, bw;
+
+                const const_UnitigMap<U, G> cm(i, 0, 1, seq.size(), false, false, true, this);
+
+                if ((joins.find(tail) == joins.end()) && checkJoin(tail, cm, fw)) joins.insert(fw.twin(), tail.getChar(0));
+                if ((joins.find(head_twin) == joins.end()) && checkJoin(head_twin, cm, bw)) joins.insert(bw.twin(), head_twin.getChar(0));
+            }
+        }
+        else {
+
+            //Hybrid_SpinLockRW_MCS<> lck(nb_threads);
+            SpinLockRW lck;
+
+            auto worker_v_abundant = [chunk, &joins, &lck, this](typename h_kmers_ccov_t::const_iterator* l_it_ccov){
+
+                typename h_kmers_ccov_t::const_iterator& it_ccov = *l_it_ccov;
+
+                // We need to deal with the tail of long unitigs
+                for (size_t i = 0; (it_ccov != h_kmers_ccov.end()) && (i < chunk); ++i, ++it_ccov) {
+
+                    const Kmer tail(it_ccov.getKey());
+                    const Kmer head_twin(tail.twin());
+
+                    Kmer fw, bw;
+
+                    const const_UnitigMap<U, G> cm(it_ccov.getHash(), 0, 1, k_, false, true, true, this);
+
+                    lck.acquire_reader();
+
+                    const bool joins_tail = (joins.find(tail) == joins.end());
+                    const bool joins_head = (joins.find(head_twin) == joins.end());
+
+                    lck.release_reader();
+
+                    if (joins_tail && checkJoin(tail, cm, fw)){
+
+                        lck.acquire_writer();
+                        joins.insert(fw.twin(), tail.getChar(0));
+                        lck.release_writer();
+                    }
+
+                    if (joins_head && checkJoin(head_twin, cm, bw)){
+
+                        lck.acquire_writer();
+                        joins.insert(bw.twin(), head_twin.getChar(0));
+                        lck.release_writer();
+                    }
+                }
+            };
+
+            auto worker_v_kmers = [&joins, &lck, this](const size_t idx_a, const size_t idx_b){
+
+                for (size_t i = idx_a; i != idx_b; ++i) {
+
+                    Kmer fw, bw;
+
+                    const Kmer tail = km_unitigs.getKmer(i);
+                    const Kmer head_twin = tail.twin();
+
+                    const const_UnitigMap<U, G> cm(i, 0, 1, k_, true, false, true, this);
+
+                    lck.acquire_reader();
+
+                    const bool joins_tail = (joins.find(tail) == joins.end());
+                    const bool joins_head = (joins.find(head_twin) == joins.end());
+
+                    lck.release_reader();
+
+                    if (joins_tail && checkJoin(tail, cm, fw)){
+
+                        lck.acquire_writer();
+                        joins.insert(fw.twin(), tail.getChar(0));
+                        lck.release_writer();
+                    }
+
+                    if (joins_head && checkJoin(head_twin, cm, bw)){
+
+                        lck.acquire_writer();
+                        joins.insert(bw.twin(), head_twin.getChar(0));
+                        lck.release_writer();
+                    }
+                }
+            };
+
+            auto worker_v_unitigs = [&joins, &lck, this](   typename vector<Unitig<U>*>::const_iterator a,
+                                                            typename vector<Unitig<U>*>::const_iterator b){
+
+                for (size_t i = a - v_unitigs.begin(), end = b - v_unitigs.begin(); i != end; ++i) {
+
+                    const CompressedSequence& seq = v_unitigs[i]->getSeq();
+
+                    const const_UnitigMap<U, G> cm(i, 0, 1, seq.size(), false, false, true, this);
+
+                    const Kmer head_twin(seq.getKmer(0).twin());
+                    const Kmer tail(seq.getKmer(seq.size() - k_));
+
+                    Kmer fw, bw;
+
+                    lck.acquire_reader();
+
+                    const bool joins_tail = (joins.find(tail) == joins.end());
+                    const bool joins_head = (joins.find(head_twin) == joins.end());
+
+                    lck.release_reader();
+
+                    if (joins_tail && checkJoin(tail, cm, fw)){
+
+                        lck.acquire_writer();
+                        joins.insert(fw.twin(), tail.getChar(0));
+                        lck.release_writer();
+                    }
+
+                    if (joins_head && checkJoin(head_twin, cm, bw)){
+
+                        lck.acquire_writer();
+                        joins.insert(bw.twin(), head_twin.getChar(0));
+                        lck.release_writer();
+                    }
+                }
+            };
+
+            {
+                typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(), it_end = h_kmers_ccov.end();
+
+                vector<thread> workers; // need to keep track of threads so we can join them
+
+                mutex mutex_it;
+
+                for (size_t t = 0; t < nb_threads; ++t){
+
+                    workers.emplace_back(
+
+                        [&]{
+
+                            typename h_kmers_ccov_t::const_iterator l_it;
+
+                            bool stop;
+
+                            while (true) {
+
+                                {
+                                    unique_lock<mutex> lock(mutex_it);
+
+                                    l_it = it;
+
+                                    for (size_t i = 0; (it != it_end) && (i < chunk); ++i, ++it){}
+
+                                    stop = (l_it == it_end) && (it == it_end);
+                                }
+
+                                if (!stop) worker_v_abundant(&l_it);
+                                else return;
+                            }
+                        }
+                    );
+                }
+
+                for (auto& t : workers) t.join();
+            }
+
+            {
+
+                size_t it_km = 0, it_km_end = km_unitigs.size();
+
+                vector<thread> workers; // need to keep track of threads so we can join them
+
+                mutex mutex_it_km;
+
+                for (size_t t = 0; t < nb_threads; ++t){
+
+                    workers.emplace_back(
+
+                        [&]{
+
+                            size_t l_it_km, l_it_km_end;
+
+                            while (true) {
+
+                                {
+                                    unique_lock<mutex> lock(mutex_it_km);
+
+                                    if (it_km == it_km_end) return;
+
+                                    l_it_km = it_km;
+                                    it_km = min(it_km + chunk, it_km_end);
+                                    l_it_km_end = it_km;
+                                }
+
+                                worker_v_kmers(l_it_km, l_it_km_end);
+                            }
+                        }
+                    );
+                }
+
+                for (auto& t : workers) t.join();
+            }
+
+            {
+                auto it_unitig = v_unitigs.begin();
+                auto it_unitig_end = v_unitigs.end();
+
+                vector<thread> workers; // need to keep track of threads so we can join them
+
+                mutex mutex_it_unitig;
+
+                for (size_t t = 0; t < nb_threads; ++t){
+
+                    workers.emplace_back(
+
+                        [&]{
+
+                            auto l_it_unitig = v_unitigs.begin();
+                            auto l_it_unitig_end = v_unitigs.end();
+
+                            while (true) {
+
+                                {
+                                    unique_lock<mutex> lock(mutex_it_unitig);
+
+                                    if (it_unitig == it_unitig_end) return;
+
+                                    l_it_unitig = it_unitig;
+                                    l_it_unitig_end = it_unitig;
+
+                                    if (distance(l_it_unitig, it_unitig_end) >= chunk){
+
+                                        advance(l_it_unitig_end, chunk);
+
+                                        it_unitig = l_it_unitig_end;
+                                    }
+                                    else {
+
+                                        it_unitig = it_unitig_end;
+                                        l_it_unitig_end = it_unitig_end;
+                                    }
+                                }
+
+                                worker_v_unitigs(l_it_unitig, l_it_unitig_end);
+                            }
+                        }
+                    );
+                }
+
+                for (auto& t : workers) t.join();
+            }
+        }
+    }
+    else {
+
+        Kmer fw;
+
+        for (auto km : *v_joins){
+
+            const const_UnitigMap<U, G> cm = find(km, true);
+
+            if (!cm.isEmpty){
+
+                if (!cm.isShort && !cm.isAbundant){
+
+                    if ((cm.dist == 0 && cm.strand) || (cm.dist != 0 && !cm.strand)) km = km.twin();
+                    if (checkJoin(km, cm, fw)) joins.insert(fw.twin(), km.getChar(0));
+                }
+                else {
+
+                    if (checkJoin(km, cm, fw)) joins.insert(fw.twin(), km.getChar(0));
+
+                    km = km.twin();
+
+                    if (checkJoin(km, cm, fw)) joins.insert(fw.twin(), km.getChar(0));
+                }
+            }
+        }
+    }
+}
+
 // use:  joined = mapper.joinUnitigs()
 // pre:  no short unitigs exist in sUnitigs.
 // post: all unitigs that could be connected have been connected
@@ -6065,7 +6671,7 @@ typename std::enable_if<!is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_
     size_t v_kmers_size = km_unitigs.size();
 
     // a and b are candidates for joining
-    KmerHashTable<Kmer> joins;
+    /*KmerHashTable<Kmer> joins;
 
     createJoinHT(v_joins, joins, nb_threads);
 
@@ -6074,7 +6680,20 @@ typename std::enable_if<!is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_
     for (KmerHashTable<Kmer>::iterator it(joins.begin()); it != joins.end(); ++it) {
 
         const Kmer head(*it);
+        const Kmer tail(it.getKey().twin());*/
+
+    //-------------------------------------------------------------------------------
+    KmerHashTable<char> joins;
+
+    createJoinHT(v_joins, joins, nb_threads);
+
+    if (v_joins != nullptr) v_joins->clear();
+
+    for (KmerHashTable<char>::iterator it(joins.begin()); it != joins.end(); ++it) {
+
         const Kmer tail(it.getKey().twin());
+        const Kmer head(tail.backwardBase(*it));
+    //-------------------------------------------------------------------------------
 
         UnitigMap<U, G> cmHead(find(head, true));
         UnitigMap<U, G> cmTail(find(tail, true));
@@ -6254,7 +6873,7 @@ typename std::enable_if<is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_(
     size_t v_kmers_size = km_unitigs.size();
 
     // a and b are candidates for joining
-    KmerHashTable<Kmer> joins;
+    /*KmerHashTable<Kmer> joins;
 
     createJoinHT(v_joins, joins, nb_threads);
 
@@ -6263,7 +6882,20 @@ typename std::enable_if<is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_(
     for (KmerHashTable<Kmer>::iterator it = joins.begin(); it != joins.end(); ++it) {
 
         const Kmer head = *it;
-        const Kmer tail = it.getKey().twin();
+        const Kmer tail = it.getKey().twin();*/
+
+    //-------------------------------------------------------------------------------
+    KmerHashTable<char> joins;
+
+    createJoinHT(v_joins, joins, nb_threads);
+
+    if (v_joins != nullptr) v_joins->clear();
+
+    for (KmerHashTable<char>::iterator it(joins.begin()); it != joins.end(); ++it) {
+
+        const Kmer tail(it.getKey().twin());
+        const Kmer head(tail.backwardBase(*it));
+    //-------------------------------------------------------------------------------
 
         UnitigMap<U, G> cmHead = find(head, true);
         UnitigMap<U, G> cmTail = find(tail, true);
@@ -6429,7 +7061,11 @@ bool CompactedDBG<U, G>::checkJoin(const Kmer& a, const const_UnitigMap<U, G>& c
 
     for (i = 0, count_succ = 0; i != 4; ++i){
 
-        if (!v_um[i].isEmpty){ ++count_succ; j = i; }
+        if (!v_um[i].isEmpty){
+
+            ++count_succ;
+            j = i;
+        }
     }
 
     if (count_succ == 1) {
@@ -6449,8 +7085,6 @@ bool CompactedDBG<U, G>::checkJoin(const Kmer& a, const const_UnitigMap<U, G>& c
         else ac_head = v_unitigs[cm_a.pos_unitig]->getSeq().getKmer(0);
 
         if (cand_head != ac_head) {
-
-            v_um.clear();
 
             v_um = findSuccessors(fw_cand.twin(), 2, true);
 
