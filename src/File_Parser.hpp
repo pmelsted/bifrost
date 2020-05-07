@@ -48,9 +48,8 @@ class FileParser {
 
                         if (format == -1){
 
-                            cerr << "FileParser::FileParser(): Input file " << s << " does not exist, is ill-formed or is not in FASTA/FASTQ/GFA format." << endl;
-
-                            invalid = true;
+                            cerr << "FileParser::FileParser(): Input file " << s << " does not exist";
+                            cerr << ", is ill-formed or is not in FASTA/FASTQ/GFA format. Continuing without it." << endl;
                         }
                         else if (format == 0) files_fastx.push_back(s); // FASTA
                         else if (format == 1) files_fastx.push_back(s); // FASTQ
