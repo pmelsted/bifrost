@@ -33,10 +33,9 @@ int main(int argc, char **argv){
 ```
 
 The first line includes the Bifrost C++ header for compacted de Bruijn graphs and that will be the only `#include` you need. Then, you just created an empty compacted de Bruijn graph named `cdbg` in the main function. That's it. Without parameters, that graph has a default *k*-mer size of `k=31` but you can change that later. Note that if you want to use a *k*-mer size larger than 31, you have to compile the Bifrost library with an extra parameter as explained [here](https://github.com/pmelsted/bifrost#large-k-mers).
+The `<>` in `CompactedDBG<>` is a template for the type of data that you want to associate to unitigs. For now, we assume you do not want to associate data to unitigs so it is empty. Later in this tutorial, we will cover how to create a graph of type `CompactedDBG<MyData>` where type `MyData` represents some data you want to associate to unitigs.
 
 In the next code samples, I will skip the include and the main function for simplicity, unless it is required to understand the code snippet.
-
-The `<>` in `CompactedDBG<>` is a template for the type of data that you want to associate to unitigs. For now, we assume you do not want to associate data to unitigs so it is empty. Later in this tutorial, we will cover how to create a graph of type `CompactedDBG<MyData>` where type `MyData` represents some data you want to associate to unitigs.
 
 Let's initialize our de Bruijn graph with a specific *k*-mer size that we will subsequently print.
 ```cpp
@@ -56,8 +55,9 @@ const string seq = "ACGTCGTACGTCCCGTAAACGTTAAACGTAAACGTGTGTGCAAAATGTCTAGTTTTTTTA
 cdbg.add(seq);
 ```
 
-Function `CompactedDBG::add()` takes as input a string (a DNA sequence) and inserts it in the graph. The function takes care of splitting the input sequence into unitigs. Since it is the first time we modify a graph, here are two properties of Bifrost to keep in mind:
+Function `CompactedDBG::add()` takes as input a string (a DNA sequence) and inserts it in the graph. The function takes care of splitting the input sequence into unitigs. *K*-mers overlapping non-DNA characters will be automatically discarded.
 
+Since it is the first time we modify a graph, here are two properties of Bifrost to keep in mind:
 - Bifrost graphs are always compacted, no matter what. If you edit the graph by adding sequences, removing unitigs or merging graphs, Bifrost will *always* take care of compacting the graph. It is not possible to have an intermediate state where a Bifrost graph is not compacted.
 - Most functions in the Bifrost API have an optional parameter *verbose* for printing information messages about the execution of the function. By default, `verbose=false` so no information messages are printed. By setting it to `true`, information message will be printed to the standard output `stdout`.
 
