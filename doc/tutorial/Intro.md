@@ -114,12 +114,12 @@ cdbg.remove(um);
 It is as simple as that. Now, this function removes the unitig entirely. What if you want to remove only a substring, say just the *k*mer `km`?
 ```cpp
 const string unitig = um.referenceUnitigToString();
-const string unitig_prefix = unitig.substr(0, um.pos + k - 1); // Unitig substring 'before' k-mer
-const string unitig_Suffix = unitig.substr(um.pos + 1, um.size - um.pos - 1); // Unitig substring 'after' k-mer
+const string unitig_pre = unitig.substr(0, um.pos + k - 1); // Unitig substring 'before' k-mer
+const string unitig_suf = unitig.substr(um.pos + 1, um.size - um.pos - 1); // Unitig substring 'after' k-mer
 
 cdbg.remove(um);
-cdbg.add(unitig_prefix);
-cdbg.add(unitig_suffix);
+cdbg.add(unitig_pre);
+cdbg.add(unitig_suf);
 ```
 
 To remove a substring, you must remove the unitig enirely and re-insert the unitig parts that came before and after the substring.
