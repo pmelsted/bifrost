@@ -59,7 +59,7 @@ cdbg.add(seq);
 Function `CompactedDBG::add()` takes as input a string (a DNA sequence) and inserts it in the graph. The function takes care of splitting the input sequence into unitigs. Since it is the first time we modify a graph, here are two properties of Bifrost to keep in mind:
 
 - Bifrost graphs are always compacted, no matter what. If you edit the graph by adding sequences, removing unitigs or merging graphs, Bifrost will *always* take care of compacting the graph. It is not possible to have an intermediate state where a Bifrost graph is not compacted.
-- Most functions in the Bifrost API have an optional parameter *verbose* for printing information messages about the execution of the function. By default, `verbose=false` so no information messages are printed. By seeting it to `true`, information message will be printed to the standard output `stdout`.
+- Most functions in the Bifrost API have an optional parameter *verbose* for printing information messages about the execution of the function. By default, `verbose=false` so no information messages are printed. By setting it to `true`, information message will be printed to the standard output `stdout`.
 
 ## Finding a ***k***-mer
 
@@ -85,11 +85,11 @@ else {
 ```
 
 The important parameters of `UnitigMap` objects are:
-- *isEmpty*: If `true`, the mapping is empty: the searched sequence was not found in the graph.
-- *pos*: Start position of the searched sequence on the unitig
+- *isEmpty*: if `true`, the mapping is empty: the searched sequence was not found in the graph.
+- *pos*: start position of the searched sequence on the unitig
 - *len*: length of the mapping **in *k*-mers** (at least 1)
 - *strand*: strandness of the mapped sequence, `true` for forward and `false` for reverse-complement
-- *size*: length of the unitig ** in bp** (at least *k*)
+- *size*: length of the unitig **in bp** (at least *k*)
 
 The type `UnitigMap` has tons of useful functions so it is probably a good idea to have a look at its documentation. Here is a quick overview:
 - `UnitigMap::referenceUnitigToString()`: outputs the string of the unitig associated with this mapping.
@@ -129,7 +129,6 @@ To remove a substring, you must remove the unitig enirely and re-insert the unit
 ## Storing unitigs identity
 
 A question that often comes back to me is 'How do I save a unitig identity or its position in the graph?'. In C++, if you have a vector of objects and you want to remember a specific object for later, you store an iterator to that object or the position of that object in the vector. Let assume that for the purpose of you program, you want to save the reference unitig of a `UnitigMap` object `um` where you found your *k*-mer `km`:
-
 ```cpp
 vector<UnitigMap<>> v_um;
 
