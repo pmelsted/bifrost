@@ -6,7 +6,7 @@ Welcome to the introduction of the Bifrost API. In this tutorial, you will learn
 
 This introduction assumes you are familiar with C++ although no advanced knowledge of the language is required. This tutorial is in construction so I will detail and clarify some parts of it over time. It is additionally assumed you are familiar with the general concept of de Bruijn graphs.
 
-I will try to cover as much ground as possible in this tutorial. However, the keyword of this tutorial is 'simplicity' so I will not detail every single function of the API. If you are particularly interested by a function, the documentation (located in `/doc/doxygen/`) describes in detail what it does, what is the input and what is the output. If a function or a type require special attention, I will point out that having a look at the documentation would be beneficial.
+I will try to cover as much ground as possible in this tutorial. However, the keyword of this tutorial is 'simplicity' so I will not detail every single function of the API. If you are particularly interested in a function, the documentation (located in `/doc/doxygen/`) describes in detail what it does, what is the input and what is the output. If a function or a type requires special attention, I will point out that having a look at the documentation would be beneficial.
 
 ## Bifrost graphs
 
@@ -23,7 +23,7 @@ I will try to summarize quickly some of the important concepts for Bifrost:
 ## Compacted de Bruijn graph
 
 Let's start by creating a compacted de Bruijn graph.
-```
+```cpp
 #include <bifrost/CompactedDBG.hpp>
 
 int main(int argc, char **argv){
@@ -39,7 +39,7 @@ In the next code samples, I will skip the include and the main function for simp
 The `<>` in `CompactedDBG<>` is a template for the type of data that you want to associate to unitigs. For now, we assume you do not want to associate data to unitigs so it is empty. Later in this tutorial, we will cover how to create a graph of type `CompactedDBG<MyData>` where type `MyData` represents some data you want to associate to unitigs.
 
 Let's initialize our de Bruijn graph with a specific *k*-mer size that we will subsequently print.
-```
+```cpp
 const size_t k = 31;
 
 CompactedDBG<> cdbg(k);
@@ -50,7 +50,7 @@ cout << "K-mer size is " << cdbg.getK() << endl;
 ### Adding sequences
 
 Now that we have an empty graph, let's add some data in it:
-```
+```cpp
 const string seq = "ACGTCGTACGTCCCGTAAACGTTAAACGTAAACGTGTGTGCAAAATGTCTAGTTTTTTTACGCTGATATAGTC";
 
 cdbg.add(seq);
@@ -64,7 +64,7 @@ Function `CompactedDBG::add()` takes as input a string (a DNA sequence) and inse
 ## Finding a ***k***-mer
 
 Searching *k*-mers in the graph is one of the most common task to perform. It works as follows:
-```
+```cpp
 const string kmer_sequence = "ACGTCGTACGTCCCGTAAACGTTAAACGTAA";
 const Kmer km = Kmer(kmer_sequence.c_str());
 
@@ -72,7 +72,7 @@ UnitigMap<> um = cdbg.find(km);
 ```
 
 An object `Kmer` is first created from the *k*-mer sequence and it is passed to function `CompactedDBG::find()` which returns a `UnitigMap` object. Objects of type `UnitigMap` are fundamental in Bifrost as they are used for nearly everything. A `UnitigMap` object represents the mapping of a sequence on a unitig of the graph. Hence, when searching for a *k*-mer in the graph, the returned `UnitigMap` object is the mapping of the searched *k*-mer sequence on a unitig of the graph or an empty mapping if the *k*-mer is not found:
-```
+```cpp
 if (um.isEmpty) cout << "Kmer " << kmer_sequence << " was not found" << endl;
 else {
 
@@ -107,12 +107,12 @@ All `UnitigMap` functions containing `referenceUnitig` or just `Unitig` return s
 ## Deleting sequences
 
 Now that type `UnitigMap` has been introduced, we can keep going with how to delete a unitig from the graph. Let assume that we want to delete the unitig where was previously found our *k*-mer `km`. That unitig was the reference unitig of a `UnitigMap` object `um`. Removing that unitig works as follows:
-```
+```cpp
 cdbg.remove(um);
 ```
 
 It is as simple as that. Now, this function removes the unitig entirely. What if you want to remove only a substring, say just the *k*mer `km`?
-```
+```cpp
 const string unitig = um.referenceUnitigToString();
 const string unitig_prefix = unitig.substr(0, um.pos + k - 1); // Unitig substring 'before' k-mer
 const string unitig_Suffix = unitig.substr(um.pos + 1, um.size - um.pos - 1); // Unitig substring 'after' k-mer
@@ -130,7 +130,7 @@ To remove a substring, you must remove the unitig enirely and re-insert the unit
 
 A question that often comes back to me is 'How do I save a unitig identity or its position in the graph?'. In C++, if you have a vector of objects and you want to remember a specific object for later, you store an iterator to that object or the position of that object in the vector. Let assume that for the purpose of you program, you want to save the reference unitig of a `UnitigMap` object `um` where you found your *k*-mer `km`:
 
-```
+```cpp
 vector<UnitigMap<>> v_um;
 
 v_um.push_back(um);
@@ -139,7 +139,7 @@ v_um.push_back(um);
 That is the closest equivalent of storing an iterator, quick and fast. However, beware that same as for a vector iterator, if you decide to modify the graph (adding or removing a sequence) after that, the stored `UnitigMap` will be broken and it will not point anymore to a valid location in the graph. Using the stored `UnitigMap` object after modifying the graph is undefined behavior and your program might very well crash. The reason for that is that when you modify the graph, it is automatically re-compacted: some unitigs might split or merge. Hence, the unitig pointed out by the stored `UnitigMap` object might look different or might not exist at all anymore.
 
 There is another way to store unitig identity or positions which will be ideal in a number of situations. Remember that each *k*-mer in the graph occur in **at most** one unitig. Which means that a *k*-mer can be used as an identifier for a unitig:
-```
+```cpp
 vector<Kmer> v_km;
 
 for (auto& um : v_um) {
@@ -152,7 +152,7 @@ for (auto& um : v_um) {
 v_um.clear(); // Vector of UnitigMap is not needed anymore
 ```
 here, we use the head *k*-mer of the unitig as its identifier. Hence, instead of having a vector of `UnitigMap`, you have a vector of `Kmer` where each *k*-mer is the head *k*-mer of a unitig you are interested in. Now to retrieve the unitigs associated to these *k*mers:
-```
+```cpp
 for (auto& km : v_km) {
 
 	UnitigMap<> um = cdbg.find(km, true);
