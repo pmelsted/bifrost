@@ -122,13 +122,13 @@ cdbg.add(unitig_pre);
 cdbg.add(unitig_suf);
 ```
 
-To remove a substring, you must remove the unitig enirely and re-insert the unitig parts that came before and after the substring.
+To remove a substring, you must remove the unitig entirely and re-insert the unitig parts that came before and after the substring.
 
 ## Building the graph from a dataset
 
 ## Storing unitigs identity
 
-A question that often comes back to me is 'How do I save a unitig identity or its position in the graph?'. In C++, if you have a vector of objects and you want to remember a specific object for later, you store an iterator to that object or the position of that object in the vector. Let assume that for the purpose of you program, you want to save the reference unitig of a `UnitigMap` object `um` where you found your *k*-mer `km`:
+A question that often comes back to me is 'How do I save a unitig identity or its position in the graph?'. In C++, if you have a vector of objects and you want to remember a specific object for later, you store an iterator to that object or the position of that object in the vector. Let assume that for the purpose of your program, you want to save the reference unitig of a `UnitigMap` object `um` where you found your *k*-mer `km`:
 ```cpp
 vector<UnitigMap<>> v_um;
 
@@ -150,7 +150,7 @@ for (auto& um : v_um) {
 
 v_um.clear(); // Vector of UnitigMap is not needed anymore
 ```
-here, we use the head *k*-mer of the unitig as its identifier. Hence, instead of having a vector of `UnitigMap`, you have a vector of `Kmer` where each *k*-mer is the head *k*-mer of a unitig you are interested in. Now to retrieve the unitigs associated to these *k*mers:
+Here, we use the head *k*-mer of the unitig as its identifier. Hence, instead of having a vector of `UnitigMap`, you have a vector of `Kmer` where each *k*-mer is the head *k*-mer of a unitig you are interested in. Now to retrieve the unitigs associated to these *k*mers:
 ```cpp
 for (auto& km : v_km) {
 

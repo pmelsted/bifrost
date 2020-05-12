@@ -580,6 +580,11 @@ class CompactedDBG {
         */
         inline int getK() const { return k_; }
 
+        /** Return the length of minimizers of the graph.
+        * @return Length of minimizers of the graph.
+        */
+        inline int getG() const { return g_; }
+
         /** Return the number of unitigs in the graph.
         * @return Number of unitigs in the graph.
         */
