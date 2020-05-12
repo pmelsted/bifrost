@@ -3,7 +3,8 @@ cmake_minimum_required(VERSION 2.8.12)
 project(Bifrost)
 
 # Can be replaced with a larger multiple of 32. Actual maximum k-mer size is MAX_KMER_SIZE-1.
-set(MAX_KMER_SIZE "32")
+#set(MAX_KMER_SIZE "32")
+SET(MAX_KMER_SIZE "32" CACHE STRING "MAX_KMER_SIZE")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -march=native -DXXH_NAMESPACE=BIFROST_HASH_")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -march=native -DXXH_NAMESPACE=BIFROST_HASH_")
