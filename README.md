@@ -84,12 +84,13 @@ sudo apt-get install build-essential cmake zlib1g-dev
   make install
   ```
 
-  `make install` might requires `sudo` (`sudo make install`) to proceed. If you want to install Bifrost in a non-default path, replace `cmake ..` with `cmake -DCMAKE_INSTALL_PREFIX=/my/path/ ..` where `/my/path/` is where you want to see the Bifrost files installed. Do not forget to had this path to your environment variables (see [Troubleshooting](#troubleshooting)). If you encounter any problem during the installation, see the [Troubleshooting](#troubleshooting) section.
-
   By default, the installation creates:
   * a binary (*Bifrost*)
   * a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS)
   * a static library (*libbifrost.a*)
+
+  **Notes**
+  `make install` might require `sudo` (`sudo make install`) to proceed. If you want to install Bifrost in a non-default path, add the option `-DCMAKE_INSTALL_PREFIX=/some/path/ ..` to the `cmake` command where `/some/path/` is where you want to see the Bifrost files installed. Do not forget to had this path to your environment variables (see [Troubleshooting](#troubleshooting)). If you encounter any problem during the installation, see the [Troubleshooting](#troubleshooting) section.
 
 ### Large *k*-mers
 
