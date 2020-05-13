@@ -67,6 +67,8 @@ class DataStorage {
 
         inline size_t getNbColors() const { return color_names.size(); }
 
+        inline vector<string> const& getColorNames() const { return color_names; }
+
         size_t getUnitigColorsSize(const size_t nb_threads = 1) const;
 
         uint64_t getHash(const UnitigColorMap<U>& um) const;
