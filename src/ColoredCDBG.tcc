@@ -1367,7 +1367,7 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
         for (const auto& p : v_um){
 
-            const_UnitigColorMap<U> um = p.second;
+            const_UnitigColorMap<U>& um = p.second;
 
             size_t pos_query = p.first;
 
