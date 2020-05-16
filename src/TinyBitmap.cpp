@@ -1372,16 +1372,16 @@ const uint16_t TinyBitmap::rle_list_mode = 0x0004;
 const uint16_t TinyBitmap::bits_16 = 0x0000;
 const uint16_t TinyBitmap::bits_32 = 0x0001;
 
-/*const uint16_t TinyBitmap::sizes[] = {  8, 16, 32, 64, 96, 160, 224, 320,
+const uint16_t TinyBitmap::sizes[] = {  8, 16, 32, 64, 96, 160, 224, 320,
                                         448, 768, 1024, 1280, 1792, 2048, 2560, 3072,
                                         4096, 0xFFFF };
 
-const uint16_t TinyBitmap::nb_sizes = 17;*/
+const uint16_t TinyBitmap::nb_sizes = 17;
 
-const uint16_t TinyBitmap::sizes[] = {  8, 16, 24, 32, 40, 48, 56, 64,
+/*const uint16_t TinyBitmap::sizes[] = {  8, 16, 24, 32, 40, 48, 56, 64,
                                         80, 96, 112, 128, 160, 192, 224, 256,
                                         320, 384, 448, 512, 640, 768, 896, 1024,
                                         1280, 1536, 1792, 2048, 2560, 3072, 3584, 4096,
                                         0xFFFF};
 
-const uint16_t TinyBitmap::nb_sizes = 32;
+const uint16_t TinyBitmap::nb_sizes = 32;*/

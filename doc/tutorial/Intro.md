@@ -16,8 +16,8 @@ I will try to summarize quickly some of the important concepts for Bifrost:
 - Bifrost uses a node-centric representation of the graph. Vertices are represented explicitely while edges are represented implicitly.
 - Vertices are unitigs, i.e., sequences of length greater or equal to *k* (the *k*-mer size). Hence, a unitig is composed of at least one *k*-mer.
 - *K*-mers in a unitig are not branching (edge in-degree = edge out-degree = 1) in the graph **except** the first and last *k*-mers which might be branching.
-- A *k*-mer can only be present in exactly one unitig.
-- Because the graph is bi-directed, a unitig represents two sequences: itself and its reverse-complement. Hence, a unitig can be traversed/read in two different ways: from left to right (the *foward* or *+* way) or from right to left by complementing the DNA symbols (the *reverse-complement* or *-* way). This property is refered to as the strandness.
+- A *k*-mer occurs in one unitig at most.
+- Because the graph is bi-directed, a unitig represents two sequences: itself and its reverse-complement. Hence, a unitig can be traversed/read in two different ways: from left to right (*foward* or *+* direction) or from right to left by complementing the DNA symbols (*reverse* or *-* direction). This is the *strandness* of the unitig.
 - Edges are directed: they have a start unitig *A* and an end unitig *B*. Furthermore, edges embed the strandness of the unitigs they connect, which can be: {+,+}, {+,-}, {-,+} and {-,-}. An edge *e* connecting the forward sequence of *A* to the reverse-complement sequence of *B* would be *e={A+,B-}*.
 
 ## Compacted de Bruijn graph
