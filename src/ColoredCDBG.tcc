@@ -1339,7 +1339,6 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
     outfile.open(out_tmp.c_str());
     out.rdbuf(outfile.rdbuf());
-    //out.sync_with_stdio(false);
 
     const char query_pres[2] = {'\t', '1'};
     const char query_abs[2] = {'\t', '0'};
@@ -1467,15 +1466,15 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
     auto searchQuery = [&](const string& query, Roaring* color_occ_r, uint32_t* color_occ_u, const size_t nb_km_min){
 
-        size_t nb_color_pres = 0;
-
         const vector<pair<size_t, const_UnitigColorMap<U>>> v_um_e = this->searchSequence(query, true, false, false, false, false);
 
         processCounts(v_um_e, color_occ_r, color_occ_u); // Extract k-mer occurrences for each color
 
         if (inexact_search){
 
-            for (size_t j = 0, nb_color_pres = 0; j < nb_colors; ++j) nb_color_pres += (color_occ_u[j] >= nb_km_min);
+            size_t nb_color_pres = 0;
+
+            for (size_t j = 0; j < nb_colors; ++j) nb_color_pres += (color_occ_u[j] >= nb_km_min);
 
             if (nb_color_pres == nb_colors) return;
 
@@ -1483,7 +1482,9 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
             processCounts(v_um_d, color_occ_r, color_occ_u); // Extract k-mer occurrences for each color
 
-            for (size_t j = 0, nb_color_pres = 0; j < nb_colors; ++j) nb_color_pres += (color_occ_u[j] >= nb_km_min);
+            nb_color_pres = 0;
+
+            for (size_t j = 0; j < nb_colors; ++j) nb_color_pres += (color_occ_u[j] >= nb_km_min);
 
             if (nb_color_pres == nb_colors) return;
 
@@ -1491,7 +1492,9 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
             processCounts(v_um_m, color_occ_r, color_occ_u); // Extract k-mer occurrences for each color
 
-            for (size_t j = 0, nb_color_pres = 0; j < nb_colors; ++j) nb_color_pres += (color_occ_u[j] >= nb_km_min);
+            nb_color_pres = 0;
+
+            for (size_t j = 0; j < nb_colors; ++j) nb_color_pres += (color_occ_u[j] >= nb_km_min);
 
             if (nb_color_pres == nb_colors) return;
 
@@ -1624,11 +1627,11 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
                     while (true) {
 
                         {
-                            if (stop) return;
-
                             size_t buffer_sz = 0;
 
                             unique_lock<mutex> lock(mutex_files_in);
+
+                            if (stop) return;
 
                             stop = !fp.read(s, file_id);
 
