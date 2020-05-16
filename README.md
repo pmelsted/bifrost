@@ -18,15 +18,15 @@
 
 ## Table of Contents
 
-* [Requirements](https://github.com/pmelsted/bifrost#requirements)
-* [Installation](https://github.com/pmelsted/bifrost#installation)
-* [Binary usage](https://github.com/pmelsted/bifrost#binary-usage)
-* [API](https://github.com/pmelsted/bifrost#api)
-* [FAQ](https://github.com/pmelsted/bifrost#faq)
-* [Troubleshooting](https://github.com/pmelsted/bifrost#troubleshooting)
-* [Citation](https://github.com/pmelsted/bifrost#citation)
-* [Contact](https://github.com/pmelsted/bifrost#contact)
-* [License](https://github.com/pmelsted/bifrost#license)
+* [Requirements](#requirements)
+* [Installation](#installation)
+* [Binary usage](#binary-usage)
+* [API](#api)
+* [FAQ](#faq)
+* [Troubleshooting](#troubleshooting)
+* [Citation](#citation)
+* [Contact](#contact)
+* [License](#license)
 
 ## Requirements
 
@@ -84,31 +84,36 @@ sudo apt-get install build-essential cmake zlib1g-dev
   make install
   ```
 
+  `make install` might require `sudo` (`sudo make install`) to proceed. To install Bifrost in the non-default path `/some/path/`, add the option `-DCMAKE_INSTALL_PREFIX=/some/path/` to the `cmake` command.
+
   By default, the installation creates:
   * a binary (*Bifrost*)
   * a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS)
   * a static library (*libbifrost.a*)
 
-  **Notes**
-  `make install` might require `sudo` (`sudo make install`) to proceed. If you want to install Bifrost in a non-default path, add the option `-DCMAKE_INSTALL_PREFIX=/some/path/ ..` to the `cmake` command where `/some/path/` is where you want to see the Bifrost files installed. Do not forget to had this path to your environment variables (see [Troubleshooting](#troubleshooting)). If you encounter any problem during the installation, see the [Troubleshooting](#troubleshooting) section.
+  **Advanced options**
+  * Bifrost compiles by default in *native* mode: the compiler targets architecture instructions specific to the machine Bifrost is compiled on. Hence, the binary and library produced might not work on a different machine. Native compilation can be disabled by adding the option `-DENABLE_NATIVE_ARCH=OFF` to the `cmake` command. Note that this disables all AVX2 optimizations too.
+  * Bifrost uses AVX2 instructions during graph construction which can be disabled by adding the option `-DENABLE_AVX2=OFF` to the `cmake` command.
+
+  If you encounter any problem during the installation, see the [Troubleshooting](#troubleshooting) section.
 
 ### Large *k*-mers
 
 The default maximum *k*-mer size supported is 31. To work with larger *k* in the binary, you must install Bifrost from source and replace *MAX_KMER_SIZE* with a larger multiple of 32. This can be done in two ways:
 
-* At the compilation step:
+* By adding the following option to the `cmake` command:
 ```
-cmake -DMAX_KMER_SIZE=64 ..
+-DMAX_KMER_SIZE=64
 ```
 
 * By replacing *MAX_KMER_SIZE* in *CMakeLists.txt*:
 ```
-set( MAX_KMER_SIZE "64")
+SET(MAX_KMER_SIZE "64" CACHE STRING "MAX_KMER_SIZE")
 ```
 
-Actual maximum k-mer size is *MAX_KMER_SIZE-1* so for *MAX_KMER_SIZE=64*, the maximum *k* allowed is 63. Keep in mind that increasing *MAX_KMER_SIZE* increases Bifrost memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
+Actual maximum k-mer size is *MAX_KMER_SIZE-1*, e.g maximum *k* is 63 for *MAX_KMER_SIZE=64*. Increasing *MAX_KMER_SIZE* increases Bifrost memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
 
-To work with larger *k* when using the Bifrost API, the new value *MAX_KMER_SIZE* must be given to the compiler and linker as explained in Section [API](https://github.com/pmelsted/bifrost#api)
+To work with larger *k* when using the Bifrost API, the new value *MAX_KMER_SIZE* must be given to the compiler and linker as explained in Section [API](#api)
 
 ## Binary usage:
 
@@ -286,16 +291,23 @@ The documentation contains a description of all the functions and structures of 
 
 ### Usage
 
-Once Bifrost is installed on your operating system, just use
+The Bifrost C++ API can be used by adding
 ```
 #include <bifrost/CompactedDBG.hpp>
 ```
-in your C++ code. Then, use the following flags for compiling:
+for uncolored compacted de Bruijn graphs and
 ```
--O3 -std=c++11 -march=native
+#include <bifrost/ColoredCDBG.hpp>
 ```
+for colored compacted de Bruijn graphs in your C++ headers.
 
-and the following flags for linking:
+To compile, we recommend using the following compile flags:
+```
+-O3 -std=c++11
+```
+Furthermore, Bifrost compiles by default with flag `-march=native` so unless native compilation was disabled when installing Bifrost, use flag `-march=native` too.
+
+Finally, use the following flags for linking:
 ```
 -lbifrost -pthread -lz
 ```
@@ -305,23 +317,11 @@ You can also link to the Bifrost static library (*libbifrost.a*) for better perf
 <path_to_lib_folder>/libbifrost.a -pthread -lz
 ```
 
-The default maximum *k*-mer size supported is 31. To work with larger *k*, the code using the Bifrost API must be compiled and linked with the flag `-DMAX_KMER_SIZE=x` where `x` is a larger multiple of 32, such as:
+The default maximum *k*-mer size supported is 31. To work with larger *k*, the code using the Bifrost C++ API must be compiled and linked with the flag `-DMAX_KMER_SIZE=x` for compiling and linking where `x` is a larger multiple of 32, such as:
 ```
--DMAX_KMER_SIZE=64 -O3 -std=c++11 -march=native
+-DMAX_KMER_SIZE=64
 ```
-
-and the following flags for linking:
-```
--DMAX_KMER_SIZE=64 -lbifrost -pthread -lz
-```
-
-In this case, the maximum *k* allowed is 63. Keep in mind that increasing the maximum *k*-mer size increases Bifrost memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
-
-### With colors
-
-```
-#include <bifrost/ColoredCDBG.hpp>
-```
+Actual maximum k-mer size is *MAX_KMER_SIZE-1*, e.g maximum *k* is 63 for *MAX_KMER_SIZE=64*. Increasing *MAX_KMER_SIZE* increases Bifrost memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
 
 ## FAQ
 
@@ -363,8 +363,6 @@ All of them. The difference between the graphs resides in circular unitigs (unit
 
 ## Troubleshooting
 
-The following might happen when environment variables are not set correctly on your system:
-
 * compilation (`make`) fails because some header files (*.h*) are not found
 
 Assuming the header files (*.h*) are located at the path */usr/local/include/*, the following command set the environment variables *C_INCLUDE_PATH* and *CPLUS_INCLUDE_PATH* correctly for the time of the session:
@@ -381,6 +379,10 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
 export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/lib/
 export PATH=$PATH:/usr/local/lib/
 ```
+
+* Bifrost crashes right at the beginning with error `Illegal instruction`
+
+  You are most likely running Bifrost on a different machine than the one used to compile it. By default, Bifrost compiles in native mode such that the compiler targets architecture instructions specific to the machine Bifrost was compiled on. Using Bifrost on a different machine having different architecture instructions might result in this error. Hence, recompile Bifrost with native architecture compilation disabled, as explained in the Advanced options of Section [Installation](#installation).
 
 ## Citation
 

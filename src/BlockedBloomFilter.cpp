@@ -4,8 +4,6 @@
 
 BlockedBloomFilter::BlockedBloomFilter() : table_(nullptr), blocks_(0), k_(0) {
 
-    //mask_h = _mm256_setzero_si256();
-
     hashes_mask[0] = 0;
     hashes_mask[1] = 0;
     hashes_mask[2] = 0;
@@ -18,8 +16,6 @@ BlockedBloomFilter::BlockedBloomFilter(size_t nb_elem, size_t bits_per_elem) : t
 
         blocks_ = (bits_per_elem * nb_elem + MASK_BITS_BLOCK) / NB_BITS_BLOCK;
         k_ = (int) (bits_per_elem * log(2));
-
-        //mask_h = _mm256_setzero_si256();
 
         hashes_mask[0] = 0;
         hashes_mask[1] = 0;
