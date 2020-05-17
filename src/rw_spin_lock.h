@@ -59,7 +59,10 @@ class SpinLock {
 
     public:
 
-        SpinLock() : lock(ATOMIC_FLAG_INIT), padding{0} {}
+        SpinLock() : padding{0} {
+
+            lock.clear();
+        }
 
         BFG_INLINE void acquire() {
 
