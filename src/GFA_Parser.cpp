@@ -297,12 +297,13 @@ GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
 
                 const char* buffer = line.c_str() + 2;
                 const char* end_buffer = line.c_str() + line.length();
-                const char* prev_buffer = NULL;
+                const char* prev_buffer = strchr(buffer, '\t');
 
-                while ((prev_buffer = strchr(buffer, '\t')) != NULL){
+                while (prev_buffer != NULL){
 
                     line_fields.push_back(string(buffer, prev_buffer - buffer));
                     buffer = prev_buffer + 1;
+                    prev_buffer = strchr(buffer, '\t');
                 }
 
                 if (end_buffer - buffer != 0) line_fields.push_back(string(buffer, end_buffer - buffer));
@@ -347,12 +348,13 @@ GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
 
                 const char* buffer = line.c_str() + 2;
                 const char* end_buffer = line.c_str() + line.length();
-                const char* prev_buffer = NULL;
+                const char* prev_buffer = strchr(buffer, '\t');
 
-                while ((prev_buffer = strchr(buffer, '\t')) != NULL){
+                while (prev_buffer != NULL){
 
                     line_fields.push_back(string(buffer, prev_buffer - buffer));
                     buffer = prev_buffer + 1;
+                    prev_buffer = strchr(buffer, '\t');
                 }
 
                 if (end_buffer - buffer != 0) line_fields.push_back(string(buffer, end_buffer - buffer));
@@ -394,12 +396,13 @@ GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id) {
 
                 const char* buffer = line.c_str() + 2;
                 const char* end_buffer = line.c_str() + line.length();
-                const char* prev_buffer = NULL;
+                const char* prev_buffer = strchr(buffer, '\t');
 
-                while ((prev_buffer = strchr(buffer, '\t')) != NULL){
+                while (prev_buffer != NULL){
 
                     line_fields.push_back(string(buffer, prev_buffer - buffer));
                     buffer = prev_buffer + 1;
+                    prev_buffer = strchr(buffer, '\t');
                 }
 
                 if (end_buffer - buffer != 0) line_fields.push_back(string(buffer, end_buffer - buffer));
@@ -486,12 +489,13 @@ GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_opened, co
 
                 const char* buffer = line.c_str() + 2;
                 const char* end_buffer = line.c_str() + line.length();
-                const char* prev_buffer = NULL;
+                const char* prev_buffer = strchr(buffer, '\t');
 
-                while ((prev_buffer = strchr(buffer, '\t')) != NULL){
+                while (prev_buffer != NULL){
 
                     line_fields.push_back(string(buffer, prev_buffer - buffer));
                     buffer = prev_buffer + 1;
+                    prev_buffer = strchr(buffer, '\t');
                 }
 
                 if (end_buffer - buffer != 0) line_fields.push_back(string(buffer, end_buffer - buffer));
@@ -504,7 +508,8 @@ GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_opened, co
 
                     if (line_fields_sz < 2){
 
-                        cerr << "GFA_Parser::read(): Missing fields in Segment line" << endl;
+                        cerr << "GFA_Parser::read(): Missing fields in Segment line: " << endl;
+                        cerr << line << endl;
                         close();
                     }
 
@@ -538,12 +543,13 @@ GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_opened, co
 
                     const char* buffer = line.c_str() + 2;
                     const char* end_buffer = line.c_str() + line.length();
-                    const char* prev_buffer = NULL;
+                    const char* prev_buffer = strchr(buffer, '\t');
 
-                    while ((prev_buffer = strchr(prev_buffer, '\t')) != NULL){
+                    while (prev_buffer != NULL){
 
                         line_fields.push_back(string(prev_buffer, prev_buffer - prev_buffer));
                         prev_buffer = prev_buffer + 1;
+                        prev_buffer = strchr(buffer, '\t');
                     }
 
                     if (end_buffer - prev_buffer != 0) line_fields.push_back(string(prev_buffer, end_buffer - prev_buffer));
@@ -585,12 +591,13 @@ GFA_Parser::GFA_line GFA_Parser::read(size_t& file_id, bool& new_file_opened, co
 
                     const char* buffer = line.c_str() + 2;
                     const char* end_buffer = line.c_str() + line.length();
-                    const char* prev_buffer = NULL;
+                    const char* prev_buffer = strchr(buffer, '\t');
 
-                    while ((prev_buffer = strchr(buffer, '\t')) != NULL){
+                    while (prev_buffer != NULL){
 
                         line_fields.push_back(string(buffer, prev_buffer - buffer));
                         buffer = prev_buffer + 1;
+                        prev_buffer = strchr(buffer, '\t');
                     }
 
                     if (end_buffer - buffer != 0) line_fields.push_back(string(buffer, end_buffer - buffer));

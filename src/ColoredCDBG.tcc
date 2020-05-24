@@ -1574,6 +1574,8 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
             const size_t nb_km_min = static_cast<double>(s.length() - k + 1) * ratio_kmers;
 
+            for (auto& c : s) c &= 0xDF;
+
             searchQuery(s, color_occ_r, color_occ_u, nb_km_min);
 
             // Output presence/absence for each color in the buffer, return if query is present in at least one color
@@ -1661,6 +1663,8 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
                             const size_t nb_km_min = static_cast<double>(buffers_seq[i].length() - k + 1) * ratio_kmers;
 
                             bool is_found = false;
+
+                            for (auto& c : buffers_seq[i]) c &= 0xDF;
 
                             searchQuery(buffers_seq[i], color_occ_r, color_occ_u, nb_km_min);
 

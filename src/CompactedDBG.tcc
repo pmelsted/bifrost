@@ -2762,7 +2762,7 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_uniqu
 
             const int len = strlen(str);
 
-            for (char* s = str; s != &str[len]; ++s) *s &= 0xDF; // Put characters in upper case
+            for (char* s = str; s != str + len; ++s) *s &= 0xDF; // Put characters in upper case
 
             KmerHashIterator<RepHash> it_kmer_h(str, len, k_), it_kmer_h_end;
             minHashIterator<RepHash> it_min(str, len, k_, g_, RepHash(), true);

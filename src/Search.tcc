@@ -1144,7 +1144,6 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
         char* buffer_res = new char[thread_seq_buf_sz];
 
         size_t pos_buffer_out = 0;
-        //size_t nb_km_found = 0;
         size_t nb_queries_found = 0;
 
         while (fp.read(s, file_id)){
@@ -1155,10 +1154,10 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
             const char* query_name = fp.getNameString();
             const size_t l_query_name = strlen(query_name);
 
-            const vector<pair<size_t, const_UnitigMap<U, G>>> v = dbg.searchSequence(   s, true, inexact_search, inexact_search, inexact_search,
-                                                                                        ratio_kmers, true);
+            for (auto& c : s) c &= 0xDF;
 
-            //for (const auto& p : v) cout << p.first << " " << s.substr(p.first, 31) << " " << p.second.mappedSequenceToString() << endl;
+            const vector<pair<size_t, const_UnitigMap<U, G>>> v = dbg.searchSequence(   s, true, inexact_search, inexact_search,
+                                                                                        inexact_search, ratio_kmers, true);
 
             if (inexact_search){
 
@@ -1167,13 +1166,8 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
                 for (const auto& p : v) r.add(p.first);
 
                 is_found = (r.cardinality() >= nb_km_min);
-                //nb_km_found += r.cardinality();
             }
-            else {
-
-                is_found = (v.size() >= nb_km_min);
-                //nb_km_found += v.size();
-            }
+            else is_found = (v.size() >= nb_km_min);
 
             if (pos_buffer_out + l_query_name + l_query_res >= thread_seq_buf_sz){ // If next result cannot fit in the buffer
 
@@ -1208,31 +1202,33 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
             bool stop = false;
 
             vector<thread> workers; // need to keep track of threads so we can join them
-            vector<vector<string>> buffers_seq(nb_threads);
-            vector<vector<string>> buffers_name(nb_threads);
-
-            char** buffer_res = new char*[nb_threads];
 
             mutex mutex_files_in, mutex_file_out;
 
-            //std::atomic<size_t> nb_km_found;
             std::atomic<size_t> nb_queries_found;
 
-            //nb_km_found = 0;
             nb_queries_found = 0;
 
             for (size_t t = 0; t < nb_threads; ++t){
 
-                buffer_res[t] = new char[thread_seq_buf_sz];
-
                 workers.emplace_back(
 
-                    [&, t]{
+                    [&]{
+
+                        char* buffer_res = new char[nb_threads];
+
+                        vector<string> buffers_seq;
+                        vector<string> buffers_name;
 
                         while (true) {
 
                             {
-                                if (stop) return;
+                                if (stop) {
+
+                                    delete[] buffer_res;
+
+                                    return;
+                                }
 
                                 size_t buffer_sz = 0;
 
@@ -1244,8 +1240,8 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
 
                                     buffer_sz += s.length();
 
-                                    buffers_seq[t].push_back(std::move(s));
-                                    buffers_name[t].push_back(string(fp.getNameString()));
+                                    buffers_seq.push_back(std::move(s));
+                                    buffers_name.push_back(string(fp.getNameString()));
 
                                     if (buffer_sz >= thread_seq_buf_sz) break;
                                     else stop = !fp.read(s, file_id);
@@ -1254,17 +1250,19 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
 
                             size_t pos_buffer_out = 0;
 
-                            const size_t buffers_seq_sz = buffers_seq[t].size();
+                            const size_t buffers_seq_sz = buffers_seq.size();
 
                             for (size_t i = 0; i < buffers_seq_sz; ++i){
 
                                 bool is_found = false;
 
-                                const size_t nb_km_min = static_cast<double>(buffers_seq[t][i].length() - k_ + 1) * ratio_kmers;
-                                const size_t l_name = buffers_name[t][i].length();
+                                const size_t nb_km_min = static_cast<double>(buffers_seq[i].length() - k_ + 1) * ratio_kmers;
+                                const size_t l_name = buffers_name[i].length();
 
-                                const vector<pair<size_t, const_UnitigMap<U, G>>> v = dbg.searchSequence(   buffers_seq[t][i], true, inexact_search, inexact_search, inexact_search,
-                                                                                                            ratio_kmers, true);
+                                for (auto& c : buffers_seq[i]) c &= 0xDF;
+
+                                const vector<pair<size_t, const_UnitigMap<U, G>>> v = dbg.searchSequence(   buffers_seq[i], true, inexact_search, inexact_search,
+                                                                                                            inexact_search, ratio_kmers, true);
 
                                 if (inexact_search){
 
@@ -1273,33 +1271,28 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
                                     for (const auto& p : v) r.add(p.first);
 
                                     is_found = (r.cardinality() >= nb_km_min);
-                                    //nb_km_found += r.cardinality();
                                 }
-                                else {
-
-                                    is_found = (v.size() >= nb_km_min);
-                                    //nb_km_found += v.size();
-                                }
+                                else is_found = (v.size() >= nb_km_min);
 
                                 if (pos_buffer_out + l_name + l_query_res >= thread_seq_buf_sz){ // If next result cannot fit in the buffer
 
                                     unique_lock<mutex> lock(mutex_file_out); // Get the output lock
 
-                                    out.write(buffer_res[t], pos_buffer_out); // Write result buffer
+                                    out.write(buffer_res, pos_buffer_out); // Write result buffer
 
                                     pos_buffer_out = 0; // Reset position to 0;
                                 }
 
                                 // Copy new result to buffer
-                                std::memcpy(buffer_res[t] + pos_buffer_out, buffers_name[t][i].c_str(), l_name * sizeof(char));
+                                std::memcpy(buffer_res + pos_buffer_out, buffers_name[i].c_str(), l_name * sizeof(char));
 
                                 if (is_found){
 
-                                    std::memcpy(buffer_res[t] + pos_buffer_out + l_name, query_pres, l_query_res * sizeof(char));
+                                    std::memcpy(buffer_res + pos_buffer_out + l_name, query_pres, l_query_res * sizeof(char));
 
                                     ++nb_queries_found;
                                 }
-                                else std::memcpy(buffer_res[t] + pos_buffer_out + l_name, query_abs, l_query_res * sizeof(char));
+                                else std::memcpy(buffer_res + pos_buffer_out + l_name, query_abs, l_query_res * sizeof(char));
 
                                 pos_buffer_out += l_name + l_query_res;
                             }
@@ -1308,21 +1301,20 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
 
                                 unique_lock<mutex> lock(mutex_file_out);
 
-                                out.write(buffer_res[t], pos_buffer_out);
+                                out.write(buffer_res, pos_buffer_out);
                             }
 
                             // Clear buffers for next round
-                            buffers_seq[t].clear();
-                            buffers_name[t].clear();
+                            buffers_seq.clear();
+                            buffers_name.clear();
                         }
+
+                        delete[] buffer_res;
                     }
                 );
             }
 
             for (auto& t : workers) t.join();
-            for (size_t t = 0; t < nb_threads; ++t) delete[] buffer_res[t];
-
-            delete[] buffer_res;
 
             if (verbose) cout << "CompactedDBG::search(): Found " << nb_queries_found << " queries. " << endl;
         }
