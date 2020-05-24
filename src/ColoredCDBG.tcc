@@ -580,7 +580,6 @@ bool ColoredCDBG<U>::read(const string& input_graph_filename, const string& inpu
             const size_t chunk = 10000;
 
             vector<thread> workers; // need to keep track of threads so we can join them
-            vector<vector<pair<Kmer, uint8_t>>> v(nb_threads);
 
             mutex mutex_file;
 
@@ -590,7 +589,9 @@ bool ColoredCDBG<U>::read(const string& input_graph_filename, const string& inpu
 
                 workers.emplace_back(
 
-                    [&, t]{
+                    [&]{
+
+                        vector<pair<Kmer, uint8_t>> v;
 
                         while (true) {
 
@@ -599,12 +600,12 @@ bool ColoredCDBG<U>::read(const string& input_graph_filename, const string& inpu
 
                                 if (!file_valid_for_read) return;
 
-                                file_valid_for_read = reading_function(v[t], chunk);
+                                file_valid_for_read = reading_function(v, chunk);
 
                             }
 
-                            join_function(v[t]);
-                            v[t].clear();
+                            join_function(v);
+                            v.clear();
                         }
                     }
                 );

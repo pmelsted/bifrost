@@ -382,7 +382,7 @@ export PATH=$PATH:/usr/local/lib/
 
 * Bifrost crashes right at the beginning with error `Illegal instruction`
 
-  You are most likely running Bifrost on a different machine than the one used to compile it. By default, Bifrost compiles in native mode such that the compiler targets architecture instructions specific to the machine Bifrost was compiled on. Using Bifrost on a different machine having different architecture instructions might result in this error. Hence, recompile Bifrost with native architecture compilation disabled, as explained in the Advanced options of Section [Installation](#installation).
+  You are most likely running Bifrost on a different machine than the one used to compile it. By default, Bifrost is compiled in native mode such to target architecture instructions specific to the machine it is compiled on. Using Bifrost on a different machine with a different architecture might result in this error. To solve this issue, Bifrost must be recompiled with native architecture compilation disabled, as explained in the Advanced options of Section [Installation](#installation).
 
 ## Citation
 

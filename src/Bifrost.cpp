@@ -319,7 +319,8 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
 
     if (opt.k >= MAX_KMER_SIZE){
 
-        cerr << "Error: Length k of k-mers cannot exceed or be equal to " << MAX_KMER_SIZE << "." << endl;
+        cerr << "Error: Length k of k-mers cannot exceed " << (MAX_KMER_SIZE - 1) << "." << endl;
+        cerr << "To enable a larger k, recompile Bifrost with the appropriate MAX_KMER_SIZE variable." << endl;
         ret = false;
     }
 
