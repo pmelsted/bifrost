@@ -1511,7 +1511,7 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
         bool is_found = false;
 
-        if (pos_buffer_out + l_query_name >= thread_seq_buf_sz){ // If next result cannot fit in the buffer
+        if (pos_buffer_out + l_query_name > thread_seq_buf_sz){ // If next result cannot fit in the buffer
 
             out.write(buffer_res, pos_buffer_out); // Write result buffer
             pos_buffer_out = 0; // Reset position to 0;
@@ -1524,7 +1524,7 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
         for (size_t i = 0; i < nb_colors; ++i){
 
-            if (pos_buffer_out + l_query_res >= thread_seq_buf_sz){ // If next result cannot fit in the buffer
+            if (pos_buffer_out + l_query_res > thread_seq_buf_sz){ // If next result cannot fit in the buffer
 
                 out.write(buffer_res, pos_buffer_out); // Write result buffer
                 pos_buffer_out = 0; // Reset position to 0;
@@ -1536,7 +1536,7 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
             is_found = is_found || (color_occ[i] >= nb_km_min);
         }
 
-        if (pos_buffer_out + 1 >= thread_seq_buf_sz){ // If next result cannot fit in the buffer
+        if (pos_buffer_out + 1 > thread_seq_buf_sz){ // If next result cannot fit in the buffer
 
             out.write(buffer_res, pos_buffer_out); // Write result buffer
             pos_buffer_out = 0; // Reset position to 0;

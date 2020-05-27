@@ -217,30 +217,16 @@ class FileParser {
 
             const int l_read = gzread(fp, buffer, sz_buffer - 1);
 
+            gzclose(fp);
+
             buffer[l_read] = '\0';
 
             if (l_read != 0) { // Must contain at least one character, otherwise return undertermined file format
 
-                if ((buffer[0] == '>') || (buffer[0] == '@')) { // File is FASTA or FASTQ format
-
-                    gzrewind(fp); // Put back file cursor to beginning;
-
-                    kseq_t* kseq = kseq_init(fp); // Initialize kseq
-
-                    if (kseq != NULL){
-
-                        const int r = kseq_read(kseq); // Read first record of FASTA or FASTQ file
-
-                        // If file contains at least 1 record with a name and sequence, returns 0: FASTA, 1: FASTQ
-                        if ((r >= 0) && (kseq->name.l >= 1) && (kseq->seq.l >= 1)) ret_v = static_cast<int>(kseq->qual.l == kseq->seq.l);
-
-                        kseq_destroy(kseq);
-                    }
-                }
+                if (buffer[0] == '>') ret_v = 0; // FASTA
+                else if (buffer[0] == '@') ret_v = 1;// FASTQ
                 else if (strncmp(buffer, static_cast<char*>(gfa_header), sz_gfa_header) == 0) ret_v = 2; // GFA
             }
-
-            gzclose(fp);
 
             return ret_v;
         }

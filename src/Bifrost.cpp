@@ -245,9 +245,10 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
             }
             else {
 
-                const string s_ext = file.substr(file.find_last_of(".") + 1);
+                const int format = FileParser::getFileFormat(file.c_str());
 
-                if ((s_ext == "txt")){
+                if (format >= 0) files_tmp.push_back(file); // File is FASTA/FASTQ/GFA
+                else {
 
                     FILE* fp = fopen(file.c_str(), "r");
 
@@ -258,20 +259,32 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
                         ifstream ifs_file_txt(file);
                         istream i_file_txt(ifs_file_txt.rdbuf());
 
-                        while (i_file_txt.getline(buffer, 4096)){
+                        size_t i = 0;
+
+                        while (i_file_txt.getline(buffer, 4096).good()){
 
                             fp = fopen(buffer, "r");
 
                             if (fp == NULL) {
 
-                                cerr << "Error: Could not open file " << buffer << " for reading." << endl;
+                                cerr << "Error: Could not open file at line " << i << " in file " << file << " for reading." << endl;
                                 ret = false;
+                                break;
                             }
                             else {
 
                                 fclose(fp);
                                 files_tmp.push_back(string(buffer));
                             }
+
+                            ++i;
+                        }
+
+                        if (i_file_txt.fail() && (i == 0)) {
+
+                            cerr << "Error: File " << file << " is neither FASTA, FASTQ nor GFA." << endl;
+                            cerr << "If it is a list of files, it is either empty or has a line with >4096 characters." << endl;
+                            ret = false;
                         }
 
                         ifs_file_txt.close();
@@ -282,7 +295,6 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
                         ret = false;
                     }
                 }
-                else files_tmp.push_back(file);
             }
         }
 
