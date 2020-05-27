@@ -1669,7 +1669,7 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
                             searchQuery(buffers_seq[i], color_occ_r, color_occ_u, nb_km_min);
 
-                            if ((pos_buffer_out + buffers_name[i].length() + nb_colors * l_query_res + 2) >= thread_seq_buf_sz){
+                            if ((pos_buffer_out + buffers_name[i].length() + nb_colors * l_query_res + 1) > thread_seq_buf_sz){
 
                                 unique_lock<mutex> lock(mutex_file_out);
 
