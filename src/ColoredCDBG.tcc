@@ -1344,8 +1344,11 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
     const char query_pres[2] = {'\t', '1'};
     const char query_abs[2] = {'\t', '0'};
 
+    const char eol[1] = {'\n'};
+
     const size_t l_query_res = 2;
     const size_t nb_colors = getNbColors();
+    const size_t sz_color_query_out = nb_colors * l_query_res + 1;
 
     auto processCounts = [&](const vector<pair<size_t, const_UnitigColorMap<U>>>& v_um, Roaring* color_occ_r, uint32_t* color_occ_u){
 
@@ -1505,46 +1508,52 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
         }
     };
 
-    auto writeCounts = [&](const char* query_name, const uint32_t* color_occ, char* buffer_res, size_t& pos_buffer_out, const size_t nb_km_min){
-
-        const size_t l_query_name = strlen(query_name);
+    auto writeOut = [&](const char* query_name, const size_t l_query_name, const uint32_t* color_occ, char* buffer_res,
+                        size_t& pos_buffer_out, const size_t nb_km_min){
 
         bool is_found = false;
 
-        if (pos_buffer_out + l_query_name > thread_seq_buf_sz){ // If next result cannot fit in the buffer
+        if ((pos_buffer_out + l_query_name + sz_color_query_out) > thread_seq_buf_sz){
 
-            out.write(buffer_res, pos_buffer_out); // Write result buffer
-            pos_buffer_out = 0; // Reset position to 0;
-        }
-
-        // Copy new result to buffer
-        std::memcpy(buffer_res + pos_buffer_out, query_name, l_query_name * sizeof(char));
-
-        pos_buffer_out += l_query_name;
-
-        for (size_t i = 0; i < nb_colors; ++i){
-
-            if (pos_buffer_out + l_query_res > thread_seq_buf_sz){ // If next result cannot fit in the buffer
+            if (pos_buffer_out > 0) {
 
                 out.write(buffer_res, pos_buffer_out); // Write result buffer
                 pos_buffer_out = 0; // Reset position to 0;
             }
 
-            std::memcpy(buffer_res + pos_buffer_out, (color_occ[i] >= nb_km_min) ? query_pres : query_abs, l_query_res * sizeof(char));
+            out.write(query_name, l_query_name * sizeof(char)); // Write title
 
-            pos_buffer_out += l_query_res;
-            is_found = is_found || (color_occ[i] >= nb_km_min);
+            for (size_t i = 0; i < nb_colors; ++i) {
+
+                if (color_occ[i] >= nb_km_min) {
+
+                    out.write(query_pres, l_query_res * sizeof(char));
+                    is_found = true;
+                }
+                else out.write(query_abs, l_query_res * sizeof(char));
+            }
+
+            out.write(eol, sizeof(char));
         }
+        else {
 
-        if (pos_buffer_out + 1 > thread_seq_buf_sz){ // If next result cannot fit in the buffer
+            // Copy new result to buffer
+            std::memcpy(buffer_res + pos_buffer_out, query_name, l_query_name * sizeof(char));
 
-            out.write(buffer_res, pos_buffer_out); // Write result buffer
-            pos_buffer_out = 0; // Reset position to 0;
+            pos_buffer_out += l_query_name;
+
+            for (size_t i = 0; i < nb_colors; ++i, pos_buffer_out += l_query_res){
+
+                if (color_occ[i] >= nb_km_min) {
+
+                    std::memcpy(buffer_res + pos_buffer_out, query_pres, l_query_res * sizeof(char));
+                    is_found = true;
+                }
+                else std::memcpy(buffer_res + pos_buffer_out, query_abs, l_query_res * sizeof(char));
+            }
+
+            buffer_res[pos_buffer_out++] = eol[0];
         }
-
-        buffer_res[pos_buffer_out] = '\n';
-
-        ++pos_buffer_out;
 
         return is_found;
     };
@@ -1575,12 +1584,14 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
             const size_t nb_km_min = static_cast<double>(s.length() - k + 1) * ratio_kmers;
 
+            const char* query_name = fp.getNameString();
+
             for (auto& c : s) c &= 0xDF;
 
             searchQuery(s, color_occ_r, color_occ_u, nb_km_min);
 
             // Output presence/absence for each color in the buffer, return if query is present in at least one color
-            nb_queries_found += static_cast<size_t>(writeCounts(fp.getNameString(), color_occ_u, buffer_res, pos_buffer_out, nb_km_min));
+            nb_queries_found += static_cast<size_t>(writeOut(query_name, strlen(query_name), color_occ_u, buffer_res, pos_buffer_out, nb_km_min));
 
             std::memset(color_occ_u, 0, nb_colors * sizeof(uint32_t));
 
@@ -1656,6 +1667,7 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
                         }
 
                         size_t pos_buffer_out = 0;
+                        size_t l_nb_queries_found = 0;
 
                         const size_t buffers_seq_sz = buffers_seq.size();
 
@@ -1673,12 +1685,11 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
                                 unique_lock<mutex> lock(mutex_file_out);
 
-                                // Output presence/absence for each color
-                                is_found = writeCounts(buffers_name[i].c_str(), color_occ_u, buffer_res, pos_buffer_out, nb_km_min);
+                                is_found = writeOut(buffers_name[i].c_str(), buffers_name[i].length(), color_occ_u, buffer_res, pos_buffer_out, nb_km_min);
                             }
-                            else is_found = writeCounts(buffers_name[i].c_str(), color_occ_u, buffer_res, pos_buffer_out, nb_km_min);
+                            else is_found = writeOut(buffers_name[i].c_str(), buffers_name[i].length(), color_occ_u, buffer_res, pos_buffer_out, nb_km_min);
 
-                            nb_queries_found += static_cast<size_t>(is_found);
+                            l_nb_queries_found += static_cast<size_t>(is_found);
 
                             std::memset(color_occ_u, 0, nb_colors * sizeof(uint32_t));
 
@@ -1694,6 +1705,8 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
                             out.write(buffer_res, pos_buffer_out);
                         }
+
+                        nb_queries_found += l_nb_queries_found;
 
                         // Clear buffers for next round
                         buffers_seq.clear();
