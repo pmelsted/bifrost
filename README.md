@@ -92,7 +92,7 @@ sudo apt-get install build-essential cmake zlib1g-dev
   * a static library (*libbifrost.a*)
 
   **Advanced options**
-  * Bifrost compiles by default in *native* mode: the compiler targets architecture instructions specific to the machine Bifrost is compiled on. Hence, the binary and library produced might not work on a different machine. Native compilation can be disabled by adding the option `-DENABLE_NATIVE_ARCH=OFF` to the `cmake` command. Note that this disables all AVX2 optimizations too.
+  * Bifrost compiles by default with `-march=native`: the compiler targets architecture instructions specific to the machine Bifrost is compiled on. Hence, the binary and library produced might not work on a different machine. Native compilation can be disabled by adding the option `-DCOMPILATION_ARCH=OFF` to the `cmake` command (disables all AVX2 optimizations too). Alternatively, you can use this option to specify the architecture you want to target: `x86-64`, `knl`, etc. Default is `-DCOMPILATION_ARCH=native`.
   * Bifrost uses AVX2 instructions during graph construction which can be disabled by adding the option `-DENABLE_AVX2=OFF` to the `cmake` command.
 
   If you encounter any problem during the installation, see the [Troubleshooting](#troubleshooting) section.
