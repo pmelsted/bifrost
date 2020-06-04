@@ -68,7 +68,7 @@ sudo apt-get install build-essential cmake zlib1g-dev
   brew install brewsci/bio/bifrost
   ```
 
-* From [Bioconda](https://bioconda.github.io) (Bifrost v1.0.3, Linux only):
+* From [Bioconda](https://bioconda.github.io) (Bifrost v1.0.3, Linux only, compiled to generic x86-64 architecture and does not include advanced SSE and AVX instructions):
 
   ```
   conda -c bioconda bifrost
@@ -96,6 +96,19 @@ sudo apt-get install build-essential cmake zlib1g-dev
   * Bifrost uses AVX2 instructions during graph construction which can be disabled by adding the option `-DENABLE_AVX2=OFF` to the `cmake` command.
 
   If you encounter any problem during the installation, see the [Troubleshooting](#troubleshooting) section.
+
+* From source through pypi (Bifrost v1.0.4)
+
+```
+pip install bifrost-src
+```
+
+* From source through conda (Bifrost v1.0.4)
+
+```
+conda env create -n bifrost -f environment.yml
+```
+
 
 ### Large *k*-mers
 

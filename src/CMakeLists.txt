@@ -30,7 +30,7 @@ else()
     message(FATAL_ERROR "zlib not found. Required for to output files")
 endif(ZLIB_FOUND)
 
-target_link_libraries(Bifrost bifrost_dynamic)
+target_link_libraries(Bifrost bifrost_static)
 
 install(TARGETS Bifrost DESTINATION bin)
 install(TARGETS bifrost_dynamic DESTINATION lib)

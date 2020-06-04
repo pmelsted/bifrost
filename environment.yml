@@ -1,0 +1,8 @@
+channels:
+  - conda-forge
+dependencies:
+  - python=3.6
+  - pip=20.1.1
+  - zlib=1.2.11
+  - pip:
+    - bifrost-src
