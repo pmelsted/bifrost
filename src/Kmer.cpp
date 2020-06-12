@@ -1,6 +1,7 @@
 #include "Kmer.hpp"
 
 using namespace std;
+using namespace Bifrost;
 
 static const uint64_t twin_table[256] = {
   0xFF, 0xBF, 0x7F, 0x3F, 0xEF, 0xAF, 0x6F, 0x2F,

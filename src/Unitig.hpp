@@ -6,6 +6,8 @@
 #include "CompressedSequence.hpp"
 #include "CompressedCoverage.hpp"
 
+namespace Bifrost {
+
 /** @file src/Unitig.hpp
 * The Unitig interface.
 * Code snippets using these interface are provided in snippets/test.cpp.
@@ -133,5 +135,7 @@ class Unitig<void> {
         CompressedCoverage cov;
 };
 ///@endcond
+
+}
 
 #endif // BFG_CONTIG_HPP

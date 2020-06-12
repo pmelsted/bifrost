@@ -24,6 +24,8 @@
 #include <x86intrin.h>
 #endif
 
+namespace Bifrost {
+
 class BlockedBloomFilter {
 
     public:
@@ -119,5 +121,7 @@ class BlockedBloomFilter {
         bool insert_par(const uint64_t kmer_hash, const uint64_t min_hash);
         bool insert_unpar(const uint64_t kmer_hash, const uint64_t min_hash);
 };
+
+}
 
 #endif // BFG_BLOCKEDBLOOMFILTER_HPP

@@ -7,6 +7,8 @@
 
 #include "Kmer.hpp"
 
+namespace Bifrost {
+
 static const unsigned char twin[32] = {
     0, 20, 2, 7, 4, 5, 6, 3,
     8,  9, 10, 11, 12, 13, 14, 15,
@@ -310,5 +312,7 @@ class RepHash {
 };
 
 #endif
+
+}
 
 #endif

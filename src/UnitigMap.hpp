@@ -5,6 +5,8 @@
 #include "Common.hpp"
 #include "Kmer.hpp"
 
+namespace Bifrost {
+
 /** @file src/UnitigMap.hpp
 * UnitigMap type interface.
 * Code snippets using this interface are provided in snippets/test.cpp.
@@ -319,6 +321,8 @@ struct UnitigMapHash {
         return static_cast<size_t>(XXH64(static_cast<const void*>(&tmp), sizeof(UnitigMapTMP), 0));
     }
 };
+
+}
 
 #include "UnitigMap.tcc"
 

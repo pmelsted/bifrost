@@ -5,36 +5,36 @@
 #include "NeighborIterator.hpp"
 
 template<typename U, typename G, bool is_const>
-UnitigMap<U, G, is_const>::UnitigMap(const size_t length, CompactedDBG_ptr_t cdbg_) :   UnitigMapBase(length), pos_unitig(0), isShort(false),
+Bifrost::UnitigMap<U, G, is_const>::UnitigMap(const size_t length, CompactedDBG_ptr_t cdbg_) :   UnitigMapBase(length), pos_unitig(0), isShort(false),
                                                                                         isAbundant(false), cdbg(cdbg_) {}
 
 template<typename U, typename G, bool is_const>
-UnitigMap<U, G, is_const>::UnitigMap(const size_t start, const size_t length, const size_t unitig_sz, const bool strand) :
+Bifrost::UnitigMap<U, G, is_const>::UnitigMap(const size_t start, const size_t length, const size_t unitig_sz, const bool strand) :
                                     UnitigMapBase(start, length, unitig_sz, strand), pos_unitig(0),
                                     isShort(false), isAbundant(false), cdbg(nullptr) {}
 
 template<typename U, typename G, bool is_const>
-bool UnitigMap<U, G, is_const>::operator==(const UnitigMap& o) const {
+bool Bifrost::UnitigMap<U, G, is_const>::operator==(const UnitigMap& o) const {
 
     return  UnitigMapBase::operator==(o) && (pos_unitig == o.pos_unitig) &&
             (isShort == o.isShort) && (isAbundant == o.isAbundant) && (cdbg == o.cdbg);
 }
 
 template<typename U, typename G, bool is_const>
-bool UnitigMap<U, G, is_const>::operator!=(const UnitigMap& o) const {
+bool Bifrost::UnitigMap<U, G, is_const>::operator!=(const UnitigMap& o) const {
 
     return  UnitigMapBase::operator!=(o) || (pos_unitig != o.pos_unitig) ||
             (isShort != o.isShort) || (isAbundant != o.isAbundant) || (cdbg != o.cdbg);
 }
 
 template<typename U, typename G, bool is_const>
-bool UnitigMap<U, G, is_const>::isSameReferenceUnitig(const UnitigMap& o) const {
+bool Bifrost::UnitigMap<U, G, is_const>::isSameReferenceUnitig(const UnitigMap& o) const {
 
     return  (pos_unitig == o.pos_unitig) && (isShort == o.isShort) && (isAbundant == o.isAbundant) && (cdbg == o.cdbg);
 }
 
 template<typename U, typename G, bool is_const>
-string UnitigMap<U, G, is_const>::mappedSequenceToString() const {
+string Bifrost::UnitigMap<U, G, is_const>::mappedSequenceToString() const {
 
     if (isEmpty) return string();
 
@@ -55,7 +55,7 @@ string UnitigMap<U, G, is_const>::mappedSequenceToString() const {
 }
 
 template<typename U, typename G, bool is_const>
-string UnitigMap<U, G, is_const>::referenceUnitigToString() const {
+string Bifrost::UnitigMap<U, G, is_const>::referenceUnitigToString() const {
 
     if (isEmpty) return string();
     if (isShort) return cdbg->km_unitigs.getKmer(pos_unitig).toString();
@@ -65,7 +65,7 @@ string UnitigMap<U, G, is_const>::referenceUnitigToString() const {
 }
 
 template<typename U, typename G, bool is_const>
-size_t UnitigMap<U, G, is_const>::lcp(const char* s, const size_t pos_s, const size_t pos_um_seq, const bool um_reversed) const {
+size_t Bifrost::UnitigMap<U, G, is_const>::lcp(const char* s, const size_t pos_s, const size_t pos_um_seq, const bool um_reversed) const {
 
     if (isEmpty || (pos_s >= strlen(s))) return 0;
 
@@ -75,7 +75,7 @@ size_t UnitigMap<U, G, is_const>::lcp(const char* s, const size_t pos_s, const s
 
         char km_str[MAX_KMER_SIZE];
 
-        const Kmer km = isShort ? cdbg->km_unitigs.getKmer(pos_unitig) : cdbg->h_kmers_ccov.find(pos_unitig).getKey();
+        const Bifrost::Kmer km = isShort ? cdbg->km_unitigs.getKmer(pos_unitig) : cdbg->h_kmers_ccov.find(pos_unitig).getKey();
 
         um_reversed ? km.twin().toString(km_str) : km.toString(km_str);
 
@@ -88,7 +88,7 @@ size_t UnitigMap<U, G, is_const>::lcp(const char* s, const size_t pos_s, const s
 }
 
 template<typename U, typename G, bool is_const>
-Kmer UnitigMap<U, G, is_const>::getUnitigHead() const {
+Bifrost::Kmer Bifrost::UnitigMap<U, G, is_const>::getUnitigHead() const {
 
     if (!isEmpty){
 
@@ -98,7 +98,7 @@ Kmer UnitigMap<U, G, is_const>::getUnitigHead() const {
         return cdbg->v_unitigs[pos_unitig]->getSeq().getKmer(0);
     }
 
-    Kmer km;
+    Bifrost::Kmer km;
 
     km.set_empty();
 
@@ -106,7 +106,7 @@ Kmer UnitigMap<U, G, is_const>::getUnitigHead() const {
 }
 
 template<typename U, typename G, bool is_const>
-Kmer UnitigMap<U, G, is_const>::getUnitigTail() const {
+Bifrost::Kmer Bifrost::UnitigMap<U, G, is_const>::getUnitigTail() const {
 
     if (!isEmpty){
 
@@ -116,7 +116,7 @@ Kmer UnitigMap<U, G, is_const>::getUnitigTail() const {
         return cdbg->v_unitigs[pos_unitig]->getSeq().getKmer(cdbg->v_unitigs[pos_unitig]->numKmers() - 1);
     }
 
-    Kmer km;
+    Bifrost::Kmer km;
 
     km.set_empty();
 
@@ -124,7 +124,7 @@ Kmer UnitigMap<U, G, is_const>::getUnitigTail() const {
 }
 
 template<typename U, typename G, bool is_const>
-Kmer UnitigMap<U, G, is_const>::getUnitigKmer(const size_t pos) const {
+Bifrost::Kmer Bifrost::UnitigMap<U, G, is_const>::getUnitigKmer(const size_t pos) const {
 
     if (!isEmpty){
 
@@ -137,7 +137,7 @@ Kmer UnitigMap<U, G, is_const>::getUnitigKmer(const size_t pos) const {
         }
     }
 
-    Kmer km;
+    Bifrost::Kmer km;
 
     km.set_empty();
 
@@ -145,7 +145,7 @@ Kmer UnitigMap<U, G, is_const>::getUnitigKmer(const size_t pos) const {
 }
 
 template<typename U, typename G, bool is_const>
-Kmer UnitigMap<U, G, is_const>::getMappedHead() const {
+Bifrost::Kmer Bifrost::UnitigMap<U, G, is_const>::getMappedHead() const {
 
     if (!isEmpty){
 
@@ -165,7 +165,7 @@ Kmer UnitigMap<U, G, is_const>::getMappedHead() const {
         }
     }
 
-    Kmer km;
+    Bifrost::Kmer km;
 
     km.set_empty();
 
@@ -173,7 +173,7 @@ Kmer UnitigMap<U, G, is_const>::getMappedHead() const {
 }
 
 template<typename U, typename G, bool is_const>
-Kmer UnitigMap<U, G, is_const>::getMappedTail() const {
+Bifrost::Kmer Bifrost::UnitigMap<U, G, is_const>::getMappedTail() const {
 
     if (!isEmpty){
 
@@ -193,7 +193,7 @@ Kmer UnitigMap<U, G, is_const>::getMappedTail() const {
         }
     }
 
-    Kmer km;
+    Bifrost::Kmer km;
 
     km.set_empty();
 
@@ -201,7 +201,7 @@ Kmer UnitigMap<U, G, is_const>::getMappedTail() const {
 }
 
 template<typename U, typename G, bool is_const>
-Kmer UnitigMap<U, G, is_const>::getMappedKmer(const size_t pos) const {
+Bifrost::Kmer Bifrost::UnitigMap<U, G, is_const>::getMappedKmer(const size_t pos) const {
 
     if (!isEmpty && (pos < len)){
 
@@ -227,7 +227,7 @@ Kmer UnitigMap<U, G, is_const>::getMappedKmer(const size_t pos) const {
         }
     }
 
-    Kmer km;
+    Bifrost::Kmer km;
 
     km.set_empty();
 
@@ -235,9 +235,9 @@ Kmer UnitigMap<U, G, is_const>::getMappedKmer(const size_t pos) const {
 }
 
 template<typename U, typename G, bool is_const>
-UnitigMap<U, G, is_const> UnitigMap<U, G, is_const>::getKmerMapping(const size_t pos) const {
+Bifrost::UnitigMap<U, G, is_const> Bifrost::UnitigMap<U, G, is_const>::getKmerMapping(const size_t pos) const {
 
-    UnitigMap<U, G, is_const> um(*this);
+    Bifrost::UnitigMap<U, G, is_const> um(*this);
 
     um.dist = pos;
     um.len = 1;
@@ -248,26 +248,26 @@ UnitigMap<U, G, is_const> UnitigMap<U, G, is_const>::getKmerMapping(const size_t
 }
 
 template<typename U, typename G, bool is_const>
-typename UnitigMap<U, G, is_const>::Unitig_data_ptr_t UnitigMap<U, G, is_const>::getData() const {
+typename Bifrost::UnitigMap<U, G, is_const>::Unitig_data_ptr_t Bifrost::UnitigMap<U, G, is_const>::getData() const {
 
     return getData_<is_void<U>::value>();
 }
 
 template<typename U, typename G, bool is_const>
-typename UnitigMap<U, G, is_const>::UnitigMap_BW UnitigMap<U, G, is_const>::getPredecessors() const {
+typename Bifrost::UnitigMap<U, G, is_const>::UnitigMap_BW Bifrost::UnitigMap<U, G, is_const>::getPredecessors() const {
 
     return BackwardCDBG<U, G, is_const>(*this);
 }
 
 template<typename U, typename G, bool is_const>
-typename UnitigMap<U, G, is_const>::UnitigMap_FW UnitigMap<U, G, is_const>::getSuccessors() const {
+typename Bifrost::UnitigMap<U, G, is_const>::UnitigMap_FW Bifrost::UnitigMap<U, G, is_const>::getSuccessors() const {
 
     return ForwardCDBG<U, G, is_const>(*this);
 }
 
 template<typename U, typename G, bool is_const>
 template<bool is_void>
-typename std::enable_if<!is_void, typename UnitigMap<U, G, is_const>::Unitig_data_ptr_t>::type UnitigMap<U, G, is_const>::getData_() const {
+typename std::enable_if<!is_void, typename Bifrost::UnitigMap<U, G, is_const>::Unitig_data_ptr_t>::type Bifrost::UnitigMap<U, G, is_const>::getData_() const {
 
     if (isEmpty) return nullptr;
     if (isShort) return cdbg->km_unitigs.getData(pos_unitig);
@@ -278,7 +278,7 @@ typename std::enable_if<!is_void, typename UnitigMap<U, G, is_const>::Unitig_dat
 
 template<typename U, typename G, bool is_const>
 template<bool is_void>
-typename std::enable_if<is_void, typename UnitigMap<U, G, is_const>::Unitig_data_ptr_t>::type UnitigMap<U, G, is_const>::getData_() const {
+typename std::enable_if<is_void, typename Bifrost::UnitigMap<U, G, is_const>::Unitig_data_ptr_t>::type Bifrost::UnitigMap<U, G, is_const>::getData_() const {
 
     return nullptr;
 }
@@ -286,7 +286,7 @@ typename std::enable_if<is_void, typename UnitigMap<U, G, is_const>::Unitig_data
 
 template<typename U, typename G, bool is_const>
 template<bool is_void>
-typename std::enable_if<!is_void, Unitig<U>>::type UnitigMap<U, G, is_const>::splitData_(const bool last_split) const {
+typename std::enable_if<!is_void, Bifrost::Unitig<U>>::type Bifrost::UnitigMap<U, G, is_const>::splitData_(const bool last_split) const {
 
     Unitig<U> unitig;
 
@@ -297,19 +297,19 @@ typename std::enable_if<!is_void, Unitig<U>>::type UnitigMap<U, G, is_const>::sp
 
 template<typename U, typename G, bool is_const>
 template<bool is_void>
-typename std::enable_if<is_void, Unitig<U>>::type UnitigMap<U, G, is_const>::splitData_(const bool last_split) const {
+typename std::enable_if<is_void, Bifrost::Unitig<U>>::type Bifrost::UnitigMap<U, G, is_const>::splitData_(const bool last_split) const {
 
     return Unitig<U>();
 }
 
 template<typename U, typename G, bool is_const>
-Unitig<U> UnitigMap<U, G, is_const>::splitData(const bool last_split) const {
+Bifrost::Unitig<U> Bifrost::UnitigMap<U, G, is_const>::splitData(const bool last_split) const {
 
     return splitData_<is_void<U>::value>(last_split);
 }
 
 template<typename U, typename G, bool is_const>
-neighborIterator<U, G, is_const> UnitigMap<U, G, is_const>::bw_begin() const {
+Bifrost::neighborIterator<U, G, is_const> Bifrost::UnitigMap<U, G, is_const>::bw_begin() const {
 
     neighborIterator<U, G, is_const> it(*this, false);
     it++;
@@ -317,21 +317,21 @@ neighborIterator<U, G, is_const> UnitigMap<U, G, is_const>::bw_begin() const {
 }
 
 template<typename U, typename G, bool is_const>
-neighborIterator<U, G, is_const> UnitigMap<U, G, is_const>::bw_end() const { return neighborIterator<U, G, is_const>(); }
+Bifrost::neighborIterator<U, G, is_const> Bifrost::UnitigMap<U, G, is_const>::bw_end() const { return neighborIterator<U, G, is_const>(); }
 
 template<typename U, typename G, bool is_const>
-neighborIterator<U, G, is_const> UnitigMap<U, G, is_const>::fw_begin() const {
+Bifrost::neighborIterator<U, G, is_const> Bifrost::UnitigMap<U, G, is_const>::fw_begin() const {
 
-    neighborIterator<U, G, is_const> it(*this, true);
+    Bifrost::neighborIterator<U, G, is_const> it(*this, true);
     it++;
     return it;
 }
 
 template<typename U, typename G, bool is_const>
-neighborIterator<U, G, is_const> UnitigMap<U, G, is_const>::fw_end() const { return neighborIterator<U, G, is_const>(); }
+Bifrost::neighborIterator<U, G, is_const> Bifrost::UnitigMap<U, G, is_const>::fw_end() const { return neighborIterator<U, G, is_const>(); }
 
 template<typename U, typename G, bool is_const>
-void UnitigMap<U, G, is_const>::partialCopy(const UnitigMap<U, G, is_const>& o) {
+void Bifrost::UnitigMap<U, G, is_const>::partialCopy(const Bifrost::UnitigMap<U, G, is_const>& o) {
 
     pos_unitig = o.pos_unitig;
     dist = o.dist;
@@ -346,7 +346,7 @@ void UnitigMap<U, G, is_const>::partialCopy(const UnitigMap<U, G, is_const>& o) 
 }
 
 template<typename U, typename G, bool is_const>
-void UnitigMap<U, G, is_const>::setFullCoverage() const {
+void Bifrost::UnitigMap<U, G, is_const>::setFullCoverage() const {
 
     if (!isEmpty){
 
@@ -357,7 +357,7 @@ void UnitigMap<U, G, is_const>::setFullCoverage() const {
 }
 
 template<typename U, typename G, bool is_const>
-void UnitigMap<U, G, is_const>::increaseCoverage() const {
+void Bifrost::UnitigMap<U, G, is_const>::increaseCoverage() const {
 
     if (isEmpty) return; // nothing maps, move on
 
@@ -367,7 +367,7 @@ void UnitigMap<U, G, is_const>::increaseCoverage() const {
 }
 
 template<typename U, typename G, bool is_const>
-void UnitigMap<U, G, is_const>::decreaseCoverage() const {
+void Bifrost::UnitigMap<U, G, is_const>::decreaseCoverage() const {
 
     if (isEmpty) return; // nothing maps, move on
 
@@ -377,7 +377,7 @@ void UnitigMap<U, G, is_const>::decreaseCoverage() const {
 }
 
 template<typename U, typename G, bool is_const>
-bool UnitigMap<U, G, is_const>::isCoverageFull() const {
+bool Bifrost::UnitigMap<U, G, is_const>::isCoverageFull() const {
 
     if (isEmpty) return false; // nothing maps, move on
 
@@ -387,7 +387,7 @@ bool UnitigMap<U, G, is_const>::isCoverageFull() const {
 }
 
 template<typename U, typename G, bool is_const>
-size_t UnitigMap<U, G, is_const>::getCoverage(const size_t pos) const {
+size_t Bifrost::UnitigMap<U, G, is_const>::getCoverage(const size_t pos) const {
 
     if (isEmpty || (pos > size - cdbg->getK())) return 0; // nothing maps, move on
 
@@ -398,7 +398,7 @@ size_t UnitigMap<U, G, is_const>::getCoverage(const size_t pos) const {
 
 
 template<typename U, typename G, bool is_const>
-UnitigMap<U, G, is_const>::UnitigMap(size_t p_unitig, size_t i, size_t l, size_t sz, bool short_, bool abundance, bool strd,
+Bifrost::UnitigMap<U, G, is_const>::UnitigMap(size_t p_unitig, size_t i, size_t l, size_t sz, bool short_, bool abundance, bool strd,
                                      CompactedDBG_ptr_t cdbg_) : UnitigMapBase(i, l, sz, strd), pos_unitig(p_unitig),
                                      isShort(short_), isAbundant(abundance), cdbg(cdbg_) {}
 

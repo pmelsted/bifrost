@@ -11,6 +11,8 @@
 
 using namespace std;
 
+namespace Bifrost {
+
 struct minHashResult {
 
 	minHashResult() : hash((uint64_t) -1),pos(-1) {}
@@ -763,5 +765,7 @@ struct minHashKmer {
         bool invalid;
         bool nh;
 };
+
+}
 
 #endif // MINHASHITERATOR_H

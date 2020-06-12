@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <stdint.h>
 
+namespace Bifrost {
+
 template<class T, int N = (1 + (48 / sizeof(T)))>
 class tiny_vector {
 
@@ -472,5 +474,7 @@ class packed_tiny_vector {
             ptr[1] = sz;
         }
 };
+
+}
 
 #endif

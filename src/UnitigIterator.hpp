@@ -5,6 +5,8 @@
 #include "KmerHashTable.hpp"
 #include "CompressedCoverage.hpp"
 
+namespace Bifrost {
+
 /** @file src/UnitigIterator.hpp
 * The unitigIterator type interface.
 * Code snippets using this interface are provided in snippets/test.cpp.
@@ -108,6 +110,8 @@ class unitigIterator : public std::iterator<std::input_iterator_tag, UnitigMap<U
 
         CompactedDBG_ptr_t cdbg;
 };
+
+}
 
 #include "UnitigIterator.tcc"
 

@@ -8,6 +8,7 @@
 #include "CompressedCoverage.hpp"
 
 using namespace std;
+using namespace Bifrost;
 
 // use:  cc = CompressedCoverage(sz, full);
 // post: if (sz > 0) then initialize the instance else skip initializing, if full is true, initialize as full regardlesss of sz.

@@ -10,6 +10,8 @@
 #include "Lock.hpp"
 #include "TinyVector.hpp"
 
+namespace Bifrost {
+
 class MinimizerIndex {
 
     template<bool is_const = true>
@@ -185,5 +187,7 @@ class MinimizerIndex {
         static const size_t lck_block_sz;
         static const size_t lck_block_div_shift;
 };
+
+}
 
 #endif

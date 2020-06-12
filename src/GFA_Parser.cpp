@@ -1,5 +1,7 @@
 #include "GFA_Parser.hpp"
 
+using namespace Bifrost;
+
 GFA_Parser::GFA_Parser() : file_open_write(false), file_open_read(false), file_no(0), v_gfa(0), graph_out(nullptr), graph_in(nullptr),
                            graphfile_in(nullptr), graphfile_out(nullptr) {}
 

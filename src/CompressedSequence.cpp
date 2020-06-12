@@ -4,6 +4,8 @@
 #include "CompressedSequence.hpp"
 #include "Kmer.hpp"
 
+using namespace Bifrost;
+
 CompressedSequence::CompressedSequence() {
 
     initShort();

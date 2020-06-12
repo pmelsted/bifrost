@@ -5,6 +5,8 @@
 
 #include "rw_spin_lock.h"
 
+namespace Bifrost {
+
 class LockGraph : public SpinLockRW {
 
     public:
@@ -98,5 +100,7 @@ class LockGraph : public SpinLockRW {
 
         std::vector<SpinLock> spinlocks_unitigs;
 };*/
+
+}
 
 #endif

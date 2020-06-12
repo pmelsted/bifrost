@@ -5,6 +5,7 @@
 #include <iterator>
 #include "Kmer.hpp"
 
+namespace Bifrost {
 
 /* Short description:
  *  - Easily iterate through kmers in a read
@@ -161,5 +162,7 @@ class KmerHashIterator {
         std::pair<uint64_t, int> p_; // <hash, position> current k-mer
         bool invalid; // If sequence is invalid (iterating on k-mers out of bounds, etc.)
 };
+
+}
 
 #endif // BFG_KMER_ITERATOR_HPP

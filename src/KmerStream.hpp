@@ -22,6 +22,8 @@
 
 using namespace std;
 
+namespace Bifrost {
+
 struct KmerStream_Build_opt {
 
     vector<string> files;
@@ -1120,5 +1122,7 @@ class KmerStream {
         size_t nb_threads;
         size_t chunksize;
 };
+
+}
 
 #endif

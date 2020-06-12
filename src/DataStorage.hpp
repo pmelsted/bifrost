@@ -8,24 +8,26 @@
 
 #define BFG_COLOREDCDBG_FORMAT_VERSION 2
 
+namespace std
+{
+    template<>
+    struct hash<pair<Bifrost::Kmer, size_t>> {
+
+        size_t operator()(pair<Bifrost::Kmer, size_t> const& p) const {
+
+            return (2 * p.second + 1) * p.first.hash();
+        }
+    };
+}
+
+namespace Bifrost {
+
 template<typename Unitig_data_t> class ColoredCDBG;
 template<typename Unitig_data_t> class DataAccessor;
 template<typename Unitig_data_t> class DataStorage;
 
 template<typename U> using UnitigColorMap = UnitigMap<DataAccessor<U>, DataStorage<U>>;
 template<typename U> using const_UnitigColorMap = const_UnitigMap<DataAccessor<U>, DataStorage<U>>;
-
-namespace std
-{
-    template<>
-    struct hash<pair<Kmer, size_t>> {
-
-        size_t operator()(pair<Kmer, size_t> const& p) const {
-
-            return (2 * p.second + 1) * p.first.hash();
-        }
-    };
-}
 
 template<typename Unitig_data_t = void>
 class DataStorage {
@@ -107,5 +109,7 @@ class DataStorage {
 
         vector<string> color_names;
 };
+
+}
 
 #endif

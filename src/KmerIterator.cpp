@@ -3,6 +3,7 @@
 #include "Kmer.hpp"
 #include "KmerIterator.hpp"
 
+using namespace Bifrost;
 
 /* Note: That an iter is exhausted means that (iter._invalid == true) */
 

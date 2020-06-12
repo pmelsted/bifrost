@@ -2,6 +2,7 @@
 #include "ColoredCDBG.hpp"
 
 using namespace std;
+using namespace Bifrost;
 
 void PrintVersion() {
 

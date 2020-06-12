@@ -21,19 +21,19 @@ static const uint8_t bits[256] = {
 };
 
 template<typename U, typename G>
-CompactedDBG<U, G>::CompactedDBG(const int kmer_length) : invalid(false) {
+Bifrost::CompactedDBG<U, G>::CompactedDBG(const int kmer_length) : invalid(false) {
 
     setKmerGmerLength(kmer_length);
 }
 
 template<typename U, typename G>
-CompactedDBG<U, G>::CompactedDBG(const int kmer_length, const int minimizer_length) : invalid(false) {
+Bifrost::CompactedDBG<U, G>::CompactedDBG(const int kmer_length, const int minimizer_length) : invalid(false) {
 
     setKmerGmerLength(kmer_length, minimizer_length);
 }
 
 template<typename U, typename G>
-CompactedDBG<U, G>::CompactedDBG(const CompactedDBG<U, G>& o) : k_(o.k_), g_(o.g_), invalid(o.invalid),
+Bifrost::CompactedDBG<U, G>::CompactedDBG(const Bifrost::CompactedDBG<U, G>& o) : k_(o.k_), g_(o.g_), invalid(o.invalid),
                                                                 bf(o.bf), km_unitigs(o.km_unitigs), v_unitigs(o.v_unitigs.size(), nullptr),
                                                                 data(o.data), h_kmers_ccov(o.h_kmers_ccov),
                                                                 hmap_min_unitigs(o.hmap_min_unitigs){
@@ -46,7 +46,7 @@ CompactedDBG<U, G>::CompactedDBG(const CompactedDBG<U, G>& o) : k_(o.k_), g_(o.g
 }
 
 template<typename U, typename G>
-CompactedDBG<U, G>::CompactedDBG(CompactedDBG<U, G>&& o) :  k_(o.k_), g_(o.g_), invalid(o.invalid),
+Bifrost::CompactedDBG<U, G>::CompactedDBG(Bifrost::CompactedDBG<U, G>&& o) :  k_(o.k_), g_(o.g_), invalid(o.invalid),
                                                             bf(std::move(o.bf)), km_unitigs(std::move(o.km_unitigs)), data(std::move(o.data)),
                                                             v_unitigs(std::move(o.v_unitigs)), h_kmers_ccov(std::move(o.h_kmers_ccov)),
                                                             hmap_min_unitigs(std::move(o.hmap_min_unitigs)){
@@ -55,13 +55,13 @@ CompactedDBG<U, G>::CompactedDBG(CompactedDBG<U, G>&& o) :  k_(o.k_), g_(o.g_), 
 }
 
 template<typename U, typename G>
-CompactedDBG<U, G>::~CompactedDBG() {
+Bifrost::CompactedDBG<U, G>::~CompactedDBG() {
 
     clear();
 }
 
 template<typename U, typename G>
-CompactedDBG<U, G>& CompactedDBG<U, G>::operator=(const CompactedDBG<U, G>& o){
+Bifrost::CompactedDBG<U, G>& Bifrost::CompactedDBG<U, G>::operator=(const Bifrost::CompactedDBG<U, G>& o){
 
     clear();
 
@@ -91,7 +91,7 @@ CompactedDBG<U, G>& CompactedDBG<U, G>::operator=(const CompactedDBG<U, G>& o){
 }
 
 template<typename U, typename G>
-CompactedDBG<U, G>& CompactedDBG<U, G>::toDataGraph(CompactedDBG<void, void>&& o, const size_t nb_threads) {
+Bifrost::CompactedDBG<U, G>& Bifrost::CompactedDBG<U, G>::toDataGraph(Bifrost::CompactedDBG<void, void>&& o, const size_t nb_threads) {
 
     clear();
 
@@ -165,7 +165,7 @@ CompactedDBG<U, G>& CompactedDBG<U, G>::toDataGraph(CompactedDBG<void, void>&& o
 }
 
 template<typename U, typename G>
-CompactedDBG<U, G>& CompactedDBG<U, G>::operator=(CompactedDBG<U, G>&& o){
+Bifrost::CompactedDBG<U, G>& Bifrost::CompactedDBG<U, G>::operator=(Bifrost::CompactedDBG<U, G>&& o){
 
     if (this != &o) {
 
@@ -193,7 +193,7 @@ CompactedDBG<U, G>& CompactedDBG<U, G>::operator=(CompactedDBG<U, G>&& o){
 }
 
 template<typename U, typename G>
-CompactedDBG<U, G>& CompactedDBG<U, G>::operator+=(const CompactedDBG<U, G>& o){
+Bifrost::CompactedDBG<U, G>& Bifrost::CompactedDBG<U, G>::operator+=(const Bifrost::CompactedDBG<U, G>& o){
 
     merge(o, false);
 
@@ -201,7 +201,7 @@ CompactedDBG<U, G>& CompactedDBG<U, G>::operator+=(const CompactedDBG<U, G>& o){
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::operator==(const CompactedDBG<U, G>& o) const {
+bool Bifrost::CompactedDBG<U, G>::operator==(const Bifrost::CompactedDBG<U, G>& o) const {
 
     if ((!invalid && !o.invalid) && (k_ == o.k_) && (size() == o.size())){
 
@@ -228,13 +228,13 @@ bool CompactedDBG<U, G>::operator==(const CompactedDBG<U, G>& o) const {
 }
 
 template<typename U, typename G>
-inline bool CompactedDBG<U, G>::operator!=(const CompactedDBG<U, G>& o) const {
+inline bool Bifrost::CompactedDBG<U, G>::operator!=(const Bifrost::CompactedDBG<U, G>& o) const {
 
     return !operator==(o);
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::clear(){
+void Bifrost::CompactedDBG<U, G>::clear(){
 
     k_ = 0;
     g_ = 0;
@@ -251,7 +251,7 @@ void CompactedDBG<U, G>::clear(){
 }
 
 /*template<typename U, typename G>
-bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
+bool Bifrost::CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
 
     size_t max_threads = std::thread::hardware_concurrency();
 
@@ -383,8 +383,8 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
 
         if ((opt.filename_seq_in.size() != 0) && (opt.filename_ref_in.size() != 0)){
 
-            CompactedDBG<U, G> graph_seq(k_, g_);
-            CompactedDBG<U, G> graph_ref(k_, g_);
+            Bifrost::CompactedDBG<U, G> graph_seq(k_, g_);
+            Bifrost::CompactedDBG<U, G> graph_ref(k_, g_);
 
             CDBG_Build_opt opt_seq(opt);
             CDBG_Build_opt opt_ref(opt);
@@ -499,7 +499,7 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
 }*/
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
+bool Bifrost::CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
 
     size_t max_threads = std::thread::hardware_concurrency();
 
@@ -631,8 +631,8 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
 
         if ((opt.filename_seq_in.size() != 0) && (opt.filename_ref_in.size() != 0)){
 
-            CompactedDBG<void, void> graph_seq(k_, g_);
-            CompactedDBG<void, void> graph_ref(k_, g_);
+            Bifrost::CompactedDBG<void, void> graph_seq(k_, g_);
+            Bifrost::CompactedDBG<void, void> graph_ref(k_, g_);
 
             CDBG_Build_opt opt_seq(opt);
             CDBG_Build_opt opt_ref(opt);
@@ -664,7 +664,7 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
         }
         else if (!is_void<U>::value) {
 
-            CompactedDBG<void, void> graph(k_, g_);
+            Bifrost::CompactedDBG<void, void> graph(k_, g_);
 
             construct_finished = graph.build(opt);
 
@@ -760,7 +760,7 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::simplify(const bool delete_short_isolated_unitigs, const bool clip_short_tips, const bool verbose){
+bool Bifrost::CompactedDBG<U, G>::simplify(const bool delete_short_isolated_unitigs, const bool clip_short_tips, const bool verbose){
 
     if (invalid){
 
@@ -795,7 +795,7 @@ bool CompactedDBG<U, G>::simplify(const bool delete_short_isolated_unitigs, cons
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::write(const string& output_filename, const size_t nb_threads, const bool GFA_output, const bool verbose) const {
+bool Bifrost::CompactedDBG<U, G>::write(const string& output_filename, const size_t nb_threads, const bool GFA_output, const bool verbose) const {
 
     if (invalid){
 
@@ -838,7 +838,7 @@ bool CompactedDBG<U, G>::write(const string& output_filename, const size_t nb_th
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::read(const string& input_filename, const size_t nb_threads, const bool verbose){
+bool Bifrost::CompactedDBG<U, G>::read(const string& input_filename, const size_t nb_threads, const bool verbose){
 
     if (verbose) cout << endl << "CompactedDBG::read(): Reading graph from disk" << endl;
 
@@ -970,7 +970,7 @@ bool CompactedDBG<U, G>::read(const string& input_filename, const size_t nb_thre
 }
 
 template<typename U, typename G>
-const_UnitigMap<U, G> CompactedDBG<U, G>::find(const char* s, const size_t pos_km, const minHashIterator<RepHash>& it_min, const bool extremities_only) const {
+Bifrost::const_UnitigMap<U, G> Bifrost::CompactedDBG<U, G>::find(const char* s, const size_t pos_km, const minHashIterator<RepHash>& it_min, const bool extremities_only) const {
 
     if (invalid){
 
@@ -1093,7 +1093,7 @@ const_UnitigMap<U, G> CompactedDBG<U, G>::find(const char* s, const size_t pos_k
 }
 
 template<typename U, typename G>
-UnitigMap<U, G> CompactedDBG<U, G>::find(const char* s, const size_t pos_km, const minHashIterator<RepHash>& it_min, const bool extremities_only) {
+Bifrost::UnitigMap<U, G> Bifrost::CompactedDBG<U, G>::find(const char* s, const size_t pos_km, const minHashIterator<RepHash>& it_min, const bool extremities_only) {
 
     if (invalid){
 
@@ -1216,7 +1216,7 @@ UnitigMap<U, G> CompactedDBG<U, G>::find(const char* s, const size_t pos_km, con
 }
 
 template<typename U, typename G>
-const_UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extremities_only) const {
+Bifrost::const_UnitigMap<U, G> Bifrost::CompactedDBG<U, G>::find(const Kmer& km, const bool extremities_only) const {
 
     if (invalid){
 
@@ -1338,7 +1338,7 @@ const_UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extrem
 }
 
 template<typename U, typename G>
-UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extremities_only) {
+Bifrost::UnitigMap<U, G> Bifrost::CompactedDBG<U, G>::find(const Kmer& km, const bool extremities_only) {
 
     if (invalid){
 
@@ -1460,7 +1460,7 @@ UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extremities_
 }
 
 template<typename U, typename G>
-vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& km, const bool extremities_only) const {
+vector<Bifrost::const_UnitigMap<U, G>> Bifrost::CompactedDBG<U, G>::findPredecessors(const Kmer& km, const bool extremities_only) const {
 
     const Kmer km_pred[4] = {km.backwardBase('A'), km.backwardBase('C'), km.backwardBase('G'), km.backwardBase('T')};
     const Kmer km_rep[4] = {km_pred[0].rep(), km_pred[1].rep(), km_pred[2].rep(), km_pred[3].rep()};
@@ -1610,7 +1610,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& k
 }
 
 template<typename U, typename G>
-vector<UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& km, const bool extremities_only) {
+vector<Bifrost::UnitigMap<U, G>> Bifrost::CompactedDBG<U, G>::findPredecessors(const Kmer& km, const bool extremities_only) {
 
     const Kmer km_pred[4] = {km.backwardBase('A'), km.backwardBase('C'), km.backwardBase('G'), km.backwardBase('T')};
     const Kmer km_rep[4] = {km_pred[0].rep(), km_pred[1].rep(), km_pred[2].rep(), km_pred[3].rep()};
@@ -1760,7 +1760,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& km, con
 }
 
 template<typename U, typename G>
-vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const size_t limit, const bool extremities_only) const {
+vector<Bifrost::const_UnitigMap<U, G>> Bifrost::CompactedDBG<U, G>::findSuccessors(const Kmer& km, const size_t limit, const bool extremities_only) const {
 
     vector<const_UnitigMap<U, G>> v_um(4, const_UnitigMap<U, G>(1, this));
 
@@ -1945,7 +1945,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
 }
 
 template<typename U, typename G>
-vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const size_t limit, const bool extremities_only) {
+vector<Bifrost::UnitigMap<U, G>> Bifrost::CompactedDBG<U, G>::findSuccessors(const Kmer& km, const size_t limit, const bool extremities_only) {
 
     vector<UnitigMap<U, G>> v_um(4, UnitigMap<U, G>(1, this));
 
@@ -2130,7 +2130,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::add(const string& seq, const bool verbose){
+bool Bifrost::CompactedDBG<U, G>::add(const string& seq, const bool verbose){
 
     if (invalid){
 
@@ -2178,7 +2178,7 @@ bool CompactedDBG<U, G>::add(const string& seq, const bool verbose){
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::remove(const const_UnitigMap<U, G>& um, const bool verbose){
+bool Bifrost::CompactedDBG<U, G>::remove(const const_UnitigMap<U, G>& um, const bool verbose){
 
     if (invalid){
 
@@ -2229,7 +2229,7 @@ bool CompactedDBG<U, G>::remove(const const_UnitigMap<U, G>& um, const bool verb
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::merge(const CompactedDBG& o, const size_t nb_threads, const bool verbose){
+bool Bifrost::CompactedDBG<U, G>::merge(const CompactedDBG& o, const size_t nb_threads, const bool verbose){
 
     bool ret = true;
 
@@ -2293,7 +2293,7 @@ bool CompactedDBG<U, G>::merge(const CompactedDBG& o, const size_t nb_threads, c
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::merge(const vector<CompactedDBG>& v, const size_t nb_threads, const bool verbose){
+bool Bifrost::CompactedDBG<U, G>::merge(const vector<CompactedDBG>& v, const size_t nb_threads, const bool verbose){
 
     bool ret = true;
 
@@ -2370,7 +2370,7 @@ bool CompactedDBG<U, G>::merge(const vector<CompactedDBG>& v, const size_t nb_th
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::annotateSplitUnitigs(const CompactedDBG<U, G>& o, const size_t nb_threads, const bool verbose){
+bool Bifrost::CompactedDBG<U, G>::annotateSplitUnitigs(const Bifrost::CompactedDBG<U, G>& o, const size_t nb_threads, const bool verbose){
 
     if ((this != &o) && !invalid && !o.invalid) { // TODO: Check if k_ and g_ are the same
 
@@ -2392,8 +2392,8 @@ bool CompactedDBG<U, G>::annotateSplitUnitigs(const CompactedDBG<U, G>& o, const
 
             vector<thread> workers; // need to keep track of threads so we can join them
 
-            typename CompactedDBG<U, G>::const_iterator g_a(o.begin());
-            typename CompactedDBG<U, G>::const_iterator g_b(o.end());
+            typename Bifrost::CompactedDBG<U, G>::const_iterator g_a(o.begin());
+            typename Bifrost::CompactedDBG<U, G>::const_iterator g_b(o.end());
 
             LockGraph lck_g(nb_locks);
 
@@ -2405,7 +2405,7 @@ bool CompactedDBG<U, G>::annotateSplitUnitigs(const CompactedDBG<U, G>& o, const
 
                     [&/*, t*/]{
 
-                        typename CompactedDBG<U, G>::const_iterator l_a, l_b;
+                        typename Bifrost::CompactedDBG<U, G>::const_iterator l_a, l_b;
 
                         while (true) {
 
@@ -2443,7 +2443,7 @@ bool CompactedDBG<U, G>::annotateSplitUnitigs(const CompactedDBG<U, G>& o, const
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::mergeData(const CompactedDBG<U, G>& o, const size_t nb_threads, const bool verbose){
+bool Bifrost::CompactedDBG<U, G>::mergeData(const Bifrost::CompactedDBG<U, G>& o, const size_t nb_threads, const bool verbose){
 
     if ((this != &o) && !invalid && !o.invalid){ // TODO: Check if k_ and g_ are the same
 
@@ -2455,7 +2455,7 @@ bool CompactedDBG<U, G>::mergeData(const CompactedDBG<U, G>& o, const size_t nb_
 
         for (size_t i = 0; i < nb_locks; ++i) locks_unitig[i].clear();
 
-        auto worker_function = [&](typename CompactedDBG<U, G>::const_iterator it_a, typename CompactedDBG<U, G>::const_iterator it_b) {
+        auto worker_function = [&](typename Bifrost::CompactedDBG<U, G>::const_iterator it_a, typename Bifrost::CompactedDBG<U, G>::const_iterator it_b) {
 
             while (it_a != it_b) {
 
@@ -2496,8 +2496,8 @@ bool CompactedDBG<U, G>::mergeData(const CompactedDBG<U, G>& o, const size_t nb_
 
         vector<thread> workers; // need to keep track of threads so we can join them
 
-        typename CompactedDBG<U, G>::const_iterator g_a = o.begin();
-        typename CompactedDBG<U, G>::const_iterator g_b = o.end();
+        typename Bifrost::CompactedDBG<U, G>::const_iterator g_a = o.begin();
+        typename Bifrost::CompactedDBG<U, G>::const_iterator g_b = o.end();
 
         mutex mutex_it;
 
@@ -2507,7 +2507,7 @@ bool CompactedDBG<U, G>::mergeData(const CompactedDBG<U, G>& o, const size_t nb_
 
                 [&]{
 
-                    typename CompactedDBG<U, G>::const_iterator l_a, l_b;
+                    typename Bifrost::CompactedDBG<U, G>::const_iterator l_a, l_b;
 
                     while (true) {
 
@@ -2543,7 +2543,7 @@ bool CompactedDBG<U, G>::mergeData(const CompactedDBG<U, G>& o, const size_t nb_
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::mergeData(CompactedDBG<U, G>&& o, const size_t nb_threads, const bool verbose){
+bool Bifrost::CompactedDBG<U, G>::mergeData(Bifrost::CompactedDBG<U, G>&& o, const size_t nb_threads, const bool verbose){
 
     if ((this != &o) && !invalid && !o.invalid){ // TODO: Check if k_ and g_ are the same
 
@@ -2555,7 +2555,7 @@ bool CompactedDBG<U, G>::mergeData(CompactedDBG<U, G>&& o, const size_t nb_threa
 
         for (size_t i = 0; i < nb_locks; ++i) locks_unitig[i].clear();
 
-        auto worker_function = [&](typename CompactedDBG<U, G>::iterator it_a, typename CompactedDBG<U, G>::iterator it_b) {
+        auto worker_function = [&](typename Bifrost::CompactedDBG<U, G>::iterator it_a, typename Bifrost::CompactedDBG<U, G>::iterator it_b) {
 
             while (it_a != it_b) {
 
@@ -2598,8 +2598,8 @@ bool CompactedDBG<U, G>::mergeData(CompactedDBG<U, G>&& o, const size_t nb_threa
 
         vector<thread> workers; // need to keep track of threads so we can join them
 
-        typename CompactedDBG<U, G>::iterator g_a = o.begin();
-        typename CompactedDBG<U, G>::iterator g_b = o.end();
+        typename Bifrost::CompactedDBG<U, G>::iterator g_a = o.begin();
+        typename Bifrost::CompactedDBG<U, G>::iterator g_b = o.end();
 
         mutex mutex_it;
 
@@ -2609,7 +2609,7 @@ bool CompactedDBG<U, G>::mergeData(CompactedDBG<U, G>&& o, const size_t nb_threa
 
                 [&, t]{
 
-                    typename CompactedDBG<U, G>::iterator l_a, l_b;
+                    typename Bifrost::CompactedDBG<U, G>::iterator l_a, l_b;
 
                     while (true) {
 
@@ -2645,7 +2645,7 @@ bool CompactedDBG<U, G>::mergeData(CompactedDBG<U, G>&& o, const size_t nb_threa
 }
 
 template<typename U, typename G>
-typename CompactedDBG<U, G>::iterator CompactedDBG<U, G>::begin() {
+typename Bifrost::CompactedDBG<U, G>::iterator Bifrost::CompactedDBG<U, G>::begin() {
 
     if (invalid) return iterator();
 
@@ -2656,7 +2656,7 @@ typename CompactedDBG<U, G>::iterator CompactedDBG<U, G>::begin() {
 }
 
 template<typename U, typename G>
-typename CompactedDBG<U, G>::const_iterator CompactedDBG<U, G>::begin() const {
+typename Bifrost::CompactedDBG<U, G>::const_iterator Bifrost::CompactedDBG<U, G>::begin() const {
 
     if (invalid) return const_iterator();
 
@@ -2667,13 +2667,13 @@ typename CompactedDBG<U, G>::const_iterator CompactedDBG<U, G>::begin() const {
 }
 
 template<typename U, typename G>
-typename CompactedDBG<U, G>::iterator CompactedDBG<U, G>::end() { return iterator(); }
+typename Bifrost::CompactedDBG<U, G>::iterator Bifrost::CompactedDBG<U, G>::end() { return iterator(); }
 
 template<typename U, typename G>
-typename CompactedDBG<U, G>::const_iterator CompactedDBG<U, G>::end() const { return const_iterator(); }
+typename Bifrost::CompactedDBG<U, G>::const_iterator Bifrost::CompactedDBG<U, G>::end() const { return const_iterator(); }
 
 template<typename U, typename G>
-size_t CompactedDBG<U, G>::length() const {
+size_t Bifrost::CompactedDBG<U, G>::length() const {
 
     size_t len = 0;
 
@@ -2688,7 +2688,7 @@ size_t CompactedDBG<U, G>::length() const {
 }
 
 template<typename U, typename G>
-size_t CompactedDBG<U, G>::nbKmers() const {
+size_t Bifrost::CompactedDBG<U, G>::nbKmers() const {
 
     size_t nb = 0;
 
@@ -2703,7 +2703,7 @@ size_t CompactedDBG<U, G>::nbKmers() const {
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers) {
+bool Bifrost::CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers) {
 
     if (invalid){
 
@@ -2926,7 +2926,7 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_uniqu
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers){
+bool Bifrost::CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers){
 
     if (invalid){
 
@@ -3257,7 +3257,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::addUnitigSequenceBBF(const Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km, LockGraph& lck_g) {
+bool Bifrost::CompactedDBG<U, G>::addUnitigSequenceBBF(const Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km, LockGraph& lck_g) {
 
     bool isAbundant = false;
 
@@ -3304,7 +3304,7 @@ bool CompactedDBG<U, G>::addUnitigSequenceBBF(const Kmer km, const string& seq, 
 //       than the last kmer
 //       selfLoop is true of the unitig is a loop or hairpin
 template<typename U, typename G>
-size_t CompactedDBG<U, G>::findUnitigSequenceBBF(Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip) {
+size_t Bifrost::CompactedDBG<U, G>::findUnitigSequenceBBF(Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip) {
 
     string fw_s, bw_s;
 
@@ -3370,7 +3370,7 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(Kmer km, string& s, bool& isIso
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::bwStepBBF(const Kmer km, Kmer& front, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand) const {
+bool Bifrost::CompactedDBG<U, G>::bwStepBBF(const Kmer km, Kmer& front, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand) const {
 
     char km_tmp[MAX_KMER_SIZE];
 
@@ -3549,7 +3549,7 @@ bool CompactedDBG<U, G>::bwStepBBF(const Kmer km, Kmer& front, char& c, bool& ha
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::fwStepBBF(const Kmer km, Kmer& end, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand) const {
+bool Bifrost::CompactedDBG<U, G>::fwStepBBF(const Kmer km, Kmer& end, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand) const {
 
     char km_tmp[MAX_KMER_SIZE];
 
@@ -3732,7 +3732,7 @@ bool CompactedDBG<U, G>::fwStepBBF(const Kmer km, Kmer& end, char& c, bool& has_
 // post: cc contains either the reference to the unitig position
 //       or empty if none found
 template<typename U, typename G>
-UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const Kmer& km, const char* s, const size_t pos) {
+Bifrost::UnitigMap<U, G> Bifrost::CompactedDBG<U, G>::findUnitig(const Kmer& km, const char* s, const size_t pos) {
 
     // need to check if we find it right away, need to treat this common case
     UnitigMap<U, G> um = find(km);
@@ -3749,7 +3749,7 @@ UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const Kmer& km, const char* s, co
 }
 
 template<typename U, typename G>
-UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const char* s, const size_t pos, const size_t len) {
+Bifrost::UnitigMap<U, G> Bifrost::CompactedDBG<U, G>::findUnitig(const char* s, const size_t pos, const size_t len) {
 
     if ((len < k_) || (pos > len - k_)) return UnitigMap<U, G>();
 
@@ -3773,7 +3773,7 @@ UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const char* s, const size_t pos, 
 }
 
 template<typename U, typename G>
-const_UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const char* s, const size_t pos, const size_t len) const {
+Bifrost::const_UnitigMap<U, G> Bifrost::CompactedDBG<U, G>::findUnitig(const char* s, const size_t pos, const size_t len) const {
 
     if ((len < k_) || (pos > len - k_)) return const_UnitigMap<U, G>();
 
@@ -3797,7 +3797,7 @@ const_UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const char* s, const size_t
 }
 
 template<typename U, typename G>
-UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const char* s, const size_t pos, const size_t len, const minHashIterator<RepHash>& it_min) {
+Bifrost::UnitigMap<U, G> Bifrost::CompactedDBG<U, G>::findUnitig(const char* s, const size_t pos, const size_t len, const minHashIterator<RepHash>& it_min) {
 
     if ((len < k_) || (pos > len - k_)) return UnitigMap<U, G>();
 
@@ -3821,7 +3821,7 @@ UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const char* s, const size_t pos, 
 }
 
 template<typename U, typename G>
-const_UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const char* s, const size_t pos, const size_t len, const minHashIterator<RepHash>& it_min) const {
+Bifrost::const_UnitigMap<U, G> Bifrost::CompactedDBG<U, G>::findUnitig(const char* s, const size_t pos, const size_t len, const minHashIterator<RepHash>& it_min) const {
 
     if ((len < k_) || (pos > len - k_)) return const_UnitigMap<U, G>();
 
@@ -3845,7 +3845,7 @@ const_UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const char* s, const size_t
 }
 
 template<typename U, typename G>
-UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const Kmer& km, const char* s, const size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h) {
+Bifrost::UnitigMap<U, G> Bifrost::CompactedDBG<U, G>::findUnitig(const Kmer& km, const char* s, const size_t pos, const preAllocMinHashIterator<RepHash>& it_min_h) {
 
     // need to check if we find it right away, need to treat this common case
     UnitigMap<U, G> um = find(km, it_min_h);
@@ -3862,7 +3862,7 @@ UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const Kmer& km, const char* s, co
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_unitig){
+bool Bifrost::CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_unitig){
 
     int pos;
 
@@ -4017,7 +4017,7 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::moveToAbundant() {
+void Bifrost::CompactedDBG<U, G>::moveToAbundant() {
 
     MinimizerIndex::iterator it = hmap_min_unitigs.begin();
     MinimizerIndex::iterator it_end = hmap_min_unitigs.end();
@@ -4102,7 +4102,7 @@ void CompactedDBG<U, G>::moveToAbundant() {
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_unitig, SpinLock& lck_unitig, SpinLock& lck_kmer){
+bool Bifrost::CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_unitig, SpinLock& lck_unitig, SpinLock& lck_kmer){
 
     int pos;
 
@@ -4229,7 +4229,7 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_unitig, const size_t id_unitig_r, const size_t is_short_r){
+bool Bifrost::CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_unitig, const size_t id_unitig_r, const size_t is_short_r){
 
     int pos;
 
@@ -4412,7 +4412,7 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, const size_t id_b){
+void Bifrost::CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, const size_t id_b){
 
     size_t shift_id_unitig_a = id_a << 32;
     size_t shift_id_unitig_b = id_b << 32;
@@ -4629,9 +4629,9 @@ void CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, cons
 }
 
 // Input sequence must not contain duplicated k-mers
-// If it does, use CompactedDBG<U, G>::add().
+// If it does, use Bifrost::CompactedDBG<U, G>::add().
 template<typename U, typename G>
-bool CompactedDBG<U, G>::mergeUnitig(const string& seq, const bool verbose){
+bool Bifrost::CompactedDBG<U, G>::mergeUnitig(const string& seq, const bool verbose){
 
     if (invalid){
 
@@ -4855,7 +4855,7 @@ bool CompactedDBG<U, G>::mergeUnitig(const string& seq, const bool verbose){
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, const bool verbose){
+bool Bifrost::CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, const bool verbose){
 
     if (invalid){
 
@@ -5009,7 +5009,7 @@ bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, const bool verbo
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, LockGraph& lck_g, const bool verbose){
+bool Bifrost::CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, LockGraph& lck_g, const bool verbose){
 
     if (invalid){
 
@@ -5171,7 +5171,7 @@ bool CompactedDBG<U, G>::annotateSplitUnitig(const string& seq, LockGraph& lck_g
 
 template<typename U, typename G>
 template<bool is_void>
-typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::deleteUnitig_(const bool isShort, const bool isAbundant,
+typename std::enable_if<!is_void, void>::type Bifrost::CompactedDBG<U, G>::deleteUnitig_(const bool isShort, const bool isAbundant,
                                                                                 const size_t id_unitig, const bool delete_data){
 
     if (isAbundant){
@@ -5328,7 +5328,7 @@ typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::deleteUnitig_(
 
 template<typename U, typename G>
 template<bool is_void>
-typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::deleteUnitig_( const bool isShort, const bool isAbundant,
+typename std::enable_if<is_void, void>::type Bifrost::CompactedDBG<U, G>::deleteUnitig_( const bool isShort, const bool isAbundant,
                                                                                 const size_t id_unitig, const bool delete_data){
 
     if (isAbundant){
@@ -5477,7 +5477,7 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::deleteUnitig_( 
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::deleteUnitig_(const bool isShort, const bool isAbundant, const size_t id_unitig, const string& str){
+void Bifrost::CompactedDBG<U, G>::deleteUnitig_(const bool isShort, const bool isAbundant, const size_t id_unitig, const string& str){
 
     const char* s = str.c_str();
     const size_t len = str.size();
@@ -5594,7 +5594,7 @@ void CompactedDBG<U, G>::deleteUnitig_(const bool isShort, const bool isAbundant
 
 template<typename U, typename G>
 template<bool is_void>
-typename std::enable_if<!is_void, bool>::type CompactedDBG<U, G>::extractUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
+typename std::enable_if<!is_void, bool>::type Bifrost::CompactedDBG<U, G>::extractUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
                                                                                size_t& v_unitigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp){
 
     bool deleted = true;
@@ -5702,7 +5702,7 @@ typename std::enable_if<!is_void, bool>::type CompactedDBG<U, G>::extractUnitig_
 
 template<typename U, typename G>
 template<bool is_void>
-typename std::enable_if<is_void, bool>::type CompactedDBG<U, G>::extractUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
+typename std::enable_if<is_void, bool>::type Bifrost::CompactedDBG<U, G>::extractUnitig_(size_t& pos_v_unitigs, size_t& nxt_pos_insert_v_unitigs,
                                                                               size_t& v_unitigs_sz, size_t& v_kmers_sz, const vector<pair<int,int>>& sp){
 
     bool deleted = true;
@@ -5764,7 +5764,7 @@ typename std::enable_if<is_void, bool>::type CompactedDBG<U, G>::extractUnitig_(
 }
 
 template<typename U, typename G>
-UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const preAllocMinHashIterator<RepHash>& it_min_h) {
+Bifrost::UnitigMap<U, G> Bifrost::CompactedDBG<U, G>::find(const Kmer& km, const preAllocMinHashIterator<RepHash>& it_min_h) {
 
     const Kmer km_twin = km.twin();
     const Kmer& km_rep = km < km_twin ? km : km_twin;
@@ -5879,7 +5879,7 @@ UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const preAllocMinHashIt
 // post: All unitigs have a per k-mer coverage of CompressedCoverage::getFullCoverage(). The graph is not
 //       necessarily compacted after calling this function.
 template<typename U, typename G>
-pair<size_t, size_t> CompactedDBG<U, G>::extractAllUnitigs() {
+pair<size_t, size_t> Bifrost::CompactedDBG<U, G>::extractAllUnitigs() {
 
     size_t i;
     size_t split = 0, deleted = 0;
@@ -5938,7 +5938,7 @@ pair<size_t, size_t> CompactedDBG<U, G>::extractAllUnitigs() {
 // post: All unitigs have a per k-mer coverage of CompressedCoverage::getFullCoverage(). The graph is not
 //       necessarily compacted after calling this function.
 template<typename U, typename G>
-pair<size_t, size_t> CompactedDBG<U, G>::splitAllUnitigs() {
+pair<size_t, size_t> Bifrost::CompactedDBG<U, G>::splitAllUnitigs() {
 
     pair<size_t, size_t> p = {0, 0};
 
@@ -5986,7 +5986,7 @@ pair<size_t, size_t> CompactedDBG<U, G>::splitAllUnitigs() {
 }
 
 template<typename U, typename G>
-pair<size_t, size_t> CompactedDBG<U, G>::getSplitInfoAllUnitigs() const {
+pair<size_t, size_t> Bifrost::CompactedDBG<U, G>::getSplitInfoAllUnitigs() const {
 
     pair<size_t, size_t> p = {0, 0};
 
@@ -6019,7 +6019,7 @@ pair<size_t, size_t> CompactedDBG<U, G>::getSplitInfoAllUnitigs() const {
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>& joins, const size_t nb_threads) const {
+void Bifrost::CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>& joins, const size_t nb_threads) const {
 
     const size_t v_unitigs_size = v_unitigs.size();
     const size_t v_kmers_size = km_unitigs.size();
@@ -6338,7 +6338,7 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<char>& joins, const size_t nb_threads) const {
+void Bifrost::CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<char>& joins, const size_t nb_threads) const {
 
     const size_t v_unitigs_size = v_unitigs.size();
     const size_t v_kmers_size = km_unitigs.size();
@@ -6663,7 +6663,7 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<char>
 //       joined is the number of joined unitigs
 template<typename U, typename G>
 template<bool is_void>
-typename std::enable_if<!is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_(vector<Kmer>* v_joins, const size_t nb_threads) {
+typename std::enable_if<!is_void, size_t>::type Bifrost::CompactedDBG<U, G>::joinUnitigs_(vector<Kmer>* v_joins, const size_t nb_threads) {
 
     size_t joined = 0;
     size_t cov_full = CompressedCoverage::getFullCoverage();
@@ -6865,7 +6865,7 @@ typename std::enable_if<!is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_
 
 template<typename U, typename G>
 template<bool is_void>
-typename std::enable_if<is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_(vector<Kmer>* v_joins, const size_t nb_threads) {
+typename std::enable_if<is_void, size_t>::type Bifrost::CompactedDBG<U, G>::joinUnitigs_(vector<Kmer>* v_joins, const size_t nb_threads) {
 
     size_t joined = 0;
     size_t cov_full = CompressedCoverage::getFullCoverage();
@@ -7053,7 +7053,7 @@ typename std::enable_if<is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_(
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::checkJoin(const Kmer& a, const const_UnitigMap<U, G>& cm_a, Kmer& b) const {
+bool Bifrost::CompactedDBG<U, G>::checkJoin(const Kmer& a, const const_UnitigMap<U, G>& cm_a, Kmer& b) const {
 
     size_t i, j, count_succ;
 
@@ -7102,7 +7102,7 @@ bool CompactedDBG<U, G>::checkJoin(const Kmer& a, const const_UnitigMap<U, G>& c
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::check_fp_tips(KmerHashTable<bool>& ignored_km_tips){
+void Bifrost::CompactedDBG<U, G>::check_fp_tips(KmerHashTable<bool>& ignored_km_tips){
 
     uint64_t nb_real_short_tips = 0;
 
@@ -7177,7 +7177,7 @@ void CompactedDBG<U, G>::check_fp_tips(KmerHashTable<bool>& ignored_km_tips){
 }
 
 template<typename U, typename G>
-size_t CompactedDBG<U, G>::removeUnitigs(bool rmIsolated, bool clipTips, vector<Kmer>& v){
+size_t Bifrost::CompactedDBG<U, G>::removeUnitigs(bool rmIsolated, bool clipTips, vector<Kmer>& v){
 
     if (!rmIsolated && !clipTips) return 0;
 
@@ -7347,7 +7347,7 @@ size_t CompactedDBG<U, G>::removeUnitigs(bool rmIsolated, bool clipTips, vector<
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::writeFASTA(const string& graphfilename) const {
+void Bifrost::CompactedDBG<U, G>::writeFASTA(const string& graphfilename) const {
 
     const size_t v_unitigs_sz = v_unitigs.size();
     const size_t v_kmers_sz = km_unitigs.size();
@@ -7376,7 +7376,7 @@ void CompactedDBG<U, G>::writeFASTA(const string& graphfilename) const {
 
 template<typename U, typename G>
 template<bool is_void>
-typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const {
+typename std::enable_if<!is_void, void>::type Bifrost::CompactedDBG<U, G>::writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const {
 
     size_t labelA = 1;
 
@@ -7394,7 +7394,7 @@ typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::writeGFA_seque
 
 template<typename U, typename G>
 template<bool is_void>
-typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const {
+typename std::enable_if<is_void, void>::type Bifrost::CompactedDBG<U, G>::writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const {
 
     size_t labelA = 1;
 
@@ -7411,7 +7411,7 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::writeGFA_sequen
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::writeGFA(const string& graphfilename, const size_t nb_threads) const {
+void Bifrost::CompactedDBG<U, G>::writeGFA(const string& graphfilename, const size_t nb_threads) const {
 
     const size_t v_unitigs_sz = v_unitigs.size();
     const size_t v_kmers_sz = km_unitigs.size();
@@ -7820,7 +7820,7 @@ void CompactedDBG<U, G>::writeGFA(const string& graphfilename, const size_t nb_t
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::readGFA(const string& graphfilename, const size_t nb_threads) {
+void Bifrost::CompactedDBG<U, G>::readGFA(const string& graphfilename, const size_t nb_threads) {
 
     size_t graph_file_id = 0;
 
@@ -7903,7 +7903,7 @@ void CompactedDBG<U, G>::readGFA(const string& graphfilename, const size_t nb_th
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::readFASTA(const string& graphfilename, const size_t nb_threads) {
+void Bifrost::CompactedDBG<U, G>::readFASTA(const string& graphfilename, const size_t nb_threads) {
 
     size_t graph_file_id = 0;
 
@@ -7974,7 +7974,7 @@ void CompactedDBG<U, G>::readFASTA(const string& graphfilename, const size_t nb_
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::mapRead(const const_UnitigMap<U, G>& um) {
+void Bifrost::CompactedDBG<U, G>::mapRead(const const_UnitigMap<U, G>& um) {
 
     if (um.isEmpty) return; // nothing maps, move on
 
@@ -7984,7 +7984,7 @@ void CompactedDBG<U, G>::mapRead(const const_UnitigMap<U, G>& um) {
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::mapRead(const const_UnitigMap<U, G>& um, LockGraph& lck_g) {
+void Bifrost::CompactedDBG<U, G>::mapRead(const const_UnitigMap<U, G>& um, LockGraph& lck_g) {
 
     if (um.isEmpty) return; // nothing maps, move on
 
@@ -8006,7 +8006,7 @@ void CompactedDBG<U, G>::mapRead(const const_UnitigMap<U, G>& um, LockGraph& lck
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::unmapRead(const const_UnitigMap<U, G>& um) {
+void Bifrost::CompactedDBG<U, G>::unmapRead(const const_UnitigMap<U, G>& um) {
 
     if (um.isEmpty) return; // nothing maps, move on
 
@@ -8016,7 +8016,7 @@ void CompactedDBG<U, G>::unmapRead(const const_UnitigMap<U, G>& um) {
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::unmapRead(const const_UnitigMap<U, G>& um, LockGraph& lck_g) {
+void Bifrost::CompactedDBG<U, G>::unmapRead(const const_UnitigMap<U, G>& um, LockGraph& lck_g) {
 
     if (um.isEmpty) return; // nothing maps, move on
 
@@ -8038,7 +8038,7 @@ void CompactedDBG<U, G>::unmapRead(const const_UnitigMap<U, G>& um, LockGraph& l
 }
 
 template<typename U, typename G>
-vector<Kmer> CompactedDBG<U, G>::extractMercyKmers(BlockedBloomFilter& bf_uniq_km, const size_t nb_threads, const bool verbose) {
+vector<Bifrost::Kmer> Bifrost::CompactedDBG<U, G>::extractMercyKmers(BlockedBloomFilter& bf_uniq_km, const size_t nb_threads, const bool verbose) {
 
     const size_t v_unitigs_sz = v_unitigs.size();
     const size_t v_kmers_sz = km_unitigs.size();
@@ -8282,7 +8282,7 @@ vector<Kmer> CompactedDBG<U, G>::extractMercyKmers(BlockedBloomFilter& bf_uniq_k
 }
 
 template<typename U, typename G>
-size_t CompactedDBG<U, G>::joinTips(string filename_MBBF_uniq_kmers, const size_t nb_threads, const bool verbose) {
+size_t Bifrost::CompactedDBG<U, G>::joinTips(string filename_MBBF_uniq_kmers, const size_t nb_threads, const bool verbose) {
 
     if (invalid){
 
@@ -8309,13 +8309,13 @@ size_t CompactedDBG<U, G>::joinTips(string filename_MBBF_uniq_kmers, const size_
 
     size_t nb_join = joinUnitigs_<is_void<U>::value>(&v_mercy_km, nb_threads);
 
-    if (verbose) cout << "CompactedDBG<U, G>::joinTips(): " << nb_join << " unitigs have been joined using mercy k-mers" << endl;
+    if (verbose) cout << "Bifrost::CompactedDBG<U, G>::joinTips(): " << nb_join << " unitigs have been joined using mercy k-mers" << endl;
 
     return nb_join;
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::setKmerGmerLength(const int kmer_length, const int minimizer_length){
+void Bifrost::CompactedDBG<U, G>::setKmerGmerLength(const int kmer_length, const int minimizer_length){
 
     invalid = false;
 
@@ -8364,14 +8364,14 @@ void CompactedDBG<U, G>::setKmerGmerLength(const int kmer_length, const int mini
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::setFullCoverage(const size_t cov) const {
+void Bifrost::CompactedDBG<U, G>::setFullCoverage(const size_t cov) const {
 
     CompressedCoverage::setFullCoverage(cov);
     KmerCovIndex<U>::setFullCoverage(cov);
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::print() const {
+void Bifrost::CompactedDBG<U, G>::print() const {
 
     cout << "CompactedDBG::print(): v_unitigs.size() = " << v_unitigs.size() << endl;
     cout << "CompactedDBG::print(): v_kmers.size() = " << km_unitigs.size() << endl;

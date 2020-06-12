@@ -5,10 +5,10 @@
 #include "UnitigMap.hpp"
 
 template<typename U, typename G, bool is_const>
-neighborIterator<U, G, is_const>::neighborIterator() : i(4), is_fw(true), cdbg(nullptr) {}
+Bifrost::neighborIterator<U, G, is_const>::neighborIterator() : i(4), is_fw(true), cdbg(nullptr) {}
 
 template<typename U, typename G, bool is_const>
-neighborIterator<U, G, is_const>::neighborIterator(const UnitigMap<U, G, is_const>& um_, const bool is_forward_) : i(-1), is_fw(is_forward_), cdbg(um_.getGraph()) {
+Bifrost::neighborIterator<U, G, is_const>::neighborIterator(const UnitigMap<U, G, is_const>& um_, const bool is_forward_) : i(-1), is_fw(is_forward_), cdbg(um_.getGraph()) {
 
     if (um_.isEmpty || (cdbg == nullptr) || cdbg->invalid) i = 4;
     else {
@@ -19,10 +19,10 @@ neighborIterator<U, G, is_const>::neighborIterator(const UnitigMap<U, G, is_cons
 }
 
 template<typename U, typename G, bool is_const>
-neighborIterator<U, G, is_const>::neighborIterator(const neighborIterator& o) : i(o.i), is_fw(o.is_fw), um(o.um), km_head(o.km_head), km_tail(o.km_tail), cdbg(o.cdbg) {}
+Bifrost::neighborIterator<U, G, is_const>::neighborIterator(const neighborIterator& o) : i(o.i), is_fw(o.is_fw), um(o.um), km_head(o.km_head), km_tail(o.km_tail), cdbg(o.cdbg) {}
 
 template<typename U, typename G, bool is_const>
-neighborIterator<U, G, is_const>& neighborIterator<U, G, is_const>::operator++() {
+Bifrost::neighborIterator<U, G, is_const>& Bifrost::neighborIterator<U, G, is_const>::operator++() {
 
     if ((cdbg == NULL) || cdbg->invalid || (i >= 4)) return *this;
 
@@ -47,7 +47,7 @@ neighborIterator<U, G, is_const>& neighborIterator<U, G, is_const>::operator++()
 }
 
 template<typename U, typename G, bool is_const>
-neighborIterator<U, G, is_const> neighborIterator<U, G, is_const>::operator++(int) {
+Bifrost::neighborIterator<U, G, is_const> Bifrost::neighborIterator<U, G, is_const>::operator++(int) {
 
     neighborIterator tmp(*this);
     operator++();
@@ -56,35 +56,35 @@ neighborIterator<U, G, is_const> neighborIterator<U, G, is_const>::operator++(in
 }
 
 template<typename U, typename G, bool is_const>
-bool neighborIterator<U, G, is_const>::operator==(const neighborIterator& o) const {
+bool Bifrost::neighborIterator<U, G, is_const>::operator==(const neighborIterator& o) const {
 
     if ((i >= 4) || (o.i >= 4)) return (i >= 4) && (o.i >= 4);
     return (is_fw == o.is_fw) && (km_head == o.km_head) && (km_tail == o.km_tail) && (cdbg == o.cdbg) && (um == o.um);
 }
 
 template<typename U, typename G, bool is_const>
-bool neighborIterator<U, G, is_const>::operator!=(const neighborIterator& o) const { return !operator==(o); }
+bool Bifrost::neighborIterator<U, G, is_const>::operator!=(const neighborIterator& o) const { return !operator==(o); }
 
 template<typename U, typename G, bool is_const>
-const UnitigMap<U, G, is_const>& neighborIterator<U, G, is_const>::operator*() const { return um; }
+const Bifrost::UnitigMap<U, G, is_const>& Bifrost::neighborIterator<U, G, is_const>::operator*() const { return um; }
 
 template<typename U, typename G, bool is_const>
-const UnitigMap<U, G, is_const>* neighborIterator<U, G, is_const>::operator->() const { return &um; }
+const Bifrost::UnitigMap<U, G, is_const>* Bifrost::neighborIterator<U, G, is_const>::operator->() const { return &um; }
 
 
 
 
 template<typename U, typename G, bool is_const>
-BackwardCDBG<U, G, is_const>::BackwardCDBG(const UnitigMap<U, G, is_const>& um_) : um(um_) {}
+Bifrost::BackwardCDBG<U, G, is_const>::BackwardCDBG(const UnitigMap<U, G, is_const>& um_) : um(um_) {}
 
 template<typename U, typename G, bool is_const>
-bool BackwardCDBG<U, G, is_const>::hasPredecessors() const { return (um.bw_begin() != um.bw_end()); }
+bool Bifrost::BackwardCDBG<U, G, is_const>::hasPredecessors() const { return (um.bw_begin() != um.bw_end()); }
 
 template<typename U, typename G, bool is_const>
-size_t BackwardCDBG<U, G, is_const>::cardinality() const {
+size_t Bifrost::BackwardCDBG<U, G, is_const>::cardinality() const {
 
-    neighborIterator<U, G, is_const> it_start = begin();
-    neighborIterator<U, G, is_const> it_end = end();
+    Bifrost::neighborIterator<U, G, is_const> it_start = begin();
+    Bifrost::neighborIterator<U, G, is_const> it_end = end();
 
     size_t card = 0;
 
@@ -98,25 +98,25 @@ size_t BackwardCDBG<U, G, is_const>::cardinality() const {
 }
 
 template<typename U, typename G, bool is_const>
-neighborIterator<U, G, is_const> BackwardCDBG<U, G, is_const>::begin() const { return um.bw_begin(); }
+Bifrost::neighborIterator<U, G, is_const> Bifrost::BackwardCDBG<U, G, is_const>::begin() const { return um.bw_begin(); }
 
 template<typename U, typename G, bool is_const>
-neighborIterator<U, G, is_const> BackwardCDBG<U, G, is_const>::end() const { return um.bw_end(); }
+Bifrost::neighborIterator<U, G, is_const> Bifrost::BackwardCDBG<U, G, is_const>::end() const { return um.bw_end(); }
 
 
 
 
 template<typename U, typename G, bool is_const>
-ForwardCDBG<U, G, is_const>::ForwardCDBG(const UnitigMap<U, G, is_const>& um_) : um(um_) {}
+Bifrost::ForwardCDBG<U, G, is_const>::ForwardCDBG(const UnitigMap<U, G, is_const>& um_) : um(um_) {}
 
 template<typename U, typename G, bool is_const>
-bool ForwardCDBG<U, G, is_const>::hasSuccessors() const { return (um.fw_begin() != um.fw_end()); }
+bool Bifrost::ForwardCDBG<U, G, is_const>::hasSuccessors() const { return (um.fw_begin() != um.fw_end()); }
 
 template<typename U, typename G, bool is_const>
-size_t ForwardCDBG<U, G, is_const>::cardinality() const {
+size_t Bifrost::ForwardCDBG<U, G, is_const>::cardinality() const {
 
-    neighborIterator<U, G, is_const> it_start = begin();
-    neighborIterator<U, G, is_const> it_end = end();
+    Bifrost::neighborIterator<U, G, is_const> it_start = begin();
+    Bifrost::neighborIterator<U, G, is_const> it_end = end();
 
     size_t card = 0;
 
@@ -130,9 +130,9 @@ size_t ForwardCDBG<U, G, is_const>::cardinality() const {
 }
 
 template<typename U, typename G, bool is_const>
-neighborIterator<U, G, is_const> ForwardCDBG<U, G, is_const>::begin() const { return um.fw_begin(); }
+Bifrost::neighborIterator<U, G, is_const> Bifrost::ForwardCDBG<U, G, is_const>::begin() const { return um.fw_begin(); }
 
 template<typename U, typename G, bool is_const>
-neighborIterator<U, G, is_const> ForwardCDBG<U, G, is_const>::end() const { return um.fw_end(); }
+Bifrost::neighborIterator<U, G, is_const> Bifrost::ForwardCDBG<U, G, is_const>::end() const { return um.fw_end(); }
 
 #endif

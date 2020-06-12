@@ -1,5 +1,7 @@
 #include "MinimizerIndex.hpp"
 
+using namespace Bifrost;
+
 MinimizerIndex::MinimizerIndex() :  table_keys(nullptr), table_tinyv(nullptr), table_tinyv_sz(nullptr),
                                     size_(0), pop(0), num_empty(0)  {
 

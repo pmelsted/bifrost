@@ -1,5 +1,7 @@
 #include "ColorSet.hpp"
 
+using namespace Bifrost;
+
 UnitigColors::UnitigColors() : setBits(localBitVector) {}
 
 UnitigColors::UnitigColors(const UnitigColors& o) {
