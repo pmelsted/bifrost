@@ -4629,7 +4629,7 @@ void Bifrost::CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t i
 }
 
 // Input sequence must not contain duplicated k-mers
-// If it does, use Bifrost::CompactedDBG<U, G>::add().
+// If it does, use CompactedDBG<U, G>::add().
 template<typename U, typename G>
 bool Bifrost::CompactedDBG<U, G>::mergeUnitig(const string& seq, const bool verbose){
 
