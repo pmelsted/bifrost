@@ -78,7 +78,7 @@ else {
 
 	const string unitig = um.referenceUnitigToString();
 	const string strandness = um.strand ? "forward" : "reverse-complement";
-	const size_t position = um.pos;
+	const size_t position = um.dist;
 
 	cout << "Kmer " << kmer_sequence << " was found in the " << strandness << " direction of unitig " << unitig << endl;
 }
@@ -86,7 +86,7 @@ else {
 
 The important parameters of `UnitigMap` objects are:
 - *isEmpty*: if `true`, the mapping is empty: the searched sequence was not found in the graph.
-- *pos*: start position of the searched sequence on the unitig
+- *dist*: start position of the searched sequence on the unitig
 - *len*: length of the mapping **in *k*-mers** (at least 1)
 - *strand*: strandness of the mapped sequence, `true` for forward and `false` for reverse-complement
 - *size*: length of the unitig **in bp** (at least *k*)
@@ -114,8 +114,8 @@ cdbg.remove(um);
 It is as simple as that. Now, this function removes the unitig entirely. What if you want to remove only a substring, say just the *k*mer `km`?
 ```cpp
 const string unitig = um.referenceUnitigToString();
-const string unitig_pre = unitig.substr(0, um.pos + k - 1); // Unitig substring 'before' k-mer
-const string unitig_suf = unitig.substr(um.pos + 1, um.size - um.pos - 1); // Unitig substring 'after' k-mer
+const string unitig_pre = unitig.substr(0, um.dist + k - 1); // Unitig substring 'before' k-mer
+const string unitig_suf = unitig.substr(um.dist + 1, um.size - um.dist - 1); // Unitig substring 'after' k-mer
 
 cdbg.remove(um);
 cdbg.add(unitig_pre);
@@ -128,16 +128,16 @@ To remove a substring, you must remove the unitig entirely and re-insert the uni
 
 ## Storing unitigs identity
 
-A question that often comes back to me is 'How do I save a unitig identity or its position in the graph?'. In C++, if you have a vector of objects and you want to remember a specific object for later, you store an iterator to that object or the position of that object in the vector. Let assume that for the purpose of your program, you want to save the reference unitig of a `UnitigMap` object `um` where you found your *k*-mer `km`:
+A recurrent question is 'How do I save a unitig identifier or its position in the graph?' which is mostly the same as 'Can I access a unitig in the graph using an identifier'. With that regard, graphs in Bifrost are like hash tables (type `map`) in C++: You cannot access keys using an identifier or a position but you can access them using an iterator. Let assume that for the purpose of your program, you want to save the reference unitig of a `UnitigMap` object `um` where you found your *k*-mer `km`:
 ```cpp
 vector<UnitigMap<>> v_um;
 
 v_um.push_back(um);
 ```
 
-That is the closest equivalent of storing an iterator, quick and fast. However, beware that same as for a vector iterator, if you decide to modify the graph (adding or removing a sequence) after that, the stored `UnitigMap` will be broken and it will not point anymore to a valid location in the graph. Using the stored `UnitigMap` object after modifying the graph is undefined behavior and your program might very well crash. The reason for that is that when you modify the graph, it is automatically re-compacted: some unitigs might split or merge. Hence, the unitig pointed out by the stored `UnitigMap` object might look different or might not exist at all anymore.
+That is the closest equivalent of storing an iterator, quick and fast. However, beware that same as for a `vector` or a `map` object, if you decide to modify the graph (adding or removing a sequence) afterwards, the stored `UnitigMap` will be broken and it will not point anymore to a valid location in the graph. Using the stored `UnitigMap` object after modifying the graph is undefined behavior and your program might very well crash. The reason for that is that when you modify the graph, it is automatically re-compacted: some unitigs might split or merge. Hence, the unitig pointed out by the stored `UnitigMap` object might look different or just not exist anymore in the graph.
 
-There is another way to store unitig identity or positions which will be ideal in a number of situations. Remember that each *k*-mer in the graph occur in **at most** one unitig. Which means that a *k*-mer can be used as an identifier for a unitig:
+There is another way to store unitig identitiers or positions which will be ideal in a number of situations. Remember that each *k*-mer in the graph occur in **at most** one unitig. Which means that a *k*-mer can be used as an identifier for a unitig:
 ```cpp
 vector<Kmer> v_km;
 
@@ -158,6 +158,6 @@ for (auto& km : v_km) {
 }
 ```
 
-The major advantage of using `Kmer` rather than `UnitigMap` is that a `Kmer` object is a lot less memory consuming than storing a `UnitigMap` object, which is useful for long vectors of unitigs. On the other hand, retrieving the unitig associated to a `Kmer` costs some time. It is a tradeoff you have to decide for yourself. My advise: if you have only a few hundreds/thousands of unitigs to remember, store `UnitigMap` objects. Otherwise, store `Kmer` objects.
+The major advantage of using `Kmer` rather than `UnitigMap` is that a `Kmer` object is a lot less memory consuming than storing a `UnitigMap` object, which is useful for storing lots of unitig identifiers. On the other hand, retrieving the unitig associated to a `Kmer` costs some time. It is a tradeoff you have to decide for yourself. My advise: if you have only a few hundreds/thousands of unitigs to remember, store `UnitigMap` objects. Otherwise, store `Kmer` objects.
 
-Not that in the previous code snippet, I used `cdbg.find(km, true)`. When this last parameter is set to `true (`false` by default), it indicates that you want to search for this *k*-mer **only** at the extremities of unitigs (head or tail *k*-mers only). Doing this significantly speeds up the search and it comes very handy when you search for *k*-mers that you know are the head *k*-mer of unitigs.
+Not that in the previous code snippet, I used `cdbg.find(km, true)`. When this last parameter is set to `true` (`false` by default), it indicates that you want to search for this *k*-mer **only** at the extremities of unitigs (head or tail *k*-mers only). Doing this significantly speeds up the search and it comes very handy when you search for *k*-mers that you know are the head *k*-mer of unitigs.
