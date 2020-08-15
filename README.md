@@ -1,6 +1,6 @@
 # Bifrost
 
-### Highly parallel construction, indexing and querying of colored and compacted de Bruijn graphs
+### Parallel construction, indexing and querying of colored and compacted de Bruijn graphs
 
 * **Build**, **index**, **color** and **query** the compacted de Bruijn graph
 * **No need to build the uncompacted** de Bruijn graph
@@ -30,7 +30,7 @@
 
 ## Requirements
 
-To install Bifrost using Bioconda or Homebrew, go directly to Section [Installation](#installation). To install from source, you will need:
+To install Bifrost using Bioconda or Brew, go directly to Section [Installation](#installation). To install from source, you will need:
 
 * C++11 compiler:
     * [GCC](https://gcc.gnu.org/) >= 4.8.5
@@ -62,19 +62,21 @@ sudo apt-get install build-essential cmake zlib1g-dev
 
 ## Installation
 
-* From [Homebrew](https://brew.sh) (Bifrost v1.0.3):
+Compared to the source install, the Conda and Brew packages do not support *k>31* nor native compilation (including AVX2 instructions). Use the source installation for benchmarking.
+
+* From [Brew](https://brew.sh):
 
   ```
   brew install brewsci/bio/bifrost
   ```
 
-* From [Bioconda](https://bioconda.github.io) (Bifrost v1.0.3, Linux only):
+* From [Bioconda](https://bioconda.github.io):
 
   ```
   conda -c bioconda bifrost
   ```
 
-* From source (Bifrost v1.0.4)
+* From source
 
   ```
   git clone https://github.com/pmelsted/bifrost.git
