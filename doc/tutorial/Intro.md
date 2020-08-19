@@ -85,11 +85,11 @@ else {
 ```
 
 The important parameters of `UnitigMap` objects are:
-- *isEmpty*: if `true`, the mapping is empty: the searched sequence was not found in the graph.
-- *dist*: start position of the searched sequence on the unitig
-- *len*: length of the mapping **in *k*-mers** (at least 1)
-- *strand*: strandness of the mapped sequence, `true` for forward and `false` for reverse-complement
-- *size*: length of the unitig **in bp** (at least *k*)
+- `UnitigMap::isEmpty`: if `true`, the mapping is empty: the searched sequence was not found in the graph.
+- `UnitigMap::dist`: start position of the searched sequence on the unitig
+- `UnitigMap::len`: length of the mapping **in *k*-mers** (at least 1)
+- `UnitigMap::strand`: strandness of the mapped sequence, `true` for forward and `false` for reverse-complement
+- `UnitigMap::size`: length of the unitig **in bp** (at least *k*)
 
 The type `UnitigMap` has tons of useful functions so it is probably a good idea to have a look at its documentation. Here is a quick overview:
 - `UnitigMap::referenceUnitigToString()`: outputs the string of the unitig associated with this mapping.
@@ -124,18 +124,16 @@ cdbg.add(unitig_suf);
 
 To remove a substring, you must remove the unitig entirely and re-insert the unitig parts that came before and after the substring.
 
-## Building the graph from a dataset
-
 ## Storing unitigs identity
 
-A recurrent question is 'How do I save a unitig identifier or its position in the graph?' which is mostly the same as 'Can I access a unitig in the graph using an identifier'. With that regard, graphs in Bifrost are like hash tables (type `map`) in C++: You cannot access keys using an identifier or a position but you can access them using an iterator. Let assume that for the purpose of your program, you want to save the reference unitig of a `UnitigMap` object `um` where you found your *k*-mer `km`:
+A recurrent question is 'How do I save a unitig identifier or its position in the graph?' which is mostly the same as 'Can I access a unitig in the graph using an identifier?'. With that regard, graphs in Bifrost are like hash tables (type `map`) in C++: You cannot access elements of the data structure with an identifier or a position but you can access them using an iterator. Let assume that for the purpose of your program, you want to "save" a reference to unitig represented by a `UnitigMap` object `um`:
 ```cpp
 vector<UnitigMap<>> v_um;
 
 v_um.push_back(um);
 ```
 
-That is the closest equivalent of storing an iterator, quick and fast. However, beware that same as for a `vector` or a `map` object, if you decide to modify the graph (adding or removing a sequence) afterwards, the stored `UnitigMap` will be broken and it will not point anymore to a valid location in the graph. Using the stored `UnitigMap` object after modifying the graph is undefined behavior and your program might very well crash. The reason for that is that when you modify the graph, it is automatically re-compacted: some unitigs might split or merge. Hence, the unitig pointed out by the stored `UnitigMap` object might look different or just not exist anymore in the graph.
+That is the closest equivalent of storing an iterator, quick and fast. Beware that same as for `vector` and `map` iterators in C++, the `UnitigMap` object is only valid and functional as long as you do **not** modify the data structure. Using the stored `UnitigMap` object after modifying the graph is undefined behavior and your program might very well crash. The reason is that Bifrost automatically re-compacts the graph after modification: some unitigs might split or merge. Hence, the unitig pointed out by the stored `UnitigMap` object might look different or just not exist anymore in the graph.
 
 There is another way to store unitig identitiers or positions which will be ideal in a number of situations. Remember that each *k*-mer in the graph occur in **at most** one unitig. Which means that a *k*-mer can be used as an identifier for a unitig:
 ```cpp
@@ -150,7 +148,7 @@ for (auto& um : v_um) {
 
 v_um.clear(); // Vector of UnitigMap is not needed anymore
 ```
-Here, we use the head *k*-mer of the unitig as its identifier. Hence, instead of having a vector of `UnitigMap`, you have a vector of `Kmer` where each *k*-mer is the head *k*-mer of a unitig you are interested in. Now to retrieve the unitigs associated to these *k*mers:
+The idea is to use the head *k*-mer of the unitig as its identifier. Hence, instead of having a vector of `UnitigMap`, you have a vector of `Kmer` for which each *k*-mer is the head *k*-mer of a unitig you want to store. To retrieve the unitigs associated to these *k*mers:
 ```cpp
 for (auto& km : v_km) {
 
@@ -158,6 +156,43 @@ for (auto& km : v_km) {
 }
 ```
 
-The major advantage of using `Kmer` rather than `UnitigMap` is that a `Kmer` object is a lot less memory consuming than storing a `UnitigMap` object, which is useful for storing lots of unitig identifiers. On the other hand, retrieving the unitig associated to a `Kmer` costs some time. It is a tradeoff you have to decide for yourself. My advise: if you have only a few hundreds/thousands of unitigs to remember, store `UnitigMap` objects. Otherwise, store `Kmer` objects.
+The major advantage of using `Kmer` over `UnitigMap` is that a `Kmer` object is a lot less memory consuming than storing a `UnitigMap` object, which is useful for storing lots of unitig identifiers. On the other hand, retrieving the unitig associated to a `Kmer` costs some time. It is a tradeoff you have to decide for yourself. My advise: if you have only a few hundreds/thousands of unitigs to remember, store `UnitigMap` objects. Otherwise, store `Kmer` objects.
 
 Not that in the previous code snippet, I used `cdbg.find(km, true)`. When this last parameter is set to `true` (`false` by default), it indicates that you want to search for this *k*-mer **only** at the extremities of unitigs (head or tail *k*-mers only). Doing this significantly speeds up the search and it comes very handy when you search for *k*-mers that you know are the head *k*-mer of unitigs.
+
+## Building the graph from a dataset
+
+Rather than manually adding sequences in the graph, Bifrost enables developers to construct the graph directly from data sets. For this, two modes are proposed:
+- *reference* mode: the graph is built from **all** *k*-mers in the input data sets.
+- *sequence* mode: the graph is built from *k*-mers occuring **twice or more** in the input data sets.
+
+The reference mode is ideal for building the graph from reference genomes while the sequence mode is ideal for raw reads. Note that you can build your graph from assembled genomes and raw reads by combining both modes! Parameters of the graph construction are set in an object of type `CDBG_Build_opt` that you must configure:
+-`CDBG_Build_opt::k`: Length of k-mers.
+-`CDBG_Build_opt::filename_seq_in`: Vector of input filenames for the sequence mode.
+-`CDBG_Build_opt::filename_ref_in`: Vector of input filenames for the reference mode.
+-`CDBG_Build_opt::nb_threads`: Number of threads to use.
+-`CDBG_Build_opt::verbose`: Print information messages during the construction.
+
+Input filenames can be provided in FASTA or FASTQ format, gzipped or not, and GFA. That's right: if you already have a graph in GFA format but not necessarily a de Bruijn graph, Bifrost will take its sequences to build a compacted de Bruijn graph. You can also provide in input a list of filenames as a text file with one filename per line (be careful to not have empty lines). Once you're done with setting these parameters, constructing the graph is as easy as:
+```cpp
+CDBG_Build_opt opt;
+
+opt.k = 31;
+opt.nb_threads = 4;
+opt.verbose = true;
+
+opt.filename_ref_in.push_back(string("my_assembled_genome.fasta"));
+opt.filename_seq_in.push_back(string("my_short_reads.fastq"));
+
+CompactedDBG<> cdbg(opt.k);
+
+cdbg.build(opt);
+```
+
+## Cleaning the graph
+
+## Reading and writing graphs
+
+## Traversing the graph
+
+## Adding user data to unitigs
