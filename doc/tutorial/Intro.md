@@ -167,11 +167,11 @@ Rather than manually adding sequences in the graph, Bifrost enables developers t
 - *sequence* mode: the graph is built from *k*-mers occuring **twice or more** in the input data sets.
 
 The reference mode is ideal for building the graph from reference genomes while the sequence mode is ideal for raw reads. Note that you can build your graph from assembled genomes and raw reads by combining both modes! Parameters of the graph construction are set in an object of type `CDBG_Build_opt` that you must configure:
--`CDBG_Build_opt::k`: Length of k-mers.
--`CDBG_Build_opt::filename_seq_in`: Vector of input filenames for the sequence mode.
--`CDBG_Build_opt::filename_ref_in`: Vector of input filenames for the reference mode.
--`CDBG_Build_opt::nb_threads`: Number of threads to use.
--`CDBG_Build_opt::verbose`: Print information messages during the construction.
+- `CDBG_Build_opt::k`: Length of k-mers.
+- `CDBG_Build_opt::filename_seq_in`: Vector of input filenames for the sequence mode.
+- `CDBG_Build_opt::filename_ref_in`: Vector of input filenames for the reference mode.
+- `CDBG_Build_opt::nb_threads`: Number of threads to use.
+- `CDBG_Build_opt::verbose`: Print information messages during the construction.
 
 Input filenames can be provided in FASTA or FASTQ format, gzipped or not, and GFA. That's right: if you already have a graph in GFA format but not necessarily a de Bruijn graph, Bifrost will take its sequences to build a compacted de Bruijn graph. You can also provide in input a list of filenames as a text file with one filename per line (be careful to not have empty lines). Once you're done with setting these parameters, constructing the graph is as easy as:
 ```cpp
