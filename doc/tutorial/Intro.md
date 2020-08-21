@@ -193,12 +193,13 @@ cdbg.build(opt);
 
 ## Reading and writing graphs
 
-Bifrost offers to read and write graphs with two different file formats: GFA and FASTA. The default is GFA output: It is a plain text, tabulation formatted file format that explicitely describes a sequence graph. It has a short and simple [specification](http://gfa-spec.github.io/GFA-spec/GFA1.html), it is easy to visualize with [Bandage](https://rrwick.github.io/Bandage/) and it is now a community standard for sequence graph tools in computational biology. Note that Bifrost outputs specifically GFA v1 and it only uses the Segment (S) and Link (L) fields. Another file format that Bifrost uses to store graphs is FASTA. FASTA was not originally designed to store graphs but as Bifrost has an implicit representation of edges, storing only the unitigs in FASTA is enough. Hence, the advantage of exporting the graph to FASTA over GFA is file size as edges are not stored. Finally, GFA and FASTA are very compressible file formats so you can easily bgzip them.
+Bifrost offers to read and write graphs with the GFA and FASTA file formats. The default is GFA output: It is a plain text, tabulation formatted file format that explicitely describes a sequence graph. It has a short and simple [specification](http://gfa-spec.github.io/GFA-spec/GFA1.html), it is easy to visualize with [Bandage](https://rrwick.github.io/Bandage/) and it is now a community standard for sequence graph tools in computational biology. Note that Bifrost outputs specifically GFA v1 and it only uses the Segment (S) and Link (L) fields. Another file format that Bifrost uses to store graphs is FASTA. FASTA was not originally designed to store graphs but as Bifrost has an implicit representation of edges, storing only the unitigs in FASTA is enough. Hence, the advantage of exporting the graph to FASTA over GFA is file size as edges are not stored. Finally, GFA and FASTA are very compressible file formats so you can easily bgzip them.
 
 Writing the graph works as follow:
 ```cpp
 const string output_filename = "/my/output/graph";
 const size_t nb_threads = 4;
+const bool gfa_output = true;
 const bool verbose = true;
 
 
