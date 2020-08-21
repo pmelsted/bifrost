@@ -16,7 +16,7 @@ I will try to summarize quickly some of the important concepts for Bifrost:
 - Bifrost uses a node-centric representation of the graph. Vertices are represented explicitely while edges are represented implicitly.
 - Vertices are unitigs, i.e., sequences of length greater or equal to *k* (the *k*-mer size). Hence, a unitig is composed of at least one *k*-mer.
 - *K*-mers in a unitig are not branching (edge in-degree = edge out-degree = 1) in the graph **except** the first and last *k*-mers which might be branching.
-- A *k*-mer occurs in one unitig at most.
+- A *k*-mer occurs in at most one unitig.
 - Because the graph is bi-directed, a unitig represents two sequences: itself and its reverse-complement. Hence, a unitig can be traversed/read in two different ways: from left to right (*foward* or *+* direction) or from right to left by complementing the DNA symbols (*reverse* or *-* direction). This is the *strandness* of the unitig.
 - Edges are directed: they have a start unitig *A* and an end unitig *B*. Furthermore, edges embed the strandness of the unitigs they connect, which can be: {+,+}, {+,-}, {-,+} and {-,-}. An edge *e* connecting the forward sequence of *A* to the reverse-complement sequence of *B* would be *e={A+,B-}*.
 
@@ -192,6 +192,31 @@ cdbg.build(opt);
 ## Cleaning the graph
 
 ## Reading and writing graphs
+
+Bifrost offers to read and write graphs with two different file formats: GFA and FASTA. The default is GFA output: It is a plain text, tabulation formatted file format that explicitely describes a sequence graph. It has a short and simple [specification](http://gfa-spec.github.io/GFA-spec/GFA1.html), it is easy to visualize with [Bandage](https://rrwick.github.io/Bandage/) and it is now a community standard for sequence graph tools in computational biology. Note that Bifrost outputs specifically GFA v1 and it only uses the Segment (S) and Link (L) fields. Another file format that Bifrost uses to store graphs is FASTA. FASTA was not originally designed to store graphs but as Bifrost has an implicit representation of edges, storing only the unitigs in FASTA is enough. Hence, the advantage of exporting the graph to FASTA over GFA is file size as edges are not stored. Finally, GFA and FASTA are very compressible file formats so you can easily bgzip them.
+
+Writing the graph works as follow:
+```cpp
+const string output_filename = "/my/output/graph";
+const size_t nb_threads = 4;
+const bool verbose = true;
+
+
+cdbg.write(output_filename, nb_threads, gfa_output, verbose);
+```
+
+and reading works in a similar fashion:
+```cpp
+CompactedDBG<> cdbg(k);
+
+const string input_filename = "/my/input/graph.gfa";
+const size_t nb_threads = 4;
+const bool verbose = true;
+
+cdbg.read(input_filename, nb_threads, verbose);
+```
+
+Input file format, GFA or FASTA, is automatically recognized when reading. A detail you might want to have a closer look at is the *k*-mer size. Indeed, if the input graph has been built with Bifrost and is in GFA format, the file already contains the *k*-mer size and its the one that will be used, you don't have to do anything. If you input a compacted de Bruijn graph not built with Bifrost or a graph in FASTA format, Bifrost will try to read the graph with the *k*-mer size given at the declaration of the graph, i.e., `CompactedDBG<> cdbg(k)`. In that case, it is your responsability to make sure the *k*-mer size is correct and the graph is correctly compacted if built with a different tool than Bifrost.
 
 ## Traversing the graph
 
