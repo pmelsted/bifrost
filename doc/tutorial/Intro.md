@@ -2,25 +2,39 @@
 
 Welcome to the introduction of the Bifrost API. In this tutorial, you will learn how to use the Bifrost C++ API to index, modify, query and color compacted de Bruijn graphs. Suggestions are always welcome so do not hesitate to leave some feedbacks.
 
-### Before starting
+### Getting starting
 
 This introduction assumes you are familiar with C++ although no advanced knowledge of the language is required. This tutorial is in construction so I will detail and clarify some parts of it over time. It is additionally assumed you are familiar with the general concept of de Bruijn graphs.
 
 I will try to cover as much ground as possible in this tutorial. However, the keyword of this tutorial is 'simplicity' so I will not detail every single function of the API. If you are particularly interested in a function, the documentation (located in `/doc/doxygen/`) describes in detail what it does, what is the input and what is the output. If a function or a type requires special attention, I will point out that having a look at the documentation would be beneficial.
 
-## Bifrost graphs
+## Table of Contents
+
+* [Compacted de Bruijn graph](#compacted-de-bruijn-graph)
+	* [Creating a graph](#creating-a-graph)
+	* [Adding sequences](#adding-sequences)
+	* [Finding *k*-mers](#finding-k-mers)
+	* [Deleting sequences](#deleting-sequences)
+	* [Storing unitigs identity](#storing-unitigs-identity)
+	* [Building the graph from a data set](#building-the-graph-from-a-data-set)
+	* [Cleaning the graph](#cleaning-the-graph)
+	* [Reading and writing graphs](#reading-and-writing-graphs)
+	* [Traversing the graph](#traversing-the-graph)
+	* [Adding data to unitigs](#adding-data-to-unitigs)
+
+## Compacted de Bruijn graph
 
 Graphs in Bifrost are compacted bi-directed de Bruijn graphs. It is important to understand this concept before getting started as the API relies on these notions. Unitigs, compaction and bi-directed edges are all explained in this excellent [short tutorial](https://github.com/GATB/bcalm/blob/master/bidirected-graphs-in-bcalm2/bidirected-graphs-in-bcalm2.md) by Paul Medvedev and Rayan Chikhi.
 I will try to summarize quickly some of the important concepts for Bifrost:
 
 - Bifrost uses a node-centric representation of the graph. Vertices are represented explicitely while edges are represented implicitly.
 - Vertices are unitigs, i.e., sequences of length greater or equal to *k* (the *k*-mer size). Hence, a unitig is composed of at least one *k*-mer.
-- *K*-mers in a unitig are not branching (edge in-degree = edge out-degree = 1) in the graph **except** the first and last *k*-mers which might be branching.
-- A *k*-mer occurs in at most one unitig.
+- *K*-mers in a unitig are not branching (edge in-degree = edge out-degree = 1) in the graph **except** the first and last *k*-mers which **might** be branching.
+- A *k*-mer occurs in **at most** one unitig.
 - Because the graph is bi-directed, a unitig represents two sequences: itself and its reverse-complement. Hence, a unitig can be traversed/read in two different ways: from left to right (*foward* or *+* direction) or from right to left by complementing the DNA symbols (*reverse* or *-* direction). This is the *strandness* of the unitig.
 - Edges are directed: they have a start unitig *A* and an end unitig *B*. Furthermore, edges embed the strandness of the unitigs they connect, which can be: {+,+}, {+,-}, {-,+} and {-,-}. An edge *e* connecting the forward sequence of *A* to the reverse-complement sequence of *B* would be *e={A+,B-}*.
 
-## Compacted de Bruijn graph
+### Creating a graph
 
 Let's start by creating a compacted de Bruijn graph.
 ```cpp
@@ -61,7 +75,7 @@ Since it is the first time we modify a graph, here are two properties of Bifrost
 - Bifrost graphs are always compacted, no matter what. If you edit the graph by adding sequences, removing unitigs or merging graphs, Bifrost will *always* take care of compacting the graph. It is not possible to have an intermediate state where a Bifrost graph is not compacted.
 - Most functions in the Bifrost API have an optional parameter *verbose* for printing information messages about the execution of the function. By default, `verbose=false` so no information messages are printed. By setting it to `true`, information message will be printed to the standard output `stdout`.
 
-## Finding a ***k***-mer
+### Finding ***k***-mers
 
 Searching *k*-mers in the graph is one of the most common task to perform. It works as follows:
 ```cpp
@@ -104,7 +118,7 @@ As you can see above, some functions take into account the strandness and some f
 
 All `UnitigMap` functions containing `referenceUnitig` or just `Unitig` return something related to the reference unitig. Hence, parameter `UnitigMap:strand` is not used here. All `UnitigMap` functions containing `mappedSequence` or just `Mapped` return something related to the mapped sequence (a substring of the reference unitig) and takes into account parameter `UnitigMap::strand`. Here is a figure to explain it all:
 
-## Deleting sequences
+### Deleting sequences
 
 Now that type `UnitigMap` has been introduced, we can keep going with how to delete a unitig from the graph. Let assume that we want to delete the unitig where was previously found our *k*-mer `km`. That unitig was the reference unitig of a `UnitigMap` object `um`. Removing that unitig works as follows:
 ```cpp
@@ -124,7 +138,7 @@ cdbg.add(unitig_suf);
 
 To remove a substring, you must remove the unitig entirely and re-insert the unitig parts that came before and after the substring.
 
-## Storing unitigs identity
+### Storing unitigs identity
 
 A recurrent question is 'How do I save a unitig identifier or its position in the graph?' which is mostly the same as 'Can I access a unitig in the graph using an identifier?'. With that regard, graphs in Bifrost are like hash tables (type `map`) in C++: You cannot access elements of the data structure with an identifier or a position but you can access them using an iterator. Let assume that for the purpose of your program, you want to "save" a reference to unitig represented by a `UnitigMap` object `um`:
 ```cpp
@@ -160,7 +174,7 @@ The major advantage of using `Kmer` over `UnitigMap` is that a `Kmer` object is 
 
 Not that in the previous code snippet, I used `cdbg.find(km, true)`. When this last parameter is set to `true` (`false` by default), it indicates that you want to search for this *k*-mer **only** at the extremities of unitigs (head or tail *k*-mers only). Doing this significantly speeds up the search and it comes very handy when you search for *k*-mers that you know are the head *k*-mer of unitigs.
 
-## Building the graph from a dataset
+### Building the graph from a data set
 
 Rather than manually adding sequences in the graph, Bifrost enables developers to construct the graph directly from data sets. For this, two modes are proposed:
 - *reference* mode: the graph is built from **all** *k*-mers in the input data sets.
@@ -189,9 +203,9 @@ CompactedDBG<> cdbg(opt.k);
 cdbg.build(opt);
 ```
 
-## Cleaning the graph
+### Cleaning the graph
 
-## Reading and writing graphs
+### Reading and writing graphs
 
 Bifrost offers to read and write graphs with the GFA and FASTA file formats. The default is GFA output: It is a plain text, tabulation formatted file format that explicitely describes a sequence graph. It has a short and simple [specification](http://gfa-spec.github.io/GFA-spec/GFA1.html), it is easy to visualize with [Bandage](https://rrwick.github.io/Bandage/) and it is now a community standard for sequence graph tools in computational biology. Note that Bifrost outputs specifically GFA v1 and it only uses the Segment (S) and Link (L) fields. Another file format that Bifrost uses to store graphs is FASTA. FASTA was not originally designed to store graphs but as Bifrost has an implicit representation of edges, storing only the unitigs in FASTA is enough. Hence, the advantage of exporting the graph to FASTA over GFA is file size as edges are not stored. Finally, GFA and FASTA are very compressible file formats so you can easily bgzip them.
 
@@ -219,6 +233,6 @@ cdbg.read(input_filename, nb_threads, verbose);
 
 Input file format, GFA or FASTA, is automatically recognized when reading. A detail you might want to have a closer look at is the *k*-mer size. Indeed, if the input graph has been built with Bifrost and is in GFA format, the file already contains the *k*-mer size and its the one that will be used, you don't have to do anything. If you input a compacted de Bruijn graph not built with Bifrost or a graph in FASTA format, Bifrost will try to read the graph with the *k*-mer size given at the declaration of the graph, i.e., `CompactedDBG<> cdbg(k)`. In that case, it is your responsability to make sure the *k*-mer size is correct and the graph is correctly compacted if built with a different tool than Bifrost.
 
-## Traversing the graph
+### Traversing the graph
 
-## Adding user data to unitigs
+### Adding user data to unitigs
