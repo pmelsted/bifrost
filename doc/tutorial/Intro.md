@@ -235,4 +235,42 @@ Input file format, GFA or FASTA, is automatically recognized when reading. A det
 
 ### Traversing the graph
 
+Traversing the graph requires first a starting vertex in the graph, represented by a `UnitigMap<>` object. Assuming a starting `UnitigMap<> um` object, traversing the neighboring vertices is then as simple as:
+```cpp
+for (const auto& um_succ : um.getSuccessors()) {
+
+	cout << um_succ.referenceUnitigToString() << endl;
+	cout << um_succ.mappedSequenceToString() << endl;
+}
+
+for (const auto& um_pred : um.getPredecessors()) {
+
+	cout << um_pred.referenceUnitigToString() << endl;
+	cout << um_pred.mappedSequenceToString() << endl;
+}
+```
+
+Function `UnitigMap::getSuccessors()` and `UnitigMap::getPredecessors()` return the successors and predecessors, respectively, under the form of `UnitigMap` objects (`um_succ` and `um_pred` in the previous example). As the traversal functions work at the unitig level, it does not matter whether the starting `UnitigMap<> um` object maps to a single *k*-mer or the full unitig: the traversal functions will consider the full unitig as the starting vertex. The `um_succ` and `um_pred` objects will always be mapping of the full unitig sequence on itself, i.e, `um_succ.dist = 0` and `um_succ.len = um_succ.size - k + 1`. However, when traversing, the strandness of the starting and ending unitigs are important. As described in Section [Compacted de Bruijn graph](#compacted-de-bruijn-graph), edges in bi-directed de Bruijn graphs embed the strandness of their start and end unitigs. In the previous example, the strandness of the start unitig is `um.strand`, the strandness of the successors is `um_succ.strand` and the strandness of the predecessors is `um_pred.strand`. What it means in practice is that the successors of `um` with `um.strand = true` are not going to be the same as with `um.strand = false`. To be accurate, the successors of `um` with `um.strand = true` are going to be the predecessors of `um` with `um.strand = false` but reverse-complemented. This can be a little tricky to understand so let's have an example:
+```cpp
+cout << "--- Printing successors in forward direction ---" << endl;
+
+um.strand = true;
+
+for (const auto& um_succ : um.getSuccessors()) {
+
+	cout << um_succ.mappedSequenceToString() << end;
+}
+
+cout << "--- Printing predecessors in backward direction ---" << endl;
+
+um.strand = false;
+
+for (const auto& um_pred : um.getPredecessors()) {
+
+	cout << um_pred.mappedSequenceToString() << end;
+}
+```
+
+In this example, we print the unitig sequence of the successors of `um` in forward direction (`um.strand = true`) and the unitig sequence of the predecessors of `um` in backward direction (`um.strand = false`). And surprise surprise: they are the same.
+
 ### Adding data to unitigs
