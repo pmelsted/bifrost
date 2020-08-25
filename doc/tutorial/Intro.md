@@ -235,4 +235,4 @@ Input file format, GFA or FASTA, is automatically recognized when reading. A det
 
 ### Traversing the graph
 
-### Adding user data to unitigs
+### Adding data to unitigs
