@@ -120,23 +120,23 @@ All `UnitigMap` functions containing `referenceUnitig` or just `Unitig` return s
 
 ### Deleting sequences
 
-Now that type `UnitigMap` has been introduced, we can keep going with how to delete a unitig from the graph. Let assume that we want to delete the unitig where was previously found our *k*-mer `km`. That unitig was the reference unitig of a `UnitigMap` object `um`. Removing that unitig works as follows:
+Let assume that we want to delete the unitig containing a *k*-mer `km`. `CompactedDBG<>::find()` was used to locate the *k*-mer in the graph and returned a `UnitigMap` object `um`. Removing from the graph the reference unitig used in `um` is:
 ```cpp
 cdbg.remove(um);
 ```
 
-It is as simple as that. Now, this function removes the unitig entirely. What if you want to remove only a substring, say just the *k*mer `km`?
+This function removes the unitig entirely though. What if you want to remove only a substring, say just *k*mer `km`?
 ```cpp
 const string unitig = um.referenceUnitigToString();
-const string unitig_pre = unitig.substr(0, um.dist + k - 1); // Unitig substring 'before' k-mer
-const string unitig_suf = unitig.substr(um.dist + 1, um.size - um.dist - 1); // Unitig substring 'after' k-mer
+const string unitig_pre = unitig.substr(0, um.dist + k - 1); // Unitig substring 'before' k-mer, i.e, prefix
+const string unitig_suf = unitig.substr(um.dist + 1, um.size - um.dist - 1); // Unitig substring 'after' k-mer, i.e, suffix
 
-cdbg.remove(um);
-cdbg.add(unitig_pre);
-cdbg.add(unitig_suf);
+cdbg.remove(um); // remove unitig
+cdbg.add(unitig_pre); // Insert prefix
+cdbg.add(unitig_suf); // Insert suffix
 ```
 
-To remove a substring, you must remove the unitig entirely and re-insert the unitig parts that came before and after the substring.
+To remove a substring, you must remove the unitig entirely and re-insert the unitig prefix and suffix surrounding the substring to remove.
 
 ### Storing unitigs identity
 
