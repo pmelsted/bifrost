@@ -235,7 +235,7 @@ Input file format, GFA or FASTA, is automatically recognized when reading. A det
 
 ### Traversing the graph
 
-Traversing the graph requires first a starting vertex in the graph, represented by a `UnitigMap<>` object. Assuming a starting `UnitigMap<> um` object, traversing the neighboring vertices is then as simple as:
+Traversing the graph requires first a starting vertex represented by a `UnitigMap<>` object. Assuming a starting `UnitigMap<> um` object, traversing the neighboring vertices is then as simple as:
 ```cpp
 for (const auto& um_succ : um.getSuccessors()) {
 
@@ -250,7 +250,8 @@ for (const auto& um_pred : um.getPredecessors()) {
 }
 ```
 
-Function `UnitigMap::getSuccessors()` and `UnitigMap::getPredecessors()` return the successors and predecessors, respectively, under the form of `UnitigMap` objects (`um_succ` and `um_pred` in the previous example). As the traversal functions work at the unitig level, it does not matter whether the starting `UnitigMap<> um` object maps to a single *k*-mer or the full unitig: the traversal functions will consider the full unitig as the starting vertex. The `um_succ` and `um_pred` objects will always be mapping of the full unitig sequence on itself, i.e, `um_succ.dist = 0` and `um_succ.len = um_succ.size - k + 1`. However, when traversing, the strandness of the starting and ending unitigs are important. As described in Section [Compacted de Bruijn graph](#compacted-de-bruijn-graph), edges in bi-directed de Bruijn graphs embed the strandness of their start and end unitigs. In the previous example, the strandness of the start unitig is `um.strand`, the strandness of the successors is `um_succ.strand` and the strandness of the predecessors is `um_pred.strand`. What it means in practice is that the successors of `um` with `um.strand = true` are not going to be the same as with `um.strand = false`. To be accurate, the successors of `um` with `um.strand = true` are going to be the predecessors of `um` with `um.strand = false` but reverse-complemented. This can be a little tricky to understand so let's have an example:
+Function `UnitigMap::getSuccessors()` and `UnitigMap::getPredecessors()` return the successors and predecessors, respectively, under the form of `UnitigMap` objects (`um_succ` and `um_pred` in the previous example). As the traversal functions work at the unitig level, it does not matter whether the starting `UnitigMap<> um` object maps to a single *k*-mer or the full unitig: the traversal functions will consider the full unitig as the starting vertex. However, `getSuccessors()` and `getPredecessors()` will always return `UnitigMap` objects that are the mapping of a full unitig sequence to itself, i.e, `um_succ.dist = 0` and `um_succ.len = um_succ.size - k + 1`.
+**What is really important to consider when traversing is the strandness of the unitigs.** As described in Section [Compacted de Bruijn graph](#compacted-de-bruijn-graph), edges in bi-directed de Bruijn graphs embed the strandness of the unitigs they connect. In the previous example, the strandness of the start unitig is `um.strand`, the strandness of the successors is `um_succ.strand` and the strandness of the predecessors is `um_pred.strand`. What it means in practice is that the successors of `um` with `um.strand = true` are not going to be the same as with `um.strand = false`. To be accurate, the successors of `um` with `um.strand = true` are going to be the predecessors of `um` with `um.strand = false`. This can be a little tricky to understand so let's have an example:
 ```cpp
 cout << "--- Printing successors in forward direction ---" << endl;
 
@@ -271,6 +272,6 @@ for (const auto& um_pred : um.getPredecessors()) {
 }
 ```
 
-In this example, we print the unitig sequence of the successors of `um` in forward direction (`um.strand = true`) and the unitig sequence of the predecessors of `um` in backward direction (`um.strand = false`). And surprise surprise: they are the same.
+In this example, we print the unitig sequence of the successors of `um` in forward direction (`um.strand = true`) and the unitig sequence of the predecessors of `um` in backward direction (`um.strand = false`). And to no surprise, they are the same. One last consideration: because unitig strandness changes when traversing the graph, accessing the unitig sequence is done with `UnitigMap::mappedSequenceToString()` as shown in the previous code snippet. Indeed, `mappedSequenceToString()` always takes into account the strandness of the mapped sequence while `referenceUnitigToString()` gives you the unitig sequence the way it is store in the graph, i.e, with an arbitrary strandness.
 
 ### Adding data to unitigs
