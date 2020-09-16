@@ -29,8 +29,10 @@
 #define BFG_INLINE inline
 #endif
 
-#define BFG_VERSION "1.0.4"
-#define BFG_BUG_EMAIL "guillaumeholley@gmail.com"
+#define BUFFER_SIZE 1048576
+
+#define BFG_VERSION "1.0.5"
+#define BFG_BUG_EMAIL "guillaume[d0t]holley{at}gmail[d0t]com"
 
 using namespace std;
 
