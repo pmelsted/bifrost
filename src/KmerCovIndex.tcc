@@ -417,7 +417,10 @@ void KmerCovIndex<T>::resize(const size_t new_sz) {
 
         Block<T>* block = v_blocks.back();
 
-        for (size_t i = nb_last_block; i < block_sz; ++i) block->data_block[i] = T();
+        if (nb_last_block != 0){
+
+            for (size_t i = nb_last_block; i < block_sz; ++i) block->data_block[i] = T();
+        }
 
         for (size_t i = new_sz; i < rounded_sz; ++i) {
 
