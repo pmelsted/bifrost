@@ -55,6 +55,8 @@
         const int padding[15];
 };*/
 
+namespace Bifrost {
+
 class SpinLock {
 
     public:
@@ -435,5 +437,7 @@ class Hybrid_SpinLockRW_MCS {
         const int padding7[14];
         const size_t mask_bits;
 };
+
+}
 
 #endif

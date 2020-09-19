@@ -4,6 +4,7 @@
 #include "roaring.hh"
 #include "TinyBitmap.hpp"
 
+namespace Bifrost {
 
 class BitContainer {
 
@@ -199,5 +200,7 @@ class BitContainer {
 
         uintptr_t setBits;
 };
+
+}
 
 #endif

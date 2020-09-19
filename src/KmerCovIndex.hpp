@@ -8,6 +8,8 @@
 #include "Kmer.hpp"
 #include "rw_spin_lock.h"
 
+namespace Bifrost {
+
 template<typename T = void>
 class KmerCovIndex {
 
@@ -149,6 +151,8 @@ template<> inline void KmerCovIndex<void>::remove(const size_t idx1);
 template<> inline void KmerCovIndex<void>::resize(const size_t new_sz);
 template<> inline const void* KmerCovIndex<void>::getData(const size_t idx) const;
 template<> inline void* KmerCovIndex<void>::getData(const size_t idx);
+
+}
 
 #include "KmerCovIndex.tcc"
 

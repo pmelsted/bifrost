@@ -4,10 +4,10 @@
 #include "CompactedDBG.hpp"
 
 template<typename U, typename G, bool is_const>
-unitigIterator<U, G, is_const>::unitigIterator() :  i(0), v_unitigs_sz(0), v_kmers_sz(0), h_kmers_ccov_sz(0), sz(0), invalid(true), cdbg(nullptr) {}
+Bifrost::unitigIterator<U, G, is_const>::unitigIterator() :  i(0), v_unitigs_sz(0), v_kmers_sz(0), h_kmers_ccov_sz(0), sz(0), invalid(true), cdbg(nullptr) {}
 
 template<typename U, typename G, bool is_const>
-unitigIterator<U, G, is_const>::unitigIterator(CompactedDBG_ptr_t cdbg_) :
+Bifrost::unitigIterator<U, G, is_const>::unitigIterator(CompactedDBG_ptr_t cdbg_) :
                 i(0), v_unitigs_sz(0), v_kmers_sz(0), h_kmers_ccov_sz(0), sz(0), invalid(true), cdbg(cdbg_),
                 it_h_kmers_ccov((cdbg_ == nullptr) || cdbg_->invalid ? typename KmerHashTable<CompressedCoverage_t<U>>::const_iterator() : cdbg_->h_kmers_ccov.begin()){
 
@@ -24,12 +24,12 @@ unitigIterator<U, G, is_const>::unitigIterator(CompactedDBG_ptr_t cdbg_) :
 }
 
 template<typename U, typename G, bool is_const>
-unitigIterator<U, G, is_const>::unitigIterator(const unitigIterator& o) :   i(o.i), v_unitigs_sz(o.v_unitigs_sz), v_kmers_sz(o.v_kmers_sz),
+Bifrost::unitigIterator<U, G, is_const>::unitigIterator(const unitigIterator& o) :   i(o.i), v_unitigs_sz(o.v_unitigs_sz), v_kmers_sz(o.v_kmers_sz),
                                                                             it_h_kmers_ccov(o.it_h_kmers_ccov), h_kmers_ccov_sz(o.h_kmers_ccov_sz),
                                                                             sz(o.sz), invalid(o.invalid), um(o.um), cdbg(o.cdbg) {}
 
 template<typename U, typename G, bool is_const>
-unitigIterator<U, G, is_const>& unitigIterator<U, G, is_const>::operator++() {
+Bifrost::unitigIterator<U, G, is_const>& Bifrost::unitigIterator<U, G, is_const>::operator++() {
 
     if (invalid) return *this;
 
@@ -61,16 +61,16 @@ unitigIterator<U, G, is_const>& unitigIterator<U, G, is_const>::operator++() {
 }
 
 template<typename U, typename G, bool is_const>
-unitigIterator<U, G, is_const> unitigIterator<U, G, is_const>::operator++(int) {
+Bifrost::unitigIterator<U, G, is_const> Bifrost::unitigIterator<U, G, is_const>::operator++(int) {
 
-    unitigIterator<U, G, is_const> tmp(*this);
+    Bifrost::unitigIterator<U, G, is_const> tmp(*this);
     operator++();
 
     return tmp;
 }
 
 template<typename U, typename G, bool is_const>
-bool unitigIterator<U, G, is_const>::operator==(const unitigIterator& o) const {
+bool Bifrost::unitigIterator<U, G, is_const>::operator==(const unitigIterator& o) const {
 
     if (invalid || o.invalid) return invalid && o.invalid;
     return  (i == o.i) && (v_unitigs_sz == o.v_unitigs_sz) && (v_kmers_sz == o.v_kmers_sz) &&
@@ -79,12 +79,12 @@ bool unitigIterator<U, G, is_const>::operator==(const unitigIterator& o) const {
 }
 
 template<typename U, typename G, bool is_const>
-bool unitigIterator<U, G, is_const>::operator!=(const unitigIterator& o) const { return !operator==(o); }
+bool Bifrost::unitigIterator<U, G, is_const>::operator!=(const unitigIterator& o) const { return !operator==(o); }
 
 template<typename U, typename G, bool is_const>
-const UnitigMap<U, G, is_const>& unitigIterator<U, G, is_const>::operator*() const { return um; }
+const Bifrost::UnitigMap<U, G, is_const>& Bifrost::unitigIterator<U, G, is_const>::operator*() const { return um; }
 
 template<typename U, typename G, bool is_const>
-const UnitigMap<U, G, is_const>* unitigIterator<U, G, is_const>::operator->() const { return &um; }
+const Bifrost::UnitigMap<U, G, is_const>* Bifrost::unitigIterator<U, G, is_const>::operator->() const { return &um; }
 
 #endif

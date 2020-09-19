@@ -1,10 +1,6 @@
 #ifndef BIFROST_KMER_HPP
 #define BIFROST_KMER_HPP
 
-#ifndef MAX_KMER_SIZE
-#define MAX_KMER_SIZE 32
-#endif
-
 #include <stdio.h>
 #include <stdint.h>
 #include <cassert>
@@ -17,6 +13,13 @@
 #include <iostream>
 
 #include "Common.hpp"
+
+namespace Bifrost {
+
+#ifndef MAX_KMER_SIZE
+#define MAX_KMER_SIZE 32
+#endif
+
 
 /** @file src/Kmer.hpp
 * Interface for the class Kmer:
@@ -289,5 +292,7 @@ struct MinimizerHash {
     }
 };
 ///@endcond
+
+}
 
 #endif // BFG_KMER_HPP

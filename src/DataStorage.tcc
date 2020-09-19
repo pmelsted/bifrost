@@ -2,7 +2,7 @@
 #define BIFROST_DATA_STORAGE_TCC
 
 template<typename U>
-DataStorage<U>::DataStorage() : color_sets(nullptr), shared_color_sets(nullptr), unitig_cs_link(nullptr), data(nullptr),
+Bifrost::DataStorage<U>::DataStorage() : color_sets(nullptr), shared_color_sets(nullptr), unitig_cs_link(nullptr), data(nullptr),
                                 nb_seeds(0), nb_cs(0), sz_cs(0), sz_shared_cs(0), pos_empty_cs(0) {
 
     std::random_device rd; //Seed
@@ -13,7 +13,7 @@ DataStorage<U>::DataStorage() : color_sets(nullptr), shared_color_sets(nullptr),
 }
 
 template<typename U>
-DataStorage<U>::DataStorage(const size_t nb_seeds_, const size_t sz_cs_, const vector<string>& color_names_) :
+Bifrost::DataStorage<U>::DataStorage(const size_t nb_seeds_, const size_t sz_cs_, const vector<string>& color_names_) :
                             color_sets(nullptr), shared_color_sets(nullptr), unitig_cs_link(nullptr), data(nullptr),
                             nb_seeds(nb_seeds_), nb_cs(sz_cs_), sz_cs(sz_cs_), sz_shared_cs(0), pos_empty_cs(0),
                             color_names(color_names_) {
@@ -34,7 +34,7 @@ DataStorage<U>::DataStorage(const size_t nb_seeds_, const size_t sz_cs_, const v
 }
 
 template<>
-inline DataStorage<void>::DataStorage(const size_t nb_seeds_, const size_t sz_cs_, const vector<string>& color_names_) :
+inline Bifrost::DataStorage<void>::DataStorage(const size_t nb_seeds_, const size_t sz_cs_, const vector<string>& color_names_) :
                                 color_sets(nullptr), shared_color_sets(nullptr), unitig_cs_link(nullptr), data(nullptr),
                                 nb_seeds(nb_seeds_), nb_cs(sz_cs_), sz_cs(sz_cs_), sz_shared_cs(0), pos_empty_cs(0),
                                 color_names(color_names_) {
@@ -54,7 +54,7 @@ inline DataStorage<void>::DataStorage(const size_t nb_seeds_, const size_t sz_cs
 }
 
 template<typename U>
-DataStorage<U>::DataStorage(const DataStorage& o) : color_sets(nullptr), shared_color_sets(nullptr), unitig_cs_link(nullptr),
+Bifrost::DataStorage<U>::DataStorage(const DataStorage& o) : color_sets(nullptr), shared_color_sets(nullptr), unitig_cs_link(nullptr),
                                                     data(nullptr), overflow(o.overflow), nb_seeds(o.nb_seeds), nb_cs(o.nb_cs),
                                                     sz_cs(o.sz_cs), sz_shared_cs(o.sz_shared_cs), pos_empty_cs(o.pos_empty_cs),
                                                     color_names(o.color_names) {
@@ -90,7 +90,7 @@ DataStorage<U>::DataStorage(const DataStorage& o) : color_sets(nullptr), shared_
 }
 
 template<>
-inline DataStorage<void>::DataStorage(const DataStorage& o) :   color_sets(nullptr), shared_color_sets(nullptr), unitig_cs_link(nullptr),
+inline Bifrost::DataStorage<void>::DataStorage(const DataStorage& o) :   color_sets(nullptr), shared_color_sets(nullptr), unitig_cs_link(nullptr),
                                                                 data(nullptr), overflow(o.overflow), nb_seeds(o.nb_seeds), nb_cs(o.nb_cs),
                                                                 sz_cs(o.sz_cs), sz_shared_cs(o.sz_shared_cs), pos_empty_cs(o.pos_empty_cs),
                                                                 color_names(o.color_names) {
@@ -119,7 +119,7 @@ inline DataStorage<void>::DataStorage(const DataStorage& o) :   color_sets(nullp
 }
 
 template<typename U>
-DataStorage<U>::DataStorage(DataStorage&& o) :  color_sets(o.color_sets), shared_color_sets(o.shared_color_sets), data(o.data),
+Bifrost::DataStorage<U>::DataStorage(DataStorage&& o) :  color_sets(o.color_sets), shared_color_sets(o.shared_color_sets), data(o.data),
                                                 unitig_cs_link(o.unitig_cs_link), overflow(move(o.overflow)), nb_seeds(o.nb_seeds),
                                                 nb_cs(o.nb_cs), sz_cs(o.sz_cs), sz_shared_cs(o.sz_shared_cs), pos_empty_cs(o.pos_empty_cs),
                                                 color_names(move(o.color_names)) {
@@ -135,7 +135,7 @@ DataStorage<U>::DataStorage(DataStorage&& o) :  color_sets(o.color_sets), shared
 }
 
 template<typename U>
-void DataStorage<U>::clear() {
+void Bifrost::DataStorage<U>::clear() {
 
     nb_seeds = 0;
     nb_cs = 0;
@@ -147,7 +147,7 @@ void DataStorage<U>::clear() {
 }
 
 template<typename U>
-void DataStorage<U>::releaseMemory() {
+void Bifrost::DataStorage<U>::releaseMemory() {
 
     if (color_sets != nullptr){
 
@@ -178,7 +178,7 @@ void DataStorage<U>::releaseMemory() {
 }
 
 template<>
-inline void DataStorage<void>::releaseMemory() {
+inline void Bifrost::DataStorage<void>::releaseMemory() {
 
     if (color_sets != nullptr){
 
@@ -205,13 +205,13 @@ inline void DataStorage<void>::releaseMemory() {
 }
 
 template<typename U>
-DataStorage<U>::~DataStorage() {
+Bifrost::DataStorage<U>::~DataStorage() {
 
     releaseMemory();
 }
 
 template<typename U>
-DataStorage<U>& DataStorage<U>::operator=(const DataStorage& o) {
+Bifrost::DataStorage<U>& Bifrost::DataStorage<U>::operator=(const DataStorage& o) {
 
     releaseMemory();
 
@@ -256,7 +256,7 @@ DataStorage<U>& DataStorage<U>::operator=(const DataStorage& o) {
 }
 
 template<>
-inline DataStorage<void>& DataStorage<void>::operator=(const DataStorage& o) {
+inline Bifrost::DataStorage<void>& Bifrost::DataStorage<void>::operator=(const DataStorage& o) {
 
     releaseMemory();
 
@@ -295,7 +295,7 @@ inline DataStorage<void>& DataStorage<void>::operator=(const DataStorage& o) {
 }
 
 template<typename U>
-DataStorage<U>& DataStorage<U>::operator=(DataStorage&& o) {
+Bifrost::DataStorage<U>& Bifrost::DataStorage<U>::operator=(DataStorage&& o) {
 
     if (this != &o) {
 
@@ -330,7 +330,7 @@ DataStorage<U>& DataStorage<U>::operator=(DataStorage&& o) {
 }
 
 template<>
-inline DataStorage<void>& DataStorage<void>::operator=(DataStorage&& o) {
+inline Bifrost::DataStorage<void>& Bifrost::DataStorage<void>::operator=(DataStorage&& o) {
 
     if (this != &o) {
 
@@ -363,7 +363,7 @@ inline DataStorage<void>& DataStorage<void>::operator=(DataStorage&& o) {
 }
 
 template<typename U>
-const UnitigColors* DataStorage<U>::getUnitigColors(const const_UnitigColorMap<U>& um) const {
+const Bifrost::UnitigColors* Bifrost::DataStorage<U>::getUnitigColors(const const_UnitigColorMap<U>& um) const {
 
     if (!um.isEmpty && (color_sets != nullptr)){
 
@@ -384,7 +384,7 @@ const UnitigColors* DataStorage<U>::getUnitigColors(const const_UnitigColorMap<U
 }
 
 template<typename U>
-UnitigColors* DataStorage<U>::getUnitigColors(const UnitigColorMap<U>& um) {
+Bifrost::UnitigColors* Bifrost::DataStorage<U>::getUnitigColors(const UnitigColorMap<U>& um) {
 
     if (!um.isEmpty && (color_sets != nullptr)){
 
@@ -405,7 +405,7 @@ UnitigColors* DataStorage<U>::getUnitigColors(const UnitigColorMap<U>& um) {
 }
 
 template<typename U>
-const U* DataStorage<U>::getData(const const_UnitigColorMap<U>& um) const {
+const U* Bifrost::DataStorage<U>::getData(const const_UnitigColorMap<U>& um) const {
 
     if (!um.isEmpty && (data != nullptr)){
 
@@ -425,13 +425,13 @@ const U* DataStorage<U>::getData(const const_UnitigColorMap<U>& um) const {
     return nullptr;
 }
 
-template<> inline const void* DataStorage<void>::getData(const const_UnitigColorMap<void>& um) const {
+template<> inline const void* Bifrost::DataStorage<void>::getData(const const_UnitigColorMap<void>& um) const {
 
     return nullptr;
 }
 
 template<typename U>
-U* DataStorage<U>::getData(const UnitigColorMap<U>& um) {
+U* Bifrost::DataStorage<U>::getData(const UnitigColorMap<U>& um) {
 
     if (!um.isEmpty && (data != nullptr)){
 
@@ -451,13 +451,13 @@ U* DataStorage<U>::getData(const UnitigColorMap<U>& um) {
     return nullptr;
 }
 
-template<> inline void* DataStorage<void>::getData(const UnitigColorMap<void>& um) {
+template<> inline void* Bifrost::DataStorage<void>::getData(const UnitigColorMap<void>& um) {
 
     return nullptr;
 }
 
 template<typename U>
-UnitigColors DataStorage<U>::getSubUnitigColors(const const_UnitigColorMap<U>& um) const {
+Bifrost::UnitigColors Bifrost::DataStorage<U>::getSubUnitigColors(const const_UnitigColorMap<U>& um) const {
 
     UnitigColors new_cs;
 
@@ -510,7 +510,7 @@ UnitigColors DataStorage<U>::getSubUnitigColors(const const_UnitigColorMap<U>& u
 }
 
 template<typename U>
-vector<string> DataStorage<U>::getSubUnitigColorNames(const const_UnitigColorMap<U>& um) const {
+vector<string> Bifrost::DataStorage<U>::getSubUnitigColorNames(const const_UnitigColorMap<U>& um) const {
 
     vector<string> v_out;
 
@@ -531,7 +531,7 @@ vector<string> DataStorage<U>::getSubUnitigColorNames(const const_UnitigColorMap
 }
 
 template<typename U>
-bool DataStorage<U>::write(const string& prefix_output_filename, const bool verbose) const {
+bool Bifrost::DataStorage<U>::write(const string& prefix_output_filename, const bool verbose) const {
 
     if (verbose) cout << endl << "DataStorage::write(): Writing colors to disk" << endl;
 
@@ -659,7 +659,7 @@ bool DataStorage<U>::write(const string& prefix_output_filename, const bool verb
 }
 
 template<>
-inline bool DataStorage<void>::write(const string& prefix_output_filename, const bool verbose) const {
+inline bool Bifrost::DataStorage<void>::write(const string& prefix_output_filename, const bool verbose) const {
 
     if (verbose) cout << endl << "DataStorage::write(): Writing colors to disk" << endl;
 
@@ -787,7 +787,7 @@ inline bool DataStorage<void>::write(const string& prefix_output_filename, const
 }
 
 template<typename U>
-bool DataStorage<U>::read(const string& filename_colors, const size_t nb_threads, const bool verbose) {
+bool Bifrost::DataStorage<U>::read(const string& filename_colors, const size_t nb_threads, const bool verbose) {
 
     if (verbose) cout << endl << "DataStorage::read(): Reading color sets from disk" << endl;
 
@@ -1042,7 +1042,7 @@ bool DataStorage<U>::read(const string& filename_colors, const size_t nb_threads
 }
 
 template<>
-inline bool DataStorage<void>::read(const string& filename_colors, const size_t nb_threads, const bool verbose) {
+inline bool Bifrost::DataStorage<void>::read(const string& filename_colors, const size_t nb_threads, const bool verbose) {
 
     if (verbose) cout << endl << "DataStorage::read(): Reading color sets from disk" << endl;
 
@@ -1296,7 +1296,7 @@ inline bool DataStorage<void>::read(const string& filename_colors, const size_t 
 }
 
 template<typename U>
-bool DataStorage<U>::addUnitigColors(const UnitigColorMap<U>& um_dest, const const_UnitigColorMap<U>& um_src) {
+bool Bifrost::DataStorage<U>::addUnitigColors(const UnitigColorMap<U>& um_dest, const const_UnitigColorMap<U>& um_src) {
 
     if (!um_dest.isEmpty && !um_src.isEmpty && (um_src.len == um_dest.len) && (color_sets != nullptr)){
 
@@ -1354,7 +1354,7 @@ bool DataStorage<U>::addUnitigColors(const UnitigColorMap<U>& um_dest, const con
 }
 
 template<typename U>
-UnitigColors DataStorage<U>::joinUnitigColors(const const_UnitigColorMap<U>& um_dest, const const_UnitigColorMap<U>& um_src) const {
+Bifrost::UnitigColors Bifrost::DataStorage<U>::joinUnitigColors(const const_UnitigColorMap<U>& um_dest, const const_UnitigColorMap<U>& um_src) const {
 
     UnitigColors new_cs;
 
@@ -1474,7 +1474,7 @@ UnitigColors DataStorage<U>::joinUnitigColors(const const_UnitigColorMap<U>& um_
 }
 
 template<typename U>
-void DataStorage<U>::remove(const UnitigColorMap<U>& um) {
+void Bifrost::DataStorage<U>::remove(const UnitigColorMap<U>& um) {
 
     if (!um.isEmpty && (color_sets != nullptr) && (data != nullptr)){
 
@@ -1517,7 +1517,7 @@ void DataStorage<U>::remove(const UnitigColorMap<U>& um) {
 }
 
 template<>
-inline void DataStorage<void>::remove(const UnitigColorMap<void>& um) {
+inline void Bifrost::DataStorage<void>::remove(const UnitigColorMap<void>& um) {
 
     if (!um.isEmpty && (color_sets != nullptr)){
 
@@ -1555,7 +1555,7 @@ inline void DataStorage<void>::remove(const UnitigColorMap<void>& um) {
 }
 
 template<typename U>
-size_t DataStorage<U>::getUnitigColorsSize(const size_t nb_threads) const {
+size_t Bifrost::DataStorage<U>::getUnitigColorsSize(const size_t nb_threads) const {
 
     if (color_sets != nullptr){
 
@@ -1589,7 +1589,7 @@ size_t DataStorage<U>::getUnitigColorsSize(const size_t nb_threads) const {
 }
 
 template<typename U>
-uint64_t DataStorage<U>::getHash(const UnitigColorMap<U>& um) const {
+uint64_t Bifrost::DataStorage<U>::getHash(const UnitigColorMap<U>& um) const {
 
     if (!um.isEmpty && (color_sets != nullptr)){
 
@@ -1610,7 +1610,7 @@ uint64_t DataStorage<U>::getHash(const UnitigColorMap<U>& um) const {
 }
 
 template<typename U>
-pair<DataAccessor<U>, UnitigColors*> DataStorage<U>::insert_(const Kmer head, const size_t unitig_sz, const bool force_overflow) {
+pair<Bifrost::DataAccessor<U>, Bifrost::UnitigColors*> Bifrost::DataStorage<U>::insert_(const Kmer head, const size_t unitig_sz, const bool force_overflow) {
 
     if (color_sets == nullptr) return {DataAccessor<U>(0), nullptr};
 
@@ -1670,51 +1670,51 @@ pair<DataAccessor<U>, UnitigColors*> DataStorage<U>::insert_(const Kmer head, co
 }
 
 template<typename U>
-pair<DataAccessor<U>, pair<UnitigColors*, U*>> DataStorage<U>::insert(const Kmer head, const size_t unitig_sz, const bool force_overflow) {
+pair<Bifrost::DataAccessor<U>, pair<Bifrost::UnitigColors*, U*>> Bifrost::DataStorage<U>::insert(const Kmer head, const size_t unitig_sz, const bool force_overflow) {
 
     if ((color_sets == nullptr) && (data == nullptr)) return {DataAccessor<U>(0), {nullptr, nullptr}};
 
-    const pair<DataAccessor<U>, UnitigColors*> p(insert_(head, unitig_sz, force_overflow));
+    const pair<Bifrost::DataAccessor<U>, Bifrost::UnitigColors*> p(insert_(head, unitig_sz, force_overflow));
 
     return {p.first, {p.second, &data[p.second - color_sets]}};
 }
 
 template<>
-inline pair<DataAccessor<void>, pair<UnitigColors*, void*>> DataStorage<void>::insert(const Kmer head, const size_t unitig_sz, const bool force_overflow) {
+inline pair<Bifrost::DataAccessor<void>, pair<Bifrost::UnitigColors*, void*>> Bifrost::DataStorage<void>::insert(const Kmer head, const size_t unitig_sz, const bool force_overflow) {
 
     if ((color_sets == nullptr) && (data == nullptr)) return {DataAccessor<void>(0), {nullptr, nullptr}};
 
-    const pair<DataAccessor<void>, UnitigColors*> p(insert_(head, unitig_sz, force_overflow));
+    const pair<Bifrost::DataAccessor<void>, Bifrost::UnitigColors*> p(insert_(head, unitig_sz, force_overflow));
 
     return {p.first, {p.second, nullptr}};
 }
 
 template<typename U>
-pair<DataAccessor<U>, pair<UnitigColors*, U*>> DataStorage<U>::insert(const UnitigColorMap<U>& um, const bool force_overflow) {
+pair<Bifrost::DataAccessor<U>, pair<Bifrost::UnitigColors*, U*>> Bifrost::DataStorage<U>::insert(const UnitigColorMap<U>& um, const bool force_overflow) {
 
     if ((color_sets == nullptr) && (data == nullptr)) return {DataAccessor<U>(0), {nullptr, nullptr}};
 
-    const Kmer head(um.getMappedHead());
-    const pair<DataAccessor<U>, UnitigColors*> p(insert_(head, um.len + um.getGraph()->getK() - 1, force_overflow));
+    const Bifrost::Kmer head(um.getMappedHead());
+    const pair<Bifrost::DataAccessor<U>, Bifrost::UnitigColors*> p(insert_(head, um.len + um.getGraph()->getK() - 1, force_overflow));
 
     return {p.first, {p.second, &data[p.second - color_sets]}};
 }
 
 template<>
-inline pair<DataAccessor<void>, pair<UnitigColors*, void*>> DataStorage<void>::insert(const UnitigColorMap<void>& um, const bool force_overflow) {
+inline pair<Bifrost::DataAccessor<void>, pair<Bifrost::UnitigColors*, void*>> Bifrost::DataStorage<void>::insert(const UnitigColorMap<void>& um, const bool force_overflow) {
 
     if ((color_sets == nullptr) && (data == nullptr)) return {DataAccessor<void>(0), {nullptr, nullptr}};
 
-    const Kmer head(um.getMappedHead());
-    const pair<DataAccessor<void>, UnitigColors*> p(insert_(head, um.len + um.getGraph()->getK() - 1, force_overflow));
+    const Bifrost::Kmer head(um.getMappedHead());
+    const pair<Bifrost::DataAccessor<void>, Bifrost::UnitigColors*> p(insert_(head, um.len + um.getGraph()->getK() - 1, force_overflow));
 
     return {p.first, {p.second, nullptr}};
 }
 
 template<typename U>
-void DataStorage<U>::resize(const double growth) {
+void Bifrost::DataStorage<U>::resize(const double growth) {
 
-    UnitigColors* old_color_sets = color_sets;
+    Bifrost::UnitigColors* old_color_sets = color_sets;
     atomic<uint64_t>* old_unitig_cs_link = unitig_cs_link;
     U* old_data = data;
 
@@ -1726,7 +1726,7 @@ void DataStorage<U>::resize(const double growth) {
     const size_t sz_link = (sz_cs >> 6) + ((sz_cs & 0x3F) != 0);
 
     // Reallocate UnitigColors
-    color_sets = new UnitigColors[sz_cs];
+    color_sets = new Bifrost::UnitigColors[sz_cs];
 
     move(old_color_sets, old_color_sets + old_sz_cs, color_sets);
     delete[] old_color_sets;
@@ -1747,9 +1747,9 @@ void DataStorage<U>::resize(const double growth) {
 }
 
 template<>
-inline void DataStorage<void>::resize(const double growth) {
+inline void Bifrost::DataStorage<void>::resize(const double growth) {
 
-    UnitigColors* old_color_sets = color_sets;
+    Bifrost::UnitigColors* old_color_sets = color_sets;
     atomic<uint64_t>* old_unitig_cs_link = unitig_cs_link;
 
     const size_t old_sz_cs = sz_cs;
@@ -1759,7 +1759,7 @@ inline void DataStorage<void>::resize(const double growth) {
 
     const size_t sz_link = (sz_cs >> 6) + ((sz_cs & 0x3F) != 0);
 
-    color_sets = new UnitigColors[sz_cs];
+    color_sets = new Bifrost::UnitigColors[sz_cs];
 
     move(old_color_sets, old_color_sets + old_sz_cs, color_sets);
     delete[] old_color_sets;

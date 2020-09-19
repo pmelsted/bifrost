@@ -36,6 +36,8 @@
 
 using namespace std;
 
+namespace Bifrost {
+
 static const char alpha[4] = {'A','C','G','T'};
 
 BFG_INLINE bool isDNA(const char c) {
@@ -230,5 +232,7 @@ template<> class wrapperData<void> {
         BFG_INLINE const void* getData() const { return nullptr; }
         BFG_INLINE void* getData() { return nullptr; }
 };
+
+}
 
 #endif // BFG_COMMON_HPP

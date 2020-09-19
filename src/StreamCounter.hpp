@@ -10,6 +10,8 @@
 
 #include "Common.hpp"
 
+namespace Bifrost {
+
 class StreamCounter {
 
     public:
@@ -703,5 +705,7 @@ class StreamCounter {
         const size_t countsPerLong;  // fix this
         const uint64_t maxVal; // has to be a power of 2-1
 };*/
+
+}
 
 #endif

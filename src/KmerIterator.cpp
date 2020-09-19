@@ -3,6 +3,7 @@
 #include "Kmer.hpp"
 #include "KmerIterator.hpp"
 
+using namespace Bifrost;
 
 /* Note: That an iter is exhausted means that (iter._invalid == true) */
 
@@ -137,4 +138,8 @@ void KmerIterator::find_next(size_t i, size_t j, bool last_valid) {
 
         invalid_ = true;
     }
+}
+
+void KmerIterator::jumpTo(int pos) {
+    find_next(pos - 1, (pos - 1) + Kmer::k - 1, false);
 }

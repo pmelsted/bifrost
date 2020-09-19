@@ -6,6 +6,8 @@
 #include "CompactedDBG.hpp"
 #include "TinyBitmap.hpp"
 
+namespace Bifrost {
+
 /** @file src/ColorSet.hpp
 * Interface for UnitigColors, the unitig container of k-mer color sets used in ColoredCDBG.
 * Code snippets using this interface are provided in snippets/test.cpp.
@@ -472,5 +474,7 @@ struct UnitigColorsHash {
         return uc.hash();
     }
 };
+
+}
 
 #endif

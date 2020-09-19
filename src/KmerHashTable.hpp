@@ -717,6 +717,8 @@ struct MinimizerHashTable {
     const_iterator end() const { return const_iterator(this); }
 };*/
 
+namespace Bifrost {
+
 template<typename T>
 struct KmerHashTable {
 
@@ -1484,5 +1486,7 @@ struct MinimizerHashTable {
 
     const_iterator end() const { return const_iterator(this); }
 };
+
+}
 
 #endif

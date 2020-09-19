@@ -14,6 +14,8 @@
 
 using namespace std;
 
+namespace Bifrost {
+
 class GFA_Parser {
 
     struct Sequence {
@@ -127,5 +129,7 @@ class GFA_Parser {
         Sequence s;
         Edge e;
 };
+
+}
 
 #endif

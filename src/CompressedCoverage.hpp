@@ -9,6 +9,8 @@
 #include "BitContainer.hpp"
 #include "Common.hpp"
 
+namespace Bifrost {
+
 /* Short description:
  *  - Tagged pointer union that is either
  *    - a pointer to a char array that stores 2-bit integers
@@ -186,5 +188,7 @@ template<> struct CompressedCoverage_t<void> {
 
     CompressedCoverage ccov;
 };
+
+}
 
 #endif // BFG_COMPRESSED_COVERAGE_HPP

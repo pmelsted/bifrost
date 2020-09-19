@@ -3,7 +3,7 @@
 
 
 template<typename U, typename G>
-vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   const string& seq, const bool exact, const bool insertion,
+vector<pair<size_t, Bifrost::UnitigMap<U, G>>> Bifrost::CompactedDBG<U, G>::searchSequence(   const string& seq, const bool exact, const bool insertion,
                                                                             const bool deletion, const bool substitution,
                                                                             const bool or_exclusive_match) {
 
@@ -11,17 +11,17 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
         cerr << "CompactedDBG::searchSequence(): Graph is invalid and cannot be searched" << endl;
 
-        return vector<pair<size_t, UnitigMap<U, G>>>();
+        return vector<pair<size_t, Bifrost::UnitigMap<U, G>>>();
     }
 
     if (seq.length() < k_){
 
         cerr << "CompactedDBG::searchSequence(): Query length is shorter than k-mer size" << endl;
 
-        return vector<pair<size_t, UnitigMap<U, G>>>();
+        return vector<pair<size_t, Bifrost::UnitigMap<U, G>>>();
     }
 
-    vector<pair<size_t, UnitigMap<U, G>>> v_um;
+    vector<pair<size_t, Bifrost::UnitigMap<U, G>>> v_um;
 
     string seqs;
 
@@ -38,7 +38,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
         const size_t end = 1ULL << ((static_cast<size_t>(!subst_or_ind) - 1) & 0x2ULL);
         const size_t seq_len = seq.length();
 
-        auto processUnitigMap = [&](const UnitigMap<U, G>& um, const size_t pos_seq){
+        auto processUnitigMap = [&](const Bifrost::UnitigMap<U, G>& um, const size_t pos_seq){
 
             if (um.strand){
 
@@ -105,7 +105,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
                 if (minz_pres.second){ // If at least one minimizer was present, search the kmer
 
-                    const UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
+                    const Bifrost::UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
 
                     if (!um.isEmpty){
 
@@ -149,7 +149,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
                         if (minz_pres.second) { // If the k-mer has already been searched in the past, discard
 
-                            const UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
+                            const Bifrost::UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
 
                             if (!um.isEmpty){
 
@@ -172,7 +172,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
         for (size_t i = 0; i < seq.length() - k_ + 1; ++i) {
 
-            const UnitigMap<U, G> um = findUnitig(seq.c_str(), i, seq.length());
+            const Bifrost::UnitigMap<U, G> um = findUnitig(seq.c_str(), i, seq.length());
 
             if (!um.isEmpty) { // Read maps to a Unitig
 
@@ -248,7 +248,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 }
 
 template<typename U, typename G>
-vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   const string& seq, const bool exact, const bool insertion,
+vector<pair<size_t, Bifrost::UnitigMap<U, G>>> Bifrost::CompactedDBG<U, G>::searchSequence(   const string& seq, const bool exact, const bool insertion,
                                                                             const bool deletion, const bool substitution,
                                                                             const double ratio_kmers, const bool or_exclusive_match) {
 
@@ -256,33 +256,33 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
         cerr << "CompactedDBG::searchSequence(): Graph is invalid and cannot be searched" << endl;
 
-        return vector<pair<size_t, UnitigMap<U, G>>>();
+        return vector<pair<size_t, Bifrost::UnitigMap<U, G>>>();
     }
 
     if (ratio_kmers < 0.0){
 
         cerr << "CompactedDBG::searchSequence(): Ratio of k-mers is less than 0.0" << endl;
 
-        return vector<pair<size_t, UnitigMap<U, G>>>();
+        return vector<pair<size_t, Bifrost::UnitigMap<U, G>>>();
     }
 
     if (ratio_kmers > 1.0){
 
         cerr << "CompactedDBG::searchSequence(): Ratio of k-mers is greater than 1.0" << endl;
 
-        return vector<pair<size_t, UnitigMap<U, G>>>();
+        return vector<pair<size_t, Bifrost::UnitigMap<U, G>>>();
     }
 
     if (seq.length() < k_){
 
         cerr << "CompactedDBG::searchSequence(): Query length is shorter than k-mer size" << endl;
 
-        return vector<pair<size_t, UnitigMap<U, G>>>();
+        return vector<pair<size_t, Bifrost::UnitigMap<U, G>>>();
     }
 
     const size_t nb_km_min = static_cast<double>(seq.length() - k_ + 1) * ratio_kmers;
 
-    vector<pair<size_t, UnitigMap<U, G>>> v_um;
+    vector<pair<size_t, Bifrost::UnitigMap<U, G>>> v_um;
 
     string seqs;
 
@@ -299,7 +299,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
         const size_t end = 1ULL << ((static_cast<size_t>(!subst_or_ind) - 1) & 0x2ULL);
         const size_t seq_len = seq.length();
 
-        auto processUnitigMap = [&](const UnitigMap<U, G>& um, const size_t pos_seq){
+        auto processUnitigMap = [&](const Bifrost::UnitigMap<U, G>& um, const size_t pos_seq){
 
             if (um.strand){
 
@@ -374,7 +374,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
                 if (minz_pres.second){ // If at least one minimizer was present, search the kmer
 
-                    const UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
+                    const Bifrost::UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
 
                     if (!um.isEmpty){
 
@@ -420,7 +420,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
                         if (minz_pres.second) { // If the k-mer has already been searched in the past, discard
 
-                            const UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
+                            const Bifrost::UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
 
                             if (!um.isEmpty){
 
@@ -445,7 +445,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
         for (size_t i = 0; i < seq.length() - k_ + 1; ++i) {
 
-            const UnitigMap<U, G> um = findUnitig(seq.c_str(), i, seq.length());
+            const Bifrost::UnitigMap<U, G> um = findUnitig(seq.c_str(), i, seq.length());
 
             if (!um.isEmpty) { // Read maps to a Unitig
 
@@ -538,7 +538,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 }
 
 template<typename U, typename G>
-vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(     const string& seq, const bool exact, const bool insertion,
+vector<pair<size_t, Bifrost::const_UnitigMap<U, G>>> Bifrost::CompactedDBG<U, G>::searchSequence(     const string& seq, const bool exact, const bool insertion,
                                                                                     const bool deletion, const bool substitution,
                                                                                     const bool or_exclusive_match) const {
 
@@ -546,17 +546,17 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
         cerr << "CompactedDBG::searchSequence(): Graph is invalid and cannot be searched" << endl;
 
-        return vector<pair<size_t, const_UnitigMap<U, G>>>();
+        return vector<pair<size_t, Bifrost::const_UnitigMap<U, G>>>();
     }
 
     if (seq.length() < k_){
 
         cerr << "CompactedDBG::searchSequence(): Query length is shorter than k-mer size" << endl;
 
-        return vector<pair<size_t, const_UnitigMap<U, G>>>();
+        return vector<pair<size_t, Bifrost::const_UnitigMap<U, G>>>();
     }
 
-    vector<pair<size_t, const_UnitigMap<U, G>>> v_um;
+    vector<pair<size_t, Bifrost::const_UnitigMap<U, G>>> v_um;
 
     string seqs;
 
@@ -573,7 +573,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
         const size_t end = 1ULL << ((static_cast<size_t>(!subst_or_ind) - 1) & 0x2ULL);
         const size_t seq_len = seq.length();
 
-        auto processUnitigMap = [&](const const_UnitigMap<U, G>& um, const size_t pos_seq){
+        auto processUnitigMap = [&](const Bifrost::const_UnitigMap<U, G>& um, const size_t pos_seq){
 
             if (um.strand){
 
@@ -640,7 +640,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
                 if (minz_pres.second){ // If at least one minimizer was present, search the kmer
 
-                    const const_UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
+                        const Bifrost::const_UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
 
                     if (!um.isEmpty){
 
@@ -684,7 +684,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
                         if (minz_pres.second) { // If the k-mer has already been searched in the past, discard
 
-                            const const_UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
+                            const Bifrost::const_UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
 
                             if (!um.isEmpty){
 
@@ -707,7 +707,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
         for (size_t i = 0; i < seq.length() - k_ + 1; ++i) {
 
-            const const_UnitigMap<U, G> um = findUnitig(seq.c_str(), i, seq.length());
+            const Bifrost::const_UnitigMap<U, G> um = findUnitig(seq.c_str(), i, seq.length());
 
             if (!um.isEmpty) { // Read maps to a Unitig
 
@@ -783,7 +783,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 }
 
 template<typename U, typename G>
-vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(     const string& seq, const bool exact, const bool insertion,
+vector<pair<size_t, Bifrost::const_UnitigMap<U, G>>> Bifrost::CompactedDBG<U, G>::searchSequence(     const string& seq, const bool exact, const bool insertion,
                                                                                     const bool deletion, const bool substitution,
                                                                                     const double ratio_kmers, const bool or_exclusive_match) const {
 
@@ -791,33 +791,33 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
         cerr << "CompactedDBG::searchSequence(): Graph is invalid and cannot be searched" << endl;
 
-        return vector<pair<size_t, const_UnitigMap<U, G>>>();
+        return vector<pair<size_t, Bifrost::const_UnitigMap<U, G>>>();
     }
 
     if (ratio_kmers < 0.0){
 
         cerr << "CompactedDBG::searchSequence(): Ratio of k-mers is less than 0.0" << endl;
 
-        return vector<pair<size_t, const_UnitigMap<U, G>>>();
+        return vector<pair<size_t, Bifrost::const_UnitigMap<U, G>>>();
     }
 
     if (ratio_kmers > 1.0){
 
         cerr << "CompactedDBG::searchSequence(): Ratio of k-mers is greater than 1.0" << endl;
 
-        return vector<pair<size_t, const_UnitigMap<U, G>>>();
+        return vector<pair<size_t, Bifrost::const_UnitigMap<U, G>>>();
     }
 
     if (seq.length() < k_){
 
         cerr << "CompactedDBG::searchSequence(): Query length is shorter than k-mer size" << endl;
 
-        return vector<pair<size_t, const_UnitigMap<U, G>>>();
+        return vector<pair<size_t, Bifrost::const_UnitigMap<U, G>>>();
     }
 
     const size_t nb_km_min = static_cast<double>(seq.length() - k_ + 1) * ratio_kmers;
 
-    vector<pair<size_t, const_UnitigMap<U, G>>> v_um;
+    vector<pair<size_t, Bifrost::const_UnitigMap<U, G>>> v_um;
 
     string seqs;
 
@@ -834,7 +834,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
         const size_t end = 1ULL << ((static_cast<size_t>(!subst_or_ind) - 1) & 0x2ULL);
         const size_t seq_len = seq.length();
 
-        auto processUnitigMap = [&](const const_UnitigMap<U, G>& um, const size_t pos_seq){
+        auto processUnitigMap = [&](const Bifrost::const_UnitigMap<U, G>& um, const size_t pos_seq){
 
             if (um.strand){
 
@@ -909,7 +909,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
                 if (minz_pres.second){ // If at least one minimizer was present, search the kmer
 
-                    const const_UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
+                    const Bifrost::const_UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
 
                     if (!um.isEmpty){
 
@@ -955,7 +955,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
                         if (minz_pres.second) { // If the k-mer has already been searched in the past, discard
 
-                            const const_UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
+                            const Bifrost::const_UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
 
                             if (!um.isEmpty){
 
@@ -980,7 +980,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
         for (size_t i = 0; i < seq.length() - k_ + 1; ++i) {
 
-            const const_UnitigMap<U, G> um = findUnitig(seq.c_str(), i, seq.length());
+            const Bifrost::const_UnitigMap<U, G> um = findUnitig(seq.c_str(), i, seq.length());
 
             if (!um.isEmpty) { // Read maps to a Unitig
 
@@ -1073,7 +1073,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const string& out_filename_prefix,
+bool Bifrost::CompactedDBG<U, G>::search(const vector<string>& query_filenames, const string& out_filename_prefix,
                                 const double ratio_kmers, const bool inexact_search, const size_t nb_threads,
                                 const size_t verbose) const {
 
@@ -1113,7 +1113,7 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
 
     if (verbose) cout << "CompactedDBG::search(): Querying graph." << endl;
 
-    const CompactedDBG<U, G>& dbg = *this;
+    const Bifrost::CompactedDBG<U, G>& dbg = *this;
 
     string s;
 
@@ -1156,7 +1156,7 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
 
             for (auto& c : s) c &= 0xDF;
 
-            const vector<pair<size_t, const_UnitigMap<U, G>>> v = dbg.searchSequence(   s, true, inexact_search, inexact_search,
+            const vector<pair<size_t, Bifrost::const_UnitigMap<U, G>>> v = dbg.searchSequence(   s, true, inexact_search, inexact_search,
                                                                                         inexact_search, ratio_kmers, true);
 
             if (inexact_search){
@@ -1261,7 +1261,7 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
 
                                 for (auto& c : buffers_seq[i]) c &= 0xDF;
 
-                                const vector<pair<size_t, const_UnitigMap<U, G>>> v = dbg.searchSequence(   buffers_seq[i], true, inexact_search, inexact_search,
+                                const vector<pair<size_t, Bifrost::const_UnitigMap<U, G>>> v = dbg.searchSequence(   buffers_seq[i], true, inexact_search, inexact_search,
                                                                                                             inexact_search, ratio_kmers, true);
 
                                 if (inexact_search){

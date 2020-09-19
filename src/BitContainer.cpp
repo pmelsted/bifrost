@@ -1,5 +1,9 @@
 #include "BitContainer.hpp"
 
+using namespace Bifrost;
+
+namespace Bifrost {
+
 BitContainer::BitContainer() : setBits(localBitVector) {}
 
 BitContainer::BitContainer(const BitContainer& o) {
@@ -1043,3 +1047,5 @@ const size_t BitContainer::shiftMaskBits = 3;
 
 const uintptr_t BitContainer::flagMask = 0x7;
 const uintptr_t BitContainer::pointerMask = 0xFFFFFFFFFFFFFFF8;
+
+}

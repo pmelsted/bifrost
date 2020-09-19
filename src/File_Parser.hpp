@@ -15,6 +15,8 @@
 KSEQ_INIT(gzFile, gzread);
 #endif
 
+namespace Bifrost {
+
 class FileParser {
 
     public:
@@ -247,5 +249,7 @@ class FileParser {
         FastqFile ff;
         GFA_Parser gfap;
 };
+
+}
 
 #endif

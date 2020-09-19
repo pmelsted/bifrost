@@ -1,5 +1,9 @@
 #include "BlockedBloomFilter.hpp"
 
+using namespace Bifrost;
+
+namespace Bifrost {
+
 #if defined(__AVX2__)
 
 BlockedBloomFilter::BlockedBloomFilter() : table_(nullptr), blocks_(0), k_(0) {
@@ -1152,3 +1156,5 @@ bool BlockedBloomFilter::insert_unpar(uint64_t kmer_hash, const uint64_t min_has
 }
 
 #endif
+
+}

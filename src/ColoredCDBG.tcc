@@ -2,25 +2,25 @@
 #define BIFROST_COLOREDCDBG_TCC
 
 template<typename U>
-ColoredCDBG<U>::ColoredCDBG(int kmer_length) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(kmer_length){
+Bifrost::ColoredCDBG<U>::ColoredCDBG(int kmer_length) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(kmer_length){
 
     invalid = this->isInvalid();
 }
 
 template<typename U>
-ColoredCDBG<U>::ColoredCDBG(int kmer_length, int minimizer_length) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(kmer_length, minimizer_length){
+Bifrost::ColoredCDBG<U>::ColoredCDBG(int kmer_length, int minimizer_length) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(kmer_length, minimizer_length){
 
     invalid = this->isInvalid();
 }
 
 template<typename U>
-ColoredCDBG<U>::ColoredCDBG(const ColoredCDBG& o) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(o), invalid(o.invalid) {}
+Bifrost::ColoredCDBG<U>::ColoredCDBG(const ColoredCDBG& o) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(o), invalid(o.invalid) {}
 
 template<typename U>
-ColoredCDBG<U>::ColoredCDBG(ColoredCDBG&& o) :  CompactedDBG<DataAccessor<U>, DataStorage<U>>(move(o)), invalid(o.invalid) {}
+Bifrost::ColoredCDBG<U>::ColoredCDBG(ColoredCDBG&& o) :  CompactedDBG<DataAccessor<U>, DataStorage<U>>(move(o)), invalid(o.invalid) {}
 
 template<typename U>
-void ColoredCDBG<U>::clear(){
+void Bifrost::ColoredCDBG<U>::clear(){
 
     invalid = true;
 
@@ -29,7 +29,7 @@ void ColoredCDBG<U>::clear(){
 }
 
 template<typename U>
-ColoredCDBG<U>& ColoredCDBG<U>::operator=(const ColoredCDBG& o) {
+Bifrost::ColoredCDBG<U>& Bifrost::ColoredCDBG<U>::operator=(const ColoredCDBG& o) {
 
     CompactedDBG<DataAccessor<U>, DataStorage<U>>::operator=(o);
 
@@ -39,7 +39,7 @@ ColoredCDBG<U>& ColoredCDBG<U>::operator=(const ColoredCDBG& o) {
 }
 
 template<typename U>
-ColoredCDBG<U>& ColoredCDBG<U>::operator=(ColoredCDBG&& o) {
+Bifrost::ColoredCDBG<U>& Bifrost::ColoredCDBG<U>::operator=(ColoredCDBG&& o) {
 
     if (this != &o) {
 
@@ -54,7 +54,7 @@ ColoredCDBG<U>& ColoredCDBG<U>::operator=(ColoredCDBG&& o) {
 }
 
 template<typename U>
-ColoredCDBG<U>& ColoredCDBG<U>::operator+=(const ColoredCDBG& o) {
+Bifrost::ColoredCDBG<U>& Bifrost::ColoredCDBG<U>::operator+=(const ColoredCDBG& o) {
 
     if (this != &o) merge(o, 1, false);
 
@@ -62,7 +62,7 @@ ColoredCDBG<U>& ColoredCDBG<U>::operator+=(const ColoredCDBG& o) {
 }
 
 template<typename U>
-bool ColoredCDBG<U>::operator==(const ColoredCDBG& o) const {
+bool Bifrost::ColoredCDBG<U>::operator==(const ColoredCDBG& o) const {
 
     if (!invalid && !this->isInvalid() && !o.isInvalid() && (this->getK() == o.getK()) && (this->size() == o.size())){
 
@@ -102,13 +102,13 @@ bool ColoredCDBG<U>::operator==(const ColoredCDBG& o) const {
 }
 
 template<typename U>
-inline bool ColoredCDBG<U>::operator!=(const ColoredCDBG& o) const {
+inline bool Bifrost::ColoredCDBG<U>::operator!=(const ColoredCDBG& o) const {
 
     return !operator==(o);
 }
 
 template<typename U>
-bool ColoredCDBG<U>::merge(const ColoredCDBG& o, const size_t nb_threads, const bool verbose){
+bool Bifrost::ColoredCDBG<U>::merge(const ColoredCDBG& o, const size_t nb_threads, const bool verbose){
 
     bool ret = true;
 
@@ -172,7 +172,7 @@ bool ColoredCDBG<U>::merge(const ColoredCDBG& o, const size_t nb_threads, const 
 }
 
 template<typename U>
-bool ColoredCDBG<U>::merge(ColoredCDBG&& o, const size_t nb_threads, const bool verbose){
+bool Bifrost::ColoredCDBG<U>::merge(ColoredCDBG&& o, const size_t nb_threads, const bool verbose){
 
     bool ret = true;
 
@@ -240,7 +240,7 @@ bool ColoredCDBG<U>::merge(ColoredCDBG&& o, const size_t nb_threads, const bool 
 }
 
 template<typename U>
-bool ColoredCDBG<U>::merge(const vector<ColoredCDBG>& v, const size_t nb_threads, const bool verbose){
+bool Bifrost::ColoredCDBG<U>::merge(const vector<ColoredCDBG>& v, const size_t nb_threads, const bool verbose){
 
     bool ret = true;
 
@@ -317,7 +317,7 @@ bool ColoredCDBG<U>::merge(const vector<ColoredCDBG>& v, const size_t nb_threads
 }
 
 template<typename U>
-bool ColoredCDBG<U>::merge(vector<ColoredCDBG>&& v, const size_t nb_threads, const bool verbose){
+bool Bifrost::ColoredCDBG<U>::merge(vector<ColoredCDBG>&& v, const size_t nb_threads, const bool verbose){
 
     bool ret = true;
 
@@ -396,7 +396,7 @@ bool ColoredCDBG<U>::merge(vector<ColoredCDBG>&& v, const size_t nb_threads, con
 }
 
 template<typename U>
-bool ColoredCDBG<U>::buildGraph(const CCDBG_Build_opt& opt){
+bool Bifrost::ColoredCDBG<U>::buildGraph(const CCDBG_Build_opt& opt){
 
     if (!invalid){
 
@@ -410,7 +410,7 @@ bool ColoredCDBG<U>::buildGraph(const CCDBG_Build_opt& opt){
 }
 
 template<typename U>
-bool ColoredCDBG<U>::buildColors(const CCDBG_Build_opt& opt){
+bool Bifrost::ColoredCDBG<U>::buildColors(const CCDBG_Build_opt& opt){
 
     if (!invalid){
 
@@ -423,7 +423,7 @@ bool ColoredCDBG<U>::buildColors(const CCDBG_Build_opt& opt){
 }
 
 template<typename U>
-bool ColoredCDBG<U>::write(const string& prefix_output_filename, const size_t nb_threads, const bool verbose) const {
+bool Bifrost::ColoredCDBG<U>::write(const string& prefix_output_filename, const size_t nb_threads, const bool verbose) const {
 
     if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::write(prefix_output_filename, nb_threads, true, verbose)) return false; // Write graph
 
@@ -431,7 +431,7 @@ bool ColoredCDBG<U>::write(const string& prefix_output_filename, const size_t nb
 }
 
 template<typename U>
-bool ColoredCDBG<U>::read(const string& input_graph_filename, const string& input_colors_filename, const size_t nb_threads, const bool verbose) {
+bool Bifrost::ColoredCDBG<U>::read(const string& input_graph_filename, const string& input_colors_filename, const size_t nb_threads, const bool verbose) {
 
     bool valid_input_files = true;
 
@@ -619,7 +619,7 @@ bool ColoredCDBG<U>::read(const string& input_graph_filename, const string& inpu
 }
 
 template<typename U>
-void ColoredCDBG<U>::initUnitigColors(const CCDBG_Build_opt& opt, const size_t max_nb_hash){
+void Bifrost::ColoredCDBG<U>::initUnitigColors(const CCDBG_Build_opt& opt, const size_t max_nb_hash){
 
     vector<string> v_files(opt.filename_seq_in);
 
@@ -636,8 +636,8 @@ void ColoredCDBG<U>::initUnitigColors(const CCDBG_Build_opt& opt, const size_t m
 
     vector<thread> workers; // need to keep track of threads so we can join them
 
-    typename ColoredCDBG<U>::iterator g_a = this->begin();
-    typename ColoredCDBG<U>::iterator g_b = this->end();
+    typename Bifrost::ColoredCDBG<U>::iterator g_a = this->begin();
+    typename Bifrost::ColoredCDBG<U>::iterator g_b = this->end();
 
     mutex mutex_it;
 
@@ -647,7 +647,7 @@ void ColoredCDBG<U>::initUnitigColors(const CCDBG_Build_opt& opt, const size_t m
 
             [&]{
 
-                typename ColoredCDBG<U>::iterator l_a, l_b;
+                typename Bifrost::ColoredCDBG<U>::iterator l_a, l_b;
 
                 while (true) {
 
@@ -679,7 +679,7 @@ void ColoredCDBG<U>::initUnitigColors(const CCDBG_Build_opt& opt, const size_t m
 }
 
 template<typename U>
-void ColoredCDBG<U>::resizeDataUC(const size_t sz, const size_t nb_threads, const size_t max_nb_hash){
+void Bifrost::ColoredCDBG<U>::resizeDataUC(const size_t sz, const size_t nb_threads, const size_t max_nb_hash){
 
     DataStorage<U>* ds = this->getData();
 
@@ -689,8 +689,8 @@ void ColoredCDBG<U>::resizeDataUC(const size_t sz, const size_t nb_threads, cons
 
     vector<thread> workers; // need to keep track of threads so we can join them
 
-    typename ColoredCDBG<U>::iterator g_a = this->begin();
-    typename ColoredCDBG<U>::iterator g_b = this->end();
+    typename Bifrost::ColoredCDBG<U>::iterator g_a = this->begin();
+    typename Bifrost::ColoredCDBG<U>::iterator g_b = this->end();
 
     mutex mutex_it;
 
@@ -700,7 +700,7 @@ void ColoredCDBG<U>::resizeDataUC(const size_t sz, const size_t nb_threads, cons
 
             [&]{
 
-                typename ColoredCDBG<U>::iterator l_a, l_b;
+                typename Bifrost::ColoredCDBG<U>::iterator l_a, l_b;
 
                 while (true) {
 
@@ -745,7 +745,7 @@ void ColoredCDBG<U>::resizeDataUC(const size_t sz, const size_t nb_threads, cons
 }
 
 template<>
-inline void ColoredCDBG<void>::resizeDataUC(const size_t sz, const size_t nb_threads, const size_t max_nb_hash){
+inline void Bifrost::ColoredCDBG<void>::resizeDataUC(const size_t sz, const size_t nb_threads, const size_t max_nb_hash){
 
     DataStorage<void>* ds = this->getData();
 
@@ -755,8 +755,8 @@ inline void ColoredCDBG<void>::resizeDataUC(const size_t sz, const size_t nb_thr
 
     vector<thread> workers; // need to keep track of threads so we can join them
 
-    typename ColoredCDBG<void>::iterator g_a = this->begin();
-    typename ColoredCDBG<void>::iterator g_b = this->end();
+    typename Bifrost::ColoredCDBG<void>::iterator g_a = this->begin();
+    typename Bifrost::ColoredCDBG<void>::iterator g_b = this->end();
 
     mutex mutex_it;
 
@@ -766,7 +766,7 @@ inline void ColoredCDBG<void>::resizeDataUC(const size_t sz, const size_t nb_thr
 
             [&]{
 
-                typename ColoredCDBG<void>::iterator l_a, l_b;
+                typename Bifrost::ColoredCDBG<void>::iterator l_a, l_b;
 
                 while (true) {
 
@@ -808,7 +808,7 @@ inline void ColoredCDBG<void>::resizeDataUC(const size_t sz, const size_t nb_thr
 }
 
 template<typename U>
-void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
+void Bifrost::ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
     DataStorage<U>* ds = this->getData();
 
@@ -1016,8 +1016,8 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
                 const size_t chunk = 1000;
 
-                typename ColoredCDBG<U>::iterator g_a = this->begin();
-                typename ColoredCDBG<U>::iterator g_b = this->end();
+                typename Bifrost::ColoredCDBG<U>::iterator g_a = this->begin();
+                typename Bifrost::ColoredCDBG<U>::iterator g_b = this->end();
 
                 mutex mutex_it;
 
@@ -1027,7 +1027,7 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
                         [&]{
 
-                            typename ColoredCDBG<U>::iterator l_a, l_b;
+                            typename Bifrost::ColoredCDBG<U>::iterator l_a, l_b;
 
                             while (true) {
 
@@ -1075,7 +1075,7 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
     vector<thread> workers;
 
-    auto add_hash_function = [&](typename ColoredCDBG<U>::iterator it_a, typename ColoredCDBG<U>::iterator it_b) {
+    auto add_hash_function = [&](typename Bifrost::ColoredCDBG<U>::iterator it_a, typename Bifrost::ColoredCDBG<U>::iterator it_b) {
 
         while (it_a != it_b) {
 
@@ -1104,7 +1104,7 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
         }
     };
 
-    auto add_shared_function = [&](typename ColoredCDBG<U>::iterator it_a, typename ColoredCDBG<U>::iterator it_b) {
+    auto add_shared_function = [&](typename Bifrost::ColoredCDBG<U>::iterator it_a, typename Bifrost::ColoredCDBG<U>::iterator it_b) {
 
         while (it_a != it_b) {
 
@@ -1154,8 +1154,8 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
     {
         const size_t chunk = 1000;
 
-        typename ColoredCDBG<U>::iterator g_a = this->begin();
-        typename ColoredCDBG<U>::iterator g_b = this->end();
+        typename Bifrost::ColoredCDBG<U>::iterator g_a = this->begin();
+        typename Bifrost::ColoredCDBG<U>::iterator g_b = this->end();
 
         mutex mutex_it;
 
@@ -1165,7 +1165,7 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
                 [&, t]{
 
-                    typename ColoredCDBG<U>::iterator l_a, l_b;
+                    typename Bifrost::ColoredCDBG<U>::iterator l_a, l_b;
 
                     while (true) {
 
@@ -1207,8 +1207,8 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
     {
         const size_t chunk = 1000;
 
-        typename ColoredCDBG<U>::iterator g_a = this->begin();
-        typename ColoredCDBG<U>::iterator g_b = this->end();
+        typename Bifrost::ColoredCDBG<U>::iterator g_a = this->begin();
+        typename Bifrost::ColoredCDBG<U>::iterator g_b = this->end();
 
         mutex mutex_it;
 
@@ -1218,7 +1218,7 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
                 [&, t]{
 
-                    typename ColoredCDBG<U>::iterator l_a, l_b;
+                    typename Bifrost::ColoredCDBG<U>::iterator l_a, l_b;
 
                     while (true) {
 
@@ -1250,7 +1250,7 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 }
 
 template<typename U>
-string ColoredCDBG<U>::getColorName(const size_t color_id) const {
+string Bifrost::ColoredCDBG<U>::getColorName(const size_t color_id) const {
 
     if (invalid){
 
@@ -1272,7 +1272,7 @@ string ColoredCDBG<U>::getColorName(const size_t color_id) const {
 }
 
 template<typename U>
-vector<string> ColoredCDBG<U>::getColorNames() const {
+vector<string> Bifrost::ColoredCDBG<U>::getColorNames() const {
 
     if (invalid){
 
@@ -1284,7 +1284,7 @@ vector<string> ColoredCDBG<U>::getColorNames() const {
 }
 
 template<typename U>
-bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string& out_filename_prefix,
+bool Bifrost::ColoredCDBG<U>::search(const vector<string>& query_filenames, const string& out_filename_prefix,
                             const double ratio_kmers, const bool inexact_search, const size_t nb_threads,
                             const bool verbose) const {
 
@@ -1733,7 +1733,7 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 }
 
 template<typename U>
-void ColoredCDBG<U>::checkColors(const vector<string>& filename_seq_in) const {
+void Bifrost::ColoredCDBG<U>::checkColors(const vector<string>& filename_seq_in) const {
 
     cout << "ColoredCDBG::checkColors(): Start" << endl;
 

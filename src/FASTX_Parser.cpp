@@ -1,5 +1,7 @@
 #include "FASTX_Parser.hpp"
 
+using namespace Bifrost;
+
 FastqFile::FastqFile() : kseq(NULL), file_no(0) { fnit = fnames.end(); }
 
 FastqFile::FastqFile(const vector<string> files) : kseq(NULL), fnames(files), file_no(0) {

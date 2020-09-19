@@ -5,6 +5,7 @@
 #include <iterator>
 #include "Kmer.hpp"
 
+namespace Bifrost {
 
 /* Short description:
  *  - Easily iterate through kmers in a read
@@ -25,6 +26,7 @@ class KmerIterator : public std::iterator<std::input_iterator_tag, std::pair<Kme
         KmerIterator& operator+=(const int length);
 
         void raise(Kmer& km, Kmer& rep);
+        void jumpTo(int pos);
 
         bool operator==(const KmerIterator& o);
         bool operator!=(const KmerIterator& o) { return !this->operator==(o);}
@@ -161,5 +163,7 @@ class KmerHashIterator {
         std::pair<uint64_t, int> p_; // <hash, position> current k-mer
         bool invalid; // If sequence is invalid (iterating on k-mers out of bounds, etc.)
 };
+
+}
 
 #endif // BFG_KMER_ITERATOR_HPP

@@ -59,6 +59,8 @@
 
 using namespace std;
 
+namespace Bifrost {
+
 /** @struct CDBG_Build_opt
 * @brief Most members of this structure are parameters for CompactedDBG<U, G>::build(), except for:
 * - CDBG_Build_opt::k and CDBG_Build_opt::g as they are parameters of the graph constructor.
@@ -759,6 +761,8 @@ class CompactedDBG {
 
         wrapperData<G> data;
 };
+
+}
 
 #include "CompactedDBG.tcc"
 #include "Search.tcc"

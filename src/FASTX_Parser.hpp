@@ -18,6 +18,8 @@
 KSEQ_INIT(gzFile, gzread);
 #endif
 
+namespace Bifrost {
+
 class FastqFile {
 
     public:
@@ -53,5 +55,7 @@ class FastqFile {
         gzFile fp;
         kseq_t* kseq;
 };
+
+}
 
 #endif // FASTQ_H

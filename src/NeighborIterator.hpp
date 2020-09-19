@@ -3,6 +3,8 @@
 
 #include "Kmer.hpp"
 
+namespace Bifrost {
+
 /** @file src/NeighborIterator.hpp
 * The neighborIterator, BackwardCDBG and ForwardCDBG type interfaces.
 * Code snippets using these interfaces are provided in snippets/test.cpp.
@@ -194,6 +196,8 @@ class ForwardCDBG {
 
         UnitigMap<U, G, is_const> um;
 };
+
+}
 
 #include "NeighborIterator.tcc"
 

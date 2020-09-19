@@ -1,8 +1,8 @@
 template<typename T>
-KmerCovIndex<T>::KmerCovIndex() : sz(0), shift_div(__builtin_ffsll(block_sz) - 1), mask_mod(block_sz - 1) {}
+Bifrost::KmerCovIndex<T>::KmerCovIndex() : sz(0), shift_div(__builtin_ffsll(block_sz) - 1), mask_mod(block_sz - 1) {}
 
 template<typename T>
-KmerCovIndex<T>::KmerCovIndex(const KmerCovIndex& o) : sz(o.sz), shift_div(o.shift_div), mask_mod(o.mask_mod) {
+Bifrost::KmerCovIndex<T>::KmerCovIndex(const KmerCovIndex& o) : sz(o.sz), shift_div(o.shift_div), mask_mod(o.mask_mod) {
 
     v_blocks = vector<Block<T>*>(o.v_blocks.size());
 
@@ -17,7 +17,7 @@ KmerCovIndex<T>::KmerCovIndex(const KmerCovIndex& o) : sz(o.sz), shift_div(o.shi
 }
 
 template<>
-inline KmerCovIndex<void>::KmerCovIndex(const KmerCovIndex& o) : sz(o.sz), shift_div(o.shift_div), mask_mod(o.mask_mod) {
+inline Bifrost::KmerCovIndex<void>::KmerCovIndex(const KmerCovIndex& o) : sz(o.sz), shift_div(o.shift_div), mask_mod(o.mask_mod) {
 
     v_blocks = vector<Block<void>*>(o.v_blocks.size());
 
@@ -31,19 +31,19 @@ inline KmerCovIndex<void>::KmerCovIndex(const KmerCovIndex& o) : sz(o.sz), shift
 }
 
 template<typename T>
-KmerCovIndex<T>::KmerCovIndex(KmerCovIndex&& o) :  sz(o.sz), shift_div(o.shift_div), mask_mod(o.mask_mod), v_blocks(move(o.v_blocks)) {
+Bifrost::KmerCovIndex<T>::KmerCovIndex(KmerCovIndex&& o) :  sz(o.sz), shift_div(o.shift_div), mask_mod(o.mask_mod), v_blocks(move(o.v_blocks)) {
 
     o.clear();
 }
 
 template<typename T>
-KmerCovIndex<T>::~KmerCovIndex() {
+Bifrost::KmerCovIndex<T>::~KmerCovIndex() {
 
     clear();
 }
 
 template<typename T>
-KmerCovIndex<T>& KmerCovIndex<T>::operator=(const KmerCovIndex<T>& o) {
+Bifrost::KmerCovIndex<T>& Bifrost::KmerCovIndex<T>::operator=(const Bifrost::KmerCovIndex<T>& o) {
 
     if (this != &o) {
 
@@ -69,7 +69,7 @@ KmerCovIndex<T>& KmerCovIndex<T>::operator=(const KmerCovIndex<T>& o) {
 }
 
 template<typename T>
-KmerCovIndex<T>& KmerCovIndex<T>::toData(KmerCovIndex<void>&& o, const size_t nb_threads) {
+Bifrost::KmerCovIndex<T>& Bifrost::KmerCovIndex<T>::toData(Bifrost::KmerCovIndex<void>&& o, const size_t nb_threads) {
 
     sz = o.sz;
     shift_div = o.shift_div;
@@ -122,7 +122,7 @@ KmerCovIndex<T>& KmerCovIndex<T>::toData(KmerCovIndex<void>&& o, const size_t nb
 }
 
 template<>
-inline KmerCovIndex<void>& KmerCovIndex<void>::operator=(const KmerCovIndex<void>& o) {
+inline Bifrost::KmerCovIndex<void>& Bifrost::KmerCovIndex<void>::operator=(const Bifrost::KmerCovIndex<void>& o) {
 
     if (this != &o) {
 
@@ -147,7 +147,7 @@ inline KmerCovIndex<void>& KmerCovIndex<void>::operator=(const KmerCovIndex<void
 }
 
 template<typename T>
-KmerCovIndex<T>& KmerCovIndex<T>::operator=(KmerCovIndex<T>&& o) {
+Bifrost::KmerCovIndex<T>& Bifrost::KmerCovIndex<T>::operator=(Bifrost::KmerCovIndex<T>&& o) {
 
     if (this != &o) {
 
@@ -166,7 +166,7 @@ KmerCovIndex<T>& KmerCovIndex<T>::operator=(KmerCovIndex<T>&& o) {
 }
 
 template<typename T>
-void KmerCovIndex<T>::clear() {
+void Bifrost::KmerCovIndex<T>::clear() {
 
     sz = 0;
 
@@ -179,7 +179,7 @@ void KmerCovIndex<T>::clear() {
 }
 
 template<typename T>
-void KmerCovIndex<T>::push_back(const Kmer& km) {
+void Bifrost::KmerCovIndex<T>::push_back(const Kmer& km) {
 
     const size_t mod = sz & mask_mod;
 
@@ -195,7 +195,7 @@ void KmerCovIndex<T>::push_back(const Kmer& km) {
 }
 
 template<typename T>
-bool KmerCovIndex<T>::set(const size_t idx, const Kmer& km) {
+bool Bifrost::KmerCovIndex<T>::set(const size_t idx, const Kmer& km) {
 
     if (idx >= sz) return false;
 
@@ -217,7 +217,7 @@ bool KmerCovIndex<T>::set(const size_t idx, const Kmer& km) {
 }
 
 template<typename T>
-bool KmerCovIndex<T>::set(const size_t idx, const Kmer& km, const size_t cov) {
+bool Bifrost::KmerCovIndex<T>::set(const size_t idx, const Kmer& km, const size_t cov) {
 
     if (idx >= sz) return false;
 
@@ -241,7 +241,7 @@ bool KmerCovIndex<T>::set(const size_t idx, const Kmer& km, const size_t cov) {
 }
 
 template<typename T>
-void KmerCovIndex<T>::setFull(const size_t idx) {
+void Bifrost::KmerCovIndex<T>::setFull(const size_t idx) {
 
     if (idx < sz){
 
@@ -259,7 +259,7 @@ void KmerCovIndex<T>::setFull(const size_t idx) {
 }
 
 template<typename T>
-int KmerCovIndex<T>::covAt(const size_t idx) const {
+int Bifrost::KmerCovIndex<T>::covAt(const size_t idx) const {
 
     if (idx < sz){
 
@@ -281,7 +281,7 @@ int KmerCovIndex<T>::covAt(const size_t idx) const {
 }
 
 template<typename T>
-void KmerCovIndex<T>::cover(const size_t idx) {
+void Bifrost::KmerCovIndex<T>::cover(const size_t idx) {
 
     if (idx < sz){
 
@@ -302,7 +302,7 @@ void KmerCovIndex<T>::cover(const size_t idx) {
 }
 
 template<typename T>
-void KmerCovIndex<T>::uncover(const size_t idx) {
+void Bifrost::KmerCovIndex<T>::uncover(const size_t idx) {
 
     if (idx < sz){
 
@@ -324,7 +324,7 @@ void KmerCovIndex<T>::uncover(const size_t idx) {
 }
 
 template<typename T>
-bool KmerCovIndex<T>::swap(const size_t idx1, const size_t idx2) {
+bool Bifrost::KmerCovIndex<T>::swap(const size_t idx1, const size_t idx2) {
 
     if ((idx1 < sz) && (idx2 < sz)) {
 
@@ -361,7 +361,7 @@ bool KmerCovIndex<T>::swap(const size_t idx1, const size_t idx2) {
 }
 
 template<>
-inline bool KmerCovIndex<void>::swap(const size_t idx1, const size_t idx2) {
+inline bool Bifrost::KmerCovIndex<void>::swap(const size_t idx1, const size_t idx2) {
 
     if ((idx1 < sz) && (idx2 < sz)) {
 
@@ -397,12 +397,12 @@ inline bool KmerCovIndex<void>::swap(const size_t idx1, const size_t idx2) {
 }
 
 template<typename T>
-void KmerCovIndex<T>::resize(const size_t new_sz) {
+void Bifrost::KmerCovIndex<T>::resize(const size_t new_sz) {
 
     if (new_sz == 0) clear();
     else if (new_sz < sz){ // resize down
 
-        Kmer km_empty;
+        Bifrost::Kmer km_empty;
 
         const size_t new_v_block_sz = (new_sz >> shift_div) + ((new_sz & mask_mod) != 0);
         const size_t rounded_sz = min(new_v_block_sz << shift_div, sz);
@@ -435,7 +435,7 @@ void KmerCovIndex<T>::resize(const size_t new_sz) {
     }
     else if (new_sz > sz){
 
-        Kmer km_empty;
+        Bifrost::Kmer km_empty;
 
         const size_t old_v_km_sz = v_blocks.size();
         const size_t new_v_block_sz = (new_sz >> shift_div) + ((new_sz & mask_mod) != 0);
@@ -466,12 +466,12 @@ void KmerCovIndex<T>::resize(const size_t new_sz) {
 }
 
 template<>
-inline void KmerCovIndex<void>::resize(const size_t new_sz) {
+inline void Bifrost::KmerCovIndex<void>::resize(const size_t new_sz) {
 
     if (new_sz == 0) clear();
     else if (new_sz < sz){ // resize down
 
-        Kmer km_empty;
+        Bifrost::Kmer km_empty;
 
         const size_t new_v_block_sz = (new_sz >> shift_div) + ((new_sz & mask_mod) != 0);
         const size_t rounded_sz = min(new_v_block_sz << shift_div, sz);
@@ -498,7 +498,7 @@ inline void KmerCovIndex<void>::resize(const size_t new_sz) {
     }
     else if (new_sz > sz){
 
-        Kmer km_empty;
+        Bifrost::Kmer km_empty;
 
         const size_t old_v_km_sz = v_blocks.size();
         const size_t new_v_block_sz = (new_sz >> shift_div) + ((new_sz & mask_mod) != 0);
@@ -522,7 +522,7 @@ inline void KmerCovIndex<void>::resize(const size_t new_sz) {
 }
 
 template<typename T>
-const T* KmerCovIndex<T>::getData(const size_t idx) const {
+const T* Bifrost::KmerCovIndex<T>::getData(const size_t idx) const {
 
     if (idx < sz) return &(v_blocks[idx >> shift_div]->data_block[idx & mask_mod]);
 
@@ -530,13 +530,13 @@ const T* KmerCovIndex<T>::getData(const size_t idx) const {
 }
 
 template<>
-inline const void* KmerCovIndex<void>::getData(const size_t idx) const {
+inline const void* Bifrost::KmerCovIndex<void>::getData(const size_t idx) const {
 
     return nullptr;
 }
 
 template<typename T>
-T* KmerCovIndex<T>::getData(const size_t idx) {
+T* Bifrost::KmerCovIndex<T>::getData(const size_t idx) {
 
     if (idx < sz) return &(v_blocks[idx >> shift_div]->data_block[idx & mask_mod]);
 
@@ -544,17 +544,17 @@ T* KmerCovIndex<T>::getData(const size_t idx) {
 }
 
 template<>
-inline void* KmerCovIndex<void>::getData(const size_t idx) {
+inline void* Bifrost::KmerCovIndex<void>::getData(const size_t idx) {
 
     return nullptr;
 }
 
 template<typename T>
-Kmer KmerCovIndex<T>::getKmer(const size_t idx) const {
+Bifrost::Kmer Bifrost::KmerCovIndex<T>::getKmer(const size_t idx) const {
 
     if (idx < sz) return v_blocks[idx >> shift_div]->km_block[idx & mask_mod];
 
-    Kmer empty_km;
+    Bifrost::Kmer empty_km;
 
     empty_km.set_empty();
 
@@ -562,7 +562,7 @@ Kmer KmerCovIndex<T>::getKmer(const size_t idx) const {
 }
 
 template<typename T>
-void KmerCovIndex<T>::remove(const size_t idx) {
+void Bifrost::KmerCovIndex<T>::remove(const size_t idx) {
 
     if (idx < sz){
 
@@ -584,7 +584,7 @@ void KmerCovIndex<T>::remove(const size_t idx) {
 }
 
 template<>
-inline void KmerCovIndex<void>::remove(const size_t idx) {
+inline void Bifrost::KmerCovIndex<void>::remove(const size_t idx) {
 
     if (idx < sz){
 

@@ -4,6 +4,8 @@
 #include "CompactedDBG.hpp"
 #include "ColorSet.hpp"
 
+namespace Bifrost {
+
 /** @file src/DataAccessor.hpp
 * Interface for the class DataAccessor. The purpose of a DataAccessor object is to provide access
 * to the colors and the data associated with a unitig of a ColoredCDBG. Code snippets using this
@@ -138,5 +140,7 @@ class DataAccessor : public CDBG_Data_t<DataAccessor<Unitig_data_t>, DataStorage
 
         uint8_t da_id;
 };
+
+}
 
 #endif

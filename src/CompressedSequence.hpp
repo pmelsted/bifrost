@@ -7,6 +7,7 @@
 
 #include "Kmer.hpp"
 
+namespace Bifrost {
 /* Short description:
  *  - Compress a DNA string by using 2 bits per base instead of 8
  *  - Easily get the DNA string back from the compressed format
@@ -138,4 +139,7 @@ class CompressedSequence {
         };
 };
 
+}
+
 #endif // BFG_COMPRESSED_SEQUENCE_HPP
+
