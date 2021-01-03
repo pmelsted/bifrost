@@ -10,25 +10,36 @@
 * interface are provided in snippets/test.cpp.
 */
 
-template<typename U> using UnitigColorMap = UnitigMap<DataAccessor<U>, DataStorage<U>>;
-template<typename U> using const_UnitigColorMap = const_UnitigMap<DataAccessor<U>, DataStorage<U>>;
+template<typename U> using UnitigColorMap = UnitigMap<DataAccessor<U>>;
+template<typename U> using const_UnitigColorMap = const_UnitigMap<DataAccessor<U>>;
+
+template<typename U>
+struct DataAccessorContainer {
+
+    UnitigColors cs;
+    U data;
+};
+
+template<>
+struct DataAccessorContainer<void> {
+
+    UnitigColors cs;
+};
 
 /** @class DataAccessor
 * @brief Interface to access the colors and the data associated with a unitig of a ColoredCDBG.
 * The class as one template parameter: the type of data associated with the unitigs of the graph.
 */
 template<typename Unitig_data_t = void>
-class DataAccessor : public CDBG_Data_t<DataAccessor<Unitig_data_t>, DataStorage<Unitig_data_t>> {
+class DataAccessor : public CDBG_Data_t<DataAccessor<Unitig_data_t>> {
 
     typedef Unitig_data_t U;
-
-    template<typename U> friend class DataStorage;
 
     public:
 
         /** Constructor (set up an empty DataAccessor).
         */
-        DataAccessor(const uint8_t id = 0);
+        DataAccessor();
 
         /** Clear the colors and data associated with a colored unitig.
         * This function clears the k-mer color sets (of type UnitigColors) associated with the reference
@@ -132,11 +143,7 @@ class DataAccessor : public CDBG_Data_t<DataAccessor<Unitig_data_t>, DataStorage
 
     private:
 
-        inline uint8_t get() const { return da_id; }
-
-        inline void set(const uint8_t id) { da_id = id; }
-
-        uint8_t da_id;
+        DataAccessorContainer dac;
 };
 
 #endif
