@@ -161,7 +161,7 @@ void DataAccessor<U>::extract(const UnitigColorMap<U>& um_a, const bool last_ext
     clear();
 
     dac.uc = um_a.getData()->getSubUnitigColors(um_a);
-    dac.data = um_a.getData()->getData()->extract(um_a, last_extraction);
+    dac.data = um_a.getData()->getData()->extract(dac.uc, um_a, last_extraction);
 }
 
 template<>
@@ -170,6 +170,18 @@ inline void DataAccessor<void>::extract(const UnitigColorMap<void>& um_a, const 
     clear();
 
     dac.uc = um_a.getData()->getSubUnitigColors(um_a);
+}
+
+template<typename U>
+string DataAccessor<U>::serialize(const const_UnitigColorMap<U>& um_a) const {
+
+    return um_a.getData()->getData(um_a)->serialize(um_a);
+}
+
+template<>
+inline string DataAccessor<void>::serialize(const const_UnitigColorMap<void>& um_a) const {
+
+    return string();
 }
 
 template<typename U>
