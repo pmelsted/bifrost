@@ -2,6 +2,10 @@
 
 API only.
 
+* **01-09-2019**
+	* `DataAccessor::getUnitigColors()` returns a reference (`UnitigColors&`) rather than a pointer (`UnitigColors*`).
+	* `DataAccessor::getData()` is available as a non-`const` function in addition to the `const` function already present.
+	* `ColoredCDBG::operator==()` returns true for two incorrectly initialized `ColoredCDBG`.
 * **08-29-2018**
 	* `UnitigColors::const_iterator` only considers now the k-mer positions of the unitig mapping provided in the `UnitigMap`/`UnitigColorMap` parameter of `UnitigColors::begin()`.
 * **08-28-2018**

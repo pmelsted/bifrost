@@ -148,7 +148,7 @@ class CCDBG_Data_t {
 * ones that have no effects will be applied.
 */
 template<typename Unitig_data_t = void>
-class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage<Unitig_data_t>> {
+class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage> {
 
     static_assert(is_void<Unitig_data_t>::value || is_base_of<CCDBG_Data_t<Unitig_data_t>, Unitig_data_t>::value,
                   "Type Unitig_data_t of data associated with vertices of class ColoredCDBG<Unitig_data_t> must "
@@ -346,12 +346,7 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
     private:
 
         void checkColors(const vector<string>& filename_seq_in) const;
-
-        void initUnitigColors(const CCDBG_Build_opt& opt, const size_t max_nb_hash = 31);
         void buildUnitigColors(const size_t nb_threads);
-        //void buildUnitigColors2(const size_t nb_threads);
-
-        void resizeDataUC(const size_t sz, const size_t nb_threads = 1, const size_t max_nb_hash = 31);
 
         bool invalid;
 };

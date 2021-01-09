@@ -2,22 +2,22 @@
 #define BIFROST_COLOREDCDBG_TCC
 
 template<typename U>
-ColoredCDBG<U>::ColoredCDBG(int kmer_length) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(kmer_length){
+ColoredCDBG<U>::ColoredCDBG(int kmer_length) : CompactedDBG<DataAccessor<U>, DataStorage>(kmer_length){
 
     invalid = this->isInvalid();
 }
 
 template<typename U>
-ColoredCDBG<U>::ColoredCDBG(int kmer_length, int minimizer_length) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(kmer_length, minimizer_length){
+ColoredCDBG<U>::ColoredCDBG(int kmer_length, int minimizer_length) : CompactedDBG<DataAccessor<U>, DataStorage>(kmer_length, minimizer_length){
 
     invalid = this->isInvalid();
 }
 
 template<typename U>
-ColoredCDBG<U>::ColoredCDBG(const ColoredCDBG& o) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(o), invalid(o.invalid) {}
+ColoredCDBG<U>::ColoredCDBG(const ColoredCDBG& o) : CompactedDBG<DataAccessor<U>, DataStorage>(o), invalid(o.invalid) {}
 
 template<typename U>
-ColoredCDBG<U>::ColoredCDBG(ColoredCDBG&& o) :  CompactedDBG<DataAccessor<U>, DataStorage<U>>(move(o)), invalid(o.invalid) {}
+ColoredCDBG<U>::ColoredCDBG(ColoredCDBG&& o) :  CompactedDBG<DataAccessor<U>, DataStorage>(move(o)), invalid(o.invalid) {}
 
 template<typename U>
 void ColoredCDBG<U>::clear(){
@@ -25,13 +25,13 @@ void ColoredCDBG<U>::clear(){
     invalid = true;
 
     this->getData()->clear();
-    CompactedDBG<DataAccessor<U>, DataStorage<U>>::clear();
+    CompactedDBG<DataAccessor<U>, DataStorage>::clear();
 }
 
 template<typename U>
 ColoredCDBG<U>& ColoredCDBG<U>::operator=(const ColoredCDBG& o) {
 
-    CompactedDBG<DataAccessor<U>, DataStorage<U>>::operator=(o);
+    CompactedDBG<DataAccessor<U>, DataStorage>::operator=(o);
 
     invalid = o.invalid;
 
@@ -43,7 +43,7 @@ ColoredCDBG<U>& ColoredCDBG<U>::operator=(ColoredCDBG&& o) {
 
     if (this != &o) {
 
-        CompactedDBG<DataAccessor<U>, DataStorage<U>>::operator=(move(o));
+        CompactedDBG<DataAccessor<U>, DataStorage>::operator=(move(o));
 
         invalid = o.invalid;
 
@@ -64,38 +64,44 @@ ColoredCDBG<U>& ColoredCDBG<U>::operator+=(const ColoredCDBG& o) {
 template<typename U>
 bool ColoredCDBG<U>::operator==(const ColoredCDBG& o) const {
 
-    if (!invalid && !this->isInvalid() && !o.isInvalid() && (this->getK() == o.getK()) && (this->size() == o.size())){
+    const bool invalid = this->isInvalid();
+
+    if (invalid && o.isInvalid()) return true;
+    else {
 
         const size_t k = this->getK();
 
-        for (const auto& unitig : *this){
+        if ((k == o.getK()) && (this->size() == o.size())){
 
-            const_UnitigColorMap<U> unitig_o(o.find(unitig.getUnitigHead(), true));
+            for (const auto& unitig : *this){
 
-            if (unitig_o.isEmpty) return false;
-            else {
+                const_UnitigColorMap<U> unitig_o = o.find(unitig.getUnitigHead(), true);
 
-                unitig_o.dist = 0;
-                unitig_o.len = unitig_o.size - k + 1;
-
-                const string unitig_o_str = unitig_o.strand ? unitig_o.referenceUnitigToString() : reverse_complement(unitig_o.referenceUnitigToString());
-
-                if (unitig_o_str != unitig.referenceUnitigToString()) return false;
+                if (unitig_o.isEmpty) return false;
                 else {
 
-                    const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
-                    const UnitigColors* uc_o = unitig_o.getData()->getUnitigColors(unitig_o);
+                    unitig_o.dist = 0;
+                    unitig_o.len = unitig_o.size - k + 1;
 
-                    if ((uc != nullptr) && (uc_o != nullptr)){
+                    const string unitig_o_str = unitig_o.strand ? unitig_o.referenceUnitigToString() : reverse_complement(unitig_o.referenceUnitigToString());
 
-                        if (!uc->isEqual(unitig, *uc_o, unitig_o)) return false;
+                    if (unitig_o_str != unitig.referenceUnitigToString()) return false;
+                    else {
+
+                        const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
+                        const UnitigColors* uc_o = unitig_o.getData()->getUnitigColors(unitig_o);
+
+                        if ((uc != nullptr) && (uc_o != nullptr)){
+
+                            if (!uc->isEqual(unitig, *uc_o, unitig_o)) return false;
+                        }
+                        else if ((uc != nullptr) != (uc_o != nullptr)) return false;
                     }
-                    else if ((uc != nullptr) != (uc_o != nullptr)) return false;
                 }
             }
-        }
 
-        return true;
+            return true;
+        }
     }
 
     return false;
@@ -142,17 +148,17 @@ bool ColoredCDBG<U>::merge(const ColoredCDBG& o, const size_t nb_threads, const 
 
         for (auto& unitig : *this) unitig.setFullCoverage();
 
-        ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::annotateSplitUnitigs(o, nb_threads, verbose);
+        ret = CompactedDBG<DataAccessor<U>, DataStorage>::annotateSplitUnitigs(o, nb_threads, verbose);
 
         if (ret){
 
             const size_t sz_after = this->size();
-            const pair<size_t, size_t> p1 = CompactedDBG<DataAccessor<U>, DataStorage<U>>::getSplitInfoAllUnitigs();
+            const pair<size_t, size_t> p1 = CompactedDBG<DataAccessor<U>, DataStorage>::getSplitInfoAllUnitigs();
 
             resizeDataUC(sz_after + (p1.second - p1.first), nb_threads);
 
-            const pair<size_t, size_t> p2 = CompactedDBG<DataAccessor<U>, DataStorage<U>>::splitAllUnitigs();
-            const size_t joined = (p1.second != 0) ? CompactedDBG<DataAccessor<U>, DataStorage<U>>::joinUnitigs() : 0;
+            const pair<size_t, size_t> p2 = CompactedDBG<DataAccessor<U>, DataStorage>::splitAllUnitigs();
+            const size_t joined = (p1.second != 0) ? CompactedDBG<DataAccessor<U>, DataStorage>::joinUnitigs() : 0;
 
             if (verbose){
 
@@ -164,7 +170,7 @@ bool ColoredCDBG<U>::merge(const ColoredCDBG& o, const size_t nb_threads, const 
 
             for (size_t i = 0; i < o.getNbColors(); ++i) this->getData()->color_names.push_back(o.getColorName(i));
 
-            return CompactedDBG<DataAccessor<U>, DataStorage<U>>::mergeData(o, nb_threads, verbose);
+            return CompactedDBG<DataAccessor<U>, DataStorage>::mergeData(o, nb_threads, verbose);
         }
     }
 
@@ -206,17 +212,17 @@ bool ColoredCDBG<U>::merge(ColoredCDBG&& o, const size_t nb_threads, const bool 
 
         for (auto& unitig : *this) unitig.setFullCoverage();
 
-        ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::annotateSplitUnitigs(o, nb_threads, verbose);
+        ret = CompactedDBG<DataAccessor<U>, DataStorage>::annotateSplitUnitigs(o, nb_threads, verbose);
 
         if (ret){
 
             const size_t sz_after = this->size();
-            const pair<size_t, size_t> p1 = CompactedDBG<DataAccessor<U>, DataStorage<U>>::getSplitInfoAllUnitigs();
+            const pair<size_t, size_t> p1 = CompactedDBG<DataAccessor<U>, DataStorage>::getSplitInfoAllUnitigs();
 
             resizeDataUC(sz_after + (p1.second - p1.first), nb_threads);
 
-            const pair<size_t, size_t> p2 = CompactedDBG<DataAccessor<U>, DataStorage<U>>::splitAllUnitigs();
-            const size_t joined = (p1.second != 0) ? CompactedDBG<DataAccessor<U>, DataStorage<U>>::joinUnitigs() : 0;
+            const pair<size_t, size_t> p2 = CompactedDBG<DataAccessor<U>, DataStorage>::splitAllUnitigs();
+            const size_t joined = (p1.second != 0) ? CompactedDBG<DataAccessor<U>, DataStorage>::joinUnitigs() : 0;
 
             if (verbose){
 
@@ -228,7 +234,7 @@ bool ColoredCDBG<U>::merge(ColoredCDBG&& o, const size_t nb_threads, const bool 
 
             for (size_t i = 0; i < o.getNbColors(); ++i) this->getData()->color_names.push_back(o.getColorName(i));
 
-            const bool ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::mergeData(move(o), nb_threads, verbose);
+            const bool ret = CompactedDBG<DataAccessor<U>, DataStorage>::mergeData(move(o), nb_threads, verbose);
 
             o.clear();
 
@@ -279,7 +285,7 @@ bool ColoredCDBG<U>::merge(const vector<ColoredCDBG>& v, const size_t nb_threads
 
         for (const auto& ccdbg : v){
 
-            ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::annotateSplitUnitigs(ccdbg, nb_threads, verbose);
+            ret = CompactedDBG<DataAccessor<U>, DataStorage>::annotateSplitUnitigs(ccdbg, nb_threads, verbose);
 
             if (!ret) break;
         }
@@ -287,12 +293,12 @@ bool ColoredCDBG<U>::merge(const vector<ColoredCDBG>& v, const size_t nb_threads
         if (ret){
 
             const size_t sz_after = this->size();
-            const pair<size_t, size_t> p1 = CompactedDBG<DataAccessor<U>, DataStorage<U>>::getSplitInfoAllUnitigs();
+            const pair<size_t, size_t> p1 = CompactedDBG<DataAccessor<U>, DataStorage>::getSplitInfoAllUnitigs();
 
             resizeDataUC(sz_after + (p1.second - p1.first), nb_threads);
 
-            const pair<size_t, size_t> p2 = CompactedDBG<DataAccessor<U>, DataStorage<U>>::splitAllUnitigs();
-            const size_t joined = (p1.second != 0) ? CompactedDBG<DataAccessor<U>, DataStorage<U>>::joinUnitigs() : 0;
+            const pair<size_t, size_t> p2 = CompactedDBG<DataAccessor<U>, DataStorage>::splitAllUnitigs();
+            const size_t joined = (p1.second != 0) ? CompactedDBG<DataAccessor<U>, DataStorage>::joinUnitigs() : 0;
 
             if (verbose){
 
@@ -306,7 +312,7 @@ bool ColoredCDBG<U>::merge(const vector<ColoredCDBG>& v, const size_t nb_threads
 
                 for (size_t i = 0; i < ccdbg.getNbColors(); ++i) this->getData()->color_names.push_back(ccdbg.getColorName(i));
 
-                if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::mergeData(ccdbg, nb_threads, verbose)) return false;
+                if (!CompactedDBG<DataAccessor<U>, DataStorage>::mergeData(ccdbg, nb_threads, verbose)) return false;
             }
 
             return true;
@@ -356,7 +362,7 @@ bool ColoredCDBG<U>::merge(vector<ColoredCDBG>&& v, const size_t nb_threads, con
 
         for (const auto& ccdbg : v){
 
-            ret = CompactedDBG<DataAccessor<U>, DataStorage<U>>::annotateSplitUnitigs(ccdbg, nb_threads, verbose);
+            ret = CompactedDBG<DataAccessor<U>, DataStorage>::annotateSplitUnitigs(ccdbg, nb_threads, verbose);
 
             if (!ret) break;
         }
@@ -364,12 +370,12 @@ bool ColoredCDBG<U>::merge(vector<ColoredCDBG>&& v, const size_t nb_threads, con
         if (ret){
 
             const size_t sz_after = this->size();
-            const pair<size_t, size_t> p1 = CompactedDBG<DataAccessor<U>, DataStorage<U>>::getSplitInfoAllUnitigs();
+            const pair<size_t, size_t> p1 = CompactedDBG<DataAccessor<U>, DataStorage>::getSplitInfoAllUnitigs();
 
             resizeDataUC(sz_after + (p1.second - p1.first), nb_threads);
 
-            const pair<size_t, size_t> p2 = CompactedDBG<DataAccessor<U>, DataStorage<U>>::splitAllUnitigs();
-            const size_t joined = (p1.second != 0) ? CompactedDBG<DataAccessor<U>, DataStorage<U>>::joinUnitigs() : 0;
+            const pair<size_t, size_t> p2 = CompactedDBG<DataAccessor<U>, DataStorage>::splitAllUnitigs();
+            const size_t joined = (p1.second != 0) ? CompactedDBG<DataAccessor<U>, DataStorage>::joinUnitigs() : 0;
 
             if (verbose){
 
@@ -383,7 +389,7 @@ bool ColoredCDBG<U>::merge(vector<ColoredCDBG>&& v, const size_t nb_threads, con
 
                 for (size_t i = 0; i < ccdbg.getNbColors(); ++i) this->getData()->color_names.push_back(ccdbg.getColorName(i));
 
-                if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::mergeData(move(ccdbg), nb_threads, verbose)) return false;
+                if (!CompactedDBG<DataAccessor<U>, DataStorage>::mergeData(move(ccdbg), nb_threads, verbose)) return false;
 
                 ccdbg.clear();
             }
@@ -414,7 +420,9 @@ bool ColoredCDBG<U>::buildColors(const CCDBG_Build_opt& opt){
 
     if (!invalid){
 
-        initUnitigColors(opt);
+        this->getData()->addColorNames(opt.filename_seq_in);
+        this->getData()->addColorNames(opt.filename_ref_in);
+
         buildUnitigColors(opt.nb_threads);
     }
     else cerr << "ColoredCDBG::buildColors(): Graph is invalid (maybe not built yet?) and colors cannot be mapped." << endl;
@@ -425,7 +433,7 @@ bool ColoredCDBG<U>::buildColors(const CCDBG_Build_opt& opt){
 template<typename U>
 bool ColoredCDBG<U>::write(const string& prefix_output_filename, const size_t nb_threads, const bool verbose) const {
 
-    if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::write(prefix_output_filename, nb_threads, true, verbose)) return false; // Write graph
+    if (!CompactedDBG<DataAccessor<U>, DataStorage>::write(prefix_output_filename, nb_threads, true, verbose)) return false; // Write graph
 
     return this->getData()->write(prefix_output_filename, verbose); // Write colors
 }
@@ -489,7 +497,7 @@ bool ColoredCDBG<U>::read(const string& input_graph_filename, const string& inpu
 
         if (verbose) cout << "ColoredCDBG::read(): Reading graph." << endl;
 
-        if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::read(input_graph_filename, nb_threads, verbose)) return false; // Read graph
+        if (!CompactedDBG<DataAccessor<U>, DataStorage>::read(input_graph_filename, nb_threads, verbose)) return false; // Read graph
 
         if (verbose) cout << "ColoredCDBG::read(): Reading colors." << endl;
 
@@ -619,198 +627,9 @@ bool ColoredCDBG<U>::read(const string& input_graph_filename, const string& inpu
 }
 
 template<typename U>
-void ColoredCDBG<U>::initUnitigColors(const CCDBG_Build_opt& opt, const size_t max_nb_hash){
-
-    vector<string> v_files(opt.filename_seq_in);
-
-    v_files.insert(v_files.end(), opt.filename_ref_in.begin(), opt.filename_ref_in.end());
-
-    DataStorage<U>* ds = this->getData();
-    DataStorage<U> new_ds(max_nb_hash, this->size(), v_files);
-
-    *ds = move(new_ds);
-
-    v_files.clear();
-
-    const size_t chunk = 1000;
-
-    vector<thread> workers; // need to keep track of threads so we can join them
-
-    typename ColoredCDBG<U>::iterator g_a = this->begin();
-    typename ColoredCDBG<U>::iterator g_b = this->end();
-
-    mutex mutex_it;
-
-    for (size_t t = 0; t < opt.nb_threads; ++t){
-
-        workers.emplace_back(
-
-            [&]{
-
-                typename ColoredCDBG<U>::iterator l_a, l_b;
-
-                while (true) {
-
-                    {
-                        unique_lock<mutex> lock(mutex_it);
-
-                        if (g_a == g_b) return;
-
-                        l_a = g_a;
-                        l_b = g_a;
-
-                        for (size_t cpt = 0; (cpt < chunk) && (l_b != g_b); ++cpt, ++l_b){}
-
-                        g_a = l_b;
-                    }
-
-                    for (auto& it_unitig = l_a; it_unitig != l_b; ++it_unitig) {
-
-                        *(it_unitig->getData()) = ds->insert(*it_unitig).first;
-                    }
-                }
-            }
-        );
-    }
-
-    for (auto& t : workers) t.join();
-
-    //cout << "Number of unitigs not hashed is " << ds->overflow.size() << " on " << ds->nb_cs << " unitigs." << endl;
-}
-
-template<typename U>
-void ColoredCDBG<U>::resizeDataUC(const size_t sz, const size_t nb_threads, const size_t max_nb_hash){
-
-    DataStorage<U>* ds = this->getData();
-
-    DataStorage<U> new_ds(max_nb_hash, sz, ds->color_names);
-
-    const size_t chunk = 100;
-
-    vector<thread> workers; // need to keep track of threads so we can join them
-
-    typename ColoredCDBG<U>::iterator g_a = this->begin();
-    typename ColoredCDBG<U>::iterator g_b = this->end();
-
-    mutex mutex_it;
-
-    for (size_t t = 0; t < nb_threads; ++t){
-
-        workers.emplace_back(
-
-            [&]{
-
-                typename ColoredCDBG<U>::iterator l_a, l_b;
-
-                while (true) {
-
-                    {
-                        unique_lock<mutex> lock(mutex_it);
-
-                        if (g_a == g_b) return;
-
-                        l_a = g_a;
-                        l_b = g_a;
-
-                        for (size_t cpt = 0; (cpt < chunk) && (l_b != g_b); ++cpt, ++l_b){}
-
-                        g_a = l_b;
-                    }
-
-                    for (auto& it_unitig = l_a; it_unitig != l_b; ++it_unitig) {
-
-                        UnitigColors* uc = ds->getUnitigColors(*it_unitig);
-                        U* data = ds->getData(*it_unitig);
-
-                        if ((uc != nullptr) || (data != nullptr)){
-
-                            const pair<DataAccessor<U>, pair<UnitigColors*, U*>> p  = new_ds.insert(*it_unitig);
-
-                            *(it_unitig->getData()) = p.first;
-
-                            if (uc != nullptr) *(p.second.first) = move(*uc);
-                            if (data != nullptr) *(p.second.second) = move(*data);
-                        }
-                    }
-                }
-            }
-        );
-    }
-
-    for (auto& t : workers) t.join();
-
-    *ds = move(new_ds);
-
-    //cout << "Number of unitigs not hashed is " << ds->overflow.size() << " on " << ds->nb_cs << " unitigs." << endl;
-}
-
-template<>
-inline void ColoredCDBG<void>::resizeDataUC(const size_t sz, const size_t nb_threads, const size_t max_nb_hash){
-
-    DataStorage<void>* ds = this->getData();
-
-    DataStorage<void> new_ds(max_nb_hash, sz, ds->color_names);
-
-    const size_t chunk = 100;
-
-    vector<thread> workers; // need to keep track of threads so we can join them
-
-    typename ColoredCDBG<void>::iterator g_a = this->begin();
-    typename ColoredCDBG<void>::iterator g_b = this->end();
-
-    mutex mutex_it;
-
-    for (size_t t = 0; t < nb_threads; ++t){
-
-        workers.emplace_back(
-
-            [&]{
-
-                typename ColoredCDBG<void>::iterator l_a, l_b;
-
-                while (true) {
-
-                    {
-                        unique_lock<mutex> lock(mutex_it);
-
-                        if (g_a == g_b) return;
-
-                        l_a = g_a;
-                        l_b = g_a;
-
-                        for (size_t cpt = 0; (cpt < chunk) && (l_b != g_b); ++cpt, ++l_b){}
-
-                        g_a = l_b;
-                    }
-
-                    for (auto& it_unitig = l_a; it_unitig != l_b; ++it_unitig) {
-
-                        UnitigColors* uc = ds->getUnitigColors(*it_unitig);
-
-                        if (uc != nullptr){
-
-                            const pair<DataAccessor<void>, pair<UnitigColors*, void*>> p  = new_ds.insert(*it_unitig);
-
-                            *(it_unitig->getData()) = p.first;
-                            *(p.second.first) = std::move(*uc);
-                        }
-                    }
-                }
-            }
-        );
-    }
-
-    for (auto& t : workers) t.join();
-
-    *ds = std::move(new_ds);
-
-    //cout << "Number of unitigs not hashed is " << ds->overflow.size() << " on " << ds->nb_cs << " unitigs." << endl;
-}
-
-template<typename U>
 void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
-    DataStorage<U>* ds = this->getData();
+    DataStorage* ds = this->getData();
 
     const int k_ = this->getK();
 
@@ -867,9 +686,7 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
                             um.len = 1 + um.lcp(str_tmp, it_km->second + k_, um.strand ? um.dist + k_ : um.dist - 1, !um.strand);
 
-                            //if ((um.size != k_) && !um.strand) um.dist -= um.len - 1;
                             um.dist -= (um.len - 1) & (static_cast<size_t>((um.size == k_) || um.strand) - 1);
-
                             it_km += um.len - 1;
                         }
 
@@ -909,7 +726,6 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
             if (!new_reading || fp.read(s, file_id)) {
 
-                //pos_read = (new_reading ? 0 : pos_read);
                 pos_read &= static_cast<size_t>(new_reading) - 1;
 
                 len_read = s.length();
@@ -1067,185 +883,6 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
     //checkColors(ds->color_names);
 
-    /*typedef std::unordered_map<uint64_t, pair<int64_t, size_t>> uc_unordered_map;
-
-    uc_unordered_map u_map;
-
-    mutex mutex_u_map;
-
-    vector<thread> workers;
-
-    auto add_hash_function = [&](typename ColoredCDBG<U>::iterator it_a, typename ColoredCDBG<U>::iterator it_b) {
-
-        while (it_a != it_b) {
-
-            const const_UnitigColorMap<U> unitig(*it_a);
-            const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
-            const UnitigColors uc_full = uc->makeFullColors(unitig);
-            const UnitigColors* uc_full_array = uc_full.getFullColorsPtr();
-
-            if (uc_full_array[0].size() != 0){
-
-                const pair<int64_t, size_t> pv(0 - static_cast<int64_t>(uc_full_array[0].getSizeInBytes()) - static_cast<int64_t>(sizeof(size_t)), 0);
-
-                const int64_t to_add = static_cast<int64_t>(uc->getSizeInBytes());
-                const int64_t to_rm = (static_cast<int64_t>(uc_full_array[1].getSizeInBytes() + 2 * sizeof(UnitigColors)));
-
-                {
-                    unique_lock<mutex> lock(mutex_u_map);
-
-                    pair<uc_unordered_map::iterator, bool> p = u_map.insert(make_pair(uc_full_array[0].hash(), pv));
-
-                    p.first->second.first += to_add - to_rm;
-                }
-            }
-
-            ++it_a;
-        }
-    };
-
-    auto add_shared_function = [&](typename ColoredCDBG<U>::iterator it_a, typename ColoredCDBG<U>::iterator it_b) {
-
-        while (it_a != it_b) {
-
-            const UnitigColorMap<U> unitig(*it_a);
-
-            UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
-            UnitigColors uc_full = uc->makeFullColors(unitig);
-            UnitigColors* uc_full_array = uc_full.getFullColorsPtr();
-
-            if (uc_full_array[0].size() != 0){
-
-                uc_unordered_map::const_iterator it = u_map.find(uc_full_array[0].hash());
-
-                if (it->second.first > 0){ // If there is some sharing
-
-                    const size_t id_shared = it->second.second;
-                    const uint64_t id_lock = id_shared % nb_locks;
-
-                    bool move_full = false;
-
-                    while (cs_locks[id_lock].test_and_set(std::memory_order_acquire)); // Set the corresponding lock
-
-                    if (ds->shared_color_sets[id_shared].second == 0){
-
-                        ds->shared_color_sets[id_shared].first = move(uc_full_array[0]);
-                        ds->shared_color_sets[id_shared].second = 0;
-
-                        uc_full_array[0] = ds->shared_color_sets[id_shared];
-                        move_full = true;
-                    }
-                    else if (uc_full_array[0] == ds->shared_color_sets[id_shared]) {
-
-                        uc_full_array[0] = ds->shared_color_sets[id_shared];
-                        move_full = true;
-                    }
-
-                    cs_locks[id_lock].clear(std::memory_order_release);
-
-                    if (move_full) *uc = move(uc_full);
-                }
-            }
-
-            ++it_a;
-        }
-    };
-
-    {
-        const size_t chunk = 1000;
-
-        typename ColoredCDBG<U>::iterator g_a = this->begin();
-        typename ColoredCDBG<U>::iterator g_b = this->end();
-
-        mutex mutex_it;
-
-        for (size_t t = 0; t < nb_threads; ++t){
-
-            workers.emplace_back(
-
-                [&, t]{
-
-                    typename ColoredCDBG<U>::iterator l_a, l_b;
-
-                    while (true) {
-
-                        {
-                            unique_lock<mutex> lock(mutex_it);
-
-                            if (g_a == g_b) return;
-
-                            l_a = g_a;
-                            l_b = g_a;
-
-                            for (size_t cpt = 0; (cpt < chunk) && (l_b != g_b); ++cpt, ++l_b){}
-
-                            g_a = l_b;
-                        }
-
-                        add_hash_function(l_a, l_b);
-                    }
-                }
-            );
-        }
-
-        for (auto& t : workers) t.join();
-
-        workers.clear();
-    }
-
-    for (auto& p : u_map){
-
-        if (p.second.first > 0){
-
-            p.second.second = ds->sz_shared_cs;
-            ++(ds->sz_shared_cs);
-        }
-    }
-
-    ds->shared_color_sets = new UnitigColors::SharedUnitigColors[ds->sz_shared_cs];
-
-    {
-        const size_t chunk = 1000;
-
-        typename ColoredCDBG<U>::iterator g_a = this->begin();
-        typename ColoredCDBG<U>::iterator g_b = this->end();
-
-        mutex mutex_it;
-
-        for (size_t t = 0; t < nb_threads; ++t){
-
-            workers.emplace_back(
-
-                [&, t]{
-
-                    typename ColoredCDBG<U>::iterator l_a, l_b;
-
-                    while (true) {
-
-                        {
-                            unique_lock<mutex> lock(mutex_it);
-
-                            if (g_a == g_b) return;
-
-                            l_a = g_a;
-                            l_b = g_a;
-
-                            for (size_t cpt = 0; (cpt < chunk) && (l_b != g_b); ++cpt, ++l_b){}
-
-                            g_a = l_b;
-                        }
-
-                        add_shared_function(l_a, l_b);
-                    }
-                }
-            );
-        }
-
-        for (auto& t : workers) t.join();
-
-        workers.clear();
-    }*/
-
     delete[] cs_locks;
 }
 
@@ -1258,7 +895,7 @@ string ColoredCDBG<U>::getColorName(const size_t color_id) const {
         return string();
     }
 
-    const DataStorage<U>* ds = this->getData();
+    const DataStorage* ds = this->getData();
 
     if (color_id >= ds->color_names.size()){
 

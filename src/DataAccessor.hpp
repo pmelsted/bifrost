@@ -144,9 +144,9 @@ class DataAccessor : public CDBG_Data_t<DataAccessor<Unitig_data_t>, DataStorage
 
     private:
 
-        UnitigColors concatUnitigColors(const const_UnitigColorMap<U>& um_a, const const_UnitigColorMap<U>& um_b) const;
+        static UnitigColors concatUnitigColors(const const_UnitigColorMap<U>& um_a, const const_UnitigColorMap<U>& um_b) const;
 
-        bool mergeUnitigColors(const UnitigColorMap<U>& um_a, const const_UnitigColorMap<U>& um_b);
+        static bool mergeUnitigColors(const UnitigColorMap<U>& um_a, const const_UnitigColorMap<U>& um_b);
 
         DataAccessorContainer dac;
 };

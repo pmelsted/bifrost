@@ -2,6 +2,12 @@
 #define BIFROST_DATA_ACCESSOR_TCC
 
 template<typename U>
+void DataAccessor<U>::DataAccessor() {
+
+    clear();
+}
+
+template<typename U>
 void DataAccessor<U>::clear(const UnitigColorMap<U>& um) {
 
     if (!um.isEmpty){
@@ -115,7 +121,7 @@ vector<string> DataAccessor<U>::getSubUnitigColorNames(const const_UnitigColorMa
 
     if (!um.isEmpty && (um.getGraph() != nullptr)){
 
-        const DataStorage<U>* ds = um.getGraph()->getData();
+        const DataStorage* ds = um.getGraph()->getData();
 
         if (ds != nullptr) return ds->getSubUnitigColorNames(um);
     }
@@ -191,113 +197,109 @@ UnitigColors DataAccessor<U>::concatUnitigColors(const const_UnitigColorMap<U>& 
 
     if (!um_a.isEmpty && !um_b.isEmpty && (um_a.getGraph() == um_b.getGraph())){
 
-        const UnitigColors* color_set_a = um_a.getData()->getUnitigColors(um_a);
-        const UnitigColors* color_set_b = um_b.getData()->getUnitigColors(um_b);
+        const UnitigColors* color_set_a = &(um_a.getData()->getUnitigColors(um_a));
+        const UnitigColors* color_set_b = &(um_b.getData()->getUnitigColors(um_b));
 
-        if ((color_set_a != nullptr) || (color_set_b != nullptr)){
+        const size_t k = um_a.getGraph()->getK();
 
-            size_t prev_color_id = 0xffffffffffffffff;
-            size_t prev_km_dist = 0xffffffffffffffff;
+        const size_t um_a_km_sz = um_a.size - k + 1;
+        const size_t um_b_km_sz = um_b.size - k + 1;
 
-            const size_t k = um_a.getGraph()->getK();
-            const size_t um_a_km_sz = um_a.size - k + 1;
-            const size_t um_b_km_sz = um_b.size - k + 1;
+        size_t prev_color_id = 0xffffffffffffffff;
+        size_t prev_km_dist = 0xffffffffffffffff;
 
-            if (color_set_a != nullptr){
+        {
+            UnitigColors csd_rev;
 
-                UnitigColors csd_rev;
+            UnitigColorMap<U> new_um_a(0, 0, um_a.size + um_b.size - k + 1, um_a.strand);
 
-                UnitigColorMap<U> new_um_a(0, 0, um_a.size + um_b.size - k + 1, um_a.strand);
+            if (!um_a.strand){
 
-                if (!um_a.strand){
+                csd_rev = color_set_a->reverse(um_a);
+                color_set_a = &csd_rev;
+            }
 
-                    csd_rev = color_set_a->reverse(um_a);
-                    color_set_a = &csd_rev;
-                }
+            UnitigColors::const_iterator it(color_set_a->begin(0, um_a_km_sz, um_a_km_sz));
+            const UnitigColors::const_iterator it_end(color_set_a->end());
 
-                UnitigColors::const_iterator it(color_set_a->begin(0, um_a_km_sz, um_a_km_sz));
-                const UnitigColors::const_iterator it_end(color_set_a->end());
+            if (it != it_end){
 
-                if (it != it_end){
+                prev_km_dist = it.getKmerPosition();
+                prev_color_id = it.getColorID();
 
-                    prev_km_dist = it.getKmerPosition();
-                    prev_color_id = it.getColorID();
+                new_um_a.dist = prev_km_dist;
+                new_um_a.len = 1;
 
-                    new_um_a.dist = prev_km_dist;
+                ++it;
+            }
+
+            // Insert colors layer by layer
+            for (; it != it_end; ++it){
+
+                const size_t km_dist = it.getKmerPosition();
+                const size_t color_id = it.getColorID();
+
+                if ((color_id != prev_color_id) || (km_dist != prev_km_dist + 1)){
+
+                    new_cs.add(new_um_a, prev_color_id);
+
+                    new_um_a.dist = km_dist;
                     new_um_a.len = 1;
-
-                    ++it;
                 }
+                else ++(new_um_a.len);
 
-                // Insert colors layer by layer
-                for (; it != it_end; ++it){
-
-                    const size_t km_dist = it.getKmerPosition();
-                    const size_t color_id = it.getColorID();
-
-                    if ((color_id != prev_color_id) || (km_dist != prev_km_dist + 1)){
-
-                        new_cs.add(new_um_a, prev_color_id);
-
-                        new_um_a.dist = km_dist;
-                        new_um_a.len = 1;
-                    }
-                    else ++(new_um_a.len);
-
-                    prev_color_id = color_id;
-                    prev_km_dist = km_dist;
-                }
-
-                if (new_um_a.dist + new_um_a.len != 0) new_cs.add(new_um_a, prev_color_id);
+                prev_color_id = color_id;
+                prev_km_dist = km_dist;
             }
 
-            if (color_set_b != nullptr){
+            if (new_um_a.dist + new_um_a.len != 0) new_cs.add(new_um_a, prev_color_id);
+        }
 
-                UnitigColors css_rev;
+        {
+            UnitigColors css_rev;
 
-                UnitigColorMap<U> new_um_b(0, 0, um_a.size + um_b.size - k + 1, um_b.strand);
+            UnitigColorMap<U> new_um_b(0, 0, um_a.size + um_b.size - k + 1, um_b.strand);
 
-                if (!um_b.strand){
+            if (!um_b.strand){
 
-                    css_rev = color_set_b->reverse(um_b);
-                    color_set_b = &css_rev;
-                }
+                css_rev = color_set_b->reverse(um_b);
+                color_set_b = &css_rev;
+            }
 
-                UnitigColors::const_iterator it(color_set_b->begin(0, um_b_km_sz, um_b_km_sz));
-                const UnitigColors::const_iterator it_end(color_set_b->end());
+            UnitigColors::const_iterator it(color_set_b->begin(0, um_b_km_sz, um_b_km_sz));
+            const UnitigColors::const_iterator it_end(color_set_b->end());
 
-                if (it != it_end){
+            if (it != it_end){
 
-                    prev_km_dist = it.getKmerPosition();
-                    prev_color_id = it.getColorID();
+                prev_km_dist = it.getKmerPosition();
+                prev_color_id = it.getColorID();
 
-                    new_um_b.dist = prev_km_dist + um_a.size - k + 1;
+                new_um_b.dist = prev_km_dist + um_a.size - k + 1;
+                new_um_b.len = 1;
+
+                ++it;
+            }
+
+            // Insert colors layer by layer
+            for (; it != it_end; ++it){
+
+                const size_t km_dist = it.getKmerPosition();
+                const size_t color_id = it.getColorID();
+
+                if ((color_id != prev_color_id) || (km_dist != prev_km_dist + 1)){
+
+                    new_cs.add(new_um_b, prev_color_id);
+
+                    new_um_b.dist = km_dist + um_a.size - k + 1;
                     new_um_b.len = 1;
-
-                    ++it;
                 }
+                else ++(new_um_b.len);
 
-                // Insert colors layer by layer
-                for (; it != it_end; ++it){
-
-                    const size_t km_dist = it.getKmerPosition();
-                    const size_t color_id = it.getColorID();
-
-                    if ((color_id != prev_color_id) || (km_dist != prev_km_dist + 1)){
-
-                        new_cs.add(new_um_b, prev_color_id);
-
-                        new_um_b.dist = km_dist + um_a.size - k + 1;
-                        new_um_b.len = 1;
-                    }
-                    else ++(new_um_b.len);
-
-                    prev_color_id = color_id;
-                    prev_km_dist = km_dist;
-                }
-
-                if (new_um_b.dist + new_um_b.len != 0) new_cs.add(new_um_b, prev_color_id);
+                prev_color_id = color_id;
+                prev_km_dist = km_dist;
             }
+
+            if (new_um_b.dist + new_um_b.len != 0) new_cs.add(new_um_b, prev_color_id);
         }
     }
 
@@ -326,7 +328,7 @@ bool DataAccessor<U>::mergeUnitigColors(const UnitigColorMap<U>& um_a, const con
 
                 for (size_t km_dist = um_b.dist; km_dist < pos_end_b; ++km_dist){
 
-                    if (cs_b->contains(colorID * sz_km_b + km_dist)){
+                    if (cs_b.contains(colorID * sz_km_b + km_dist)){
 
                         if (um_a.strand != um_b.strand) um_tmp.dist = (um_b.len - 1 - (km_dist - um_b.dist)) + um_a.dist;
                         else um_tmp.dist = (km_dist - um_b.dist) + um_a.dist;
