@@ -633,7 +633,6 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
     const int k_ = this->getK();
 
-    const size_t nb_locks = nb_threads * 1024;
     const size_t chunk_size = 64;
     const size_t max_len_seq = 1024;
     const size_t thread_seq_buf_sz = chunk_size * max_len_seq;
@@ -650,9 +649,7 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
     FileParser fp(ds->color_names);
 
-    std::atomic_flag* cs_locks = new std::atomic_flag[nb_locks];
-
-    for (size_t i = 0; i < nb_locks; ++i) cs_locks[i].clear();
+    LockGraph lck_g(nb_threads * 1024);
 
     // Main worker thread
     auto worker_function = [&](char* seq_buf, const size_t seq_buf_sz, const size_t* col_buf) {
@@ -670,38 +667,26 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
             for (size_t i = 0; i < len - k_ + 1; i += max_len_seq - k_ + 1){
 
-                const int curr_len = min(len - i, max_len_seq);
-                const char saved_char = str[i + curr_len];
-                const char* str_tmp = &str[i];
+                const int sublen = min(len - i, max_len_seq);
+                const char* substr = str + i;
 
-                str[i + curr_len] = '\0';
+                for (size_t j = 0; j < sublen; ++j) {
 
-                for (KmerIterator it_km(str_tmp), it_km_end; it_km != it_km_end; ++it_km) {
-
-                    UnitigColorMap<U> um = this->find(it_km->first);
+                    const UnitigColorMap<U> um = this->findUnitig(substr, i+j, sublen);
 
                     if (!um.isEmpty) {
 
-                        if (um.strand || (um.dist != 0)){
+                        const uint64_t h = um.getUnitigHead().hash();
 
-                            um.len = 1 + um.lcp(str_tmp, it_km->second + k_, um.strand ? um.dist + k_ : um.dist - 1, !um.strand);
+                        lck_g.lock_unitig(h);
 
-                            um.dist -= (um.len - 1) & (static_cast<size_t>((um.size == k_) || um.strand) - 1);
-                            it_km += um.len - 1;
-                        }
+                        um.getData()->getUnitigColors().add(um, col_buf[c_id]);
 
-                        const uint64_t id_lock = ds->getHash(um) % nb_locks;
-                        UnitigColors* uc = ds->getUnitigColors(um);
+                        lck_g.unlock_unitig(h);
 
-                        while (cs_locks[id_lock].test_and_set(std::memory_order_acquire)); // Set the corresponding lock
-
-                        uc->add(um, col_buf[c_id]);
-
-                        cs_locks[id_lock].clear(std::memory_order_release);
+                        j += um.len - 1;
                     }
                 }
-
-                str[i + curr_len] = saved_char;
             }
 
             str += len + 1;
@@ -882,22 +867,19 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
     fp.close();
 
     //checkColors(ds->color_names);
-
-    delete[] cs_locks;
 }
 
 template<typename U>
 string ColoredCDBG<U>::getColorName(const size_t color_id) const {
+
+    const DataStorage* ds = this->getData();
 
     if (invalid){
 
         cerr << "ColoredCDBG::getColorName(): Graph is invalid or colors are not yet mapped to unitigs." << endl;
         return string();
     }
-
-    const DataStorage* ds = this->getData();
-
-    if (color_id >= ds->color_names.size()){
+    else if (color_id >= ds->color_names.size()){
 
         cerr << "ColoredCDBG::getColorName(): Color ID " << color_id << " is invalid, graph only has " <<
         ds->color_names.size() << " colors." << endl;
