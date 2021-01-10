@@ -1,10 +1,6 @@
 #ifndef BIFROST_DATA_STORAGE_HPP
 #define BIFROST_DATA_STORAGE_HPP
 
-#include <atomic>
-
-#define BFG_COLOREDCDBG_FORMAT_VERSION 3
-
 class DataStorage {
 
     public:

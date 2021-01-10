@@ -11,6 +11,8 @@
 
 #include "getRSS.h"
 
+#define BFG_COLOREDCDBG_FORMAT_VERSION 3 // Version number for graph colors file format
+
 /** @file src/ColoredCDBG.hpp
 * Interface for the Colored and Compacted de Bruijn graph API.
 * Code snippets using this interface are provided in test/snippets.hpp.
@@ -253,7 +255,7 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         * @param verbose is a boolean indicating if information message are printed during writing (true) or not (false).
         * @return a boolean indicating if the graph was successfully written.
         */
-        bool write(const string& prefix_output_filename, const size_t nb_threads = 1, const bool verbose = false) const;
+        bool write(const string& prefix_output_filename, const size_t nb_threads = 1, , const bool GFA_output = true, const bool verbose = false) const;
 
         /** Read a colored and compacted de Bruijn graph from disk. The graph (in GFA format) must have been produced
         * by Bifrost.

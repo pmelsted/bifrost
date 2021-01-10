@@ -3,9 +3,11 @@
 API only.
 
 * **01-09-2019**
+	* Due to a major shift in how colors are indexed and stored, all color files generated with Bifrost versions prior to v1.1 are incompatible with versions >= 1.1.
 	* `DataAccessor::getUnitigColors()` returns a reference (`UnitigColors&`) rather than a pointer (`UnitigColors*`).
 	* `DataAccessor::getData()` is available as a non-`const` function in addition to the `const` function already present.
 	* `ColoredCDBG::operator==()` returns true for two incorrectly initialized `ColoredCDBG`.
+	* `ColoredCDBG::write()` takes an additional optional parameter: a boolean indicating if the graph should be output in FASTA or GFA. `ColoredCDBG::write()` has now the same parameters as `CompactedDBG::write()`.
 * **08-29-2018**
 	* `UnitigColors::const_iterator` only considers now the k-mer positions of the unitig mapping provided in the `UnitigMap`/`UnitigColorMap` parameter of `UnitigColors::begin()`.
 * **08-28-2018**

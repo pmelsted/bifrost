@@ -431,9 +431,74 @@ bool ColoredCDBG<U>::buildColors(const CCDBG_Build_opt& opt){
 }
 
 template<typename U>
-bool ColoredCDBG<U>::write(const string& prefix_output_filename, const size_t nb_threads, const bool verbose) const {
+bool ColoredCDBG<U>::write(const string& prefix_output_filename, const size_t nb_threads, const bool GFA_output, const bool verbose) const {
 
-    if (!CompactedDBG<DataAccessor<U>, DataStorage>::write(prefix_output_filename, nb_threads, true, verbose)) return false; // Write graph
+    if (!CompactedDBG<DataAccessor<U>, DataStorage>::write(prefix_output_filename, nb_threads, GFA_output, verbose)) return false; // Write graph
+
+    // Write color names
+    {
+        if (verbose) cout << endl << "ColoredCDBG::write(): Writing colors to disk" << endl;
+
+        const string out = prefix_output_filename + ".bfg_colors";
+
+        FILE* fp = fopen(out.c_str(), "wb");
+
+        if (fp == NULL) {
+
+            cerr << "ColoredCDBG::write(): Could not open file " << out << " for writing color sets" << endl;
+
+            return false;
+        }
+        else {
+
+            fclose(fp);
+
+            if (std::remove(out.c_str()) != 0) cerr << "ColoredCDBG::write(): Could not remove temporary file " << out << endl;
+        }
+
+        ofstream colorsfile_out;
+        ostream colors_out(nullptr);
+
+        colorsfile_out.open(out.c_str(), ios_base::out | ios_base::binary);
+        colors_out.rdbuf(colorsfile_out.rdbuf());
+        //colors_out.sync_with_stdio(false);
+
+        const size_t format_version = BFG_COLOREDCDBG_FORMAT_VERSION;
+        const size_t overflow_sz = overflow.size();
+        const size_t nb_colors = color_names.size();
+
+        const size_t block_sz = 1024;
+
+        const char nl = '\n';
+
+        streampos pos_f_cs;
+
+        vector<streampos> v_pos_f_cs;
+
+        //Write the file format version number
+        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&format_version), sizeof(size_t));
+        //Write number of color sets in the graph
+        if (colors_out.good()) colors_out.write(reinterpret_cast<const char*>(&nb_cs), sizeof(size_t));
+
+        pos_f_cs = colors_out.tellp();
+
+        const size_t nb_pos_cs = (sz_cs / block_sz) + static_cast<size_t>((sz_cs % block_sz) != 0);
+
+        for (size_t i = 0; (i < nb_pos_shared_cs) && colors_out.good(); ++i){
+            // Reserve space to write positions in file of shared colorsets blocks
+            colors_out.write(reinterpret_cast<const char*>(&pos_f_cs), sizeof(streampos));
+        }
+
+        if (nb_threads == 1) {
+
+            for (size_t i = 0; (i < sz_cs) && colors_out.good(); ++i){
+
+                if (i % block_sz == 0) v_pos_f_cs.push_back(colors_out.tellp());
+
+                color_sets[i].write(colors_out, false); //Write the color sets
+            }
+        }
+    }
 
     return this->getData()->write(prefix_output_filename, verbose); // Write colors
 }
