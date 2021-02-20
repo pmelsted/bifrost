@@ -73,7 +73,7 @@ Compared to the source install, the Conda and Brew packages do not support *k>31
 * From [Bioconda](https://bioconda.github.io):
 
   ```
-  conda -c bioconda bifrost
+  conda install -c bioconda bifrost
   ```
 
 * From source
