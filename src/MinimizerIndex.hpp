@@ -74,7 +74,7 @@ class MinimizerIndex {
 
                 for (; h < ht->size_; ++h) {
 
-                    if ((ht->table_keys[h] != ht->empty_key) && (ht->table_keys[h] != ht->deleted_key)) break;
+                    if (!ht->table_keys[h].isEmpty() && !ht->table_keys[h].isDeleted()) break;
                 }
 
                 return *this;
@@ -172,8 +172,6 @@ class MinimizerIndex {
         Minimizer* table_keys;
         packed_tiny_vector* table_tinyv;
         uint8_t* table_tinyv_sz;
-
-        Minimizer empty_key, deleted_key;
 
         mutable vector<SpinLock> lck_min;
         mutable SpinLockRW lck_edit_table;

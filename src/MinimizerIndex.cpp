@@ -3,27 +3,26 @@
 MinimizerIndex::MinimizerIndex() :  table_keys(nullptr), table_tinyv(nullptr), table_tinyv_sz(nullptr),
                                     size_(0), pop(0), num_empty(0)  {
 
-    empty_key.set_empty();
-    deleted_key.set_deleted();
-
-    const size_t l_lck_block_sz = lck_block_sz;
-
-    init_tables(std::max(static_cast<size_t>(1024), l_lck_block_sz));
+    init_tables(max(static_cast<size_t>(1024), lck_block_sz));
 }
 
 MinimizerIndex::MinimizerIndex(const size_t sz) :   table_keys(nullptr), table_tinyv(nullptr), table_tinyv_sz(nullptr),
                                                     size_(0), pop(0), num_empty(0) {
 
-    empty_key.set_empty();
-    deleted_key.set_deleted();
+    if (sz == 0) init_tables(lck_block_sz);
+    else {
 
-    const size_t l_lck_block_sz = lck_block_sz;
+        const size_t sz_with_empty = static_cast<size_t>(1.2 * sz);
 
-    init_tables(std::max(static_cast<size_t>(1.2 * sz), l_lck_block_sz));
+        size_t rdnup_sz = rndup(sz);
+
+        while (rdnup_sz < sz_with_empty) rdnup_sz <<= 1;
+
+        init_tables(max(rdnup_sz, lck_block_sz));
+    }
 }
 
-MinimizerIndex::MinimizerIndex(const MinimizerIndex& o) :   size_(o.size_), pop(o.pop), num_empty(o.num_empty),
-                                                            empty_key(o.empty_key), deleted_key(o.deleted_key) {
+MinimizerIndex::MinimizerIndex(const MinimizerIndex& o) :   size_(o.size_), pop(o.pop), num_empty(o.num_empty) {
 
     table_keys = new Minimizer[size_];
     table_tinyv = new packed_tiny_vector[size_];
@@ -45,9 +44,6 @@ MinimizerIndex::MinimizerIndex(MinimizerIndex&& o){
     size_ = o.size_;
     pop = o.pop;
     num_empty = o.num_empty;
-
-    empty_key = o.empty_key;
-    deleted_key = o.deleted_key;
 
     table_keys = o.table_keys;
     table_tinyv = o.table_tinyv;
@@ -71,9 +67,6 @@ MinimizerIndex& MinimizerIndex::operator=(const MinimizerIndex& o) {
         size_ = o.size_;
         pop = o.pop;
         num_empty = o.num_empty;
-
-        empty_key = o.empty_key;
-        deleted_key = o.deleted_key;
 
         table_keys = new Minimizer[size_];
         table_tinyv = new packed_tiny_vector[size_];
@@ -102,9 +95,6 @@ MinimizerIndex& MinimizerIndex::operator=(MinimizerIndex&& o){
         size_ = o.size_;
         pop = o.pop;
         num_empty = o.num_empty;
-
-        empty_key = o.empty_key;
-        deleted_key = o.deleted_key;
 
         table_keys = o.table_keys;
         table_tinyv = o.table_tinyv;
@@ -149,7 +139,7 @@ MinimizerIndex::iterator MinimizerIndex::find(const Minimizer& key) {
 
     while (i != size_) {
 
-        if ((table_keys[h] == empty_key) || (table_keys[h] == key)) break;
+        if (table_keys[h].isEmpty() || (table_keys[h] == key)) break;
 
         h = (h+1) & end_table;
         ++i;
@@ -169,7 +159,7 @@ MinimizerIndex::const_iterator MinimizerIndex::find(const Minimizer& key) const 
 
     while (i != size_) {
 
-        if ((table_keys[h] == empty_key) || (table_keys[h] == key)) break;
+        if (table_keys[h].isEmpty() || (table_keys[h] == key)) break;
 
         h = (h+1) & end_table;
         ++i;
@@ -182,14 +172,14 @@ MinimizerIndex::const_iterator MinimizerIndex::find(const Minimizer& key) const 
 
 MinimizerIndex::iterator MinimizerIndex::find(const size_t h) {
 
-    if ((h < size_) && (table_keys[h] != empty_key) && (table_keys[h] != deleted_key)) return iterator(this, h);
+    if ((h < size_) && !table_keys[h].isEmpty() && !table_keys[h].isDeleted()) return iterator(this, h);
 
     return iterator(this);
 }
 
 MinimizerIndex::const_iterator MinimizerIndex::find(const size_t h) const {
 
-    if ((h < size_) && (table_keys[h] != empty_key) && (table_keys[h] != deleted_key)) return const_iterator(this, h);
+    if ((h < size_) && !table_keys[h].isEmpty() && !table_keys[h].isDeleted()) return const_iterator(this, h);
 
     return const_iterator(this);
 }
@@ -198,7 +188,7 @@ MinimizerIndex::iterator MinimizerIndex::erase(const_iterator it) {
 
     if (it == end()) return end();
 
-    table_keys[it.h] = deleted_key;
+    table_keys[it.h].set_deleted();
     table_tinyv[it.h].destruct(table_tinyv_sz[it.h]);
     table_tinyv_sz[it.h] = packed_tiny_vector::FLAG_EMPTY;
 
@@ -217,7 +207,7 @@ size_t MinimizerIndex::erase(const Minimizer& minz) {
 
     while (i != size_) {
 
-        if ((table_keys[h] == empty_key) || (table_keys[h] == minz)) break;
+        if (table_keys[h].isEmpty() || (table_keys[h] == minz)) break;
 
         h = (h+1) & end_table;
         ++i;
@@ -225,7 +215,7 @@ size_t MinimizerIndex::erase(const Minimizer& minz) {
 
     if ((i != size_) && (table_keys[h] == minz)){
 
-        table_keys[h] = deleted_key;
+        table_keys[h].set_deleted();
         table_tinyv[h].destruct(table_tinyv_sz[h]);
         table_tinyv_sz[h] = packed_tiny_vector::FLAG_EMPTY;
 
@@ -235,44 +225,130 @@ size_t MinimizerIndex::erase(const Minimizer& minz) {
     return oldpop - pop;
 }
 
-pair<MinimizerIndex::iterator, bool> MinimizerIndex::insert(const Minimizer& key, const packed_tiny_vector& v, const uint8_t& flag) {
+// Insert with Robin Hood hashing
+/*
+pair<MinimizerIndex::iterator, bool> MinimizerIndex::insert(const Minimizer& key, const packed_tiny_vector& ptv, const uint8_t& flag) {
 
     if ((5 * num_empty) < size_) reserve(2 * size_); // if more than 80% full, resize
 
-    bool is_deleted = false;
-
     const size_t end_table = size_-1;
-    const size_t h = key.hash() & end_table;
 
-    size_t h1 = h;
-    size_t h2;
+    bool is_deleted = false, has_rich_psl = false;
+
+    size_t h = key.hash() & end_table;
+    size_t h_del = 0, h_rich_psl = 0;
+    size_t psl_ins_key = 0, psl_rich_key = 0;
+
+    pair<MinimizerIndex::iterator, bool> it_ret;
+
+    Minimizer l_key = key;
+
+    packed_tiny_vector l_ptv(ptv, flag);
+
+    uint8_t l_flag = flag;
 
     while (true) {
 
-        if (table_keys[h1] == empty_key) {
+        if (table_keys[h].isEmpty()) {
 
-            is_deleted ? (h1 = h2) : --num_empty;
+            if (has_rich_psl) {
 
-            table_keys[h1] = key;
-            table_tinyv_sz[h1] = packed_tiny_vector::FLAG_EMPTY;
+                h = h_rich_psl;
 
-            table_tinyv[h1].copy(table_tinyv_sz[h1], v, flag);
+                // Swap keys
+                swap(table_keys[h], l_key);
+
+                // Swap values
+                packed_tiny_vector l_ptv_swap;
+                uint8_t l_flag_swap;
+
+                l_ptv_swap.move(l_flag_swap, move(table_tinyv[h]), move(table_tinyv_sz[h]));
+                table_tinyv[h].move(table_tinyv_sz[h], move(l_ptv), move(l_flag));
+                l_ptv.move(l_flag, move(l_ptv_swap), move(l_flag_swap));
+
+                psl_ins_key = psl_rich_key;
+
+                is_deleted = false;
+                has_rich_psl = false;
+
+                if (table_keys[h] == key) it_ret = {iterator(this, h), true};
+            }
+            else {
+
+                h = ((static_cast<size_t>(is_deleted) - 1) & h) + ((static_cast<size_t>(!is_deleted) - 1) & h_del);
+                num_empty -= static_cast<size_t>(!is_deleted);
+
+                table_keys[h] = l_key;
+                table_tinyv_sz[h] = packed_tiny_vector::FLAG_EMPTY;
+                table_tinyv[h].move(table_tinyv_sz[h], move(l_ptv), move(l_flag));
+
+                if (table_keys[h] == key) {
+
+                    ++pop;
+                    it_ret = {iterator(this, h), true};
+                }
+
+                return it_ret;
+            }
+        }
+        else if (table_keys[h] == l_key) return {iterator(this, h), false}; // Can only happen when inserting the input key
+        else if (table_keys[h].isDeleted()) {
+
+            h_del = ((static_cast<size_t>(!is_deleted) - 1) & h_del) + ((static_cast<size_t>(is_deleted) - 1) & h);
+            is_deleted = true;
+        }
+        else if (!is_deleted && !has_rich_psl) {
+
+            const size_t h_curr = table_keys[h].hash() & end_table;
+            const size_t psl_curr_key = (h < h_curr) ? (size_ - h_curr + h) : (h - h_curr);
+
+            if (psl_ins_key > psl_curr_key) {
+
+                has_rich_psl = true;
+                h_rich_psl = h;
+                psl_rich_key = psl_curr_key;
+            }
+        }
+
+        h = (h+1) & end_table;
+        ++psl_ins_key;
+    }
+}*/
+
+pair<MinimizerIndex::iterator, bool> MinimizerIndex::insert(const Minimizer& key, const packed_tiny_vector& ptv, const uint8_t& flag) {
+
+    if ((5 * num_empty) < size_) reserve(2 * size_); // if more than 80% full, resize
+
+    const size_t end_table = size_-1;
+    
+    size_t h = key.hash() & end_table, h_del;
+
+    bool is_deleted = false;
+
+    while (true) {
+
+        if (table_keys[h].isEmpty()) {
+
+            h = ((static_cast<size_t>(is_deleted) - 1) & h) + ((static_cast<size_t>(!is_deleted) - 1) & h_del);
+            num_empty -= static_cast<size_t>(!is_deleted);
+
+            table_keys[h] = key;
+            table_tinyv_sz[h] = packed_tiny_vector::FLAG_EMPTY;
+
+            table_tinyv[h].copy(table_tinyv_sz[h], ptv, flag);
 
             ++pop;
 
-            return {iterator(this, h1), true};
+            return {iterator(this, h), true};
         }
-        else if (table_keys[h1] == key){
+        else if (table_keys[h] == key) return {iterator(this, h), false};
+        else if (table_keys[h].isDeleted()) {
 
-            return {iterator(this, h1), false};
-        }
-        else if (!is_deleted && (table_keys[h1] == deleted_key)) {
-
+            h_del = ((static_cast<size_t>(!is_deleted) - 1) & h_del) + ((static_cast<size_t>(is_deleted) - 1) & h);
             is_deleted = true;
-            h2 = h1;
         }
 
-        h1 = (h1+1) & end_table;
+        h = (h+1) & end_table;
     }
 }
 
@@ -314,7 +390,7 @@ MinimizerIndex::iterator MinimizerIndex::find_p(const Minimizer& key) {
             lck_min[id_block].acquire();
         }
 
-        if (table_keys[h] == empty_key){
+        if (table_keys[h].isEmpty()){
 
             lck_min[id_block].release();
             lck_edit_table.release_reader();
@@ -354,7 +430,7 @@ MinimizerIndex::const_iterator MinimizerIndex::find_p(const Minimizer& key) cons
             lck_min[id_block].acquire();
         }
 
-        if (table_keys[h] == empty_key){
+        if (table_keys[h].isEmpty()){
 
             lck_min[id_block].release();
             lck_edit_table.release_reader();
@@ -383,7 +459,7 @@ MinimizerIndex::iterator MinimizerIndex::find_p(const size_t h) {
 
         lck_min[id_block].acquire();
 
-        if ((table_keys[h] != empty_key) && (table_keys[h] != deleted_key)) return iterator(this, h);
+        if (!table_keys[h].isEmpty() && !table_keys[h].isDeleted()) return iterator(this, h);
 
         lck_min[id_block].release();
     }
@@ -403,7 +479,7 @@ MinimizerIndex::const_iterator MinimizerIndex::find_p(const size_t h) const {
 
         lck_min[id_block].acquire();
 
-        if ((table_keys[h] != empty_key) && (table_keys[h] != deleted_key)) return const_iterator(this, h);
+        if (!table_keys[h].isEmpty() && !table_keys[h].isDeleted()) return const_iterator(this, h);
 
         lck_min[id_block].release();
     }
@@ -453,7 +529,7 @@ size_t MinimizerIndex::erase_p(const Minimizer& minz) {
             lck_min[id_block].acquire();
         }
 
-        if (table_keys[h] == empty_key){
+        if (table_keys[h].isEmpty()){
 
             lck_min[id_block].release();
             lck_edit_table.release_reader();
@@ -468,7 +544,7 @@ size_t MinimizerIndex::erase_p(const Minimizer& minz) {
 
     if ((i != size_) && (table_keys[h] == minz)){
 
-        table_keys[h] = deleted_key;
+        table_keys[h].set_deleted();
         table_tinyv[h].destruct(table_tinyv_sz[h]);
         table_tinyv_sz[h] = packed_tiny_vector::FLAG_EMPTY;
 
@@ -522,7 +598,7 @@ pair<MinimizerIndex::iterator, bool> MinimizerIndex::insert_p(const Minimizer& k
             lck_min[id_block].acquire();
         }
 
-        if (table_keys[h1] == empty_key) {
+        if (table_keys[h1].isEmpty()) {
 
             if (is_deleted){
 
@@ -533,7 +609,7 @@ pair<MinimizerIndex::iterator, bool> MinimizerIndex::insert_p(const Minimizer& k
 
                     lck_min[id_block2].acquire();
 
-                    if (table_keys[h2] == deleted_key){
+                    if (table_keys[h2].isDeleted()){
 
                         lck_min[id_block].release();
                         h1 = h2;
@@ -560,7 +636,7 @@ pair<MinimizerIndex::iterator, bool> MinimizerIndex::insert_p(const Minimizer& k
 
             return {iterator(this, h1), false};
         }
-        else if (!is_deleted && (table_keys[h1] == deleted_key)) {
+        else if (!is_deleted && table_keys[h1].isDeleted()) {
 
             is_deleted = true;
             h2 = h1;
@@ -626,6 +702,8 @@ void MinimizerIndex::init_tables(const size_t sz) {
 
     clear_tables();
 
+    Minimizer empty_key;
+
     pop = 0;
     size_ = rndup(sz);
     num_empty = size_;
@@ -633,6 +711,8 @@ void MinimizerIndex::init_tables(const size_t sz) {
     table_keys = new Minimizer[size_];
     table_tinyv = new packed_tiny_vector[size_];
     table_tinyv_sz = new uint8_t[size_];
+
+    empty_key.set_empty();
 
     std::fill(table_keys, table_keys + size_, empty_key);
 
@@ -643,11 +723,13 @@ void MinimizerIndex::reserve(const size_t sz) {
 
     if (sz <= size_) return;
 
+    const size_t old_size_ = size_;
+
+    Minimizer empty_key;
+
     Minimizer* old_table_keys = table_keys;
     packed_tiny_vector* old_table_tinyv = table_tinyv;
     uint8_t* old_table_tinyv_sz = table_tinyv_sz;
-
-    const size_t old_size_ = size_;
 
     size_ = rndup(sz);
     pop = 0;
@@ -657,6 +739,8 @@ void MinimizerIndex::reserve(const size_t sz) {
     table_tinyv = new packed_tiny_vector[size_];
     table_tinyv_sz = new uint8_t[size_];
 
+    empty_key.set_empty();
+
     if (!lck_min.empty()) lck_min = vector<SpinLock>((size_ + lck_block_sz - 1) / lck_block_sz);
 
     std::fill(table_keys, table_keys + size_, empty_key);
@@ -665,7 +749,7 @@ void MinimizerIndex::reserve(const size_t sz) {
 
     for (size_t i = 0; i < old_size_; ++i) {
 
-        if (old_table_keys[i] != empty_key && old_table_keys[i] != deleted_key){
+        if (!old_table_keys[i].isEmpty() && !old_table_keys[i].isDeleted()){
 
             insert(old_table_keys[i], old_table_tinyv[i], old_table_tinyv_sz[i]);
 

@@ -83,15 +83,8 @@ Kmer& Kmer::operator=(const Kmer& o) {
 //                      the DNA string in km2
 bool Kmer::operator<(const Kmer& o) const {
 
-    //for (size_t i = 0; i < MAX_K/32; ++i) {
-    //
-    //    if (longs[i] < o.longs[i]) return true;
-    //    if (longs[i] > o.longs[i]) return false;
-    //}
-    //
-    //return false;
-
     const size_t end = MAX_K/32;
+
     size_t i = 0;
 
     while ((i < end) && (longs[i] == o.longs[i])) ++i;
@@ -105,17 +98,12 @@ bool Kmer::operator<(const Kmer& o) const {
 bool Kmer::operator==(const Kmer& o) const {
 
     const size_t end = MAX_K/32;
+
     size_t i = 0;
 
     while ((i < end) && (longs[i] == o.longs[i])) ++i;
 
     return (i == end);
-
-    //for (size_t i = 0; i < MAX_K/32; i++) {
-    //    if (longs[i] != o.longs[i]) return false;
-    //}
-    //
-    //return true;
 }
 
 bool Kmer::operator!=(const Kmer& o) const {
@@ -129,7 +117,6 @@ bool Kmer::operator!=(const Kmer& o) const {
 // post: The DNA string in km is now equal to s
 void Kmer::set_kmer(const char* s)  {
 
-    //memset(bytes, 0, MAX_K/4);
     for (size_t i = 0; i < MAX_K/32; ++i) longs[i] = 0;
 
     for (size_t i = 0, j, l; i < k; ++i) {
@@ -140,6 +127,7 @@ void Kmer::set_kmer(const char* s)  {
         assert(*s != '\0');
 
         const size_t x = ((*s) & 4) >> 1;
+
         longs[l] |= ((x + ((x ^ (*s & 2)) >> 1)) << j);
 
         ++s;
@@ -338,6 +326,7 @@ char Kmer::getChar(const size_t offset) const {
     assert(offset < Kmer::k);
 
     const char v = (longs[offset >> 5] >> (62 - ((offset & 0x1F) << 1))) & 0x3;
+
     return (0x40 | (v + 1) | (0x1 << ((v - 1) << 1)));
 }
 
@@ -399,16 +388,6 @@ bool Kmer::read(istream& stream_in) {
 }
 
 unsigned int Kmer::k = 0;
-//unsigned int Kmer::k_bytes = 0;
-//unsigned int Kmer::k_longs = 0;
-//unsigned int Kmer::k_modmask = 0;
-
-
-
-
-
-
-
 
 Minimizer::Minimizer() {
 
@@ -420,7 +399,10 @@ Minimizer::Minimizer(const Minimizer& o) {
     for (size_t i = 0; i < MAX_G/32; ++i) longs[i] = o.longs[i];
 }
 
-Minimizer::Minimizer(const char *s) { set_minimizer(s); }
+Minimizer::Minimizer(const char *s) {
+
+    set_minimizer(s);
+}
 
 Minimizer& Minimizer::operator=(const Minimizer& o) {
 
@@ -432,28 +414,7 @@ Minimizer& Minimizer::operator=(const Minimizer& o) {
     return *this;
 }
 
-void Minimizer::set_deleted() {
-
-    //memset(bytes, 0xff, MAX_G/4);
-    for (size_t i = 0; i < MAX_G/32; ++i) longs[i] = 0xffffffffffffffff;
-}
-
-void Minimizer::set_empty() {
-
-    //memset(bytes, 0xff, MAX_G/4);
-    for (size_t i = 0; i < MAX_G/32; ++i) longs[i] = 0xffffffffffffffff;
-    bytes[0] ^= 1;
-}
-
 bool Minimizer::operator<(const Minimizer& o) const {
-
-    //for (size_t i = 0; i < MAX_G/32; ++i) {
-    //
-    //    if (longs[i] < o.longs[i]) return true;
-    //    if (longs[i] > o.longs[i]) return false;
-    //}
-    //
-    //return false;
 
     const size_t end = MAX_G/32;
     size_t i = 0;
@@ -470,14 +431,8 @@ bool Minimizer::operator<(const Minimizer& o) const {
 // post: b is true <==> the DNA strings in km1 and km2 are equal
 bool Minimizer::operator==(const Minimizer& o) const {
 
-    /*for (size_t i = 0; i < MAX_G/32; i++) {
-
-        if (longs[i] != o.longs[i]) return false;
-    }
-
-    return true;*/
-
     const size_t end = MAX_G/32;
+
     size_t i = 0;
 
     while ((i < end) && (longs[i] == o.longs[i])) ++i;
@@ -510,6 +465,7 @@ void Minimizer::set_minimizer(const char *s)  {
 Minimizer Minimizer::rep() const {
 
     Minimizer tw = twin();
+
     return (tw < *this) ? tw : *this;
 }
 
@@ -533,7 +489,6 @@ Minimizer Minimizer::twin() const {
     const size_t shift = (64 - mod) & 0x3f; // mod ? 64 - mod : 0
     const size_t mod2 = 64 - shift;
 
-    //const uint64_t shiftmask = mod ? (((1ULL << shift) - 1) << mod2) : 0ULL;
     const uint64_t shiftmask = (static_cast<uint64_t>(!mod) - 1) & (((1ULL << shift) - 1) << mod2);
 
     minz.longs[0] <<= shift;
@@ -646,18 +601,8 @@ std::string Minimizer::toString() const {
 
 void Minimizer::set_g(unsigned int _g) {
 
-  if(_g == g) return; // ok to call more than once
-
-  //assert(_g < MAX_G);
-  //assert(_g > 0);
-  //assert(g_bytes == 0); // we can only call this once
-
-  g = _g;
-  //g_bytes = (_g+3)/4;
-  //g_modmask = (1 << (2*((g%4)?g%4:4)) )-1;
+    g = _g;
 }
 
 
 unsigned int Minimizer::g = 0;
-//unsigned int Minimizer::g_bytes = 0;
-//unsigned int Minimizer::g_modmask = 0;

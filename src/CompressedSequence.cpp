@@ -214,14 +214,29 @@ void CompressedSequence::setSequence(const char *s, const size_t length, const s
 
     unsigned char* data = const_cast<unsigned char*>(getPointer());
 
-    for (size_t index = offset; index < len; ++index) {
+    if (reversed) {
 
-        const size_t i = index >> 2;
-        const size_t j = (index & 0x3) << 1;
-        const uint8_t c = reversed ? bases[0x03-bits[(uint8_t)*(s+len-index-1)]] : *(s+index-offset);
+        for (size_t index = offset; index < len; ++index) {
 
-        data[i] &= ~(0x03 << j); // set bits to 0, default
-        data[i] |= (bits[c] << j);
+            const size_t i = index >> 2;
+            const size_t j = (index & 0x3) << 1;
+            const uint8_t c = bases[0x03-bits[(uint8_t)*(s+len-index-1)]];
+
+            data[i] &= ~(0x03 << j); // set bits to 0, default
+            data[i] |= (bits[c] << j);
+        }
+    }
+    else {
+
+        for (size_t index = offset; index < len; ++index) {
+
+            const size_t i = index >> 2;
+            const size_t j = (index & 0x3) << 1;
+            const uint8_t c = *(s+index-offset);
+
+            data[i] &= ~(0x03 << j); // set bits to 0, default
+            data[i] |= (bits[c] << j);
+        }
     }
 
     if (len > size()) setSize(len);
@@ -342,9 +357,8 @@ Kmer CompressedSequence::getKmer(const size_t offset) const {
 bool CompressedSequence::compareKmer(const size_t offset, const size_t length, const Kmer& km) const {
 
     const unsigned char* data = getPointer();
-    const size_t pos_end = offset + length;
 
-    if ((length > Kmer::k) || (pos_end > size())) return false;
+    if ((length > Kmer::k) || ((offset + length) > size()) || km.isEmpty() || km.isDeleted()) return false;
 
     if ((offset & 0x3) == 0){ // Comparison byte to byte is possible
 
@@ -352,35 +366,34 @@ bool CompressedSequence::compareKmer(const size_t offset, const size_t length, c
 
         size_t i = offset >> 2, j = 0;
 
-        for (; j < nbytes - 1; ++i, ++j){
+        while (j < nbytes - 1){ // Check full bytes (bytes containing 4 characters to compare)
 
-            if (data[i] != revBits[km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)]]) return false;
+            j += ((static_cast<size_t>(data[i] == revBits[km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)]]) - 1) & nbytes) + 1;
+            ++i;
         }
 
-        unsigned char tmp_km = km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)];
-        unsigned char tmp_data = data[i];
+        if (j != nbytes - 1) return false;
+        if ((length & 0x3) == 0) return (data[i] == revBits[km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)]]); // Last byte is also a full byte
 
-        for (i <<= 2; i < pos_end; ++i, tmp_km <<= 2, tmp_data >>= 2){
+        const char mask = (0x1ULL << ((length & 0x3) << 1)) - 1;
 
-            if ((tmp_data & 0x3) != (tmp_km >> 6)) return false;
-        }
+        return (data[i] & mask) == (revBits[km.bytes[(7 - (j & 0x7)) + ((j >> 3) << 3)]] & mask);
     }
     else { //Comparison 2 bits per 2 bits
 
-        const size_t nlongs = (length + 31) / 32;
+        size_t iu = offset, ik = 0;
 
-        for (size_t i = offset, j = 0; j < nlongs; ++j){
+        while (ik < length){
 
-            const size_t end = pos_end < i + 32 ? pos_end : i + 32;
+            const size_t cu = (data[iu >> 2] >> ((iu & 0x3) << 1)) & 0x3;
+            const size_t ck = (km.longs[ik >> 5] >> (62 - ((ik & 0x1F) << 1))) & 0x3;
 
-            for (uint64_t tmp_km = km.longs[j]; i != end; ++i, tmp_km <<= 2){
-
-                if (((data[i >> 2] >> ((i & 0x3) << 1)) & 0x3) != (tmp_km >> 62)) return false;
-            }
+            ik += ((static_cast<size_t>(cu == ck) - 1) & length) + 1;
+            ++iu;
         }
-    }
 
-    return true;
+        return (ik == length);
+    }
 }
 
 int64_t CompressedSequence::findKmer(const Kmer& km) const {
