@@ -1148,7 +1148,7 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
 
                     [&]{
 
-                        char* buffer_res = new char[nb_threads];
+                        char* buffer_res = new char[thread_seq_buf_sz];
 
                         vector<string> buffers_seq;
                         vector<string> buffers_name;
