@@ -38,8 +38,15 @@ class CompressedSequence {
         string toString(const size_t offset, const size_t length) const;
 
 
-        inline string toString() const { return toString(0, size()); }
-        inline void toString(char *s) const { toString(s, 0, size()); }
+        inline string toString() const {
+
+            return toString(0, size());
+        }
+
+        inline void toString(char *s) const {
+
+            toString(s, 0, size());
+        }
 
         Kmer getKmer(size_t offset) const;
         char getChar(const size_t offset) const;

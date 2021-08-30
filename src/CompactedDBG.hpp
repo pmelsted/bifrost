@@ -10,6 +10,8 @@
 #include <functional>
 #include <getopt.h>
 #include <iostream>
+#include <map>
+#include <set>
 #include <sstream>
 #include <stdint.h>
 #include <string>
@@ -469,33 +471,33 @@ class CompactedDBG {
         const_UnitigMap<U, G> findUnitig(const char* s, const size_t pos, const size_t len) const;
 
         /** Performs exact and/or inexact search of the k-mers of a sequence query in the Compacted de Bruijn graph.
-        * @param seq is a string representing the sequence to be searched (the query).
-        * @param exact is a boolean indicating if the exact k-mers of string seq must be searched.
-        * @param insertion is a boolean indicating if the inexact k-mers of string seq, with one insertion, must be searched.
-        * @param deletion is a boolean indicating if the inexact k-mers of string seq, with one deletion, must be searched.
-        * @param substitution is a boolean indicating if the inexact k-mers of string seq, with one substitution, must be searched.
-        * @param or_exclusive_match is a boolean indicating to NOT search for the inexact k-mers at any given position in seq
+        * @param s is a string representing the sequence to be searched (the query).
+        * @param exact is a boolean indicating if the exact k-mers of string s must be searched.
+        * @param insertion is a boolean indicating if the inexact k-mers of string s, with one insertion, must be searched.
+        * @param deletion is a boolean indicating if the inexact k-mers of string s, with one deletion, must be searched.
+        * @param substitution is a boolean indicating if the inexact k-mers of string s, with one substitution, must be searched.
+        * @param or_exclusive_match is a boolean indicating to NOT search for the inexact k-mers at any given position in s
         * if the exact corresponding k-mer at that position is found in the graph. This option might lead to a substantial running time decrease.
-        * @return a vector of pair<size_t, UnitigMap<U, G>> objects. Each such pair has two elements: the position of the k-mer match in sequence seq
+        * @return a vector of pair<size_t, UnitigMap<U, G>> objects. Each such pair has two elements: the position of the k-mer match in sequence s
         * and the corresponding k-mer match in the graph. Note that no information is given on whether the match is exact or inexact, nor on what edit
         * operation makes the match to be inexact or at what position the edit operation takes place.
         */
-        vector<pair<size_t, UnitigMap<U, G>>> searchSequence(   const string& seq, const bool exact, const bool insertion, const bool deletion,
+        vector<pair<size_t, UnitigMap<U, G>>> searchSequence(   const string& s, const bool exact, const bool insertion, const bool deletion,
                                                                 const bool substitution, const bool or_exclusive_match = false);
 
         /** Performs exact and/or inexact search of the k-mers of a sequence query in the Compacted de Bruijn graph.
-        * @param seq is a string representing the sequence to be searched (the query).
-        * @param exact is a boolean indicating if the exact k-mers of string seq must be searched.
-        * @param insertion is a boolean indicating if the inexact k-mers of string seq, with one insertion, must be searched.
-        * @param deletion is a boolean indicating if the inexact k-mers of string seq, with one deletion, must be searched.
-        * @param substitution is a boolean indicating if the inexact k-mers of string seq, with one substitution, must be searched.
-        * @param or_exclusive_match is a boolean indicating to NOT search for the inexact k-mers at any given position in seq
+        * @param s is a string representing the sequence to be searched (the query).
+        * @param exact is a boolean indicating if the exact k-mers of string s must be searched.
+        * @param insertion is a boolean indicating if the inexact k-mers of string s, with one insertion, must be searched.
+        * @param deletion is a boolean indicating if the inexact k-mers of string s, with one deletion, must be searched.
+        * @param substitution is a boolean indicating if the inexact k-mers of string s, with one substitution, must be searched.
+        * @param or_exclusive_match is a boolean indicating to NOT search for the inexact k-mers at any given position in s
         * if the exact corresponding k-mer at that position is found in the graph. This option might lead to a substantial running time decrease.
-        * @return a vector of pair<size_t, const_UnitigMap<U, G>> objects. Each such pair has two elements: the position of the k-mer match in sequence seq
+        * @return a vector of pair<size_t, const_UnitigMap<U, G>> objects. Each such pair has two elements: the position of the k-mer match in sequence s
         * and the corresponding k-mer match in the graph. Note that no information is given on whether the match is exact or inexact, nor on what edit
         * operation makes the match to be inexact or at what position the edit operation takes place.
         */
-        vector<pair<size_t, const_UnitigMap<U, G>>> searchSequence( const string& seq, const bool exact, const bool insertion, const bool deletion,
+        vector<pair<size_t, const_UnitigMap<U, G>>> searchSequence( const string& s, const bool exact, const bool insertion, const bool deletion,
                                                                     const bool substitution, const bool or_exclusive_match = false) const;
 
         /** Add a sequence to the Compacted de Bruijn graph. Non-{A,C,G,T} characters such as Ns are discarded.
@@ -642,6 +644,8 @@ class CompactedDBG {
         const_UnitigMap<U, G> find(const char* s, const size_t pos_km, const minHashIterator<RepHash>& it_min, const bool extremities_only = false) const;
 
         UnitigMap<U, G> find(const Kmer& km, const preAllocMinHashIterator<RepHash>& it_min_h);
+
+        //vector<const_UnitigMap<U, G>> find(const Minimizer& minz) const;
 
         vector<const_UnitigMap<U, G>> findPredecessors(const Kmer& km, const bool extremities_only = false) const;
         vector<const_UnitigMap<U, G>> findSuccessors(const Kmer& km, const size_t limit = 4, const bool extremities_only = false) const;

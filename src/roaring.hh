@@ -1,6 +1,4 @@
-/* auto-generated on Fri Jun 29 10:35:30 GMT 2018. Do not edit! */
 #include "roaring.h"
-/* begin file /home/wiz/Documents/external_git/CRoaring/cpp/roaring.hh */
 /*
 A C++ header for Roaring Bitmaps.
 */
@@ -347,6 +345,21 @@ class Roaring {
      */
     uint64_t and_cardinality(const Roaring &r) const {
         return roaring_bitmap_and_cardinality(&roaring, &r.roaring);
+    }
+
+
+    /**
+    * Computes the minimumer number of shared integers between two bitmaps such
+    * that it is higher than min_shared.
+    *
+    */
+    uint64_t and_cardinality(const Roaring &r, const uint64_t min_shared) const {
+        return roaring_bitmap_and_min_cardinality(&roaring, &r.roaring, min_shared);
+    }
+
+    Roaring subsample(const uint64_t nb) const {
+
+        return Roaring(roaring_bitmap_subsample(&roaring, nb));
     }
 
     /**
@@ -698,8 +711,7 @@ inline RoaringSetBitForwardIterator &Roaring::end() const {
 }
 
 #endif /* INCLUDE_ROARING_HH_ */
-/* end file /home/wiz/Documents/external_git/CRoaring/cpp/roaring.hh */
-/* begin file /home/wiz/Documents/external_git/CRoaring/cpp/roaring64map.hh */
+
 /*
 A C++ header for 64-bit Roaring Bitmaps, implemented by way of a map of many
 32-bit Roaring Bitmaps.
@@ -1690,4 +1702,3 @@ inline Roaring64MapSetBitForwardIterator Roaring64Map::end() const {
 }
 
 #endif /* INCLUDE_ROARING_64_MAP_HH_ */
-/* end file /home/wiz/Documents/external_git/CRoaring/cpp/roaring64map.hh */

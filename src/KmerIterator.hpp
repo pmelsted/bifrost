@@ -16,29 +16,58 @@ class KmerIterator : public std::iterator<std::input_iterator_tag, std::pair<Kme
 
     public:
 
-        KmerIterator() : s_(nullptr), p_(), invalid_(true) {}
-        KmerIterator(const char *s) : s_(s), p_(), invalid_(false) { find_next(-1,-1,false);}
-        KmerIterator(const KmerIterator& o) : s_(o.s_), p_(o.p_), invalid_(o.invalid_) {}
+        KmerIterator() : str(nullptr), invalid(true), pos_s(0), pos_e(0) {
+
+            p.second = 0;
+        }
+
+        KmerIterator(const char* s) : str(s), invalid(false), pos_s(0), pos_e(0) {
+
+            p.second = 0;
+
+           operator++();
+        }
 
         KmerIterator& operator++();
-        KmerIterator operator++(int);
-        KmerIterator& operator+=(const int length);
+        KmerIterator& operator+=(const int len);
 
-        void raise(Kmer& km, Kmer& rep);
+        BFG_INLINE KmerIterator operator++(int) {
 
-        bool operator==(const KmerIterator& o);
-        bool operator!=(const KmerIterator& o) { return !this->operator==(o);}
+            const KmerIterator tmp(*this);
 
-        std::pair<Kmer, int>& operator*();
-        std::pair<Kmer, int>* operator->();
+            operator++();
+
+            return tmp;
+        }
+
+        BFG_INLINE bool operator==(const KmerIterator& o) const {
+
+            if (invalid || o.invalid) return invalid && o.invalid;
+
+            return (str == o.str) && (p == o.p);
+        }
+
+        BFG_INLINE bool operator!=(const KmerIterator& o) const {
+
+            return !operator==(o);
+        }
+
+        BFG_INLINE const pair<Kmer, int>& operator*() const {
+
+            return p;
+        }
+
+        BFG_INLINE const pair<Kmer, int>* operator->() const {
+
+            return &p;
+        }
 
     private:
 
-        void find_next(size_t i, size_t j, bool last_valid);
-
-        const char *s_;
-        std::pair<Kmer, int> p_;
-        bool invalid_;
+        const char* str;
+        bool invalid;
+        pair<Kmer, int> p;
+        int pos_s, pos_e;
 };
 
 template<class HF>

@@ -86,6 +86,9 @@ class BitContainer {
         BitContainer operator&(const BitContainer& rhs) const;
         BitContainer& operator&=(const BitContainer& rhs);
 
+        BitContainer operator-(const BitContainer& rhs) const;
+        BitContainer& operator-=(const BitContainer& rhs);
+
         void clear();
 
         void add(const size_t pair_id);

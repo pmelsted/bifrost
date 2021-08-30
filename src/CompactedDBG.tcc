@@ -1337,6 +1337,86 @@ const_UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extrem
     return const_UnitigMap<U, G>();
 }
 
+/*template<typename U, typename G>
+vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::find(const Minimizer& minz) const {
+
+    if (invalid){
+
+        cerr << "CompactedDBG::find(): Graph is invalid and cannot be searched" << endl;
+        return vector<const_UnitigMap<U, G>>();
+    }
+
+    vector<const_UnitigMap<U, G>> v_um;
+
+    const Minimizer minz_rep = minz.rep();
+    const MinimizerIndex::const_iterator it = hmap_min_unitigs.find(minz_rep);
+
+    if (it != hmap_min_unitigs.end()){ // If the minimizer is found
+
+        const packed_tiny_vector& v = it.getVector();
+        const uint8_t flag_v = it.getVectorSize();
+        const int v_sz = v.size(flag_v);
+
+        for (size_t i = 0; i < v_sz; ++i){
+
+            size_t unitig_id_pos = v(i, flag_v);
+            size_t unitig_id = unitig_id_pos >> 32;
+
+            if (unitig_id == RESERVED_ID){
+
+                if ((unitig_id_pos & RESERVED_ID) != 0) v_um.push_back(const_UnitigMap<U, G>()); // This minimizer has abundant k-mers
+            }
+            else {
+
+                unitig_id_pos &= MASK_CONTIG_POS;
+
+                if ((unitig_id_pos & MASK_CONTIG_TYPE) != 0) v_um.push_back(const_UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, true, this));
+                else {
+
+                    const size_t len_unitig = v_unitigs[unitig_id]->length();
+
+                    const size_t pos_s = (unitig_id_pos + g_ < k_) ? 0 : (unitig_id_pos + g_ - k_);
+                    const size_t pos_e = (unitig_id_pos + k_ > len_unitig) ? len_unitig : (unitig_id_pos + k_);
+
+                    const string subseq = v_unitigs[unitig_id]->getSeq().toString(pos_s, pos_e - pos_s);
+
+                    const char* subseq_str = subseq.c_str();
+
+                    size_t l_pos_s = 0xffffffffffffffffULL;
+                    size_t l_pos_e = 0;
+
+                    minHashIterator<RepHash> mhi_s = minHashIterator<RepHash>(subseq_str, pos_e - pos_s, k_, g_, RepHash(), true), mhi_e;
+                    minHashResultIterator<RepHash> mhrit_s, mhrit_e;
+
+                    while (mhi_s != mhi_e) {
+
+                        mhrit_s = *mhi_s;
+
+                        while (mhrit_s != mhrit_e) {
+
+                            if (Minimizer(subseq_str + mhrit_s->pos).rep() == minz_rep) {
+
+                                l_pos_s = min(l_pos_s, static_cast<size_t>(mhi_s.getKmerPosition()));
+                                l_pos_e = max(l_pos_e, static_cast<size_t>(mhi_s.getKmerPosition()));
+
+                                break;
+                            }
+
+                            ++mhrit_s;
+                        }
+
+                        ++mhi_s;
+                    }
+
+                    if (l_pos_e >= l_pos_s) v_um.push_back(const_UnitigMap<U, G>(unitig_id, pos_s + l_pos_s, l_pos_e - l_pos_s + 1, len_unitig + k_, false, false, true, this));
+                }
+            }
+        }
+    }
+
+    return v_um;
+}*/
+
 template<typename U, typename G>
 UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extremities_only) {
 
