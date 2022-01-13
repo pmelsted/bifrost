@@ -5,16 +5,14 @@
 #define MAX_KMER_SIZE 32
 #endif
 
-#include <stdio.h>
 #include <stdint.h>
-#include <cassert>
-#include <cstring>
-#include <string>
-#include <iostream>
+#include <stdio.h>
 
 #include <bitset>
-#include <string>
+#include <cassert>
+#include <cstring>
 #include <iostream>
+#include <string>
 
 #include "Common.hpp"
 
@@ -117,7 +115,8 @@ class Kmer {
         */
         BFG_INLINE uint64_t hash(const uint64_t seed = 0) const {
 
-            return (uint64_t)XXH64((const void *)bytes, MAX_K/4, seed);
+            //return (uint64_t)XXH64((const void *)bytes, MAX_K/4, seed);
+            return wyhash(bytes, MAX_K/4, seed, _wyp);
         }
 
         /** Get the reverse-complement of a k-mer.
@@ -245,7 +244,8 @@ class Minimizer {
 
         BFG_INLINE uint64_t hash(const uint64_t seed = 0) const {
 
-            return (uint64_t)XXH64((const void *)bytes, MAX_G/4, seed);
+            //return (uint64_t)XXH64((const void *)bytes, MAX_G/4, seed);
+            return wyhash(bytes, MAX_G/4, seed, _wyp);
         }
 
         BFG_INLINE void set_deleted() {

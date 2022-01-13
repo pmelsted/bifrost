@@ -1,11 +1,10 @@
 #ifndef BIFROST_REPHASH_HPP
 #define BIFROST_REPHASH_HPP
 
-#include <stdint.h>
 #include <cassert>
-#include <time.h>
+#include <stdint.h>
 
-#include "Kmer.hpp"
+#include "wyhash.h"
 
 static const unsigned char twin[32] = {
     0, 20, 2, 7, 4, 5, 6, 3,
@@ -30,7 +29,6 @@ class RepHash {
             setK(_k);
         }
 
-        // hash of _s[0:k]
         void init(const char* _s) {
 
             h = 0;
@@ -48,7 +46,6 @@ class RepHash {
             }
         }
 
-        // hash of s[1:]+in where s[0] == out
         inline void updateFW(const unsigned char out, const unsigned char in) {
 
             uint64_t z(hvals[charmask(out)]);
@@ -68,7 +65,6 @@ class RepHash {
             fastrightshift1(ht);
         }
 
-        // hash of s[1:]+in where s[0] == out
         inline void updateBW(const unsigned char out, const unsigned char in) {
 
             uint64_t z(hvals[twinmask(out)]);
@@ -95,14 +91,19 @@ class RepHash {
 
         inline uint64_t hash() const {
 
-            return (h ^ ht);
+            uint64_t hashes[2] = {h, ht};
+
+            if (hashes[1] < hashes[0]) swap(hashes[0], hashes[1]);
+
+            return wyhash(hashes, sizeof(uint64_t) + sizeof(uint64_t), 0, _wyp);
+            //return (h ^ ht);
         }
 
         inline void setK(const size_t _k) {
 
+            k = _k;
             h = 0;
             ht = 0;
-            k = _k;
         }
 
     private:
@@ -139,6 +140,8 @@ class RepHash {
 
         size_t k;
         uint64_t h, ht;
+
+        string str;
 };
 
 #else
@@ -199,7 +202,12 @@ class RepHash {
 
         uint64_t hash() const {
 
-            return (h.lo ^ ht.lo);
+            uint64_t hashes[2] = {h.lo, ht.lo};
+
+            if (hashes[1] < hashes[0]) swap(hashes[0], hashes[1]);
+
+            return wyhash(hashes, sizeof(uint64_t) + sizeof(uint64_t), 0, _wyp);
+            //return (h.lo ^ ht.lo);
         }
 
         void init(const char *_s) {

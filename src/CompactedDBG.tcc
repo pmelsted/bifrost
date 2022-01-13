@@ -2830,6 +2830,11 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_uniqu
 
     FileParser fp(filename_in);
 
+    //------------------------
+    //uint64_t wyp[4]; // "Secret" for wyhash
+    //make_secret(time(NULL), wyp); //Make secret for wyhash
+    //------------------------
+
     // Main worker thread
     auto worker_function = [&](char* seq_buf, const size_t seq_buf_sz) {
 
@@ -3060,8 +3065,6 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
 
         vector<Kmer> l_ignored_km_tips;
 
-        //uint64_t it_min_h;
-
         Kmer km;
         RepHash rep;
 
@@ -3092,10 +3095,9 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
                     it_min += (p_.second - it_min.getKmerPosition());
 
                     const uint64_t it_min_h = it_min.getHash();
-                    const BlockedBloomFilter::BBF_Blocks block_bf(bf.getBlock(it_min_h));
-                    const size_t r = bf.contains_block(p_.first, it_min_h, block_bf);
+                    const int bid = bf.contains_bids(p_.first, it_min_h);
 
-                    if (r != 0){
+                    if (bid != -1){
 
                         km = Kmer(str_tmp + p_.second);
 
@@ -3115,11 +3117,10 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
 
                             if (!reference_mode && isIsolated){ // According to the BF, k-mer is isolated in the graph and is a potential false positive
 
-                                const uint64_t block = (r == 1 ? block_bf.first : block_bf.second);
-                                const uint64_t id_lock = block % nb_locks;
+                                const uint64_t id_lock = bid % nb_locks;
                                 const Kmer km_rep(km.rep());
 
-                                tiny_vector<Kmer, 2>& v = fp_candidate[block];
+                                tiny_vector<Kmer, 2>& v = fp_candidate[bid];
 
                                 size_t i = 0;
 
@@ -5967,6 +5968,8 @@ pair<size_t, size_t> CompactedDBG<U, G>::extractAllUnitigs() {
     size_t v_unitigs_sz = v_unitigs.size();
     size_t nxt_pos_insert = v_unitigs.size();
 
+	size_t delete1 = 0, delete2 = 0, delete3 = 0;
+
     for (typename h_kmers_ccov_t::iterator it(h_kmers_ccov.begin()); it != h_kmers_ccov.end(); ++it) {
 
         if (!it->ccov.isFull()){
@@ -5997,7 +6000,7 @@ pair<size_t, size_t> CompactedDBG<U, G>::extractAllUnitigs() {
 
             vector<pair<int,int>> sp = v_unitigs[i]->getCov().splittingVector();
 
-            if (extractUnitig_<is_void<U>::value>(i, nxt_pos_insert, v_unitigs_sz, v_kmers_sz, sp)) deleted++;
+            if (extractUnitig_<is_void<U>::value>(i, nxt_pos_insert, v_unitigs_sz, v_kmers_sz, sp)) ++deleted;
             else {
 
                 ++split;
@@ -8207,19 +8210,6 @@ vector<Kmer> CompactedDBG<U, G>::extractMercyKmers(BlockedBloomFilter& bf_uniq_k
             const Kmer km_a = it_a.getKey();
 
             km_a.toString(km_tmp); // Get the k-mer
-
-            /*RepHash rep_h(k_ - 1), rep_h_cpy; // Prepare its hash
-            rep_h.init(km_tmp + 1);
-
-            for (i = 0; i != 4; ++i) {
-
-                rep_h_cpy = rep_h;
-                rep_h_cpy.extendBW(alpha[i]);
-
-                hashes_bw[i] = rep_h_cpy.hash(); // Prepare the hash of its predecessor
-            }*/
-
-            //---------------
             RepHash rep_h(k_), rep_h_cpy;
 
             rep_h.init(km_tmp);
@@ -8233,7 +8223,6 @@ vector<Kmer> CompactedDBG<U, G>::extractMercyKmers(BlockedBloomFilter& bf_uniq_k
             }
 
             std::memmove(km_tmp + 1, km_tmp, (k_ - 1) * sizeof(char));
-            //---------------
 
             // Query the MBBF for all possible predecessors
             bf_uniq_km.contains(hashes_bw, minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash(), pres_neigh_bw, 4);
@@ -8285,19 +8274,6 @@ vector<Kmer> CompactedDBG<U, G>::extractMercyKmers(BlockedBloomFilter& bf_uniq_k
             const Kmer km_a = it_a.getKey();
 
             km_a.toString(km_tmp); // Get the k-mer
-
-            /*RepHash rep_h(k_ - 1), rep_h_cpy; // Prepare its hash
-            rep_h.init(km_tmp + 1);
-
-            for (i = 0; i != 4; ++i) {
-
-                rep_h_cpy = rep_h;
-                rep_h_cpy.extendFW(alpha[i]);
-
-                hashes_fw[i] = rep_h_cpy.hash(); // Prepare the hash of its successor
-            }*/
-
-            //---------------
             RepHash rep_h(k_), rep_h_cpy; // Prepare its hash
 
             rep_h.init(km_tmp);
@@ -8311,7 +8287,6 @@ vector<Kmer> CompactedDBG<U, G>::extractMercyKmers(BlockedBloomFilter& bf_uniq_k
             }
 
             std::memmove(km_tmp, km_tmp + 1, (k_ - 1) * sizeof(char));
-            //---------------
 
             // Query the MBBF for all possible predecessors
             bf_uniq_km.contains(hashes_fw, minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash(), pres_neigh_fw, 4);

@@ -10,7 +10,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( const 
 
         size_t operator()(const pair<size_t, Kmer>& p) const {
 
-            return XXH64(&(p.first), sizeof(size_t), 0) ^ p.second.hash();
+            return wyhash(&(p.first), sizeof(size_t), 0, _wyp) ^ p.second.hash();
         }
     };
 
@@ -255,7 +255,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
         size_t operator()(const pair<size_t, Kmer>& p) const {
 
-            return XXH64(&(p.first), sizeof(size_t), 0) ^ p.second.hash();
+            return wyhash(&(p.first), sizeof(size_t), 0, _wyp) ^ p.second.hash();
         }
     };
 
@@ -531,7 +531,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
         size_t operator()(const pair<size_t, Kmer>& p) const {
 
-            return XXH64(&(p.first), sizeof(size_t), 0) ^ p.second.hash();
+            return wyhash(&(p.first), sizeof(size_t), 0, _wyp) ^ p.second.hash();
         }
     };
 
@@ -776,7 +776,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
         size_t operator()(const pair<size_t, Kmer>& p) const {
 
-            return XXH64(&(p.first), sizeof(size_t), 0) ^ p.second.hash();
+            return wyhash(&(p.first), sizeof(size_t), 0, _wyp) ^ p.second.hash();
         }
     };
 

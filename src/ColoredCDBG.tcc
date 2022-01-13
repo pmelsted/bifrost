@@ -1356,7 +1356,7 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
             size_t operator() (const pair<size_t, pair<Kmer, size_t>>& p) const {
 
-                return static_cast<size_t>(XXH64((const void *)&p, sizeof(pair<size_t, pair<Kmer, size_t>>), 0));
+                return wyhash(&p, sizeof(pair<size_t, pair<Kmer, size_t>>), 0, _wyp);
             }
         };
 

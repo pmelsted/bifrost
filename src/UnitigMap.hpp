@@ -316,7 +316,8 @@ struct UnitigMapHash {
 
         UnitigMapTMP tmp(um);
 
-        return static_cast<size_t>(XXH64(static_cast<const void*>(&tmp), sizeof(UnitigMapTMP), 0));
+        //return static_cast<size_t>(XXH64(static_cast<const void*>(&tmp), sizeof(UnitigMapTMP), 0));
+        return static_cast<size_t>(wyhash(&tmp, sizeof(UnitigMapTMP), 0, _wyp));
     }
 };
 

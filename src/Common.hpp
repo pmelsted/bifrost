@@ -6,12 +6,7 @@
 #include <stdint.h>
 #include <sys/stat.h>
 
-#ifndef XXH_NAMESPACE
-#define XXH_NAMESPACE BIFROST_HASH_
-#endif
-
-#define XXH_INLINE_ALL
-#include "xxhash.h"
+#include "wyhash.h"
 
 #if defined(__GNUC__)
 #define BFG_LIKELY(x) (__builtin_expect((x), 1))
@@ -31,8 +26,8 @@
 
 #define BUFFER_SIZE 1048576
 
-#define BFG_VERSION "1.0.5"
-#define BFG_BUG_EMAIL "guillaume[d0t]holley{at}gmail[d0t]com"
+#define BFG_VERSION "1.0.6"
+#define BFG_BUG_EMAIL "guillaume[d0T}holley{aT}gmail[d0T}com"
 
 using namespace std;
 
