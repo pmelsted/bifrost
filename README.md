@@ -405,7 +405,7 @@ For any question, feedback or problem, please feel free to file an issue on this
 
 ## License
 
-* The xxHash library is BSD licensed (https://github.com/Cyan4973/xxHash)
+* The wyhash library is Unlicense licensed (https://github.com/wangyi-fudan/wyhash)
 * The popcount library is BSD licensed (https://github.com/kimwalisch/libpopcnt)
 * The libdivide library is zlib licensed (https://github.com/ridiculousfish/libdivide)
 * The kseq library is copyrighted by Heng Li and released under the MIT license (http://lh3lh3.users.sourceforge.net/kseq.shtml)
