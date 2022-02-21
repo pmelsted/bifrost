@@ -115,6 +115,8 @@ SET(MAX_KMER_SIZE "64" CACHE STRING "MAX_KMER_SIZE")
 
 Actual maximum k-mer size is *MAX_KMER_SIZE-1*, e.g maximum *k* is 63 for *MAX_KMER_SIZE=64*. Increasing *MAX_KMER_SIZE* increases Bifrost memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
 
+The maximum size of minimizers (*g*-mers) *MAX_GMER_SIZE* can be adjusted the same way as *MAX_KMER_SIZE*. This is especially useful if you want to use a large *k*-mer size but a small *g*-mer size. By default, *MAX_GMER_SIZE* is equal to *MAX_KMER_SIZE*.
+
 To work with larger *k* when using the Bifrost API, the new value *MAX_KMER_SIZE* must be given to the compiler and linker as explained in Section [API](#api)
 
 ## Binary usage:
