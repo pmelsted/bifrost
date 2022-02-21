@@ -4,14 +4,15 @@ project(Bifrost)
 
 # To enable a larger default k-mer size, replace MAX_KMER_SIZE with a larger multiple of 32: actual maximum k-mer size will be MAX_KMER_SIZE-1.
 SET(MAX_KMER_SIZE "32" CACHE STRING "MAX_KMER_SIZE")
+SET(MAX_GMER_SIZE "${MAX_KMER_SIZE}" CACHE STRING "MAX_GMER_SIZE")
 # Enable architecture optimizations
 SET(COMPILATION_ARCH "native" CACHE STRING "COMPILATION_ARCH")
 # Enable AVX2 instructions
 SET(ENABLE_AVX2 "ON" CACHE STRING "ENABLE_AVX2")
 
 # Set some default compile flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -DXXH_NAMESPACE=BIFROST_HASH_")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -DXXH_NAMESPACE=BIFROST_HASH_")
 
 set_property(SOURCE BlockedBloomFilter.cpp APPEND_STRING PROPERTY COMPILE_FLAGS " -funroll-loops")
 
@@ -51,5 +52,8 @@ endif(CMAKE_BUILD_TYPE MATCHES Debug)
 
 MATH(EXPR PRINT_MAX_KMER_SIZE "${MAX_KMER_SIZE}-1")
 message("Maximum k-mer size: " ${PRINT_MAX_KMER_SIZE})
+
+MATH(EXPR PRINT_MAX_GMER_SIZE "${MAX_GMER_SIZE}-1")
+message("Maximum g-mer size: " ${PRINT_MAX_GMER_SIZE})
 
 add_subdirectory(src)

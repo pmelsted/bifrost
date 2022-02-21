@@ -5,6 +5,10 @@
 #define MAX_KMER_SIZE 32
 #endif
 
+#ifndef MAX_GMER_SIZE
+#define MAX_GMER_SIZE MAX_KMER_SIZE
+#endif
+
 #include <stdint.h>
 #include <stdio.h>
 
@@ -115,7 +119,6 @@ class Kmer {
         */
         BFG_INLINE uint64_t hash(const uint64_t seed = 0) const {
 
-            //return (uint64_t)XXH64((const void *)bytes, MAX_K/4, seed);
             return wyhash(bytes, MAX_K/4, seed, _wyp);
         }
 
@@ -244,7 +247,6 @@ class Minimizer {
 
         BFG_INLINE uint64_t hash(const uint64_t seed = 0) const {
 
-            //return (uint64_t)XXH64((const void *)bytes, MAX_G/4, seed);
             return wyhash(bytes, MAX_G/4, seed, _wyp);
         }
 
@@ -284,10 +286,11 @@ class Minimizer {
         // static functions
         static void set_g(unsigned int _g);
 
-        static const unsigned int MAX_G = MAX_KMER_SIZE;
         static unsigned int g;
 
     private:
+
+        static const unsigned int MAX_G = MAX_GMER_SIZE;
 
         // data fields
         union {

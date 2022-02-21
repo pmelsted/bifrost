@@ -75,8 +75,6 @@ using namespace std;
 * Print information messages during execution if true. Default is false.
 * @var CDBG_Build_opt::nb_threads
 * Number of threads to use for building the graph. Default is 1.
-* @var CDBG_Build_opt::read_chunksize
-* Number of reads a thread can read and process at a time. Default is 64.
 * @var CDBG_Build_opt::nb_bits_unique_kmers_bf
 * Number of Bloom filter bits per k-mer occurring at least once in the FASTA/FASTQ/GFA files of
 * CDBG_Build_opt::filename_in. Default is 14.
@@ -132,7 +130,6 @@ struct CDBG_Build_opt {
     bool verbose;
 
     size_t nb_threads;
-    size_t read_chunksize;
 
     size_t nb_bits_unique_kmers_bf;
     size_t nb_bits_non_unique_kmers_bf;
@@ -170,7 +167,7 @@ struct CDBG_Build_opt {
     vector<string> filename_query_in;
 
     CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(-1), nb_bits_unique_kmers_bf(14),
-                        nb_bits_non_unique_kmers_bf(14), read_chunksize(64), ratio_kmers(0.8),
+                        nb_bits_non_unique_kmers_bf(14), ratio_kmers(0.8),
                         build(false), update(false), query(false), clipTips(false), deleteIsolated(false),
                         inexact_search(false), useMercyKmers(false), outputGFA(true), verbose(false) {}
 };
@@ -326,14 +323,9 @@ class CompactedDBG {
 
         /** Constructor (set up an empty compacted dBG).
         * @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
-        */
-        CompactedDBG(const int kmer_length = DEFAULT_K);
-
-        /** Constructor (set up an empty compacted dBG).
-        * @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
         * @param minimizer_length is the length g of minimizers (g < k) used in the graph.
         */
-        CompactedDBG(const int kmer_length, const int minimizer_length);
+        CompactedDBG(const int kmer_length = DEFAULT_K, const int minimizer_length = -1);
 
         /** Copy constructor (copy a compacted de Bruijn graph).
         * This function is expensive in terms of time and memory as the content of a compacted

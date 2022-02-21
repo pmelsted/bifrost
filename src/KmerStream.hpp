@@ -862,8 +862,10 @@ class KmerStream {
             size_t pos_read = 0;
             size_t len_read = 0;
 
-            const size_t max_len_seq = 1024;
-            const size_t thread_seq_buf_sz = chunksize * max_len_seq;
+            //const size_t max_len_seq = 1024;
+            //const size_t thread_seq_buf_sz = chunksize * max_len_seq;
+            const size_t max_len_seq = rndup(static_cast<size_t>(1024 + k - 1));
+            const size_t thread_seq_buf_sz = BUFFER_SIZE;
 
             string seq, qual;
 
@@ -1001,8 +1003,10 @@ class KmerStream {
             size_t pos_read = 0;
             size_t len_read = 0;
 
-            const size_t max_len_seq = 1024;
-            const size_t thread_seq_buf_sz = chunksize * max_len_seq;
+            //const size_t max_len_seq = 1024;
+            //const size_t thread_seq_buf_sz = chunksize * max_len_seq;
+            const size_t max_len_seq = rndup(static_cast<size_t>(1024 + k - 1));
+            const size_t thread_seq_buf_sz = BUFFER_SIZE;
 
             FileParser fp(files_no_quality);
 

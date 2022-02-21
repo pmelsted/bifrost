@@ -43,7 +43,6 @@ void PrintUsage() {
     cout << "   -B, --bloom-bits2        Number of Bloom filter bits per k-mer with 2+ occurrences in the input files (default is 14)" << endl;
     cout << "   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default is no input)" << endl;
     cout << "   -w, --write-mbbf         Output Blocked Bloom Filter file (default is no output)" << endl;
-    cout << "   -u, --chunk-size         Read chunk size per thread (default is 64)" << endl << endl;
 
     cout << "   > Optional with no argument:" << endl << endl;
 
@@ -108,7 +107,7 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
 
     int option_index = 0, c;
 
-    const char* opt_string = "s:r:q:g:f:o:t:k:m:e:b:B:l:w:u:nidvcya";
+    const char* opt_string = "s:r:q:g:f:o:t:k:m:e:b:B:l:w:nidvcya";
 
     static struct option long_options[] = {
 
@@ -126,7 +125,6 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
         {"bloom-bits2",         required_argument,  0, 'B'},
         {"load-mbbf",           required_argument,  0, 'l'},
         {"write-mbbf",          required_argument,  0, 'w'},
-        {"chunk-size",          required_argument,  0, 'u'},
         {"inexact_search",      no_argument,        0, 'n'},
         {"clip-tips",           no_argument,        0, 'i'},
         {"del-isolated",        no_argument,        0, 'd'},
@@ -191,9 +189,6 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                     break;
                 case 'l':
                     opt.inFilenameBBF = optarg;
-                    break;
-                case 'u':
-                    opt.read_chunksize = atoi(optarg);
                     break;
                 case 'n':
                     opt.inexact_search = true;
@@ -431,12 +426,6 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
 
     if (opt.build){ // Check param. command build
 
-        if (opt.read_chunksize <= 0) {
-
-            cerr << "Error: Chunk size of reads to share among threads cannot be less than or equal to 0." << endl;
-            ret = false;
-        }
-
         if (opt.outFilenameBBF.length() != 0){
 
             FILE* fp = fopen(opt.outFilenameBBF.c_str(), "wb");
@@ -563,14 +552,21 @@ int main(int argc, char **argv){
             }
             else if (opt.update){
 
-                if (opt.filename_colors_in.size() != 0){ // If colors in or out
+                CCDBG_Build_opt l_opt = opt;
 
-                    ColoredCDBG<> ccdbg1(opt.k, opt.g);
-                    ColoredCDBG<> ccdbg2(opt.k, opt.g);
+                if (l_opt.filename_colors_in.size() != 0){ // If colors in or out
 
-                    ccdbg1.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
-                    ccdbg2.buildGraph(opt);
-                    ccdbg2.buildColors(opt);
+                    ColoredCDBG<> ccdbg1(l_opt.k, l_opt.g);
+
+                    ccdbg1.read(l_opt.filename_graph_in, l_opt.filename_colors_in, l_opt.nb_threads, l_opt.verbose);
+
+                    l_opt.k = ccdbg1.getK();
+                    l_opt.g = ccdbg1.getG();
+
+                    ColoredCDBG<> ccdbg2(l_opt.k, l_opt.g);
+
+                    ccdbg2.buildGraph(l_opt);
+                    ccdbg2.buildColors(l_opt);
 
                     const size_t ccdbg1_len = ccdbg1.length();
                     const size_t ccdbg2_len = ccdbg2.length();
@@ -578,18 +574,23 @@ int main(int argc, char **argv){
                     ColoredCDBG<>& ccdbg_a = (ccdbg1_len > ccdbg2_len) ? ccdbg1 : ccdbg2;
                     ColoredCDBG<>& ccdbg_b = (ccdbg1_len > ccdbg2_len) ? ccdbg2 : ccdbg1;
 
-                    ccdbg_a.merge(move(ccdbg_b), opt.nb_threads, opt.verbose);
+                    ccdbg_a.merge(move(ccdbg_b), l_opt.nb_threads, l_opt.verbose);
 
-                    ccdbg_a.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                    ccdbg_a.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
+                    ccdbg_a.simplify(l_opt.deleteIsolated, l_opt.clipTips, l_opt.verbose);
+                    ccdbg_a.write(l_opt.prefixFilenameOut, l_opt.nb_threads, l_opt.verbose);
                 }
                 else {
 
-                    CompactedDBG<> cdbg1(opt.k, opt.g);
-                    CompactedDBG<> cdbg2(opt.k, opt.g);
+                    CompactedDBG<> cdbg1(l_opt.k, l_opt.g);
 
-                    cdbg1.read(opt.filename_graph_in, opt.nb_threads, opt.verbose);
-                    cdbg2.build(opt);
+                    cdbg1.read(l_opt.filename_graph_in, l_opt.nb_threads, l_opt.verbose);
+
+                    l_opt.k = cdbg1.getK();
+                    l_opt.g = cdbg1.getG();
+
+                    CompactedDBG<> cdbg2(l_opt.k, l_opt.g);
+
+                    cdbg2.build(l_opt);
 
                     const size_t cdbg1_len = cdbg1.length();
                     const size_t cdbg2_len = cdbg2.length();
@@ -597,11 +598,11 @@ int main(int argc, char **argv){
                     CompactedDBG<>& cdbg_a = (cdbg1_len > cdbg2_len) ? cdbg1 : cdbg2;
                     CompactedDBG<>& cdbg_b = (cdbg1_len > cdbg2_len) ? cdbg2 : cdbg1;
 
-                    cdbg_a.merge(cdbg_b, opt.nb_threads, opt.verbose);
+                    cdbg_a.merge(cdbg_b, l_opt.nb_threads, l_opt.verbose);
                     cdbg_b.clear();
 
-                    cdbg_a.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                    cdbg_a.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
+                    cdbg_a.simplify(l_opt.deleteIsolated, l_opt.clipTips, l_opt.verbose);
+                    cdbg_a.write(l_opt.prefixFilenameOut, l_opt.nb_threads, l_opt.outputGFA, l_opt.verbose);
                 }
             }
             else if (opt.query){

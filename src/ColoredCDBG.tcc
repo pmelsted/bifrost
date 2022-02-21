@@ -2,12 +2,6 @@
 #define BIFROST_COLOREDCDBG_TCC
 
 template<typename U>
-ColoredCDBG<U>::ColoredCDBG(int kmer_length) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(kmer_length){
-
-    invalid = this->isInvalid();
-}
-
-template<typename U>
 ColoredCDBG<U>::ColoredCDBG(int kmer_length, int minimizer_length) : CompactedDBG<DataAccessor<U>, DataStorage<U>>(kmer_length, minimizer_length){
 
     invalid = this->isInvalid();
@@ -816,8 +810,8 @@ void ColoredCDBG<U>::buildUnitigColors(const size_t nb_threads){
 
     const size_t nb_locks = nb_threads * 1024;
     const size_t chunk_size = 64;
-    const size_t max_len_seq = 1024;
-    const size_t thread_seq_buf_sz = chunk_size * max_len_seq;
+    const size_t max_len_seq = rndup(static_cast<size_t>(1024 + k_ - 1));
+    const size_t thread_seq_buf_sz = BUFFER_SIZE;
     const size_t thread_col_buf_sz = (thread_seq_buf_sz / (k_ + 1)) + 1;
 
     size_t prev_file_id = 0;
@@ -1330,8 +1324,10 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
     const size_t k = this->getK();
 
-    const size_t max_len_seq = 1024;
-    const size_t thread_seq_buf_sz = 64 * max_len_seq;
+    //const size_t max_len_seq = 1024;
+    //const size_t thread_seq_buf_sz = 64 * max_len_seq;
+    const size_t max_len_seq = rndup(static_cast<size_t>(1024 + k - 1));
+    const size_t thread_seq_buf_sz = BUFFER_SIZE;
 
     FileParser fp(query_filenames);
 

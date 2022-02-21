@@ -162,14 +162,9 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
 
         /** Constructor (set up an empty colored cdBG).
         * @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
-        */
-        ColoredCDBG(int kmer_length = DEFAULT_K);
-
-        /** Constructor (set up an empty colored cdBG).
-        * @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
         * @param minimizer_length is the length g of minimizers (g < k) used in the graph.
         */
-        ColoredCDBG(int kmer_length, int minimizer_length);
+        ColoredCDBG(int kmer_length = DEFAULT_K, int minimizer_length = -1);
 
         /** Copy constructor (copy a colored cdBG).
         * This function is expensive in terms of time and memory as the content of a colored and compacted

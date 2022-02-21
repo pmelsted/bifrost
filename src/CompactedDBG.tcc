@@ -21,12 +21,6 @@ static const uint8_t bits[256] = {
 };
 
 template<typename U, typename G>
-CompactedDBG<U, G>::CompactedDBG(const int kmer_length) : invalid(false) {
-
-    setKmerGmerLength(kmer_length);
-}
-
-template<typename U, typename G>
 CompactedDBG<U, G>::CompactedDBG(const int kmer_length, const int minimizer_length) : invalid(false) {
 
     setKmerGmerLength(kmer_length, minimizer_length);
@@ -279,12 +273,6 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
         construct_finished = false;
     }
 
-    if (opt.read_chunksize <= 0){
-
-        cerr << "CompactedDBG::build(): Chunk size of reads to share among threads cannot be less than or equal to 0" << endl;
-        construct_finished = false;
-    }
-
     if (opt.outFilenameBBF.length() != 0){
 
         FILE* fp = fopen(opt.outFilenameBBF.c_str(), "wb");
@@ -524,12 +512,6 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
     if (opt.nb_threads > max_threads){
 
         cerr << "CompactedDBG::build(): Number of threads cannot exceed " << max_threads << "threads" << endl;
-        construct_finished = false;
-    }
-
-    if (opt.read_chunksize <= 0){
-
-        cerr << "CompactedDBG::build(): Chunk size of reads to share among threads cannot be less than or equal to 0" << endl;
         construct_finished = false;
     }
 
@@ -1445,6 +1427,7 @@ UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extremities_
     while (it_min != it_min_end){
 
         int mhr_pos = it_min.getPosition();
+
         Minimizer minz(Minimizer(km_tmp + mhr_pos).rep());
         MinimizerIndex::const_iterator it = hmap_min_unitigs.find(minz);
 
@@ -2819,8 +2802,10 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_uniqu
     size_t pos_read = 0;
     size_t nb_seq = 0;
 
-    const size_t max_len_seq = 1024;
-    const size_t thread_seq_buf_sz = opt.read_chunksize * max_len_seq;
+    //const size_t max_len_seq = 1024;
+    //const size_t thread_seq_buf_sz = 64 * max_len_seq;
+    const size_t max_len_seq = rndup(static_cast<size_t>(1024 + k_ - 1));
+    const size_t thread_seq_buf_sz = BUFFER_SIZE;
 
     const bool multi_threaded = (opt.nb_threads != 1);
 
@@ -2829,11 +2814,6 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_uniqu
     const vector<string>& filename_in = reference_mode ? opt.filename_ref_in : opt.filename_seq_in;
 
     FileParser fp(filename_in);
-
-    //------------------------
-    //uint64_t wyp[4]; // "Secret" for wyhash
-    //make_secret(time(NULL), wyp); //Make secret for wyhash
-    //------------------------
 
     // Main worker thread
     auto worker_function = [&](char* seq_buf, const size_t seq_buf_sz) {
@@ -3030,8 +3010,10 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
     size_t len_read = 0;
     size_t pos_read = 0;
 
-    const size_t max_len_seq = 1024;
-    const size_t thread_seq_buf_sz = opt.read_chunksize * max_len_seq;
+    //const size_t max_len_seq = 1024;
+    //const size_t thread_seq_buf_sz = 64 * max_len_seq;
+    const size_t max_len_seq = rndup(static_cast<size_t>(1024 + k_ - 1));
+    const size_t thread_seq_buf_sz = BUFFER_SIZE;
 
     tiny_vector<Kmer, 2>* fp_candidate = nullptr;
 
@@ -8392,7 +8374,7 @@ void CompactedDBG<U, G>::setKmerGmerLength(const int kmer_length, const int mini
         invalid = true;
     }
 
-    if (minimizer_length >= MAX_KMER_SIZE){
+    if (minimizer_length >= MAX_GMER_SIZE){
 
         cerr << "CompactedDBG::CompactedDBG(): Length g of minimizers cannot exceed or be equal to " << MAX_KMER_SIZE << endl;
         invalid = true;

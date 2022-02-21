@@ -4,6 +4,7 @@ file(GLOB headers *.h *.hpp *.hh *.tcc)
 list(REMOVE_ITEM sources Bifrost.cpp)
 
 add_definitions(-DMAX_KMER_SIZE=${MAX_KMER_SIZE})
+add_definitions(-DMAX_GMER_SIZE=${MAX_GMER_SIZE})
 
 add_library(bifrost_static STATIC ${sources} ${headers})
 add_library(bifrost_dynamic SHARED ${sources} ${headers})
@@ -36,3 +37,4 @@ install(TARGETS Bifrost DESTINATION bin)
 install(TARGETS bifrost_dynamic DESTINATION lib)
 install(TARGETS bifrost_static DESTINATION lib)
 install(FILES ${headers} DESTINATION include/bifrost)
+install(FILES xxhash.c DESTINATION include/bifrost)

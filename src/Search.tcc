@@ -1090,8 +1090,10 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
 
     size_t file_id = 0;
 
-    const size_t max_len_seq = 1024;
-    const size_t thread_seq_buf_sz = 64 * max_len_seq;
+    //const size_t max_len_seq = 1024;
+    //const size_t thread_seq_buf_sz = 64 * max_len_seq;
+    const size_t max_len_seq = rndup(static_cast<size_t>(1024 + k_ - 1));
+    const size_t thread_seq_buf_sz = BUFFER_SIZE;
 
     FileParser fp(query_filenames);
 
