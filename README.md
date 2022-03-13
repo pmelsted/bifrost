@@ -62,13 +62,7 @@ sudo apt-get install build-essential cmake zlib1g-dev
 
 ## Installation
 
-Compared to the source install, the Conda and Brew packages do not support *k>31* nor native compilation (including AVX2 instructions). Use the source installation for benchmarking.
-
-* From [Brew](https://brew.sh):
-
-  ```
-  brew install brewsci/bio/bifrost
-  ```
+Compared to the source install, the Conda package do not support *k>31* nor native compilation (including AVX2 instructions). Use the source installation for benchmarking.
 
 * From [Bioconda](https://bioconda.github.io):
 
