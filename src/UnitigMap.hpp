@@ -135,6 +135,11 @@ class UnitigMap : public UnitigMapBase {
         */
         bool operator!=(const UnitigMap& o) const;
 
+        /** check if two UnitigMap have the same unitig as reference.
+        * @return a boolean indicating if two UnitigMap have the same unitig as reference.
+        */
+        bool isSameReferenceUnitig(const UnitigMap& o) const;
+
         /** Create a string containing the sequence corresponding to the mapping.
         * @return a string containing the sequence corresponding to the mapping or
         * an empty string if there is no mapping (UnitigMap::isEmpty = true).
@@ -273,7 +278,7 @@ class UnitigMap : public UnitigMapBase {
 
         void partialCopy(const UnitigMap<U, G, is_const>& um);
 
-        size_t pos_unitig; // unitig pos. in v_unitigs or v_kmers or h_kmers
+        size_t pos_unitig; // unitig pos. in v_unitigs or km_unitigs or h_kmers
 
         bool isShort; // true if the unitig has length k
         bool isAbundant; // true if the unitig has length k and has an abundant minimizer
@@ -291,7 +296,7 @@ struct UnitigMapHash {
 
         struct UnitigMapTMP {
 
-            size_t pos_unitig; // unitig pos. in v_unitigs or v_kmers or h_kmers
+            size_t pos_unitig; // unitig pos. in v_unitigs or km_unitigs or h_kmers
             size_t dist;
             size_t len;
             size_t size;
@@ -311,7 +316,8 @@ struct UnitigMapHash {
 
         UnitigMapTMP tmp(um);
 
-        return static_cast<size_t>(XXH64(static_cast<const void*>(&tmp), sizeof(UnitigMapTMP), 0));
+        //return static_cast<size_t>(XXH64(static_cast<const void*>(&tmp), sizeof(UnitigMapTMP), 0));
+        return static_cast<size_t>(wyhash(&tmp, sizeof(UnitigMapTMP), 0, _wyp));
     }
 };
 

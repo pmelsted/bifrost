@@ -1,11 +1,18 @@
 #ifndef BIFROST_SEARCH_DBG_TCC
 #define BIFROST_SEARCH_DBG_TCC
 
-
 template<typename U, typename G>
-vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   const string& seq, const bool exact, const bool insertion,
-                                                                            const bool deletion, const bool substitution,
-                                                                            const bool or_exclusive_match) {
+vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( const string& s, const bool exact, const bool insertion,
+                                                                                const bool deletion, const bool substitution,
+                                                                                const bool or_exclusive_match) {
+
+    struct hash_pair {
+
+        size_t operator()(const pair<size_t, Kmer>& p) const {
+
+            return wyhash(&(p.first), sizeof(size_t), 0, _wyp) ^ p.second.hash();
+        }
+    };
 
     if (invalid){
 
@@ -14,184 +21,175 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
         return vector<pair<size_t, UnitigMap<U, G>>>();
     }
 
-    if (seq.length() < k_){
+    if (s.length() < k_){
 
         cerr << "CompactedDBG::searchSequence(): Query length is shorter than k-mer size" << endl;
 
         return vector<pair<size_t, UnitigMap<U, G>>>();
     }
 
+    Roaring rpos;
+
     vector<pair<size_t, UnitigMap<U, G>>> v_um;
 
-    string seqs;
+    string s_inexact;
 
-    Roaring r;
+    unordered_set<pair<size_t, Kmer>, hash_pair> us_pos_km;
+
+    auto comp_pair = [](const pair<size_t, UnitigMap<U, G>>& p1, const pair<size_t, UnitigMap<U, G>>& p2) {
+
+        return (p1.first < p2.first);
+    };
 
     auto worker_func = [&](const bool subst, const bool ins, const bool del, const size_t shift){
-
-        const bool subst_or_ind = (subst || ins);
-        const bool inexact = (subst_or_ind || del);
 
         const size_t ins_mask = static_cast<size_t>(!ins) - 1;
         const size_t del_mask = static_cast<size_t>(!del) - 1;
 
-        const size_t end = 1ULL << ((static_cast<size_t>(!subst_or_ind) - 1) & 0x2ULL);
-        const size_t seq_len = seq.length();
+        const size_t s_len = s.length();
+        const char* s_str = s.c_str();
 
-        auto processUnitigMap = [&](const UnitigMap<U, G>& um, const size_t pos_seq){
+        const size_t s_inexact_len = s_inexact.length();
+        const char* s_inexact_str = s_inexact.c_str();
+
+        const size_t k_1 = k_-1;
+
+        auto processUnitigMap = [&](const UnitigMap<U, G>& um, const size_t pos_s){
 
             if (um.strand){
 
                 for (size_t j = um.dist; j < um.dist + um.len; ++j){
 
-                    size_t l_pos_seq = pos_seq + j - um.dist;
+                    size_t l_pos_seq = pos_s + j - um.dist;
 
                     const size_t shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
 
                     l_pos_seq -= (ins_mask & shift_pos_seq);
                     l_pos_seq += (del_mask & shift_pos_seq);
 
-                    if (l_pos_seq + k_ - 1 < seq_len) v_um.push_back({l_pos_seq, um.getKmerMapping(j)});
+                    if ((l_pos_seq + k_1 < s_len) && us_pos_km.insert({l_pos_seq, um.getMappedKmer(j)}).second) v_um.push_back({l_pos_seq, um.getKmerMapping(j)});
                 }
             }
             else {
 
                 for (size_t j = um.dist; j < um.dist + um.len; ++j){
 
-                    size_t l_pos_seq = pos_seq + um.dist + um.len - j - 1;
+                    size_t l_pos_seq = pos_s + um.dist + um.len - j - 1;
 
                     const size_t shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
 
                     l_pos_seq -= (ins_mask & shift_pos_seq);
                     l_pos_seq += (del_mask & shift_pos_seq);
 
-                    if (l_pos_seq + k_ - 1 < seq_len) v_um.push_back({l_pos_seq, um.getKmerMapping(j)});
+                    if ((l_pos_seq + k_1 < s_len) && us_pos_km.insert({l_pos_seq, um.getMappedKmer(j)}).second) v_um.push_back({l_pos_seq, um.getKmerMapping(j)});
                 }
             }
         };
 
-        for (size_t i = 0; i != end; ++i){
+        for (size_t i = 0; i != ((subst || ins) ? 4 : 1); ++i){
 
-            if (subst_or_ind){
+            if (ins) {
 
-                for (size_t j = shift; j < seqs.length(); j += k_) seqs[j] = alpha[i];
+                for (size_t j = shift; j < s_inexact_len; j += k_) s_inexact[j] = alpha[i];
             }
+            else if (subst) {
 
-            minHashIterator<RepHash> mhi = minHashIterator<RepHash>(seqs.c_str(), seqs.length(), k_, g_, RepHash(), true);
-            minHashResultIterator<RepHash> it_min = *mhi, it_min_end;
-            minHashResult mhr = *it_min;
+                for (size_t j = shift; j < s_inexact_len; j += k_) {
 
-            Minimizer minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-
-            pair<size_t, bool> minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
-
-            for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
-
-                mhr = *it_min;
-                minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-                minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
-            }
-
-            size_t pos_seq = 0;
-            size_t l_pos_seq = 0;
-            size_t shift_pos_seq = 0;
-
-            shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
-
-            l_pos_seq -= (ins_mask & shift_pos_seq);
-            l_pos_seq += (del_mask & shift_pos_seq);
-
-            if (!inexact || !or_exclusive_match || !r.contains(l_pos_seq)){
-
-                if (minz_pres.second){ // If at least one minimizer was present, search the kmer
-
-                    const UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
-
-                    if (!um.isEmpty){
-
-                        processUnitigMap(um, pos_seq);
-
-                        pos_seq += um.len - 1;
-                        mhi += pos_seq - mhi.getKmerPosition();
-                    }
+                    if (!isDNA(s[j]) || (alpha[i] == s[j])) s_inexact[j] = 'N';
+                    else s_inexact[j] = alpha[i];
                 }
-            }
+            } 
 
-            ++pos_seq;
-            ++mhi;
+            KmerIterator ki_s(s_inexact_str), ki_e;
+            minHashIterator<RepHash> mhi = minHashIterator<RepHash>(s_inexact_str, s_inexact_len, k_, g_, RepHash(), true);
 
-            while (pos_seq < seqs.length() - k_ + 1){
+            minHashResultIterator<RepHash> it_min, it_min_end;
+            minHashResult mhr;
 
-                shift_pos_seq = (pos_seq / k_) + (pos_seq % k_ > shift);
-                l_pos_seq = pos_seq - (ins_mask & shift_pos_seq) + (del_mask & shift_pos_seq);
+            Minimizer minz;
 
-                if (!inexact || !or_exclusive_match || !r.contains(l_pos_seq)){
+            pair<size_t, bool> minz_pres = {0xffffffffffffffffULL, true};
 
-                    it_min = *mhi;
-                    mhr = *it_min;
+            while (ki_s != ki_e) {
 
-                    // If minimizers of new kmer are different from minimizers of previous kmer
-                    // or if minimizers are the same but they were present, search them again
-                    if ((mhr.pos != minz_pres.first) || minz_pres.second){
+                const size_t pos_s = ki_s->second;
 
-                        if (mhr.pos != minz_pres.first){
+                mhi += (pos_s - mhi.getKmerPosition()); //If one or more k-mer were jumped because contained non-ACGT char.
 
-                            minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-                            minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
+                it_min = *mhi;
+                mhr = *it_min;
 
-                            for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
+                // If minimizers of new kmer are different from minimizers of previous kmer
+                // or if minimizers are the same but they were present, search them again
+                if (minz_pres.second || (mhr.pos != minz_pres.first)){
 
-                                mhr = *it_min;
-                                minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-                                minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
-                            }
+                    if (mhr.pos != minz_pres.first){
+
+                        minz = Minimizer(s_inexact_str + mhr.pos).rep();
+                        minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
+
+                        for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
+
+                            mhr = *it_min;
+                            minz = Minimizer(s_inexact_str + mhr.pos).rep();
+                            minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
                         }
+                    }
 
-                        if (minz_pres.second) { // If the k-mer has already been searched in the past, discard
+                    if (minz_pres.second) { // If the k-mer has already been searched in the past, discard
 
-                            const UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
+                        const size_t shift_pos_seq = (pos_s / k_) + (pos_s % k_ > shift);
+                        const size_t l_pos_s = pos_s - (ins_mask & shift_pos_seq) + (del_mask & shift_pos_seq);
+
+                        if ((l_pos_s + k_1 < s_len) && isDNA(s_str[l_pos_s]) && isDNA(s_str[l_pos_s + k_1]) && (!or_exclusive_match || (!rpos.contains(l_pos_s) && (us_pos_km.find({l_pos_s, ki_s->first}) == us_pos_km.end())))) {
+
+                            const UnitigMap<U, G> um = findUnitig(s_inexact_str, pos_s, s_inexact_len, mhi);
 
                             if (!um.isEmpty){
 
-                                processUnitigMap(um, pos_seq);
+                                processUnitigMap(um, pos_s);
 
-                                pos_seq += um.len - 1;
-                                mhi += pos_seq - mhi.getKmerPosition();
+                                ki_s += um.len - 1;
                             }
                         }
                     }
                 }
 
-                ++pos_seq;
-                ++mhi;
+                ++ki_s;
             }
         }
     };
 
     if (exact){
 
-        for (size_t i = 0; i < seq.length() - k_ + 1; ++i) {
+        for (KmerIterator ki_s(s.c_str()), ki_e; ki_s != ki_e; ++ki_s) {
 
-            const UnitigMap<U, G> um = findUnitig(seq.c_str(), i, seq.length());
+            const size_t pos_s = ki_s->second;
+            const UnitigMap<U, G> um = findUnitig(s.c_str(), pos_s, s.length());
 
             if (!um.isEmpty) { // Read maps to a Unitig
 
                 if (um.strand){
 
-                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({i + j - um.dist, um.getKmerMapping(j)});
+                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({pos_s + j - um.dist, um.getKmerMapping(j)});
                 }
                 else {
 
-                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({i + um.dist + um.len - j - 1, um.getKmerMapping(j)});
+                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({pos_s + um.dist + um.len - j - 1, um.getKmerMapping(j)});
                 }
 
-                i += um.len - 1;
+                ki_s += um.len - 1;
             }
         }
 
-        if (or_exclusive_match){
+        if (or_exclusive_match && (insertion || deletion || substitution)){
 
-            for (const auto& p : v_um) r.add(p.first);
+            for (const auto& pum : v_um) {
+
+                us_pos_km.insert({pum.first, pum.second.getMappedKmer(pum.second.dist)});
+                rpos.add(pum.first);
+            }
         }
     }
 
@@ -199,7 +197,8 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
         for (size_t i = 0; i != k_; ++i){
 
-            seqs = seq;
+            s_inexact = s;
+
             worker_func(true, false, false, i);
         }
     }
@@ -210,35 +209,35 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
             std::stringstream ss;
 
-            for (size_t j = 0; j < i; ++j) ss << seq[j];
+            for (size_t j = 0; j < i; ++j) ss << s[j];
 
-            for (size_t j = i, cpt = 0; j < seq.length(); ++j, ++cpt) {
+            for (size_t j = i, cpt = 0; j < s.length(); ++j, ++cpt) {
 
                 if (cpt % (k_ - 1) == 0) ss << alpha[0];
 
-                ss << seq[j];
+                ss << s[j];
             }
 
-            seqs = ss.str();
+            s_inexact = ss.str();
 
             worker_func(false, true, false, i);
         }
     }
 
-    if (deletion && (seq.length() >= (k_ + 1))){
+    if (deletion && (s.length() >= (k_ + 1))){
 
         for (size_t i = 0; i != (k_ + 1); ++i){
 
             std::stringstream ss;
 
-            for (size_t j = 0; j < i; ++j) ss << seq[j];
+            for (size_t j = 0; j < i; ++j) ss << s[j];
 
-            for (size_t j = i, cpt = 0; j < seq.length(); ++j, ++cpt) {
+            for (size_t j = i, cpt = 0; j < s.length(); ++j, ++cpt) {
 
-                if (cpt % (k_ + 1) != 0) ss << seq[j];
+                if (cpt % (k_ + 1) != 0) ss << s[j];
             }
 
-            seqs = ss.str();
+            s_inexact = ss.str();
 
             worker_func(false, false, true, i);
         }
@@ -248,10 +247,18 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 }
 
 template<typename U, typename G>
-vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   const string& seq, const bool exact, const bool insertion,
+vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   const string& s, const bool exact, const bool insertion,
                                                                             const bool deletion, const bool substitution,
                                                                             const double ratio_kmers, const bool or_exclusive_match) {
 
+    struct hash_pair {
+
+        size_t operator()(const pair<size_t, Kmer>& p) const {
+
+            return wyhash(&(p.first), sizeof(size_t), 0, _wyp) ^ p.second.hash();
+        }
+    };
+
     if (invalid){
 
         cerr << "CompactedDBG::searchSequence(): Graph is invalid and cannot be searched" << endl;
@@ -273,49 +280,58 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
         return vector<pair<size_t, UnitigMap<U, G>>>();
     }
 
-    if (seq.length() < k_){
+    if (s.length() < k_){
 
         cerr << "CompactedDBG::searchSequence(): Query length is shorter than k-mer size" << endl;
 
         return vector<pair<size_t, UnitigMap<U, G>>>();
     }
 
-    const size_t nb_km_min = static_cast<double>(seq.length() - k_ + 1) * ratio_kmers;
+    const size_t nb_km_min = static_cast<double>(s.length() - k_ + 1) * ratio_kmers;
+
+    Roaring rpos;
 
     vector<pair<size_t, UnitigMap<U, G>>> v_um;
 
-    string seqs;
+    string s_inexact;
 
-    Roaring r, r_pos;
+    unordered_set<pair<size_t, Kmer>, hash_pair> us_pos_km;
+
+    auto comp_pair = [](const pair<size_t, UnitigMap<U, G>>& p1, const pair<size_t, UnitigMap<U, G>>& p2) {
+
+        return (p1.first < p2.first);
+    };
 
     auto worker_func = [&](const bool subst, const bool ins, const bool del, const size_t shift){
-
-        const bool subst_or_ind = (subst || ins);
-        const bool inexact = (subst_or_ind || del);
 
         const size_t ins_mask = static_cast<size_t>(!ins) - 1;
         const size_t del_mask = static_cast<size_t>(!del) - 1;
 
-        const size_t end = 1ULL << ((static_cast<size_t>(!subst_or_ind) - 1) & 0x2ULL);
-        const size_t seq_len = seq.length();
+        const size_t s_len = s.length();
+        const char* s_str = s.c_str();
 
-        auto processUnitigMap = [&](const UnitigMap<U, G>& um, const size_t pos_seq){
+        const size_t s_inexact_len = s_inexact.length();
+        const char* s_inexact_str = s_inexact.c_str();
+
+        const size_t k_1 = k_-1;
+
+        auto processUnitigMap = [&](const UnitigMap<U, G>& um, const size_t pos_s){
 
             if (um.strand){
 
                 for (size_t j = um.dist; j < um.dist + um.len; ++j){
 
-                    size_t l_pos_seq = pos_seq + j - um.dist;
+                    size_t l_pos_seq = pos_s + j - um.dist;
 
                     const size_t shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
 
                     l_pos_seq -= (ins_mask & shift_pos_seq);
                     l_pos_seq += (del_mask & shift_pos_seq);
 
-                    if (l_pos_seq + k_ - 1 < seq_len){
+                    if ((l_pos_seq + k_1 < s_len) && us_pos_km.insert({l_pos_seq, um.getMappedKmer(j)}).second) {
 
                         v_um.push_back({l_pos_seq, um.getKmerMapping(j)});
-                        r_pos.add(l_pos_seq);
+                        rpos.add(l_pos_seq);
                     }
                 }
             }
@@ -323,170 +339,139 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
                 for (size_t j = um.dist; j < um.dist + um.len; ++j){
 
-                    size_t l_pos_seq = pos_seq + um.dist + um.len - j - 1;
+                    size_t l_pos_seq = pos_s + um.dist + um.len - j - 1;
 
                     const size_t shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
 
                     l_pos_seq -= (ins_mask & shift_pos_seq);
                     l_pos_seq += (del_mask & shift_pos_seq);
 
-                    if (l_pos_seq + k_ - 1 < seq_len){
+                    if ((l_pos_seq + k_1 < s_len) && us_pos_km.insert({l_pos_seq, um.getMappedKmer(j)}).second) {
 
                         v_um.push_back({l_pos_seq, um.getKmerMapping(j)});
-                        r_pos.add(l_pos_seq);
+                        rpos.add(l_pos_seq);
                     }
                 }
             }
         };
 
-        for (size_t i = 0; i != end; ++i){
+        for (size_t i = 0; i != ((subst || ins) ? 4 : 1); ++i){
 
-            if (subst_or_ind){
+            if (ins) {
 
-                for (size_t j = shift; j < seqs.length(); j += k_) seqs[j] = alpha[i];
+                for (size_t j = shift; j < s_inexact_len; j += k_) s_inexact[j] = alpha[i];
             }
+            else if (subst) {
 
-            minHashIterator<RepHash> mhi = minHashIterator<RepHash>(seqs.c_str(), seqs.length(), k_, g_, RepHash(), true);
-            minHashResultIterator<RepHash> it_min = *mhi, it_min_end;
-            minHashResult mhr = *it_min;
+                for (size_t j = shift; j < s_inexact_len; j += k_) {
 
-            Minimizer minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-
-            pair<size_t, bool> minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
-
-            for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
-
-                mhr = *it_min;
-                minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-                minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
-            }
-
-            size_t pos_seq = 0;
-            size_t l_pos_seq = 0;
-            size_t shift_pos_seq = 0;
-
-            shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
-
-            l_pos_seq -= (ins_mask & shift_pos_seq);
-            l_pos_seq += (del_mask & shift_pos_seq);
-
-            if (!inexact || !or_exclusive_match || !r.contains(l_pos_seq)){
-
-                if (minz_pres.second){ // If at least one minimizer was present, search the kmer
-
-                    const UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
-
-                    if (!um.isEmpty){
-
-                        processUnitigMap(um, pos_seq);
-
-                        if (r_pos.cardinality() >= nb_km_min) return;
-
-                        pos_seq += um.len - 1;
-                        mhi += pos_seq - mhi.getKmerPosition();
-                    }
+                    if (!isDNA(s[j]) || (alpha[i] == s[j])) s_inexact[j] = 'N';
+                    else s_inexact[j] = alpha[i];
                 }
-            }
+            } 
 
-            ++pos_seq;
-            ++mhi;
+            KmerIterator ki_s(s_inexact_str), ki_e;
+            minHashIterator<RepHash> mhi = minHashIterator<RepHash>(s_inexact_str, s_inexact_len, k_, g_, RepHash(), true);
 
-            while (pos_seq < seqs.length() - k_ + 1){
+            minHashResultIterator<RepHash> it_min, it_min_end;
+            minHashResult mhr;
 
-                shift_pos_seq = (pos_seq / k_) + (pos_seq % k_ > shift);
-                l_pos_seq = pos_seq - (ins_mask & shift_pos_seq) + (del_mask & shift_pos_seq);
+            Minimizer minz;
 
-                if (!inexact || !or_exclusive_match || !r.contains(l_pos_seq)){
+            pair<size_t, bool> minz_pres = {0xffffffffffffffffULL, true};
 
-                    it_min = *mhi;
-                    mhr = *it_min;
+            while (ki_s != ki_e) {
 
-                    // If minimizers of new kmer are different from minimizers of previous kmer
-                    // or if minimizers are the same but they were present, search them again
-                    if ((mhr.pos != minz_pres.first) || minz_pres.second){
+                const size_t pos_s = ki_s->second;
 
-                        if (mhr.pos != minz_pres.first){
+                mhi += (pos_s - mhi.getKmerPosition()); //If one or more k-mer were jumped because contained non-ACGT char.
 
-                            minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-                            minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
+                it_min = *mhi;
+                mhr = *it_min;
 
-                            for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
+                // If minimizers of new kmer are different from minimizers of previous kmer
+                // or if minimizers are the same but they were present, search them again
+                if (minz_pres.second || (mhr.pos != minz_pres.first)){
 
-                                mhr = *it_min;
-                                minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-                                minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
-                            }
+                    if (mhr.pos != minz_pres.first){
+
+                        minz = Minimizer(s_inexact_str + mhr.pos).rep();
+                        minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
+
+                        for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
+
+                            mhr = *it_min;
+                            minz = Minimizer(s_inexact_str + mhr.pos).rep();
+                            minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
                         }
+                    }
 
-                        if (minz_pres.second) { // If the k-mer has already been searched in the past, discard
+                    if (minz_pres.second) { // If the k-mer has already been searched in the past, discard
 
-                            const UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
+                        const size_t shift_pos_seq = (pos_s / k_) + (pos_s % k_ > shift);
+                        const size_t l_pos_s = pos_s - (ins_mask & shift_pos_seq) + (del_mask & shift_pos_seq);
+
+                        if ((l_pos_s + k_1 < s_len) && isDNA(s_str[l_pos_s]) && isDNA(s_str[l_pos_s + k_1]) && (!rpos.contains(l_pos_s) && (us_pos_km.find({l_pos_s, ki_s->first}) == us_pos_km.end()))) {
+
+                            const UnitigMap<U, G> um = findUnitig(s_inexact_str, pos_s, s_inexact_len, mhi);
 
                             if (!um.isEmpty){
 
-                                processUnitigMap(um, pos_seq);
+                                processUnitigMap(um, pos_s);
 
-                                if (r_pos.cardinality() >= nb_km_min) return;
+                                if (rpos.cardinality() >= nb_km_min) return;
 
-                                pos_seq += um.len - 1;
-                                mhi += pos_seq - mhi.getKmerPosition();
+                                ki_s += um.len - 1;
                             }
                         }
                     }
                 }
 
-                ++pos_seq;
-                ++mhi;
+                ++ki_s;
             }
         }
     };
 
     if (exact){
 
-        for (size_t i = 0; i < seq.length() - k_ + 1; ++i) {
+        for (KmerIterator ki_s(s.c_str()), ki_e; ki_s != ki_e; ++ki_s) {
 
-            const UnitigMap<U, G> um = findUnitig(seq.c_str(), i, seq.length());
+            const size_t pos_s = ki_s->second;
+            const UnitigMap<U, G> um = findUnitig(s.c_str(), pos_s, s.length());
 
             if (!um.isEmpty) { // Read maps to a Unitig
 
                 if (um.strand){
 
-                    for (size_t j = um.dist; j < um.dist + um.len; ++j){
-
-                        const size_t l_pos = i + j - um.dist;
-
-                        v_um.push_back({l_pos, um.getKmerMapping(j)});
-                        r_pos.add(l_pos);
-                    }
+                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({pos_s + j - um.dist, um.getKmerMapping(j)});
                 }
                 else {
 
-                    for (size_t j = um.dist; j < um.dist + um.len; ++j){
-
-                        const size_t l_pos = i + um.dist + um.len - j - 1;
-
-                        v_um.push_back({l_pos, um.getKmerMapping(j)});
-                        r_pos.add(l_pos);
-                    }
+                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({pos_s + um.dist + um.len - j - 1, um.getKmerMapping(j)});
                 }
 
-                if (r_pos.cardinality() >= nb_km_min) return v_um;
+                if (v_um.size() >= nb_km_min) return v_um;
 
-                i += um.len - 1;
+                ki_s += um.len - 1;
             }
         }
 
-        if (or_exclusive_match) r = r_pos;
+        for (const auto& pum : v_um) {
+
+            us_pos_km.insert({pum.first, pum.second.getMappedKmer(pum.second.dist)});
+            rpos.add(pum.first);
+        }
     }
 
     if (substitution){
 
         for (size_t i = 0; i != k_; ++i){
 
-            seqs = seq;
+            s_inexact = s;
+
             worker_func(true, false, false, i);
 
-            if (r_pos.cardinality() >= nb_km_min) return v_um;
+            if (rpos.cardinality() >= nb_km_min) return v_um;
         }
     }
 
@@ -496,41 +481,41 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
             std::stringstream ss;
 
-            for (size_t j = 0; j < i; ++j) ss << seq[j];
+            for (size_t j = 0; j < i; ++j) ss << s[j];
 
-            for (size_t j = i, cpt = 0; j < seq.length(); ++j, ++cpt) {
+            for (size_t j = i, cpt = 0; j < s.length(); ++j, ++cpt) {
 
                 if (cpt % (k_ - 1) == 0) ss << alpha[0];
 
-                ss << seq[j];
+                ss << s[j];
             }
 
-            seqs = ss.str();
+            s_inexact = ss.str();
 
             worker_func(false, true, false, i);
 
-            if (r_pos.cardinality() >= nb_km_min) return v_um;
+            if (rpos.cardinality() >= nb_km_min) return v_um;
         }
     }
 
-    if (deletion && (seq.length() >= (k_ + 1))){
+    if (deletion && (s.length() >= (k_ + 1))){
 
         for (size_t i = 0; i != (k_ + 1); ++i){
 
             std::stringstream ss;
 
-            for (size_t j = 0; j < i; ++j) ss << seq[j];
+            for (size_t j = 0; j < i; ++j) ss << s[j];
 
-            for (size_t j = i, cpt = 0; j < seq.length(); ++j, ++cpt) {
+            for (size_t j = i, cpt = 0; j < s.length(); ++j, ++cpt) {
 
-                if (cpt % (k_ + 1) != 0) ss << seq[j];
+                if (cpt % (k_ + 1) != 0) ss << s[j];
             }
 
-            seqs = ss.str();
+            s_inexact = ss.str();
 
             worker_func(false, false, true, i);
 
-            if (r_pos.cardinality() >= nb_km_min) return v_um;
+            if (rpos.cardinality() >= nb_km_min) return v_um;
         }
     }
 
@@ -538,9 +523,17 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 }
 
 template<typename U, typename G>
-vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(     const string& seq, const bool exact, const bool insertion,
-                                                                                    const bool deletion, const bool substitution,
-                                                                                    const bool or_exclusive_match) const {
+vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( const string& s, const bool exact, const bool insertion,
+                                                                                const bool deletion, const bool substitution,
+                                                                                const bool or_exclusive_match) const {
+
+    struct hash_pair {
+
+        size_t operator()(const pair<size_t, Kmer>& p) const {
+
+            return wyhash(&(p.first), sizeof(size_t), 0, _wyp) ^ p.second.hash();
+        }
+    };
 
     if (invalid){
 
@@ -549,184 +542,175 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
         return vector<pair<size_t, const_UnitigMap<U, G>>>();
     }
 
-    if (seq.length() < k_){
+    if (s.length() < k_){
 
         cerr << "CompactedDBG::searchSequence(): Query length is shorter than k-mer size" << endl;
 
         return vector<pair<size_t, const_UnitigMap<U, G>>>();
     }
 
+    Roaring rpos;
+
     vector<pair<size_t, const_UnitigMap<U, G>>> v_um;
 
-    string seqs;
+    string s_inexact;
 
-    Roaring r;
+    unordered_set<pair<size_t, Kmer>, hash_pair> us_pos_km;
+
+    auto comp_pair = [](const pair<size_t, const_UnitigMap<U, G>>& p1, const pair<size_t, const_UnitigMap<U, G>>& p2) {
+
+        return (p1.first < p2.first);
+    };
 
     auto worker_func = [&](const bool subst, const bool ins, const bool del, const size_t shift){
-
-        const bool subst_or_ind = (subst || ins);
-        const bool inexact = (subst_or_ind || del);
 
         const size_t ins_mask = static_cast<size_t>(!ins) - 1;
         const size_t del_mask = static_cast<size_t>(!del) - 1;
 
-        const size_t end = 1ULL << ((static_cast<size_t>(!subst_or_ind) - 1) & 0x2ULL);
-        const size_t seq_len = seq.length();
+        const size_t s_len = s.length();
+        const char* s_str = s.c_str();
 
-        auto processUnitigMap = [&](const const_UnitigMap<U, G>& um, const size_t pos_seq){
+        const size_t s_inexact_len = s_inexact.length();
+        const char* s_inexact_str = s_inexact.c_str();
+
+        const size_t k_1 = k_-1;
+
+        auto processUnitigMap = [&](const const_UnitigMap<U, G>& um, const size_t pos_s){
 
             if (um.strand){
 
                 for (size_t j = um.dist; j < um.dist + um.len; ++j){
 
-                    size_t l_pos_seq = pos_seq + j - um.dist;
+                    size_t l_pos_seq = pos_s + j - um.dist;
 
                     const size_t shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
 
                     l_pos_seq -= (ins_mask & shift_pos_seq);
                     l_pos_seq += (del_mask & shift_pos_seq);
 
-                    if (l_pos_seq + k_ - 1 < seq_len) v_um.push_back({l_pos_seq, um.getKmerMapping(j)});
+                    if ((l_pos_seq + k_1 < s_len) && us_pos_km.insert({l_pos_seq, um.getMappedKmer(j)}).second) v_um.push_back({l_pos_seq, um.getKmerMapping(j)});
                 }
             }
             else {
 
                 for (size_t j = um.dist; j < um.dist + um.len; ++j){
 
-                    size_t l_pos_seq = pos_seq + um.dist + um.len - j - 1;
+                    size_t l_pos_seq = pos_s + um.dist + um.len - j - 1;
 
                     const size_t shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
 
                     l_pos_seq -= (ins_mask & shift_pos_seq);
                     l_pos_seq += (del_mask & shift_pos_seq);
 
-                    if (l_pos_seq + k_ - 1 < seq_len) v_um.push_back({l_pos_seq, um.getKmerMapping(j)});
+                    if ((l_pos_seq + k_1 < s_len) && us_pos_km.insert({l_pos_seq, um.getMappedKmer(j)}).second) v_um.push_back({l_pos_seq, um.getKmerMapping(j)});
                 }
             }
         };
 
-        for (size_t i = 0; i != end; ++i){
+        for (size_t i = 0; i != ((subst || ins) ? 4 : 1); ++i){
 
-            if (subst_or_ind){
+            if (ins) {
 
-                for (size_t j = shift; j < seqs.length(); j += k_) seqs[j] = alpha[i];
+                for (size_t j = shift; j < s_inexact_len; j += k_) s_inexact[j] = alpha[i];
             }
+            else if (subst) {
 
-            minHashIterator<RepHash> mhi = minHashIterator<RepHash>(seqs.c_str(), seqs.length(), k_, g_, RepHash(), true);
-            minHashResultIterator<RepHash> it_min = *mhi, it_min_end;
-            minHashResult mhr = *it_min;
+                for (size_t j = shift; j < s_inexact_len; j += k_) {
 
-            Minimizer minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-
-            pair<size_t, bool> minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
-
-            for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
-
-                mhr = *it_min;
-                minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-                minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
-            }
-
-            size_t pos_seq = 0;
-            size_t l_pos_seq = 0;
-            size_t shift_pos_seq = 0;
-
-            shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
-
-            l_pos_seq -= (ins_mask & shift_pos_seq);
-            l_pos_seq += (del_mask & shift_pos_seq);
-
-            if (!inexact || !or_exclusive_match || !r.contains(l_pos_seq)){
-
-                if (minz_pres.second){ // If at least one minimizer was present, search the kmer
-
-                    const const_UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
-
-                    if (!um.isEmpty){
-
-                        processUnitigMap(um, pos_seq);
-
-                        pos_seq += um.len - 1;
-                        mhi += pos_seq - mhi.getKmerPosition();
-                    }
+                    if (!isDNA(s[j]) || (alpha[i] == s[j])) s_inexact[j] = 'N';
+                    else s_inexact[j] = alpha[i];
                 }
-            }
+            } 
 
-            ++pos_seq;
-            ++mhi;
+            KmerIterator ki_s(s_inexact_str), ki_e;
+            minHashIterator<RepHash> mhi = minHashIterator<RepHash>(s_inexact_str, s_inexact_len, k_, g_, RepHash(), true);
 
-            while (pos_seq < seqs.length() - k_ + 1){
+            minHashResultIterator<RepHash> it_min, it_min_end;
+            minHashResult mhr;
 
-                shift_pos_seq = (pos_seq / k_) + (pos_seq % k_ > shift);
-                l_pos_seq = pos_seq - (ins_mask & shift_pos_seq) + (del_mask & shift_pos_seq);
+            Minimizer minz;
 
-                if (!inexact || !or_exclusive_match || !r.contains(l_pos_seq)){
+            pair<size_t, bool> minz_pres = {0xffffffffffffffffULL, true};
 
-                    it_min = *mhi;
-                    mhr = *it_min;
+            while (ki_s != ki_e) {
 
-                    // If minimizers of new kmer are different from minimizers of previous kmer
-                    // or if minimizers are the same but they were present, search them again
-                    if ((mhr.pos != minz_pres.first) || minz_pres.second){
+                const size_t pos_s = ki_s->second;
 
-                        if (mhr.pos != minz_pres.first){
+                mhi += (pos_s - mhi.getKmerPosition()); //If one or more k-mer were jumped because contained non-ACGT char.
 
-                            minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-                            minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
+                it_min = *mhi;
+                mhr = *it_min;
 
-                            for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
+                // If minimizers of new kmer are different from minimizers of previous kmer
+                // or if minimizers are the same but they were present, search them again
+                if (minz_pres.second || (mhr.pos != minz_pres.first)){
 
-                                mhr = *it_min;
-                                minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-                                minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
-                            }
+                    if (mhr.pos != minz_pres.first){
+
+                        minz = Minimizer(s_inexact_str + mhr.pos).rep();
+                        minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
+
+                        for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
+
+                            mhr = *it_min;
+                            minz = Minimizer(s_inexact_str + mhr.pos).rep();
+                            minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
                         }
+                    }
 
-                        if (minz_pres.second) { // If the k-mer has already been searched in the past, discard
+                    if (minz_pres.second) { // If the k-mer has already been searched in the past, discard
 
-                            const const_UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
+                        const size_t shift_pos_seq = (pos_s / k_) + (pos_s % k_ > shift);
+                        const size_t l_pos_s = pos_s - (ins_mask & shift_pos_seq) + (del_mask & shift_pos_seq);
+
+                        if ((l_pos_s + k_1 < s_len) && isDNA(s_str[l_pos_s]) && isDNA(s_str[l_pos_s + k_1]) && (!or_exclusive_match || (!rpos.contains(l_pos_s) && (us_pos_km.find({l_pos_s, ki_s->first}) == us_pos_km.end())))) {
+
+                            const const_UnitigMap<U, G> um = findUnitig(s_inexact_str, pos_s, s_inexact_len, mhi);
 
                             if (!um.isEmpty){
 
-                                processUnitigMap(um, pos_seq);
+                                processUnitigMap(um, pos_s);
 
-                                pos_seq += um.len - 1;
-                                mhi += pos_seq - mhi.getKmerPosition();
+                                ki_s += um.len - 1;
                             }
                         }
                     }
                 }
 
-                ++pos_seq;
-                ++mhi;
+                ++ki_s;
             }
         }
     };
 
     if (exact){
 
-        for (size_t i = 0; i < seq.length() - k_ + 1; ++i) {
+        for (KmerIterator ki_s(s.c_str()), ki_e; ki_s != ki_e; ++ki_s) {
 
-            const const_UnitigMap<U, G> um = findUnitig(seq.c_str(), i, seq.length());
+            const size_t pos_s = ki_s->second;
+            const const_UnitigMap<U, G> um = findUnitig(s.c_str(), pos_s, s.length());
 
             if (!um.isEmpty) { // Read maps to a Unitig
 
                 if (um.strand){
 
-                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({i + j - um.dist, um.getKmerMapping(j)});
+                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({pos_s + j - um.dist, um.getKmerMapping(j)});
                 }
                 else {
 
-                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({i + um.dist + um.len - j - 1, um.getKmerMapping(j)});
+                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({pos_s + um.dist + um.len - j - 1, um.getKmerMapping(j)});
                 }
 
-                i += um.len - 1;
+                ki_s += um.len - 1;
             }
         }
 
-        if (or_exclusive_match){
+        if (or_exclusive_match && (insertion || deletion || substitution)){
 
-            for (const auto& p : v_um) r.add(p.first);
+            for (const auto& pum : v_um) {
+
+                us_pos_km.insert({pum.first, pum.second.getMappedKmer(pum.second.dist)});
+                rpos.add(pum.first);
+            }
         }
     }
 
@@ -734,7 +718,8 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
         for (size_t i = 0; i != k_; ++i){
 
-            seqs = seq;
+            s_inexact = s;
+
             worker_func(true, false, false, i);
         }
     }
@@ -745,35 +730,35 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
             std::stringstream ss;
 
-            for (size_t j = 0; j < i; ++j) ss << seq[j];
+            for (size_t j = 0; j < i; ++j) ss << s[j];
 
-            for (size_t j = i, cpt = 0; j < seq.length(); ++j, ++cpt) {
+            for (size_t j = i, cpt = 0; j < s.length(); ++j, ++cpt) {
 
                 if (cpt % (k_ - 1) == 0) ss << alpha[0];
 
-                ss << seq[j];
+                ss << s[j];
             }
 
-            seqs = ss.str();
+            s_inexact = ss.str();
 
             worker_func(false, true, false, i);
         }
     }
 
-    if (deletion && (seq.length() >= (k_ + 1))){
+    if (deletion && (s.length() >= (k_ + 1))){
 
         for (size_t i = 0; i != (k_ + 1); ++i){
 
             std::stringstream ss;
 
-            for (size_t j = 0; j < i; ++j) ss << seq[j];
+            for (size_t j = 0; j < i; ++j) ss << s[j];
 
-            for (size_t j = i, cpt = 0; j < seq.length(); ++j, ++cpt) {
+            for (size_t j = i, cpt = 0; j < s.length(); ++j, ++cpt) {
 
-                if (cpt % (k_ + 1) != 0) ss << seq[j];
+                if (cpt % (k_ + 1) != 0) ss << s[j];
             }
 
-            seqs = ss.str();
+            s_inexact = ss.str();
 
             worker_func(false, false, true, i);
         }
@@ -783,9 +768,17 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 }
 
 template<typename U, typename G>
-vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(     const string& seq, const bool exact, const bool insertion,
-                                                                                    const bool deletion, const bool substitution,
-                                                                                    const double ratio_kmers, const bool or_exclusive_match) const {
+vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( const string& s, const bool exact, const bool insertion,
+                                                                                const bool deletion, const bool substitution,
+                                                                                const double ratio_kmers, const bool or_exclusive_match) const {
+
+    struct hash_pair {
+
+        size_t operator()(const pair<size_t, Kmer>& p) const {
+
+            return wyhash(&(p.first), sizeof(size_t), 0, _wyp) ^ p.second.hash();
+        }
+    };
 
     if (invalid){
 
@@ -808,49 +801,58 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
         return vector<pair<size_t, const_UnitigMap<U, G>>>();
     }
 
-    if (seq.length() < k_){
+    if (s.length() < k_){
 
         cerr << "CompactedDBG::searchSequence(): Query length is shorter than k-mer size" << endl;
 
         return vector<pair<size_t, const_UnitigMap<U, G>>>();
     }
 
-    const size_t nb_km_min = static_cast<double>(seq.length() - k_ + 1) * ratio_kmers;
+    const size_t nb_km_min = static_cast<double>(s.length() - k_ + 1) * ratio_kmers;
+
+    Roaring rpos;
 
     vector<pair<size_t, const_UnitigMap<U, G>>> v_um;
 
-    string seqs;
+    string s_inexact;
 
-    Roaring r, r_pos;
+    unordered_set<pair<size_t, Kmer>, hash_pair> us_pos_km;
+
+    auto comp_pair = [](const pair<size_t, const_UnitigMap<U, G>>& p1, const pair<size_t, const_UnitigMap<U, G>>& p2) {
+
+        return (p1.first < p2.first);
+    };
 
     auto worker_func = [&](const bool subst, const bool ins, const bool del, const size_t shift){
-
-        const bool subst_or_ind = (subst || ins);
-        const bool inexact = (subst_or_ind || del);
 
         const size_t ins_mask = static_cast<size_t>(!ins) - 1;
         const size_t del_mask = static_cast<size_t>(!del) - 1;
 
-        const size_t end = 1ULL << ((static_cast<size_t>(!subst_or_ind) - 1) & 0x2ULL);
-        const size_t seq_len = seq.length();
+        const size_t s_len = s.length();
+        const char* s_str = s.c_str();
 
-        auto processUnitigMap = [&](const const_UnitigMap<U, G>& um, const size_t pos_seq){
+        const size_t s_inexact_len = s_inexact.length();
+        const char* s_inexact_str = s_inexact.c_str();
+
+        const size_t k_1 = k_-1;
+
+        auto processUnitigMap = [&](const const_UnitigMap<U, G>& um, const size_t pos_s){
 
             if (um.strand){
 
                 for (size_t j = um.dist; j < um.dist + um.len; ++j){
 
-                    size_t l_pos_seq = pos_seq + j - um.dist;
+                    size_t l_pos_seq = pos_s + j - um.dist;
 
                     const size_t shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
 
                     l_pos_seq -= (ins_mask & shift_pos_seq);
                     l_pos_seq += (del_mask & shift_pos_seq);
 
-                    if (l_pos_seq + k_ - 1 < seq_len){
+                    if ((l_pos_seq + k_1 < s_len) && us_pos_km.insert({l_pos_seq, um.getMappedKmer(j)}).second) {
 
                         v_um.push_back({l_pos_seq, um.getKmerMapping(j)});
-                        r_pos.add(l_pos_seq);
+                        rpos.add(l_pos_seq);
                     }
                 }
             }
@@ -858,170 +860,139 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
                 for (size_t j = um.dist; j < um.dist + um.len; ++j){
 
-                    size_t l_pos_seq = pos_seq + um.dist + um.len - j - 1;
+                    size_t l_pos_seq = pos_s + um.dist + um.len - j - 1;
 
                     const size_t shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
 
                     l_pos_seq -= (ins_mask & shift_pos_seq);
                     l_pos_seq += (del_mask & shift_pos_seq);
 
-                    if (l_pos_seq + k_ - 1 < seq_len){
+                    if ((l_pos_seq + k_1 < s_len) && us_pos_km.insert({l_pos_seq, um.getMappedKmer(j)}).second) {
 
                         v_um.push_back({l_pos_seq, um.getKmerMapping(j)});
-                        r_pos.add(l_pos_seq);
+                        rpos.add(l_pos_seq);
                     }
                 }
             }
         };
 
-        for (size_t i = 0; i != end; ++i){
+        for (size_t i = 0; i != ((subst || ins) ? 4 : 1); ++i){
 
-            if (subst_or_ind){
+            if (ins) {
 
-                for (size_t j = shift; j < seqs.length(); j += k_) seqs[j] = alpha[i];
+                for (size_t j = shift; j < s_inexact_len; j += k_) s_inexact[j] = alpha[i];
             }
+            else if (subst) {
 
-            minHashIterator<RepHash> mhi = minHashIterator<RepHash>(seqs.c_str(), seqs.length(), k_, g_, RepHash(), true);
-            minHashResultIterator<RepHash> it_min = *mhi, it_min_end;
-            minHashResult mhr = *it_min;
+                for (size_t j = shift; j < s_inexact_len; j += k_) {
 
-            Minimizer minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-
-            pair<size_t, bool> minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
-
-            for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
-
-                mhr = *it_min;
-                minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-                minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
-            }
-
-            size_t pos_seq = 0;
-            size_t l_pos_seq = 0;
-            size_t shift_pos_seq = 0;
-
-            shift_pos_seq = (l_pos_seq / k_) + (l_pos_seq % k_ > shift);
-
-            l_pos_seq -= (ins_mask & shift_pos_seq);
-            l_pos_seq += (del_mask & shift_pos_seq);
-
-            if (!inexact || !or_exclusive_match || !r.contains(l_pos_seq)){
-
-                if (minz_pres.second){ // If at least one minimizer was present, search the kmer
-
-                    const const_UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
-
-                    if (!um.isEmpty){
-
-                        processUnitigMap(um, pos_seq);
-
-                        if (r_pos.cardinality() >= nb_km_min) return;
-
-                        pos_seq += um.len - 1;
-                        mhi += pos_seq - mhi.getKmerPosition();
-                    }
+                    if (!isDNA(s[j]) || (alpha[i] == s[j])) s_inexact[j] = 'N';
+                    else s_inexact[j] = alpha[i];
                 }
-            }
+            } 
 
-            ++pos_seq;
-            ++mhi;
+            KmerIterator ki_s(s_inexact_str), ki_e;
+            minHashIterator<RepHash> mhi = minHashIterator<RepHash>(s_inexact_str, s_inexact_len, k_, g_, RepHash(), true);
 
-            while (pos_seq < seqs.length() - k_ + 1){
+            minHashResultIterator<RepHash> it_min, it_min_end;
+            minHashResult mhr;
 
-                shift_pos_seq = (pos_seq / k_) + (pos_seq % k_ > shift);
-                l_pos_seq = pos_seq - (ins_mask & shift_pos_seq) + (del_mask & shift_pos_seq);
+            Minimizer minz;
 
-                if (!inexact || !or_exclusive_match || !r.contains(l_pos_seq)){
+            pair<size_t, bool> minz_pres = {0xffffffffffffffffULL, true};
 
-                    it_min = *mhi;
-                    mhr = *it_min;
+            while (ki_s != ki_e) {
 
-                    // If minimizers of new kmer are different from minimizers of previous kmer
-                    // or if minimizers are the same but they were present, search them again
-                    if ((mhr.pos != minz_pres.first) || minz_pres.second){
+                const size_t pos_s = ki_s->second;
 
-                        if (mhr.pos != minz_pres.first){
+                mhi += (pos_s - mhi.getKmerPosition()); //If one or more k-mer were jumped because contained non-ACGT char.
 
-                            minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-                            minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
+                it_min = *mhi;
+                mhr = *it_min;
 
-                            for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
+                // If minimizers of new kmer are different from minimizers of previous kmer
+                // or if minimizers are the same but they were present, search them again
+                if (minz_pres.second || (mhr.pos != minz_pres.first)){
 
-                                mhr = *it_min;
-                                minz = Minimizer(seqs.c_str() + mhr.pos).rep();
-                                minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
-                            }
+                    if (mhr.pos != minz_pres.first){
+
+                        minz = Minimizer(s_inexact_str + mhr.pos).rep();
+                        minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
+
+                        for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
+
+                            mhr = *it_min;
+                            minz = Minimizer(s_inexact_str + mhr.pos).rep();
+                            minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
                         }
+                    }
 
-                        if (minz_pres.second) { // If the k-mer has already been searched in the past, discard
+                    if (minz_pres.second) { // If the k-mer has already been searched in the past, discard
 
-                            const const_UnitigMap<U, G> um = findUnitig(seqs.c_str(), pos_seq, seqs.length(), mhi);
+                        const size_t shift_pos_seq = (pos_s / k_) + (pos_s % k_ > shift);
+                        const size_t l_pos_s = pos_s - (ins_mask & shift_pos_seq) + (del_mask & shift_pos_seq);
+
+                        if ((l_pos_s + k_1 < s_len) && isDNA(s_str[l_pos_s]) && isDNA(s_str[l_pos_s + k_1]) && (!rpos.contains(l_pos_s) && (us_pos_km.find({l_pos_s, ki_s->first}) == us_pos_km.end()))) {
+
+                            const const_UnitigMap<U, G> um = findUnitig(s_inexact_str, pos_s, s_inexact_len, mhi);
 
                             if (!um.isEmpty){
 
-                                processUnitigMap(um, pos_seq);
+                                processUnitigMap(um, pos_s);
 
-                                if (r_pos.cardinality() >= nb_km_min) return;
+                                if (rpos.cardinality() >= nb_km_min) return;
 
-                                pos_seq += um.len - 1;
-                                mhi += pos_seq - mhi.getKmerPosition();
+                                ki_s += um.len - 1;
                             }
                         }
                     }
                 }
 
-                ++pos_seq;
-                ++mhi;
+                ++ki_s;
             }
         }
     };
 
     if (exact){
 
-        for (size_t i = 0; i < seq.length() - k_ + 1; ++i) {
+        for (KmerIterator ki_s(s.c_str()), ki_e; ki_s != ki_e; ++ki_s) {
 
-            const const_UnitigMap<U, G> um = findUnitig(seq.c_str(), i, seq.length());
+            const size_t pos_s = ki_s->second;
+            const const_UnitigMap<U, G> um = findUnitig(s.c_str(), pos_s, s.length());
 
             if (!um.isEmpty) { // Read maps to a Unitig
 
                 if (um.strand){
 
-                    for (size_t j = um.dist; j < um.dist + um.len; ++j){
-
-                        const size_t l_pos = i + j - um.dist;
-
-                        v_um.push_back({l_pos, um.getKmerMapping(j)});
-                        r_pos.add(l_pos);
-                    }
+                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({pos_s + j - um.dist, um.getKmerMapping(j)});
                 }
                 else {
 
-                    for (size_t j = um.dist; j < um.dist + um.len; ++j){
-
-                        const size_t l_pos = i + um.dist + um.len - j - 1;
-
-                        v_um.push_back({l_pos, um.getKmerMapping(j)});
-                        r_pos.add(l_pos);
-                    }
+                    for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({pos_s + um.dist + um.len - j - 1, um.getKmerMapping(j)});
                 }
 
-                if (r_pos.cardinality() >= nb_km_min) return v_um;
+                if (v_um.size() >= nb_km_min) return v_um;
 
-                i += um.len - 1;
+                ki_s += um.len - 1;
             }
         }
 
-        if (or_exclusive_match) r = r_pos;
+        for (const auto& pum : v_um) {
+
+            us_pos_km.insert({pum.first, pum.second.getMappedKmer(pum.second.dist)});
+            rpos.add(pum.first);
+        }
     }
 
     if (substitution){
 
         for (size_t i = 0; i != k_; ++i){
 
-            seqs = seq;
+            s_inexact = s;
+
             worker_func(true, false, false, i);
 
-            if (r_pos.cardinality() >= nb_km_min) return v_um;
+            if (rpos.cardinality() >= nb_km_min) return v_um;
         }
     }
 
@@ -1031,41 +1002,41 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
             std::stringstream ss;
 
-            for (size_t j = 0; j < i; ++j) ss << seq[j];
+            for (size_t j = 0; j < i; ++j) ss << s[j];
 
-            for (size_t j = i, cpt = 0; j < seq.length(); ++j, ++cpt) {
+            for (size_t j = i, cpt = 0; j < s.length(); ++j, ++cpt) {
 
                 if (cpt % (k_ - 1) == 0) ss << alpha[0];
 
-                ss << seq[j];
+                ss << s[j];
             }
 
-            seqs = ss.str();
+            s_inexact = ss.str();
 
             worker_func(false, true, false, i);
 
-            if (r_pos.cardinality() >= nb_km_min) return v_um;
+            if (rpos.cardinality() >= nb_km_min) return v_um;
         }
     }
 
-    if (deletion && (seq.length() >= (k_ + 1))){
+    if (deletion && (s.length() >= (k_ + 1))){
 
         for (size_t i = 0; i != (k_ + 1); ++i){
 
             std::stringstream ss;
 
-            for (size_t j = 0; j < i; ++j) ss << seq[j];
+            for (size_t j = 0; j < i; ++j) ss << s[j];
 
-            for (size_t j = i, cpt = 0; j < seq.length(); ++j, ++cpt) {
+            for (size_t j = i, cpt = 0; j < s.length(); ++j, ++cpt) {
 
-                if (cpt % (k_ + 1) != 0) ss << seq[j];
+                if (cpt % (k_ + 1) != 0) ss << s[j];
             }
 
-            seqs = ss.str();
+            s_inexact = ss.str();
 
             worker_func(false, false, true, i);
 
-            if (r_pos.cardinality() >= nb_km_min) return v_um;
+            if (rpos.cardinality() >= nb_km_min) return v_um;
         }
     }
 
@@ -1119,8 +1090,10 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
 
     size_t file_id = 0;
 
-    const size_t max_len_seq = 1024;
-    const size_t thread_seq_buf_sz = 64 * max_len_seq;
+    //const size_t max_len_seq = 1024;
+    //const size_t thread_seq_buf_sz = 64 * max_len_seq;
+    const size_t max_len_seq = rndup(static_cast<size_t>(1024 + k_ - 1));
+    const size_t thread_seq_buf_sz = BUFFER_SIZE;
 
     FileParser fp(query_filenames);
 
@@ -1129,7 +1102,7 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
 
     outfile.open(out_tmp.c_str());
     out.rdbuf(outfile.rdbuf());
-    out.sync_with_stdio(false);
+    //out.sync_with_stdio(false);
 
     const char query_pres[3] = {'\t', '1', '\n'};
     const char query_abs[3] = {'\t', '0', '\n'};
@@ -1144,7 +1117,6 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
         char* buffer_res = new char[thread_seq_buf_sz];
 
         size_t pos_buffer_out = 0;
-        //size_t nb_km_found = 0;
         size_t nb_queries_found = 0;
 
         while (fp.read(s, file_id)){
@@ -1155,10 +1127,10 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
             const char* query_name = fp.getNameString();
             const size_t l_query_name = strlen(query_name);
 
-            const vector<pair<size_t, const_UnitigMap<U, G>>> v = dbg.searchSequence(   s, true, inexact_search, inexact_search, inexact_search,
-                                                                                        ratio_kmers, true);
+            for (auto& c : s) c &= 0xDF;
 
-            //for (const auto& p : v) cout << p.first << " " << s.substr(p.first, 31) << " " << p.second.mappedSequenceToString() << endl;
+            const vector<pair<size_t, const_UnitigMap<U, G>>> v = dbg.searchSequence(   s, true, inexact_search, inexact_search,
+                                                                                        inexact_search, ratio_kmers, true);
 
             if (inexact_search){
 
@@ -1167,13 +1139,8 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
                 for (const auto& p : v) r.add(p.first);
 
                 is_found = (r.cardinality() >= nb_km_min);
-                //nb_km_found += r.cardinality();
             }
-            else {
-
-                is_found = (v.size() >= nb_km_min);
-                //nb_km_found += v.size();
-            }
+            else is_found = (v.size() >= nb_km_min);
 
             if (pos_buffer_out + l_query_name + l_query_res >= thread_seq_buf_sz){ // If next result cannot fit in the buffer
 
@@ -1208,31 +1175,33 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
             bool stop = false;
 
             vector<thread> workers; // need to keep track of threads so we can join them
-            vector<vector<string>> buffers_seq(nb_threads);
-            vector<vector<string>> buffers_name(nb_threads);
-
-            char** buffer_res = new char*[nb_threads];
 
             mutex mutex_files_in, mutex_file_out;
 
-            //std::atomic<size_t> nb_km_found;
             std::atomic<size_t> nb_queries_found;
 
-            //nb_km_found = 0;
             nb_queries_found = 0;
 
             for (size_t t = 0; t < nb_threads; ++t){
 
-                buffer_res[t] = new char[thread_seq_buf_sz];
-
                 workers.emplace_back(
 
-                    [&, t]{
+                    [&]{
+
+                        char* buffer_res = new char[thread_seq_buf_sz];
+
+                        vector<string> buffers_seq;
+                        vector<string> buffers_name;
 
                         while (true) {
 
                             {
-                                if (stop) return;
+                                if (stop) {
+
+                                    delete[] buffer_res;
+
+                                    return;
+                                }
 
                                 size_t buffer_sz = 0;
 
@@ -1244,8 +1213,8 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
 
                                     buffer_sz += s.length();
 
-                                    buffers_seq[t].push_back(move(s));
-                                    buffers_name[t].push_back(string(fp.getNameString()));
+                                    buffers_seq.push_back(std::move(s));
+                                    buffers_name.push_back(string(fp.getNameString()));
 
                                     if (buffer_sz >= thread_seq_buf_sz) break;
                                     else stop = !fp.read(s, file_id);
@@ -1254,17 +1223,19 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
 
                             size_t pos_buffer_out = 0;
 
-                            const size_t buffers_seq_sz = buffers_seq[t].size();
+                            const size_t buffers_seq_sz = buffers_seq.size();
 
                             for (size_t i = 0; i < buffers_seq_sz; ++i){
 
                                 bool is_found = false;
 
-                                const size_t nb_km_min = static_cast<double>(buffers_seq[t][i].length() - k_ + 1) * ratio_kmers;
-                                const size_t l_name = buffers_name[t][i].length();
+                                const size_t nb_km_min = static_cast<double>(buffers_seq[i].length() - k_ + 1) * ratio_kmers;
+                                const size_t l_name = buffers_name[i].length();
 
-                                const vector<pair<size_t, const_UnitigMap<U, G>>> v = dbg.searchSequence(   buffers_seq[t][i], true, inexact_search, inexact_search, inexact_search,
-                                                                                                            ratio_kmers, true);
+                                for (auto& c : buffers_seq[i]) c &= 0xDF;
+
+                                const vector<pair<size_t, const_UnitigMap<U, G>>> v = dbg.searchSequence(   buffers_seq[i], true, inexact_search, inexact_search,
+                                                                                                            inexact_search, ratio_kmers, true);
 
                                 if (inexact_search){
 
@@ -1273,33 +1244,28 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
                                     for (const auto& p : v) r.add(p.first);
 
                                     is_found = (r.cardinality() >= nb_km_min);
-                                    //nb_km_found += r.cardinality();
                                 }
-                                else {
-
-                                    is_found = (v.size() >= nb_km_min);
-                                    //nb_km_found += v.size();
-                                }
+                                else is_found = (v.size() >= nb_km_min);
 
                                 if (pos_buffer_out + l_name + l_query_res >= thread_seq_buf_sz){ // If next result cannot fit in the buffer
 
                                     unique_lock<mutex> lock(mutex_file_out); // Get the output lock
 
-                                    out.write(buffer_res[t], pos_buffer_out); // Write result buffer
+                                    out.write(buffer_res, pos_buffer_out); // Write result buffer
 
                                     pos_buffer_out = 0; // Reset position to 0;
                                 }
 
                                 // Copy new result to buffer
-                                std::memcpy(buffer_res[t] + pos_buffer_out, buffers_name[t][i].c_str(), l_name * sizeof(char));
+                                std::memcpy(buffer_res + pos_buffer_out, buffers_name[i].c_str(), l_name * sizeof(char));
 
                                 if (is_found){
 
-                                    std::memcpy(buffer_res[t] + pos_buffer_out + l_name, query_pres, l_query_res * sizeof(char));
+                                    std::memcpy(buffer_res + pos_buffer_out + l_name, query_pres, l_query_res * sizeof(char));
 
                                     ++nb_queries_found;
                                 }
-                                else std::memcpy(buffer_res[t] + pos_buffer_out + l_name, query_abs, l_query_res * sizeof(char));
+                                else std::memcpy(buffer_res + pos_buffer_out + l_name, query_abs, l_query_res * sizeof(char));
 
                                 pos_buffer_out += l_name + l_query_res;
                             }
@@ -1308,21 +1274,20 @@ bool CompactedDBG<U, G>::search(const vector<string>& query_filenames, const str
 
                                 unique_lock<mutex> lock(mutex_file_out);
 
-                                out.write(buffer_res[t], pos_buffer_out);
+                                out.write(buffer_res, pos_buffer_out);
                             }
 
                             // Clear buffers for next round
-                            buffers_seq[t].clear();
-                            buffers_name[t].clear();
+                            buffers_seq.clear();
+                            buffers_name.clear();
                         }
+
+                        delete[] buffer_res;
                     }
                 );
             }
 
             for (auto& t : workers) t.join();
-            for (size_t t = 0; t < nb_threads; ++t) delete[] buffer_res[t];
-
-            delete[] buffer_res;
 
             if (verbose) cout << "CompactedDBG::search(): Found " << nb_queries_found << " queries. " << endl;
         }

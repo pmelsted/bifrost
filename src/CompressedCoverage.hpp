@@ -6,10 +6,8 @@
 #include <vector>
 #include <iostream>
 
+#include "BitContainer.hpp"
 #include "Common.hpp"
-
-using std::vector;
-using std::pair;
 
 /* Short description:
  *  - Tagged pointer union that is either
@@ -28,7 +26,8 @@ using std::pair;
  *      size of the array used in uint32_t and the number of full positions.
  *    - The remainder of bytes are 2-bit encoded integers.
  *    - If the full bit is set then the pointer must be 0 and the memory released
- * */
+ *
+ */
 class CompressedCoverage {
 
     public:
@@ -96,14 +95,78 @@ class CompressedCoverage {
 
         union {
 
-            uint8_t *asPointer;
+            uint8_t* asPointer;
             uintptr_t asBits;
         };
 };
 
+/*class CompressedCoverage {
+
+    public:
+
+        CompressedCoverage(size_t sz_ = 0, bool full_ = false);
+
+        CompressedCoverage(const CompressedCoverage& o); // Copy constructors
+        CompressedCoverage(CompressedCoverage&& o); // move constructors
+
+        CompressedCoverage& operator=(const CompressedCoverage& o); // Copy assignment
+        CompressedCoverage& operator=(CompressedCoverage&& o); // Move assignment
+
+        BFG_INLINE void clear() {
+
+            sz = 0;
+            bc.clear();
+        };
+
+        BFG_INLINE size_t size() const {
+
+            return sz;
+        };
+
+        void cover(size_t start, size_t end);
+        void uncover(size_t start, size_t end);
+
+        uint8_t covAt(const size_t idx) const;
+        size_t covSum() const;
+
+        vector<pair<int, int>> splittingVector() const;
+
+        BFG_INLINE static void setFullCoverage(const size_t cov_max) {
+
+            cov_full = min(cov_max, static_cast<size_t>(2));
+            cov_full = max(cov_full, static_cast<size_t>(1));
+        }
+
+        BFG_INLINE static size_t getFullCoverage() {
+
+            return cov_full;
+        }
+
+        BFG_INLINE bool isFull() const {
+
+            return bc.contains(0);
+        }
+
+        BFG_INLINE void setFull() {
+
+            bc.clear();
+            bc.add(0);
+        }
+
+    private:
+
+        static size_t cov_full;
+
+        size_t sz;
+
+        BitContainer bc;
+};*/
+
 template<typename T> struct CompressedCoverage_t {
 
     CompressedCoverage_t(size_t sz = 0, bool full = false) : ccov(sz, full) {}
+    CompressedCoverage_t(const CompressedCoverage& c) : ccov(c) {}
+    CompressedCoverage_t(CompressedCoverage&& c) : ccov(move(c)) {}
 
     BFG_INLINE const T* getData() const { return &data; }
     BFG_INLINE T* getData() { return &data; }
@@ -115,6 +178,8 @@ template<typename T> struct CompressedCoverage_t {
 template<> struct CompressedCoverage_t<void> {
 
     CompressedCoverage_t(size_t sz = 0, bool full = false) : ccov(sz, full) {}
+    CompressedCoverage_t(const CompressedCoverage& c) : ccov(c) {}
+    CompressedCoverage_t(CompressedCoverage&& c) : ccov(move(c)) {}
 
     BFG_INLINE const void* getData() const { return nullptr; }
     BFG_INLINE void* getData() { return nullptr; }

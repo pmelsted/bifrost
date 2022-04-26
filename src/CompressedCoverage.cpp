@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <sstream>
 #include <algorithm>
+
 #include "CompressedCoverage.hpp"
 
 using namespace std;
@@ -427,3 +428,171 @@ void CompressedCoverage::setFull() {
 size_t CompressedCoverage::cov_full = 2;
 
 uintptr_t CompressedCoverage::localCoverageMask = 0xAAAAAAAAAAAAAA; // 0b10101010101010101010101010101010101010101010101010101010
+
+/*
+CompressedCoverage::CompressedCoverage(size_t sz_, bool full_) {
+
+    sz = sz_;
+
+    if (full_) bc.add(0);
+}
+
+CompressedCoverage::CompressedCoverage(const CompressedCoverage& o) : sz(o.sz), bc(o.bc) {}
+
+CompressedCoverage::CompressedCoverage(CompressedCoverage&& o) : sz(o.sz), bc(move(o.bc)) {
+
+    o.clear();
+}
+
+CompressedCoverage& CompressedCoverage::operator=(const CompressedCoverage& o){
+
+    if (this != &o){
+
+        clear();
+
+        sz = o.sz;
+        bc = o.bc;
+    }
+
+    return *this;
+}
+
+CompressedCoverage& CompressedCoverage::operator=(CompressedCoverage&& o){
+
+    if (this != &o){
+
+        clear();
+
+        sz = o.sz;
+        bc = move(o.bc);
+
+        o.clear();
+    }
+
+    return *this;
+}
+
+void CompressedCoverage::cover(size_t start, size_t end) {
+
+    if (end < start) std::swap(start, end);
+
+    if (isFull()) return;
+
+    size_t full_added = 0;
+
+    for (size_t pos = start; pos <= end; ++pos) {
+
+        const size_t cov = covAt(pos);
+
+        if (cov != cov_full){
+
+            if (cov != 0) bc.remove(sz * (cov - 1) + pos + 1);
+            bc.add(sz * cov + pos + 1);
+
+            //if (cov != 0) bc.remove(pos * cov_full + cov);
+            //bc.add(pos * cov_full + cov + 1);
+
+            full_added += static_cast<size_t>((cov + 1) == cov_full);
+        }
+        else ++full_added;
+    }
+
+    // Check if coverage is at max for all positions
+    if ((full_added == (end - start + 1)) && (bc.cardinality() == sz) && (covSum() == (sz * cov_full))) setFull();
+    else bc.runOptimize();
+}
+
+void CompressedCoverage::uncover(size_t start, size_t end) {
+
+    if (end < start) std::swap(start, end);
+
+    if (bc.cardinality() == 0) return;
+
+    if (isFull()) {
+
+        bc.clear();
+
+        const size_t end_pos = sz * cov_full + 1;
+        for (size_t pos = sz * (cov_full - 1) + 1; pos < end_pos; ++pos) bc.add(pos);
+
+        //const size_t end_pos = sz * cov_full + 1;
+        //for (size_t pos = cov_full; pos < end_pos; pos += cov_full) bc.add(pos);
+    }
+
+    for (size_t pos = start; pos <= end; ++pos) {
+
+        const size_t cov = covAt(pos);
+
+        if (cov != 0){
+
+            bc.remove(sz * (cov - 1) + pos + 1);
+            if (cov != 1) bc.add(sz * (cov - 2) + pos + 1);
+
+            //bc.remove(pos * cov_full + cov);
+            //if (cov != 1) bc.add(pos * cov_full + cov - 1);
+        }
+    }
+
+    bc.runOptimize();
+}
+
+uint8_t CompressedCoverage::covAt(const size_t idx) const {
+
+    for (size_t pos = idx + 1; pos < (cov_full * sz) + 1; pos += sz){
+
+        if (bc.contains(pos)) return ((pos - 1) / sz) + 1;
+    }
+
+    return 0;
+
+    const size_t pos = idx * cov_full + 1;
+    const size_t pos_end = pos + cov_full;
+
+    //for (size_t i = pos; i < pos_end; ++i) {
+    //
+    //    if (bc.contains(i)) return i - pos + 1;
+    //}
+    //
+    //return 0;
+}
+
+size_t CompressedCoverage::covSum() const {
+
+    if (isFull()) return sz * cov_full;
+
+    size_t sum = 0;
+
+    for (const uint32_t pos : bc) sum += ((pos - 1) / sz) + 1;
+    //for (const uint32_t pos : bc) sum += ((pos - 1) % cov_full) + 1;
+
+    return sum;
+}
+
+vector<pair<int, int>> CompressedCoverage::splittingVector() const {
+
+    size_t a = 0, b = 0;
+
+    vector<pair<int, int>> v;
+
+    const size_t sz = size();
+
+    while (b != sz) {
+
+        while ((a < sz) && (covAt(a) < cov_full)) ++a;
+
+        if (a == sz) break;
+
+        b = a;
+
+        while ((b < sz) && (covAt(b) >= cov_full)) ++b;
+
+        v.push_back({a,b});
+
+        a = b;
+    }
+
+    return v;
+}
+
+size_t CompressedCoverage::cov_full = 2;
+*/

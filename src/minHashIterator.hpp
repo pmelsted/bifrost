@@ -24,8 +24,6 @@ struct minHashResult {
 template<class HF>
 struct minHashResultIterator;
 
-// TODO: return current position as well as minimum
-// templated?
 template<class HF>
 class minHashIterator {
 
@@ -48,25 +46,6 @@ class minHashIterator {
 
         minHashIterator(const minHashIterator& o) : s(o.s), n(o.n), k(o.k), g(o.g), hf(o.hf), v(o.v), p(o.p), invalid(o.invalid), nh(o.nh) {}
 
-        /*minHashIterator(minHashIterator&& o) : s(o.s), n(o.n), k(o.k), g(o.g), hf(o.hf), invalid(o.invalid), nh(o.nh), p(o.p) {
-
-            v = move(o.v);
-        }
-
-        minHashIterator& operator=(minHashIterator&& o){
-
-            s = o.s;
-            n = o.n;
-            k = o.k;
-            g = o.g;
-            hf = o.hf;
-            invalid = o.invalid;
-            nh = o.nh;
-            p = o.p;
-
-            v = move(o.v);
-        }*/
-
         inline void seed(const HF &ohf) {
 
             hf = ohf;
@@ -81,10 +60,6 @@ class minHashIterator {
 
         inline bool operator!=(const minHashIterator& o) { return !operator==(o); }
 
-        // invariant:
-        //   v[0..sz] contains only ascending elements in s from [p,p+k-g+1)
-        //
-        //   there exists no a<b s.t. v[a] > v[b].
         minHashIterator& operator++() {
 
             if (invalid) return *this;
@@ -92,17 +67,16 @@ class minHashIterator {
             ++p; // advance to next k-mer
 
             if (p >= n-k+1) {
-                // out of bounds
+
                 invalid = true;
                 return *this;
             }
 
-            //const int shift = nh ? 1 : 0;
             const int shift = static_cast<int>(nh);
 
             if (p==0) {
 
-                hf.init(&s[shift]);
+                hf.init(s + shift);
 
                 v.push_back(minHashResult(hf.hash(), shift));
 
@@ -111,9 +85,10 @@ class minHashIterator {
                     hf.update(s[j], s[j+g]);
 
                     const uint64_t h = hf.hash();
-                    int t = ((int)v.size())-1;
 
-                    while (t >= 0 && v[t].hash > h) {
+                    int t = static_cast<int>(v.size()) - 1;
+
+                    while ((t >= 0) && (v[t].hash > h)) {
 
                         v.pop_back();
                         --t;
@@ -130,9 +105,10 @@ class minHashIterator {
                 hf.update(s[p+k-g-1-shift],s[p+k-1-shift]);
 
                 const uint64_t h = hf.hash();
-                int t = ((int) v.size())-1;
 
-                while (t >= 0 && v[t].hash > h) {
+                int t = static_cast<int>(v.size()) - 1;
+
+                while ((t >= 0) && (v[t].hash > h)) {
 
                     v.pop_back();
                     --t;
@@ -200,7 +176,7 @@ class minHashIterator {
 
                 if ((h <= mhr.hash) && (h > mhr_discard.hash)){
 
-                    if (((h == mhr.hash) && (Minimizer(&s[j]).rep() < Minimizer(&s[mhr.pos]).rep())) || (h != mhr.hash)){
+                    if (((h == mhr.hash) && (Minimizer(s + j).rep() < Minimizer(s + mhr.pos).rep())) || (h != mhr.hash)){
 
                         mhr.hash = h;
                         mhr.pos = j;
@@ -213,11 +189,20 @@ class minHashIterator {
 
         BFG_INLINE minHashResultIterator<HF> operator*() const { return minHashResultIterator<HF>(this); }
 
-        BFG_INLINE uint64_t getHash() const { return ((static_cast<uint64_t>(invalid) - 1) & v[0].hash); }
+        BFG_INLINE uint64_t getHash() const {
 
-        BFG_INLINE int getPosition() const { return invalid ? 0 : v[0].pos; }
+            return (invalid ? 0 : v[0].hash);
+        }
 
-        BFG_INLINE int getKmerPosition() const { return p; }
+        BFG_INLINE int getPosition() const {
+
+            return (invalid ? 0 : v[0].pos);
+        }
+
+        BFG_INLINE int getKmerPosition() const {
+
+            return p;
+        }
 
         const char *s; //Minimizers are from k-mers, k-mers are from a sequence s
         int n; // Length of sequence s
@@ -268,9 +253,10 @@ class minHashIterator {
                 hf.update(s[j], s[j+g]);
 
                 const uint64_t h = hf.hash();
-                int t = ((int)v.size())-1;
 
-                while (t >= 0 && v[t].hash > h) {
+                int t = static_cast<int>(v.size()) - 1;
+
+                while ((t >= 0) && (v[t].hash > h)) {
 
                     v.pop_back();
                     --t;
@@ -354,7 +340,6 @@ class preAllocMinHashIterator {
 
                 invalid = false;
 
-                //v.reserve(n-g+1);
                 v = vector<minHashResult>(n - g + 1);
                 hf.setK(g);
 
@@ -375,7 +360,7 @@ class preAllocMinHashIterator {
         //
         //   there exists no a<b s.t. v[a] > v[b].
         preAllocMinHashIterator& operator++() {
-            //cerr << "operator++";
+
             if (invalid) return *this;
 
             ++p; // advance to next k-mer
@@ -386,7 +371,6 @@ class preAllocMinHashIterator {
                 return *this;
             }
 
-            //const int shift = nh ? 1 : 0;
             const int shift = static_cast<int>(nh);
 
             if (p == 0) {
@@ -413,8 +397,7 @@ class preAllocMinHashIterator {
             }
             else {
 
-                //if (v[p_cur_start].pos < p + shift) ++p_cur_start; // remove first element, fell outside of window
-                p_cur_start += (v[p_cur_start].pos < p + shift);
+                p_cur_start += static_cast<size_t>(v[p_cur_start].pos < (p + shift));
 
                 hf.update(s[p+k-g-1-shift], s[p+k-1-shift]);
 
@@ -458,7 +441,6 @@ class preAllocMinHashIterator {
 
             if (invalid) return minHashResult();
 
-            //const int shift = nh ? 1 : 0;
             const int shift = static_cast<int>(nh);
             const int end = p+k-g-shift;
 
@@ -488,7 +470,7 @@ class preAllocMinHashIterator {
 
                 if ((h <= mhr.hash) && (h > mhr_discard.hash)){
 
-                    if (((h == mhr.hash) && (Minimizer(&s[j]).rep() < Minimizer(&s[mhr.pos]).rep())) || (h != mhr.hash)) {
+                    if (((h == mhr.hash) && (Minimizer(s + j).rep() < Minimizer(s + mhr.pos).rep())) || (h != mhr.hash)) {
 
                         mhr.hash = h;
                         mhr.pos = j;
@@ -576,14 +558,10 @@ struct preAllocMinHashResultIterator {
         p_it_end = o.p_it_end;
         invalid = o.invalid;
 
-        //if (operator!=(o)) invalid = true;
         invalid = operator!=(o);
 
         return *this;
     }
-
-    //inline const minHashResult& operator*() const { return p->v[p_it]; }
-    //inline const minHashResult* operator->() const { return &(p->v[p_it]); }
 
     BFG_INLINE const minHashResult& operator*() const { return p->v[p_it]; }
     BFG_INLINE const minHashResult* operator->() const { return &(p->v[p_it]); }
@@ -739,7 +717,7 @@ struct minHashKmer {
 
                 if (h_v > min_v){
 
-                    if ((p == 0) || (h_v < h) || ((h_v == h) && (Minimizer(&s[j+1]).rep() < Minimizer(&s[pos[0]]).rep()))){
+                    if ((p == 0) || (h_v < h) || ((h_v == h) && (Minimizer(s + j + 1).rep() < Minimizer(s + pos[0]).rep()))){
 
                         h = h_v;
                         p = 1;

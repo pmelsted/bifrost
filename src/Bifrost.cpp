@@ -3,8 +3,6 @@
 
 using namespace std;
 
-// use:  PrintVersion();
-// post: The version of the program has been printed to cout
 void PrintVersion() {
 
     cout << BFG_VERSION << endl;
@@ -45,7 +43,6 @@ void PrintUsage() {
     cout << "   -B, --bloom-bits2        Number of Bloom filter bits per k-mer with 2+ occurrences in the input files (default is 14)" << endl;
     cout << "   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default is no input)" << endl;
     cout << "   -w, --write-mbbf         Output Blocked Bloom Filter file (default is no output)" << endl;
-    cout << "   -u, --chunk-size         Read chunk size per thread (default is 64)" << endl << endl;
 
     cout << "   > Optional with no argument:" << endl << endl;
 
@@ -106,11 +103,11 @@ void PrintUsage() {
     cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
 }
 
-void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
+int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
 
     int option_index = 0, c;
 
-    const char* opt_string = "s:r:q:g:f:o:t:k:m:e:b:B:l:w:u:nidvcya";
+    const char* opt_string = "s:r:q:g:f:o:t:k:m:e:b:B:l:w:nidvcya";
 
     static struct option long_options[] = {
 
@@ -128,7 +125,6 @@ void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
         {"bloom-bits2",         required_argument,  0, 'B'},
         {"load-mbbf",           required_argument,  0, 'l'},
         {"write-mbbf",          required_argument,  0, 'w'},
-        {"chunk-size",          required_argument,  0, 'u'},
         {"inexact_search",      no_argument,        0, 'n'},
         {"clip-tips",           no_argument,        0, 'i'},
         {"del-isolated",        no_argument,        0, 'd'},
@@ -138,6 +134,9 @@ void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
         {"fasta",               no_argument,        0, 'a'},
         {0,                     0,                  0,  0 }
     };
+
+    if (strcmp(argv[1], "--version") == 0) return 1; // Print version
+    else if (strcmp(argv[1], "--help") == 0) return 2; // print help
 
     if (strcmp(argv[1], "build") == 0) opt.build = true;
     else if (strcmp(argv[1], "update") == 0) opt.update = true;
@@ -191,9 +190,6 @@ void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                 case 'l':
                     opt.inFilenameBBF = optarg;
                     break;
-                case 'u':
-                    opt.read_chunksize = atoi(optarg);
-                    break;
                 case 'n':
                     opt.inexact_search = true;
                     break;
@@ -219,6 +215,8 @@ void parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
             }
         }
     }
+
+    return 0;
 }
 
 bool check_ProgramOptions(CCDBG_Build_opt& opt) {
@@ -242,9 +240,10 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
             }
             else {
 
-                const string s_ext = file.substr(file.find_last_of(".") + 1);
+                const int format = FileParser::getFileFormat(file.c_str());
 
-                if ((s_ext == "txt")){
+                if (format >= 0) files_tmp.push_back(file); // File is FASTA/FASTQ/GFA
+                else {
 
                     FILE* fp = fopen(file.c_str(), "r");
 
@@ -255,20 +254,32 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
                         ifstream ifs_file_txt(file);
                         istream i_file_txt(ifs_file_txt.rdbuf());
 
-                        while (i_file_txt.getline(buffer, 4096)){
+                        size_t i = 0;
+
+                        while (i_file_txt.getline(buffer, 4096).good()){
 
                             fp = fopen(buffer, "r");
 
                             if (fp == NULL) {
 
-                                cerr << "Error: Could not open file " << buffer << " for reading." << endl;
+                                cerr << "Error: Could not open file at line " << i << " in file " << file << " for reading." << endl;
                                 ret = false;
+                                break;
                             }
                             else {
 
                                 fclose(fp);
                                 files_tmp.push_back(string(buffer));
                             }
+
+                            ++i;
+                        }
+
+                        if (i_file_txt.fail() && (i == 0)) {
+
+                            cerr << "Error: File " << file << " is neither FASTA, FASTQ nor GFA." << endl;
+                            cerr << "If it is a list of files, it is either empty or has a line with >4096 characters." << endl;
+                            ret = false;
                         }
 
                         ifs_file_txt.close();
@@ -279,7 +290,6 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
                         ret = false;
                     }
                 }
-                else files_tmp.push_back(file);
             }
         }
 
@@ -316,7 +326,8 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
 
     if (opt.k >= MAX_KMER_SIZE){
 
-        cerr << "Error: Length k of k-mers cannot exceed or be equal to " << MAX_KMER_SIZE << "." << endl;
+        cerr << "Error: Length k of k-mers cannot exceed " << (MAX_KMER_SIZE - 1) << "." << endl;
+        cerr << "To enable a larger k, recompile Bifrost with the appropriate MAX_KMER_SIZE variable." << endl;
         ret = false;
     }
 
@@ -334,19 +345,27 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
 
     if (opt.query){  // Check param. command build
 
-        const string out = opt.prefixFilenameOut + ".tsv";
+        if (opt.prefixFilenameOut.length() == 0) {
 
-        FILE* fp = fopen(out.c_str(), "w");
-
-        if (fp == NULL) {
-
-            cerr << "Error: Could not open file for writing output of query in TSV format: " << out << "." << endl;
+            cerr << "Error: No output filename prefix given." << endl;
             ret = false;
         }
         else {
 
-            fclose(fp);
-            if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << "." << endl;
+            const string out = opt.prefixFilenameOut + ".tsv";
+
+            FILE* fp = fopen(out.c_str(), "w");
+
+            if (fp == NULL) {
+
+                cerr << "Error: Could not open file for writing output of query in TSV format: " << out << "." << endl;
+                ret = false;
+            }
+            else {
+
+                fclose(fp);
+                if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << "." << endl;
+            }
         }
 
         if (opt.filename_query_in.size() == 0) {
@@ -370,19 +389,27 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
     }
     else {
 
-        const string out = opt.prefixFilenameOut + (opt.outputGFA ? ".gfa" : ".fasta");
+        if (opt.prefixFilenameOut.length() == 0) {
 
-        FILE* fp = fopen(out.c_str(), "w");
-
-        if (fp == NULL) {
-
-            cerr << "Error: Could not open file for writing output graph in GFA format: " << out << "." << endl;
+            cerr << "Error: No output filename prefix given." << endl;
             ret = false;
         }
         else {
 
-            fclose(fp);
-            if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << "." << endl;
+            const string out = opt.prefixFilenameOut + (opt.outputGFA ? ".gfa" : ".fasta");
+
+            FILE* fp = fopen(out.c_str(), "w");
+
+            if (fp == NULL) {
+
+                cerr << "Error: Could not open file for writing output graph in GFA format: " << out << "." << endl;
+                ret = false;
+            }
+            else {
+
+                fclose(fp);
+                if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << "." << endl;
+            }
         }
 
         if ((opt.filename_seq_in.size() + opt.filename_ref_in.size()) == 0) {
@@ -398,12 +425,6 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
     }
 
     if (opt.build){ // Check param. command build
-
-        if (opt.read_chunksize <= 0) {
-
-            cerr << "Error: Chunk size of reads to share among threads cannot be less than or equal to 0." << endl;
-            ret = false;
-        }
 
         if (opt.outFilenameBBF.length() != 0){
 
@@ -503,87 +524,103 @@ int main(int argc, char **argv){
 
         opt.outputColors = false; // We dont know yet if we want colors or not
 
-        parse_ProgramOptions(argc, argv, opt); // Parse input parameters
+        const int print = parse_ProgramOptions(argc, argv, opt); // Parse input parameters
 
-        if (!check_ProgramOptions(opt)) return 0; // Check if input parameters are valid
-        else if (opt.build){ // We want to build the graph
+        if (print == 1) PrintVersion();
+        else if (print == 2) PrintUsage();
+        else if (check_ProgramOptions(opt)) {
 
-            if (opt.outputColors){
+            if (opt.build){ // Build the graph
 
-                ColoredCDBG<> ccdbg(opt.k, opt.g);
+                if (opt.outputColors){
 
-                ccdbg.buildGraph(opt);
-                ccdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                ccdbg.buildColors(opt);
-                ccdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
+                    ColoredCDBG<> ccdbg(opt.k, opt.g);
+
+                    ccdbg.buildGraph(opt);
+                    ccdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+                    ccdbg.buildColors(opt);
+                    ccdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
+                }
+                else {
+
+                    CompactedDBG<> cdbg(opt.k, opt.g);
+
+                    cdbg.build(opt);
+                    cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+                    cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
+                }
             }
-            else {
+            else if (opt.update){
 
-                CompactedDBG<> cdbg(opt.k, opt.g);
+                CCDBG_Build_opt l_opt = opt;
 
-                cdbg.build(opt);
-                cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
+                if (l_opt.filename_colors_in.size() != 0){ // If colors in or out
+
+                    ColoredCDBG<> ccdbg1(l_opt.k, l_opt.g);
+
+                    ccdbg1.read(l_opt.filename_graph_in, l_opt.filename_colors_in, l_opt.nb_threads, l_opt.verbose);
+
+                    l_opt.k = ccdbg1.getK();
+                    l_opt.g = ccdbg1.getG();
+
+                    ColoredCDBG<> ccdbg2(l_opt.k, l_opt.g);
+
+                    ccdbg2.buildGraph(l_opt);
+                    ccdbg2.buildColors(l_opt);
+
+                    const size_t ccdbg1_len = ccdbg1.length();
+                    const size_t ccdbg2_len = ccdbg2.length();
+
+                    ColoredCDBG<>& ccdbg_a = (ccdbg1_len > ccdbg2_len) ? ccdbg1 : ccdbg2;
+                    ColoredCDBG<>& ccdbg_b = (ccdbg1_len > ccdbg2_len) ? ccdbg2 : ccdbg1;
+
+                    ccdbg_a.merge(move(ccdbg_b), l_opt.nb_threads, l_opt.verbose);
+
+                    ccdbg_a.simplify(l_opt.deleteIsolated, l_opt.clipTips, l_opt.verbose);
+                    ccdbg_a.write(l_opt.prefixFilenameOut, l_opt.nb_threads, l_opt.verbose);
+                }
+                else {
+
+                    CompactedDBG<> cdbg1(l_opt.k, l_opt.g);
+
+                    cdbg1.read(l_opt.filename_graph_in, l_opt.nb_threads, l_opt.verbose);
+
+                    l_opt.k = cdbg1.getK();
+                    l_opt.g = cdbg1.getG();
+
+                    CompactedDBG<> cdbg2(l_opt.k, l_opt.g);
+
+                    cdbg2.build(l_opt);
+
+                    const size_t cdbg1_len = cdbg1.length();
+                    const size_t cdbg2_len = cdbg2.length();
+
+                    CompactedDBG<>& cdbg_a = (cdbg1_len > cdbg2_len) ? cdbg1 : cdbg2;
+                    CompactedDBG<>& cdbg_b = (cdbg1_len > cdbg2_len) ? cdbg2 : cdbg1;
+
+                    cdbg_a.merge(cdbg_b, l_opt.nb_threads, l_opt.verbose);
+                    cdbg_b.clear();
+
+                    cdbg_a.simplify(l_opt.deleteIsolated, l_opt.clipTips, l_opt.verbose);
+                    cdbg_a.write(l_opt.prefixFilenameOut, l_opt.nb_threads, l_opt.outputGFA, l_opt.verbose);
+                }
             }
-        }
-        else if (opt.update){
+            else if (opt.query){
 
-            if (opt.filename_colors_in.size() != 0){ // If colors in or out
+                if (opt.filename_colors_in.size() != 0){
 
-                ColoredCDBG<> ccdbg1(opt.k, opt.g);
-                ColoredCDBG<> ccdbg2(opt.k, opt.g);
+                    ColoredCDBG<> ccdbg(opt.k, opt.g);
 
-                ccdbg1.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
-                ccdbg2.buildGraph(opt);
-                ccdbg2.buildColors(opt);
+                    ccdbg.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
+                    ccdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.inexact_search, opt.nb_threads, opt.verbose);
+                }
+                else {
 
-                const size_t ccdbg1_len = ccdbg1.length();
-                const size_t ccdbg2_len = ccdbg2.length();
+                    CompactedDBG<> cdbg(opt.k, opt.g);
 
-                ColoredCDBG<>& ccdbg_a = (ccdbg1_len > ccdbg2_len) ? ccdbg1 : ccdbg2;
-                ColoredCDBG<>& ccdbg_b = (ccdbg1_len > ccdbg2_len) ? ccdbg2 : ccdbg1;
-
-                ccdbg_a.merge(move(ccdbg_b), opt.nb_threads, opt.verbose);
-
-                ccdbg_a.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                ccdbg_a.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
-            }
-            else {
-
-                CompactedDBG<> cdbg1(opt.k, opt.g);
-                CompactedDBG<> cdbg2(opt.k, opt.g);
-
-                cdbg1.read(opt.filename_graph_in, opt.nb_threads, opt.verbose);
-                cdbg2.build(opt);
-
-                const size_t cdbg1_len = cdbg1.length();
-                const size_t cdbg2_len = cdbg2.length();
-
-                CompactedDBG<>& cdbg_a = (cdbg1_len > cdbg2_len) ? cdbg1 : cdbg2;
-                CompactedDBG<>& cdbg_b = (cdbg1_len > cdbg2_len) ? cdbg2 : cdbg1;
-
-                cdbg_a.merge(cdbg_b, opt.nb_threads, opt.verbose);
-                cdbg_b.clear();
-
-                cdbg_a.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                cdbg_a.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
-            }
-        }
-        else if (opt.query){
-
-            if (opt.filename_colors_in.size() != 0){
-
-                ColoredCDBG<> ccdbg(opt.k, opt.g);
-
-                ccdbg.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
-                ccdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.inexact_search, opt.nb_threads, opt.verbose);
-            }
-            else {
-
-                CompactedDBG<> cdbg(opt.k, opt.g);
-
-                cdbg.read(opt.filename_graph_in, opt.nb_threads, opt.verbose);
-                cdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.inexact_search, opt.nb_threads, opt.verbose);
+                    cdbg.read(opt.filename_graph_in, opt.nb_threads, opt.verbose);
+                    cdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.inexact_search, opt.nb_threads, opt.verbose);
+                }
             }
         }
     }

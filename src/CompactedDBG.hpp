@@ -10,6 +10,8 @@
 #include <functional>
 #include <getopt.h>
 #include <iostream>
+#include <map>
+#include <set>
 #include <sstream>
 #include <stdint.h>
 #include <string>
@@ -27,6 +29,7 @@
 #include "FASTX_Parser.hpp"
 #include "GFA_Parser.hpp"
 #include "Kmer.hpp"
+#include "KmerCovIndex.hpp"
 #include "KmerHashTable.hpp"
 #include "KmerIterator.hpp"
 #include "KmerStream.hpp"
@@ -72,8 +75,6 @@ using namespace std;
 * Print information messages during execution if true. Default is false.
 * @var CDBG_Build_opt::nb_threads
 * Number of threads to use for building the graph. Default is 1.
-* @var CDBG_Build_opt::read_chunksize
-* Number of reads a thread can read and process at a time. Default is 64.
 * @var CDBG_Build_opt::nb_bits_unique_kmers_bf
 * Number of Bloom filter bits per k-mer occurring at least once in the FASTA/FASTQ/GFA files of
 * CDBG_Build_opt::filename_in. Default is 14.
@@ -129,7 +130,6 @@ struct CDBG_Build_opt {
     bool verbose;
 
     size_t nb_threads;
-    size_t read_chunksize;
 
     size_t nb_bits_unique_kmers_bf;
     size_t nb_bits_non_unique_kmers_bf;
@@ -167,7 +167,7 @@ struct CDBG_Build_opt {
     vector<string> filename_query_in;
 
     CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(-1), nb_bits_unique_kmers_bf(14),
-                        nb_bits_non_unique_kmers_bf(14), read_chunksize(64), ratio_kmers(0.8),
+                        nb_bits_non_unique_kmers_bf(14), ratio_kmers(0.8),
                         build(false), update(false), query(false), clipTips(false), deleteIsolated(false),
                         inexact_search(false), useMercyKmers(false), outputGFA(true), verbose(false) {}
 };
@@ -316,33 +316,30 @@ class CompactedDBG {
         template<typename U, typename G, bool is_const> friend class unitigIterator;
         template<typename U, typename G, bool is_const> friend class neighborIterator;
 
+        template<typename X, typename Y> friend class CompactedDBG;
+
         typedef unitigIterator<U, G, false> iterator; /**< An iterator for the unitigs of the graph. No specific order is assumed. */
         typedef unitigIterator<U, G, true> const_iterator; /**< A constant iterator for the unitigs of the graph. No specific order is assumed. */
 
         /** Constructor (set up an empty compacted dBG).
         * @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
-        */
-        CompactedDBG(const int kmer_length = DEFAULT_K);
-
-        /** Constructor (set up an empty compacted dBG).
-        * @param kmer_length is the length k of k-mers used in the graph (each unitig is of length at least k).
         * @param minimizer_length is the length g of minimizers (g < k) used in the graph.
         */
-        CompactedDBG(const int kmer_length, const int minimizer_length);
+        CompactedDBG(const int kmer_length = DEFAULT_K, const int minimizer_length = -1);
 
         /** Copy constructor (copy a compacted de Bruijn graph).
         * This function is expensive in terms of time and memory as the content of a compacted
         * de Bruijn graph is copied.  After the call to this function, the same graph exists twice in memory.
         * @param o is a constant reference to the compacted de Bruijn graph to copy.
         */
-        CompactedDBG(const CompactedDBG& o); // Copy constructor
+        CompactedDBG(const CompactedDBG<U, G>& o); // Copy constructor
 
         /** Move constructor (move a compacted de Bruijn graph).
         * The content of o is moved ("transfered") to a new compacted de Bruijn graph.
         * The compacted de Bruijn graph referenced by o will be empty after the call to this constructor.
         * @param o is a reference on a reference to the compacted de Bruijn graph to move.
         */
-        CompactedDBG(CompactedDBG&& o); // Move constructor
+        CompactedDBG(CompactedDBG<U, G>&& o); // Move constructor
 
         /** Destructor.
         */
@@ -354,7 +351,7 @@ class CompactedDBG {
         * @param o is a constant reference to the compacted de Bruijn graph to copy.
         * @return a reference to the compacted de Bruijn which is the copy.
         */
-        CompactedDBG<U, G>& operator=(const CompactedDBG& o);
+        CompactedDBG<U, G>& operator=(const CompactedDBG<U, G>& o);
 
         /** Move assignment operator (move a compacted de Bruijn graph).
         * The content of o is moved ("transfered") to a new compacted de Bruijn graph.
@@ -362,7 +359,7 @@ class CompactedDBG {
         * @param o is a reference on a reference to the compacted de Bruijn graph to move.
         * @return a reference to the compacted de Bruijn which has (and owns) the content of o.
         */
-        CompactedDBG<U, G>& operator=(CompactedDBG&& o);
+        CompactedDBG<U, G>& operator=(CompactedDBG<U, G>&& o);
 
         /** Addition assignment operator (merge a compacted de Bruijn graph).
         * After merging, all unitigs of o have been added to and compacted with the current compacted de Bruijn graph (this).
@@ -375,19 +372,19 @@ class CompactedDBG {
         * @param o is a constant reference to the compacted de Bruijn graph to merge.
         * @return a reference to the current compacted de Bruijn after merging.
         */
-        CompactedDBG<U, G>& operator+=(const CompactedDBG& o);
+        CompactedDBG<U, G>& operator+=(const CompactedDBG<U, G>& o);
 
         /** Equality operator.
         * @return a boolean indicating if two compacted de Bruijn graphs have the same unitigs (does not compare the data
         * associated with the unitigs).
         */
-        bool operator==(const CompactedDBG& o) const;
+        bool operator==(const CompactedDBG<U, G>& o) const;
 
         /** Inequality operator.
         * @return a boolean indicating if two compacted de Bruijn graphs have different unitigs (does not compare the data
         * associated with the unitigs).
         */
-        inline bool operator!=(const CompactedDBG& o) const;
+        inline bool operator!=(const CompactedDBG<U, G>& o) const;
 
         /** Clear the graph: empty the graph and reset its parameters.
         */
@@ -466,33 +463,33 @@ class CompactedDBG {
         const_UnitigMap<U, G> findUnitig(const char* s, const size_t pos, const size_t len) const;
 
         /** Performs exact and/or inexact search of the k-mers of a sequence query in the Compacted de Bruijn graph.
-        * @param seq is a string representing the sequence to be searched (the query).
-        * @param exact is a boolean indicating if the exact k-mers of string seq must be searched.
-        * @param insertion is a boolean indicating if the inexact k-mers of string seq, with one insertion, must be searched.
-        * @param deletion is a boolean indicating if the inexact k-mers of string seq, with one deletion, must be searched.
-        * @param substitution is a boolean indicating if the inexact k-mers of string seq, with one substitution, must be searched.
-        * @param or_exclusive_match is a boolean indicating to NOT search for the inexact k-mers at any given position in seq
+        * @param s is a string representing the sequence to be searched (the query).
+        * @param exact is a boolean indicating if the exact k-mers of string s must be searched.
+        * @param insertion is a boolean indicating if the inexact k-mers of string s, with one insertion, must be searched.
+        * @param deletion is a boolean indicating if the inexact k-mers of string s, with one deletion, must be searched.
+        * @param substitution is a boolean indicating if the inexact k-mers of string s, with one substitution, must be searched.
+        * @param or_exclusive_match is a boolean indicating to NOT search for the inexact k-mers at any given position in s
         * if the exact corresponding k-mer at that position is found in the graph. This option might lead to a substantial running time decrease.
-        * @return a vector of pair<size_t, UnitigMap<U, G>> objects. Each such pair has two elements: the position of the k-mer match in sequence seq
+        * @return a vector of pair<size_t, UnitigMap<U, G>> objects. Each such pair has two elements: the position of the k-mer match in sequence s
         * and the corresponding k-mer match in the graph. Note that no information is given on whether the match is exact or inexact, nor on what edit
         * operation makes the match to be inexact or at what position the edit operation takes place.
         */
-        vector<pair<size_t, UnitigMap<U, G>>> searchSequence(   const string& seq, const bool exact, const bool insertion, const bool deletion,
+        vector<pair<size_t, UnitigMap<U, G>>> searchSequence(   const string& s, const bool exact, const bool insertion, const bool deletion,
                                                                 const bool substitution, const bool or_exclusive_match = false);
 
         /** Performs exact and/or inexact search of the k-mers of a sequence query in the Compacted de Bruijn graph.
-        * @param seq is a string representing the sequence to be searched (the query).
-        * @param exact is a boolean indicating if the exact k-mers of string seq must be searched.
-        * @param insertion is a boolean indicating if the inexact k-mers of string seq, with one insertion, must be searched.
-        * @param deletion is a boolean indicating if the inexact k-mers of string seq, with one deletion, must be searched.
-        * @param substitution is a boolean indicating if the inexact k-mers of string seq, with one substitution, must be searched.
-        * @param or_exclusive_match is a boolean indicating to NOT search for the inexact k-mers at any given position in seq
+        * @param s is a string representing the sequence to be searched (the query).
+        * @param exact is a boolean indicating if the exact k-mers of string s must be searched.
+        * @param insertion is a boolean indicating if the inexact k-mers of string s, with one insertion, must be searched.
+        * @param deletion is a boolean indicating if the inexact k-mers of string s, with one deletion, must be searched.
+        * @param substitution is a boolean indicating if the inexact k-mers of string s, with one substitution, must be searched.
+        * @param or_exclusive_match is a boolean indicating to NOT search for the inexact k-mers at any given position in s
         * if the exact corresponding k-mer at that position is found in the graph. This option might lead to a substantial running time decrease.
-        * @return a vector of pair<size_t, const_UnitigMap<U, G>> objects. Each such pair has two elements: the position of the k-mer match in sequence seq
+        * @return a vector of pair<size_t, const_UnitigMap<U, G>> objects. Each such pair has two elements: the position of the k-mer match in sequence s
         * and the corresponding k-mer match in the graph. Note that no information is given on whether the match is exact or inexact, nor on what edit
         * operation makes the match to be inexact or at what position the edit operation takes place.
         */
-        vector<pair<size_t, const_UnitigMap<U, G>>> searchSequence( const string& seq, const bool exact, const bool insertion, const bool deletion,
+        vector<pair<size_t, const_UnitigMap<U, G>>> searchSequence( const string& s, const bool exact, const bool insertion, const bool deletion,
                                                                     const bool substitution, const bool or_exclusive_match = false) const;
 
         /** Add a sequence to the Compacted de Bruijn graph. Non-{A,C,G,T} characters such as Ns are discarded.
@@ -577,10 +574,15 @@ class CompactedDBG {
         */
         inline int getK() const { return k_; }
 
+        /** Return the length of minimizers of the graph.
+        * @return Length of minimizers of the graph.
+        */
+        inline int getG() const { return g_; }
+
         /** Return the number of unitigs in the graph.
         * @return Number of unitigs in the graph.
         */
-        inline size_t size() const { return v_unitigs.size() + v_kmers.size() + h_kmers_ccov.size(); }
+        inline size_t size() const { return v_unitigs.size() + km_unitigs.size() + h_kmers_ccov.size(); }
 
         /** Return a pointer to the graph data. Pointer is nullptr if type of graph data is void.
         * @return A pointer to the graph data. Pointer is nullptr if type of graph data is void.
@@ -613,6 +615,8 @@ class CompactedDBG {
 
     private:
 
+        CompactedDBG<U, G>& toDataGraph(CompactedDBG<void, void>&& o, const size_t nb_threads = 1);
+
         bool filter(const CDBG_Build_opt& opt, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers);
         bool construct(const CDBG_Build_opt& opt, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers);
 
@@ -625,13 +629,15 @@ class CompactedDBG {
         inline size_t find(const preAllocMinHashIterator<RepHash>& it_min_h) const {
 
             const int pos = it_min_h.getPosition();
-            return (hmap_min_unitigs.find(Minimizer(&it_min_h.s[pos]).rep()) != hmap_min_unitigs.end() ? 0 : pos - it_min_h.p);
+            return (hmap_min_unitigs.find(Minimizer(it_min_h.s + pos).rep()) != hmap_min_unitigs.end() ? 0 : pos - it_min_h.p);
         }
 
         UnitigMap<U, G> find(const char* s, const size_t pos_km, const minHashIterator<RepHash>& it_min, const bool extremities_only = false);
         const_UnitigMap<U, G> find(const char* s, const size_t pos_km, const minHashIterator<RepHash>& it_min, const bool extremities_only = false) const;
 
         UnitigMap<U, G> find(const Kmer& km, const preAllocMinHashIterator<RepHash>& it_min_h);
+
+        //vector<const_UnitigMap<U, G>> find(const Minimizer& minz) const;
 
         vector<const_UnitigMap<U, G>> findPredecessors(const Kmer& km, const bool extremities_only = false) const;
         vector<const_UnitigMap<U, G>> findSuccessors(const Kmer& km, const size_t limit = 4, const bool extremities_only = false) const;
@@ -689,8 +695,11 @@ class CompactedDBG {
         typename std::enable_if<is_void, size_t>::type joinUnitigs_(vector<Kmer>* v_joins = nullptr, const size_t nb_threads = 1);
 
         void moveToAbundant();
+        void setFullCoverage(const size_t cov) const;
 
         void createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>& joins, const size_t nb_threads) const;
+        void createJoinHT(vector<Kmer>* v_joins, KmerHashTable<char>& joins, const size_t nb_threads) const;
+
         bool checkJoin(const Kmer& a, const const_UnitigMap<U, G>& cm_a, Kmer& b) const;
         void check_fp_tips(KmerHashTable<bool>& ignored_km_tips);
         size_t removeUnitigs(bool rmIsolated, bool clipTips, vector<Kmer>& v);
@@ -711,7 +720,9 @@ class CompactedDBG {
 
         void mapRead(const const_UnitigMap<U, G>& um);
         void mapRead(const const_UnitigMap<U, G>& um, LockGraph& lck_g);
+
         void unmapRead(const const_UnitigMap<U, G>& um);
+        void unmapRead(const const_UnitigMap<U, G>& um, LockGraph& lck_g);
 
         void setKmerGmerLength(const int kmer_length, const int minimizer_length = -1);
         void print() const;
@@ -734,8 +745,8 @@ class CompactedDBG {
         typedef KmerHashTable<CompressedCoverage_t<U>> h_kmers_ccov_t;
 
         vector<Unitig<U>*> v_unitigs;
-        vector<pair<Kmer, CompressedCoverage_t<U>>> v_kmers;
 
+        KmerCovIndex<U> km_unitigs;
         MinimizerIndex hmap_min_unitigs;
 
         h_kmers_ccov_t h_kmers_ccov;

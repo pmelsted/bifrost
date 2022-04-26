@@ -18,46 +18,60 @@
 * @var Unitig::data
 * Data associated with the unitigs of the graph.
 */
-template<typename T>
+template<typename T = void>
 class Unitig {
 
     public:
 
-        Unitig() : coveragesum(0) {}
-        Unitig(const char* s, bool full = false) : seq(s) { initializeCoverage(full); }
+        Unitig() {}
+        Unitig(const CompressedSequence& s, const CompressedCoverage& c) : seq(s), cov(c) {}
+        Unitig(CompressedSequence&& s, CompressedCoverage&& c) : seq(move(s)), cov(move(c)) {}
+        Unitig(const char* s, bool full = false) : seq(s), cov(seq.size() - Kmer::k + 1, full) {}
 
-        void initializeCoverage(bool full) {
+        BFG_INLINE size_t numKmers() const {
 
-            const size_t ssz = seq.size(), k = Kmer::k;
-
-            coveragesum = 0;
-
-            ccov = CompressedCoverage();
-            ccov.initialize(ssz >= k ? ssz - k + 1 : 0, full);
+            return seq.size( ) - Kmer::k + 1;
         }
 
-        void cover(size_t start, size_t end) {
+        BFG_INLINE size_t length() const {
 
-            ccov.cover(start, end);
-
-            if (end < start) swap(start, end);
-
-            __sync_add_and_fetch(&coveragesum, end - start + 1);
+            return seq.size();
         }
 
-        inline size_t numKmers() const { return seq.size( ) - Kmer::k + 1; }
-        inline size_t length() const { return seq.size(); }
+        BFG_INLINE const CompressedSequence& getSeq() const {
 
-        /** Return a constant pointer to the data associated with the unitig.
-        * @return a constant pointer to the data associated with the unitig.
-        */
-        inline const T* getData() const { return &data; }
-        inline T* getData() { return &data; }
+            return seq;
+        }
 
-        uint64_t coveragesum;
+        BFG_INLINE CompressedSequence& getSeq() {
 
-        CompressedCoverage ccov;
+            return seq;
+        }
+
+        BFG_INLINE const CompressedCoverage& getCov() const {
+
+            return cov;
+        }
+
+        BFG_INLINE CompressedCoverage& getCov() {
+
+            return cov;
+        }
+
+        BFG_INLINE const T* getData() const {
+
+            return &data;
+        }
+
+        BFG_INLINE T* getData() {
+
+            return &data;
+        }
+
+    private:
+
         CompressedSequence seq;
+        CompressedCoverage cov;
 
         T data;
 };
@@ -68,38 +82,55 @@ class Unitig<void> {
 
     public:
 
-        Unitig() : coveragesum(0) {}
-        Unitig(const char* s, bool full = false) : seq(s) { initializeCoverage(full); }
+        Unitig() {}
+        Unitig(const CompressedSequence& s, const CompressedCoverage& c) : seq(s), cov(c) {}
+        Unitig(CompressedSequence&& s, CompressedCoverage&& c) : seq(move(s)), cov(move(c)) {}
+        Unitig(const char* s, bool full = false) : seq(s), cov(seq.size() - Kmer::k + 1, full) {}
 
-        void initializeCoverage(bool full) {
+        BFG_INLINE size_t numKmers() const {
 
-            const size_t ssz = seq.size(), k = Kmer::k;
-
-            coveragesum = 0;
-
-            ccov = CompressedCoverage();
-            ccov.initialize(ssz >= k ? ssz - k + 1 : 0, full);
+            return seq.size( ) - Kmer::k + 1;
         }
 
-        void cover(size_t start, size_t end) {
+        BFG_INLINE size_t length() const {
 
-            ccov.cover(start, end);
-
-            if (end < start) swap(start, end);
-
-            __sync_add_and_fetch(&coveragesum, end - start + 1);
+            return seq.size();
         }
 
-        inline size_t numKmers() const { return seq.size( ) - Kmer::k + 1; }
-        inline size_t length() const { return seq.size(); }
+        BFG_INLINE const CompressedSequence& getSeq() const {
 
-        inline const void* getData() const { return nullptr; }
-        inline void* getData() { return nullptr; }
+            return seq;
+        }
 
-        uint64_t coveragesum;
+        BFG_INLINE CompressedSequence& getSeq() {
 
-        CompressedCoverage ccov;
+            return seq;
+        }
+
+        BFG_INLINE const CompressedCoverage& getCov() const {
+
+            return cov;
+        }
+
+        BFG_INLINE CompressedCoverage& getCov() {
+
+            return cov;
+        }
+
+        BFG_INLINE const void* getData() const {
+
+            return nullptr;
+        }
+
+        BFG_INLINE void* getData() {
+
+            return nullptr;
+        }
+
+    private:
+
         CompressedSequence seq;
+        CompressedCoverage cov;
 };
 ///@endcond
 

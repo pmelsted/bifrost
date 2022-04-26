@@ -1,4 +1,3 @@
-/* auto-generated on Fri Jun 29 10:35:30 GMT 2018. Do not edit! */
 #include "roaring.h"
 
 /* used for http://dmalloc.com/ Dmalloc - Debug Malloc Library */
@@ -9658,6 +9657,69 @@ bool roaring_bitmap_select(const roaring_bitmap_t *bm, uint32_t rank,
         return false;
 }
 
+roaring_bitmap_t *roaring_bitmap_subsample(const roaring_bitmap_t *x, const uint64_t nb) {
+
+    void *container;
+    uint8_t typecode;
+    uint16_t key;
+    uint32_t start_rank = 0, prev_start_rank = 0;
+    uint32_t element;
+
+    roaring_bitmap_t *sampled_ids = roaring_bitmap_create();
+
+    if (nb == 0) return sampled_ids;
+
+    roaring_bitmap_t *sampled_pos = roaring_bitmap_create();
+
+    uint64_t card = roaring_bitmap_get_cardinality(x);
+
+    const uint64_t seed = rand();
+
+    for (uint64_t i = 0; i < nb; ++i) {
+
+        // wyhash pseudo-random number generator
+        // from https://github.com/lemire/testingRNG/blob/master/source/wyhash.h
+        // because just calling rand() is so f****** slow
+        uint64_t l_seed = seed + UINT64_C(0x60bee2bee120fc15);
+        __uint128_t tmp;
+        tmp = (__uint128_t)l_seed * UINT64_C(0xa3b195354a39b70d);
+        uint64_t m1 = (tmp >> 64) ^ tmp;
+        tmp = (__uint128_t)m1 * UINT64_C(0x1b03738712fad5c9);
+        uint64_t m2 = (tmp >> 64) ^ tmp;
+
+        roaring_bitmap_add(sampled_pos, (uint32_t)(m2 % card));
+    }
+
+    roaring_uint32_iterator_t *it = roaring_create_iterator(sampled_pos);
+
+    int i = 0;
+
+    while (it->has_value && (i < x->high_low_container.size)) {
+
+        container = x->high_low_container.containers[i];
+        typecode = x->high_low_container.typecodes[i];
+        
+        if (container_select(container, typecode, &start_rank, it->current_value, &element)) {
+
+            element |= (x->high_low_container.keys[i] << 16);
+            start_rank = prev_start_rank;
+
+            roaring_bitmap_add(sampled_ids, element);
+            roaring_advance_uint32_iterator(it);
+        }
+        else {
+
+            i++;
+            prev_start_rank = start_rank;
+        }
+    }
+
+    roaring_free_uint32_iterator(it);
+    roaring_bitmap_free(sampled_pos);
+
+    return sampled_ids;
+}
+
 bool roaring_bitmap_intersect(const roaring_bitmap_t *x1,
                                      const roaring_bitmap_t *x2) {
     const int length1 = x1->high_low_container.size,
@@ -9687,7 +9749,6 @@ bool roaring_bitmap_intersect(const roaring_bitmap_t *x1,
     return answer;
 }
 
-
 uint64_t roaring_bitmap_and_cardinality(const roaring_bitmap_t *x1,
                                         const roaring_bitmap_t *x2) {
     const int length1 = x1->high_low_container.size,
@@ -9696,6 +9757,37 @@ uint64_t roaring_bitmap_and_cardinality(const roaring_bitmap_t *x1,
     int pos1 = 0, pos2 = 0;
 
     while (pos1 < length1 && pos2 < length2) {
+        const uint16_t s1 = ra_get_key_at_index(&x1->high_low_container, pos1);
+        const uint16_t s2 = ra_get_key_at_index(&x2->high_low_container, pos2);
+
+        if (s1 == s2) {
+            uint8_t container_type_1, container_type_2;
+            void *c1 = ra_get_container_at_index(&x1->high_low_container, pos1,
+                                                 &container_type_1);
+            void *c2 = ra_get_container_at_index(&x2->high_low_container, pos2,
+                                                 &container_type_2);
+            answer += container_and_cardinality(c1, container_type_1, c2,
+                                                container_type_2);
+            ++pos1;
+            ++pos2;
+        } else if (s1 < s2) {  // s1 < s2
+            pos1 = ra_advance_until(&x1->high_low_container, s2, pos1);
+        } else {  // s1 > s2
+            pos2 = ra_advance_until(&x2->high_low_container, s1, pos2);
+        }
+    }
+    return answer;
+}
+
+uint64_t roaring_bitmap_and_min_cardinality(const roaring_bitmap_t *x1,
+                                            const roaring_bitmap_t *x2,
+                                            const uint64_t min_shared) {
+    const int length1 = x1->high_low_container.size,
+              length2 = x2->high_low_container.size;
+    uint64_t answer = 0;
+    int pos1 = 0, pos2 = 0;
+
+    while (pos1 < length1 && pos2 < length2 && answer < min_shared) {
         const uint16_t s1 = ra_get_key_at_index(&x1->high_low_container, pos1);
         const uint16_t s2 = ra_get_key_at_index(&x2->high_low_container, pos2);
 

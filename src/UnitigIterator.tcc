@@ -16,7 +16,7 @@ unitigIterator<U, G, is_const>::unitigIterator(CompactedDBG_ptr_t cdbg_) :
         invalid = false;
 
         v_unitigs_sz = cdbg->v_unitigs.size();
-        v_kmers_sz = cdbg->v_kmers.size();
+        v_kmers_sz = cdbg->km_unitigs.size();
         h_kmers_ccov_sz = cdbg->h_kmers_ccov.size();
 
         sz = v_unitigs_sz + v_kmers_sz + h_kmers_ccov_sz;
@@ -41,8 +41,8 @@ unitigIterator<U, G, is_const>& unitigIterator<U, G, is_const>::operator++() {
 
     if (i < v_unitigs_sz){
 
-        um = UnitigMap<U, G, is_const>(i, 0, cdbg->v_unitigs[i]->seq.size() - cdbg->getK() + 1,
-                                       cdbg->v_unitigs[i]->seq.size(), false, false, true, cdbg);
+        um = UnitigMap<U, G, is_const>(i, 0, cdbg->v_unitigs[i]->getSeq().size() - cdbg->getK() + 1,
+                                       cdbg->v_unitigs[i]->getSeq().size(), false, false, true, cdbg);
     }
     else if (i < (v_unitigs_sz + v_kmers_sz)){
 

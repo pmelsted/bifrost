@@ -1,6 +1,6 @@
 # Bifrost
 
-### Highly parallel construction, indexing and querying of colored and compacted de Bruijn graphs
+### Parallel construction, indexing and querying of colored and compacted de Bruijn graphs
 
 * **Build**, **index**, **color** and **query** the compacted de Bruijn graph
 * **No need to build the uncompacted** de Bruijn graph
@@ -18,28 +18,27 @@
 
 ## Table of Contents
 
-* [Requirements](https://github.com/pmelsted/bifrost#requirements)
-* [Installation](https://github.com/pmelsted/bifrost#installation)
-* [Binary usage](https://github.com/pmelsted/bifrost#binary-usage)
-* [API](https://github.com/pmelsted/bifrost#api)
-* [FAQ](https://github.com/pmelsted/bifrost#faq)
-* [Troubleshooting](https://github.com/pmelsted/bifrost#troubleshooting)
-* [Citation](https://github.com/pmelsted/bifrost#citation)
-* [Contact](https://github.com/pmelsted/bifrost#contact)
-* [License](https://github.com/pmelsted/bifrost#license)
+* [Requirements](#requirements)
+* [Installation](#installation)
+* [Binary usage](#binary-usage)
+* [API](#api)
+* [FAQ](#faq)
+* [Troubleshooting](#troubleshooting)
+* [Citation](#citation)
+* [Contact](#contact)
+* [License](#license)
 
 ## Requirements
 
-If you intend to install Bifrost using Homebrew, you can directly go to Section [Installation](#installation).
+To install Bifrost using Bioconda or Brew, go directly to Section [Installation](#installation). To install from source, you will need:
 
-* 64 bits POSIX-compliant operating system
-* C++11 capable compiler:
-    * [GCC](https://gcc.gnu.org/) 4.8.5 or later
-    * [Clang](http://clang.llvm.org/) 3.5 or later
-* [Cmake](https://cmake.org/) 2.8.12 or later
+* C++11 compiler:
+    * [GCC](https://gcc.gnu.org/) >= 4.8.5
+    * [Clang](http://clang.llvm.org/) >= 3.5
+* [Cmake](https://cmake.org/) >= 2.8.12
 * [Zlib](https://zlib.net/)
 
-GCC/Clang, Cmake and Zlib are probably already installed on your computer (those are installed by default on most operating systems) but they can be downloaded and installed by following the instructions on their respective websites. It is most likely that all are available via a package manager for your operating system: 
+All are probably already installed on your computer as those are installed by default on most operating systems. They can be downloaded and installed by following the instructions on their respective websites. However, it is most likely they are all available via a package manager for your operating system: 
 
 * **Ubuntu/Debian**:
 ```
@@ -63,49 +62,56 @@ sudo apt-get install build-essential cmake zlib1g-dev
 
 ## Installation
 
-* From Homebrew:
+Compared to the source install, the Conda package do not support *k>31* nor native compilation (including AVX2 instructions). Use the source installation for benchmarking.
+
+* From [Bioconda](https://bioconda.github.io):
 
   ```
-  brew install brewsci/bio/bifrost
+  conda -c bioconda bifrost
   ```
-
-  Contribution of Torsten Seemann.
 
 * From source
 
   ```
-  cd <bifrost_directory>
-  mkdir build
-  cd build
+  git clone https://github.com/pmelsted/bifrost.git
+  cd bifrost && mkdir build && cd build
   cmake ..
   make
   make install
   ```
 
-  `make install` might requires `sudo` (`sudo make install`) to proceed. See [Troubleshooting](#troubleshooting) if you have any problem during the installation.
+  `make install` might require `sudo` (`sudo make install`) to proceed. To install Bifrost in the non-default path `/some/path/`, add the option `-DCMAKE_INSTALL_PREFIX=/some/path/` to the `cmake` command.
 
   By default, the installation creates:
   * a binary (*Bifrost*)
   * a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS)
   * a static library (*libbifrost.a*)
 
+  **Advanced options**
+  * Bifrost compiles by default with `-march=native`: the compiler targets architecture instructions specific to the machine Bifrost is compiled on. Hence, the binary and library produced might not work on a different machine. Native compilation can be disabled by adding the option `-DCOMPILATION_ARCH=OFF` to the `cmake` command (disables all AVX2 optimizations too). Alternatively, you can use this option to specify the architecture you want to target: `x86-64`, `knl`, etc. Default is `-DCOMPILATION_ARCH=native`.
+  * Bifrost uses AVX2 instructions during graph construction which can be disabled by adding the option `-DENABLE_AVX2=OFF` to the `cmake` command.
+
+  If you encounter any problem during the installation, see the [Troubleshooting](#troubleshooting) section.
+
 ### Large *k*-mers
 
 The default maximum *k*-mer size supported is 31. To work with larger *k* in the binary, you must install Bifrost from source and replace *MAX_KMER_SIZE* with a larger multiple of 32. This can be done in two ways:
 
-* At the compilation step:
+* By adding the following option to the `cmake` command:
 ```
-cmake -DMAX_KMER_SIZE=64 ..
+-DMAX_KMER_SIZE=64
 ```
 
 * By replacing *MAX_KMER_SIZE* in *CMakeLists.txt*:
 ```
-set( MAX_KMER_SIZE "64")
+SET(MAX_KMER_SIZE "64" CACHE STRING "MAX_KMER_SIZE")
 ```
 
-Actual maximum k-mer size is *MAX_KMER_SIZE-1* so for *MAX_KMER_SIZE=64*, the maximum *k* allowed is 63. Keep in mind that increasing *MAX_KMER_SIZE* increases Bifrost memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
+Actual maximum k-mer size is *MAX_KMER_SIZE-1*, e.g maximum *k* is 63 for *MAX_KMER_SIZE=64*. Increasing *MAX_KMER_SIZE* increases Bifrost memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
 
-To work with larger *k* when using the Bifrost API, the new value *MAX_KMER_SIZE* must be given to the compiler and linker as explained in Section [API](https://github.com/pmelsted/bifrost#api)
+The maximum size of minimizers (*g*-mers) *MAX_GMER_SIZE* can be adjusted the same way as *MAX_KMER_SIZE*. This is especially useful if you want to use a large *k*-mer size but a small *g*-mer size. By default, *MAX_GMER_SIZE* is equal to *MAX_KMER_SIZE*.
+
+To work with larger *k* when using the Bifrost API, the new value *MAX_KMER_SIZE* must be given to the compiler and linker as explained in Section [API](#api)
 
 ## Binary usage:
 
@@ -211,53 +217,59 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
 
 ### Examples
 
-1. **Build a compacted de Bruijn graph from read files and clean the graph**
-   ```
-   Bifrost build -t 4 -k 31 -i -d -s A.fastq -s B.fastq -o AB_graph 
-   ```
-   The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq* and *B.fastq* (`-s A.fastq -s B.fastq`). By using parameter `-s`, files *A.fastq* and *B.fastq* are filtered: 31-mers occurring exactly once in *A* and *B* are discarded from the construction. Graph simplification steps are performed after building (`-i -d`) and the graph is written to file *AB_graph.gfa* (`-o AB_graph`).
+- **Build**
 
-2. **Build a compacted de Bruijn graph from a reference genome file**
-   ```
-   Bifrost build -t 4 -k 31 -r C.fasta -o C_graph 
-   ```
-   The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of file *C.fasta* (`-r C.fasta`). By using parameter `-r`, file *C.fasta* is NOT filtered: all 31-mers occurring in *C* are used during the construction. The graph is written to file *C_graph.gfa* (`-o C_graph`).
+  1. **Build a compacted de Bruijn graph from read files and clean the graph**
+     ```
+     Bifrost build -t 4 -k 31 -i -d -s A.fastq -s B.fastq -o AB_graph 
+     ```
+     The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq* and *B.fastq* (`-s A.fastq -s B.fastq`). By using parameter `-s`, files *A.fastq* and *B.fastq* are filtered: 31-mers occurring exactly once in *A* and *B* are discarded from the construction. Graph simplification steps are performed after building (`-i -d`) and the graph is written to file *AB_graph.gfa* (`-o AB_graph`).
 
-3. **Build a compacted and colored de Bruijn graph from read files and reference genome files, clean the graph**
-   ```
-   Bifrost build -t 4 -k 31 -c -i -d -s A.fastq -s B.fastq -r C.fasta -o ABC 
-   ```
-   Combining the two previous examples, the compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq*, *B.fastq* (`-s A.fastq -s B.fastq`) and file *C.fasta* (`-r C.fasta`). Graph simplification steps are performed after building (`-i -d`). The graph is colored (`-c`), meaning that each k-mer of the graph unitigs keeps track of whether it occurs in *A*, *B* or *C*. The graph is written to file *ABC.gfa* and the colors are written to file *ABC.bfg_colors* (`-o ABC`).
+  2. **Build a compacted de Bruijn graph from a reference genome file**
+     ```
+     Bifrost build -t 4 -k 31 -r C.fasta -o C_graph 
+     ```
+     The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of file *C.fasta* (`-r C.fasta`). By using parameter `-r`, file *C.fasta* is NOT filtered: all 31-mers occurring in *C* are used during the construction. The graph is written to file *C_graph.gfa* (`-o C_graph`).
 
-4. **Update a compacted de Bruijn graph with a reference genome file**
-   ```
-   Bifrost update -t 4 -r D.fasta -g C_graph.gfa -o CD_graph 
-   ```
-   The compacted de Bruijn graph *C* (`-g C_graph.gfa`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of file *D.fasta* (`-r D.fasta`). By using parameter `-r`, file *D.fasta* is NOT filtered: all *k*-mers occurring in *D* are used during the merging. The graph is written to file *CD_graph.gfa* (`-o CD_graph`).
+  3. **Build a compacted and colored de Bruijn graph from read files and reference genome files, clean the graph**
+     ```
+     Bifrost build -t 4 -k 31 -c -i -d -s A.fastq -s B.fastq -r C.fasta -o ABC 
+     ```
+     Combining the two previous examples, the compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq*, *B.fastq* (`-s A.fastq -s B.fastq`) and file *C.fasta* (`-r C.fasta`). Graph simplification steps are performed after building (`-i -d`). The graph is colored (`-c`), meaning that each k-mer of the graph unitigs keeps track of whether it occurs in *A*, *B* or *C*. The graph is written to file *ABC.gfa* and the colors are written to file *ABC.bfg_colors* (`-o ABC`).
 
-5. **Update a compacted and colored de Bruijn graph with read files and clean the graph**
-   ```
-   Bifrost update -t 4 -i -d -s E.fastq -s F.fastq -g ABC.gfa -f ABC.bfg_colors -o ABCEF 
-   ```
-   The compacted and colored de Bruijn graph *ABC* (`-g ABC.gfa -f ABC.bfg_colors`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of files *E.fastq* and *F.fastq* (`-s E.fastq -s F.fastq`). Graph simplification steps are performed after merging (`-i -d`). The graph is written to file *ABCEF.gfa* and the colors are written to file *ABCEF.bfg_colors* (`-o ABCEF`).
+- **Update**
 
-6. **Query a compacted de Bruijn graph for presence/absence of queries in the graph**
-   ```
-   Bifrost query -t 4 -e 0.8 -g ABCEF.gfa -q queries.fasta -o presence_queries 
-   ```
-   The compacted de Bruijn graph *ABCEF* (`-g ABCEF.gfa`) is queried (`query`) with 4 threads (`-t 4`) for the presence/absence of sequences from file *queries.fasta* (`-q queries.fasta`). At least 80% of each query *k*-mers must be found in the graph to have the query reported as present (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, column is presence/absence in graph, intersection of a row and a column is a binary value indicating presence/absence of the query in graph (1 is present, 0 is not present).
+  1. **Update a compacted de Bruijn graph with a reference genome file**
+     ```
+     Bifrost update -t 4 -r D.fasta -g C_graph.gfa -o CD_graph 
+     ```
+     The compacted de Bruijn graph *C* (`-g C_graph.gfa`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of file *D.fasta* (`-r D.fasta`). By using parameter `-r`, file *D.fasta* is NOT filtered: all *k*-mers occurring in *D* are used during the merging. The graph is written to file *CD_graph.gfa* (`-o CD_graph`).
 
-7. **Query a compacted de Bruijn graph for presence/absence of queries in the graph in inexact mode**
-   ```
-   Bifrost query -t 4 -e 0.8 -n -g ABCEF.gfa -q queries.fasta -o presence_queries 
-   ```
-   The compacted de Bruijn graph *ABCEF* (`-g ABCEF.gfa`) is queried (`query`) with 4 threads (`-t 4`) for the presence/absence of sequences from file *queries.fasta* (`-q queries.fasta`). At least 80% of each query *k*-mers must be found in the graph to have the query reported as present (`-e 0.8`). Queries are searched for exact and inexact *k*-mers (`-n`): *k*-mers with up to one substitution or indel. The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, column is presence/absence in graph, intersection of a row and a column is a binary value indicating presence/absence of the query in graph (1 is present, 0 is not present).
+  2. **Update a compacted and colored de Bruijn graph with read files and clean the graph**
+     ```
+     Bifrost update -t 4 -i -d -s E.fastq -s F.fastq -g ABC.gfa -f ABC.bfg_colors -o ABCEF 
+     ```
+     The compacted and colored de Bruijn graph *ABC* (`-g ABC.gfa -f ABC.bfg_colors`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of files *E.fastq* and *F.fastq* (`-s E.fastq -s F.fastq`). Graph simplification steps are performed after merging (`-i -d`). The graph is written to file *ABCEF.gfa* and the colors are written to file *ABCEF.bfg_colors* (`-o ABCEF`).
 
-8. **Query a colored and compacted de Bruijn graph for presence/absence of queries in each color of the graph**
-   ```
-   Bifrost query -t 4 -e 0.8 -g ABCEF.gfa -f ABCEF.bfg_colors -q queries.fasta -o presence_queries 
-   ```
-   The compacted and colored de Bruijn graph *ABCEF* (`-g ABCEF.gfa -f ABCEF.bfg_colors`) is queried (`query`) with 4 threads (`-t 4`) for the sequences of file *queries.fasta* (`-q queries.fasta`). At least 80% of each query *k*-mers must be found in a color of the graph to have the query reported as present for that color (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, columns are the colors, intersection of a row and a column is a binary value indicating presence/absence of the query in the color of the graph (1 is present, 0 is not present).
+- **Query**
+
+  1. **Query a compacted de Bruijn graph for presence/absence of queries in the graph**
+     ```
+     Bifrost query -t 4 -e 0.8 -g ABCEF.gfa -q queries.fasta -o presence_queries 
+     ```
+     The compacted de Bruijn graph *ABCEF* (`-g ABCEF.gfa`) is queried (`query`) with 4 threads (`-t 4`) for the presence/absence of sequences from file *queries.fasta* (`-q queries.fasta`). At least 80% of each query *k*-mers must be found in the graph to have the query reported as present (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, column is presence/absence in graph, intersection of a row and a column is a binary value indicating presence/absence of the query in graph (1 is present, 0 is not present).
+
+  2. **Query a compacted de Bruijn graph for presence/absence of queries in the graph in inexact mode**
+     ```
+     Bifrost query -t 4 -e 0.8 -n -g ABCEF.gfa -q queries.fasta -o presence_queries 
+     ```
+     The compacted de Bruijn graph *ABCEF* (`-g ABCEF.gfa`) is queried (`query`) with 4 threads (`-t 4`) for the presence/absence of sequences from file *queries.fasta* (`-q queries.fasta`). At least 80% of each query *k*-mers must be found in the graph to have the query reported as present (`-e 0.8`). Queries are searched for exact and inexact *k*-mers (`-n`): *k*-mers with up to one substitution or indel. The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, column is presence/absence in graph, intersection of a row and a column is a binary value indicating presence/absence of the query in graph (1 is present, 0 is not present).
+
+  3. **Query a colored and compacted de Bruijn graph for presence/absence of queries in each color of the graph**
+     ```
+     Bifrost query -t 4 -e 0.8 -g ABCEF.gfa -f ABCEF.bfg_colors -q queries.fasta -o presence_queries 
+     ```
+     The compacted and colored de Bruijn graph *ABCEF* (`-g ABCEF.gfa -f ABCEF.bfg_colors`) is queried (`query`) with 4 threads (`-t 4`) for the sequences of file *queries.fasta* (`-q queries.fasta`). At least 80% of each query *k*-mers must be found in a color of the graph to have the query reported as present for that color (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, columns are the colors, intersection of a row and a column is a binary value indicating presence/absence of the query in the color of the graph (1 is present, 0 is not present).
 
 ## API
 
@@ -277,16 +289,23 @@ The documentation contains a description of all the functions and structures of 
 
 ### Usage
 
-Once Bifrost is installed on your operating system, just use
+The Bifrost C++ API can be used by adding
 ```
 #include <bifrost/CompactedDBG.hpp>
 ```
-in your C++ code. Then, use the following flags for compiling:
+for uncolored compacted de Bruijn graphs and
 ```
--O3 -std=c++11 -march=native
+#include <bifrost/ColoredCDBG.hpp>
 ```
+for colored compacted de Bruijn graphs in your C++ headers.
 
-and the following flags for linking:
+To compile, we recommend using the following compile flags:
+```
+-O3 -std=c++11
+```
+Furthermore, Bifrost compiles by default with flag `-march=native` so unless native compilation was disabled when installing Bifrost, use flag `-march=native` too.
+
+Finally, use the following flags for linking:
 ```
 -lbifrost -pthread -lz
 ```
@@ -296,23 +315,11 @@ You can also link to the Bifrost static library (*libbifrost.a*) for better perf
 <path_to_lib_folder>/libbifrost.a -pthread -lz
 ```
 
-The default maximum *k*-mer size supported is 31. To work with larger *k*, the code using the Bifrost API must be compiled and linked with the flag `-DMAX_KMER_SIZE=x` where `x` is a larger and appropriate number (a power of 2), such as:
+The default maximum *k*-mer size supported is 31. To work with larger *k*, the code using the Bifrost C++ API must be compiled and linked with the flag `-DMAX_KMER_SIZE=x` for compiling and linking where `x` is a larger multiple of 32, such as:
 ```
--DMAX_KMER_SIZE=64 -O3 -std=c++11 -march=native
+-DMAX_KMER_SIZE=64
 ```
-
-and the following flags for linking:
-```
--DMAX_KMER_SIZE=64 -lbifrost -pthread -lz
-```
-
-In this case, the maximum *k* allowed is 63. Keep in mind that increasing the maximum *k*-mer size increases Bifrost memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
-
-### With colors
-
-```
-#include <bifrost/ColoredCDBG.hpp>
-```
+Actual maximum k-mer size is *MAX_KMER_SIZE-1*, e.g maximum *k* is 63 for *MAX_KMER_SIZE=64*. Increasing *MAX_KMER_SIZE* increases Bifrost memory usage (*k*=31 uses 8 bytes of memory per *k*-mer while *k*=63 uses 16 bytes of memory per *k*-mer).
 
 ## FAQ
 
@@ -354,8 +361,6 @@ All of them. The difference between the graphs resides in circular unitigs (unit
 
 ## Troubleshooting
 
-The following might happen when environment variables are not set correctly on your system:
-
 * compilation (`make`) fails because some header files (*.h*) are not found
 
 Assuming the header files (*.h*) are located at the path */usr/local/include/*, the following command set the environment variables *C_INCLUDE_PATH* and *CPLUS_INCLUDE_PATH* correctly for the time of the session:
@@ -372,6 +377,10 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
 export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/lib/
 export PATH=$PATH:/usr/local/lib/
 ```
+
+* Bifrost crashes right at the beginning with error `Illegal instruction`
+
+  You are most likely running Bifrost on a different machine than the one used to compile it. By default, Bifrost is compiled in native mode such to target architecture instructions specific to the machine it is compiled on. Using Bifrost on a different machine with a different architecture might result in this error. To solve this issue, Bifrost must be recompiled with native architecture compilation disabled, as explained in the Advanced options of Section [Installation](#installation).
 
 ## Citation
 
@@ -392,7 +401,7 @@ For any question, feedback or problem, please feel free to file an issue on this
 
 ## License
 
-* The xxHash library is BSD licensed (https://github.com/Cyan4973/xxHash)
+* The wyhash library is Unlicense licensed (https://github.com/wangyi-fudan/wyhash)
 * The popcount library is BSD licensed (https://github.com/kimwalisch/libpopcnt)
 * The libdivide library is zlib licensed (https://github.com/ridiculousfish/libdivide)
 * The kseq library is copyrighted by Heng Li and released under the MIT license (http://lh3lh3.users.sourceforge.net/kseq.shtml)

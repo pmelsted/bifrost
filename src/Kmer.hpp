@@ -5,16 +5,18 @@
 #define MAX_KMER_SIZE 32
 #endif
 
-#include <stdio.h>
+#ifndef MAX_GMER_SIZE
+#define MAX_GMER_SIZE MAX_KMER_SIZE
+#endif
+
 #include <stdint.h>
-#include <cassert>
-#include <cstring>
-#include <string>
-#include <iostream>
+#include <stdio.h>
 
 #include <bitset>
-#include <string>
+#include <cassert>
+#include <cstring>
 #include <iostream>
+#include <string>
 
 #include "Common.hpp"
 
@@ -65,16 +67,34 @@ class Kmer {
         */
         Kmer& operator=(const Kmer& o);
 
-        /** Set a k-mer as "empty".
-        */
-        inline void set_empty() { for (size_t i = 0; i < MAX_K/32; ++i) longs[i] = 0xffffffffffffffff; }
-
         /** Set a k-mer as "deleted".
         */
-        inline void set_deleted() {
+        BFG_INLINE void set_deleted() {
 
-            for (size_t i = 0; i < MAX_K/32; ++i) longs[i] = 0xffffffffffffffff;
-            bytes[0] ^= 1;
+            for (size_t i = 0; i < MAX_K/32; ++i) longs[i] = 0xffffffffffffffffULL;
+        }
+
+        /** Set a k-mer as "empty".
+        */
+        BFG_INLINE void set_empty() {
+
+            for (size_t i = 0; i < MAX_K/32; ++i) longs[i] = 0xfffffffffffffffeULL;
+        }
+
+        /** Check whether a k-mer is "deleted"
+        * @return a boolean indicating if the k-mer is "deleted" (true) or not (false).
+        */
+        BFG_INLINE bool isDeleted() const {
+
+            return (longs[(MAX_K/32)-1] == 0xffffffffffffffffULL);
+        }
+
+        /** Check whether a k-mer is "empty"
+        * @return a boolean indicating if the k-mer is "empty" (true) or not (false).
+        */
+        BFG_INLINE bool isEmpty() const {
+
+            return (longs[(MAX_K/32)-1] == 0xfffffffffffffffeULL);
         }
 
         bool operator<(const Kmer& o) const;
@@ -99,8 +119,7 @@ class Kmer {
         */
         BFG_INLINE uint64_t hash(const uint64_t seed = 0) const {
 
-            return (uint64_t)XXH64((const void *)bytes, MAX_K/4, seed);
-            //return wyhash(bytes, MAX_K/4, seed);
+            return wyhash(bytes, MAX_K/4, seed, _wyp);
         }
 
         /** Get the reverse-complement of a k-mer.
@@ -203,14 +222,11 @@ class Kmer {
 
 struct KmerHash {
 
-    size_t operator()(const Kmer& km) const {
+    inline size_t operator()(const Kmer& km) const {
 
         return km.hash();
     }
 };
-
-
-
 
 ///@cond NO_DOC
 class Minimizer {
@@ -223,9 +239,6 @@ class Minimizer {
 
         Minimizer& operator=(const Minimizer& o);
 
-        void set_empty();
-        void set_deleted();
-
         bool operator<(const Minimizer& o) const;
         bool operator==(const Minimizer& o) const;
         bool operator!=(const Minimizer& o) const;
@@ -234,8 +247,27 @@ class Minimizer {
 
         BFG_INLINE uint64_t hash(const uint64_t seed = 0) const {
 
-            return (uint64_t)XXH64((const void *)bytes, MAX_G/4, seed);
-            //return wyhash(bytes, MAX_G/4, seed);
+            return wyhash(bytes, MAX_G/4, seed, _wyp);
+        }
+
+        BFG_INLINE void set_deleted() {
+
+            for (size_t i = 0; i < MAX_G/32; ++i) longs[i] = 0xffffffffffffffffULL;
+        }
+
+        BFG_INLINE void set_empty() {
+
+            for (size_t i = 0; i < MAX_G/32; ++i) longs[i] = 0xfffffffffffffffeULL;
+        }
+
+        BFG_INLINE bool isDeleted() const {
+
+            return (longs[(MAX_G/32)-1] == 0xffffffffffffffffULL);
+        }
+
+        BFG_INLINE bool isEmpty() const {
+
+            return (longs[(MAX_G/32)-1] == 0xfffffffffffffffeULL);
         }
 
         Minimizer twin() const;
@@ -254,10 +286,11 @@ class Minimizer {
         // static functions
         static void set_g(unsigned int _g);
 
-        static const unsigned int MAX_G = MAX_KMER_SIZE;
         static unsigned int g;
 
     private:
+
+        static const unsigned int MAX_G = MAX_GMER_SIZE;
 
         // data fields
         union {
@@ -266,24 +299,15 @@ class Minimizer {
             uint64_t longs[MAX_G/32];
         };
 
-        //static unsigned int g_bytes;
-        //static unsigned int g_longs;
-        //static unsigned int g_modmask; // int?
-
         // By default MAX_K == 64 so the union uses 16 bytes
         // However sizeof(Kmer) == 24
         // Are the 8 extra bytes alignment?
-
-        // private functions
-        //void shiftForward(int shift);
-
-        //void shiftBackward(int shift);
 };
 
 
 struct MinimizerHash {
 
-    size_t operator()(const Minimizer& minz) const {
+    inline size_t operator()(const Minimizer& minz) const {
 
         return minz.hash();
     }

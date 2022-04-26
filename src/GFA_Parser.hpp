@@ -83,8 +83,8 @@ class GFA_Parser {
         typedef pair<const Sequence*, const Edge*> GFA_line;
 
         GFA_Parser();
-        GFA_Parser(const string& filename/*, const size_t buffer_size = 1000000*/);
-        GFA_Parser(const vector<string>& filenames/*, const size_t buffer_size = 1000000*/);
+        GFA_Parser(const string& filename);
+        GFA_Parser(const vector<string>& filenames);
 
         ~GFA_Parser();
 
@@ -110,17 +110,14 @@ class GFA_Parser {
 
         vector<string> graph_filenames;
 
-        unique_ptr<ifstream> graphfile_in;
+        ifstream* graphfile_in;
         istream graph_in;
 
-        unique_ptr<ofstream> graphfile_out;
+        ofstream* graphfile_out;
         ostream graph_out;
 
         size_t v_gfa;
         size_t file_no;
-        //size_t buff_sz;
-
-        //char* buffer;
 
         char buffer_stream[8192];
 

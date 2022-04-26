@@ -4,6 +4,7 @@ file(GLOB headers *.h *.hpp *.hh *.tcc)
 list(REMOVE_ITEM sources Bifrost.cpp)
 
 add_definitions(-DMAX_KMER_SIZE=${MAX_KMER_SIZE})
+add_definitions(-DMAX_GMER_SIZE=${MAX_GMER_SIZE})
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # Make sure to add trailing space
@@ -14,9 +15,20 @@ else()
     endif()
 endif()
 
-set(BIFROST_COMPILER_FLAGS "${PROFILE_FLAGS}-march=native")
+set(BIFROST_COMPILER_FLAGS "${PROFILE_FLAGS}")
 set(BIFROST_LINKER_FLAGS "${PROFILE_FLAGS}")
-set(BIFROST_COMPILER_DEFINITIONS "XXH_NAMESPACE=BIFROST_HASH_")
+
+if(COMPILATION_ARCH MATCHES "OFF")
+	message("Disabling native architecture compilation (including AVX2)")
+else(COMPILATION_ARCH MATCHES "OFF")
+	message("Compilation architecture: ${COMPILATION_ARCH}")
+    set(BIFROST_COMPILER_FLAGS "${BIFROST_COMPILER_FLAGS} -march=${COMPILATION_ARCH}")
+endif(COMPILATION_ARCH MATCHES "OFF")
+
+if(ENABLE_AVX2 MATCHES "OFF")
+	message("Disabling AVX2 instructions")
+    set(BIFROST_COMPILER_FLAGS "${BIFROST_COMPILER_FLAGS} -mno-avx2")
+endif(ENABLE_AVX2 MATCHES "OFF")
 
 add_library(bifrost_static STATIC ${sources} ${headers})
 add_library(bifrost_dynamic SHARED ${sources} ${headers})
@@ -75,4 +87,3 @@ install(TARGETS Bifrost DESTINATION bin)
 install(TARGETS bifrost_dynamic DESTINATION lib)
 install(TARGETS bifrost_static DESTINATION lib)
 install(FILES ${headers} DESTINATION include/bifrost)
-install(FILES xxhash.c DESTINATION include/bifrost)

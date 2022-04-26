@@ -1054,7 +1054,7 @@ uint64_t UnitigColors::hash(const size_t seed) const {
 
         if (nb_empty_buffer != 0){
 
-            const uint64_t h_empty = (uint64_t)XXH64((const void *)buffer, nb_bytes_buffer, seed);
+            const uint64_t h_empty = wyhash(buffer, nb_bytes_buffer, seed, _wyp);
 
             // https://commons.apache.org/proper/commons-lang/apidocs/org/apache/commons/lang3/builder/HashCodeBuilder.html
             for (size_t i = 0; i < nb_empty_buffer; ++it) h = h * 37 + h_empty;
@@ -1068,7 +1068,7 @@ uint64_t UnitigColors::hash(const size_t seed) const {
                 ++it;
             }
 
-            h = h * 37 + (uint64_t)XXH64((const void *)buffer, nb_bytes_buffer, seed);
+            h = h * 37 +  wyhash(buffer, nb_bytes_buffer, seed, _wyp);
             up_bound += nb_bits_buffer;
 
             std::memset(buffer, 0, nb_bytes_buffer);

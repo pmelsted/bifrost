@@ -10,7 +10,18 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_EXE_LINKER_FLAGS_PROFILE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -pg")
 endif()
 
-# Can be replaced with a larger and appropriate number (a power of 2). Actual k-mer size is MAX_KMER_SIZE-1.
-set(MAX_KMER_SIZE    "32")
+# To enable a larger default k-mer size, replace MAX_KMER_SIZE with a larger multiple of 32: actual maximum k-mer size will be MAX_KMER_SIZE-1.
+SET(MAX_KMER_SIZE "32" CACHE STRING "MAX_KMER_SIZE")
+SET(MAX_GMER_SIZE "${MAX_KMER_SIZE}" CACHE STRING "MAX_GMER_SIZE")
+# Enable architecture optimizations
+SET(COMPILATION_ARCH "native" CACHE STRING "COMPILATION_ARCH")
+# Enable AVX2 instructions
+SET(ENABLE_AVX2 "ON" CACHE STRING "ENABLE_AVX2")
+
+MATH(EXPR PRINT_MAX_KMER_SIZE "${MAX_KMER_SIZE}-1")
+message("Maximum k-mer size: " ${PRINT_MAX_KMER_SIZE})
+
+MATH(EXPR PRINT_MAX_GMER_SIZE "${MAX_GMER_SIZE}-1")
+message("Maximum g-mer size: " ${PRINT_MAX_GMER_SIZE})
 
 add_subdirectory(src)

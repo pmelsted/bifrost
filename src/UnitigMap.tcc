@@ -28,23 +28,29 @@ bool UnitigMap<U, G, is_const>::operator!=(const UnitigMap& o) const {
 }
 
 template<typename U, typename G, bool is_const>
+bool UnitigMap<U, G, is_const>::isSameReferenceUnitig(const UnitigMap& o) const {
+
+    return  (pos_unitig == o.pos_unitig) && (isShort == o.isShort) && (isAbundant == o.isAbundant) && (cdbg == o.cdbg);
+}
+
+template<typename U, typename G, bool is_const>
 string UnitigMap<U, G, is_const>::mappedSequenceToString() const {
 
     if (isEmpty) return string();
 
     if (strand){
 
-        if (isShort) return cdbg->v_kmers[pos_unitig].first.toString();
+        if (isShort) return cdbg->km_unitigs.getKmer(pos_unitig).toString();
         if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey().toString();
 
-        return cdbg->v_unitigs[pos_unitig]->seq.toString(dist, len + cdbg->k_ - 1);
+        return cdbg->v_unitigs[pos_unitig]->getSeq().toString(dist, len + cdbg->k_ - 1);
     }
     else {
 
-        if (isShort) return cdbg->v_kmers[pos_unitig].first.twin().toString();
+        if (isShort) return cdbg->km_unitigs.getKmer(pos_unitig).twin().toString();
         if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey().twin().toString();
 
-        return reverse_complement(cdbg->v_unitigs[pos_unitig]->seq.toString(dist, len + cdbg->k_ - 1));
+        return reverse_complement(cdbg->v_unitigs[pos_unitig]->getSeq().toString(dist, len + cdbg->k_ - 1));
     }
 }
 
@@ -52,10 +58,10 @@ template<typename U, typename G, bool is_const>
 string UnitigMap<U, G, is_const>::referenceUnitigToString() const {
 
     if (isEmpty) return string();
-    if (isShort) return cdbg->v_kmers[pos_unitig].first.toString();
+    if (isShort) return cdbg->km_unitigs.getKmer(pos_unitig).toString();
     if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey().toString();
 
-    return cdbg->v_unitigs[pos_unitig]->seq.toString();
+    return cdbg->v_unitigs[pos_unitig]->getSeq().toString();
 }
 
 template<typename U, typename G, bool is_const>
@@ -69,7 +75,7 @@ size_t UnitigMap<U, G, is_const>::lcp(const char* s, const size_t pos_s, const s
 
         char km_str[MAX_KMER_SIZE];
 
-        const Kmer km = isShort ? cdbg->v_kmers[pos_unitig].first : cdbg->h_kmers_ccov.find(pos_unitig).getKey();
+        const Kmer km = isShort ? cdbg->km_unitigs.getKmer(pos_unitig) : cdbg->h_kmers_ccov.find(pos_unitig).getKey();
 
         um_reversed ? km.twin().toString(km_str) : km.toString(km_str);
 
@@ -78,7 +84,7 @@ size_t UnitigMap<U, G, is_const>::lcp(const char* s, const size_t pos_s, const s
 
     if (pos_um_seq >= cdbg->v_unitigs[pos_unitig]->length()) return 0;
 
-    return cdbg->v_unitigs[pos_unitig]->seq.jump(s, pos_s, pos_um_seq, um_reversed);
+    return cdbg->v_unitigs[pos_unitig]->getSeq().jump(s, pos_s, pos_um_seq, um_reversed);
 }
 
 template<typename U, typename G, bool is_const>
@@ -86,10 +92,10 @@ Kmer UnitigMap<U, G, is_const>::getUnitigHead() const {
 
     if (!isEmpty){
 
-        if (isShort) return cdbg->v_kmers[pos_unitig].first;
+        if (isShort) return cdbg->km_unitigs.getKmer(pos_unitig);
         if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey();
 
-        return cdbg->v_unitigs[pos_unitig]->seq.getKmer(0);
+        return cdbg->v_unitigs[pos_unitig]->getSeq().getKmer(0);
     }
 
     Kmer km;
@@ -104,10 +110,10 @@ Kmer UnitigMap<U, G, is_const>::getUnitigTail() const {
 
     if (!isEmpty){
 
-        if (isShort) return cdbg->v_kmers[pos_unitig].first;
+        if (isShort) return cdbg->km_unitigs.getKmer(pos_unitig);
         if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey();
 
-        return cdbg->v_unitigs[pos_unitig]->seq.getKmer(cdbg->v_unitigs[pos_unitig]->numKmers() - 1);
+        return cdbg->v_unitigs[pos_unitig]->getSeq().getKmer(cdbg->v_unitigs[pos_unitig]->numKmers() - 1);
     }
 
     Kmer km;
@@ -122,12 +128,12 @@ Kmer UnitigMap<U, G, is_const>::getUnitigKmer(const size_t pos) const {
 
     if (!isEmpty){
 
-        if (isShort && (pos == 0)) return cdbg->v_kmers[pos_unitig].first;
+        if (isShort && (pos == 0)) return cdbg->km_unitigs.getKmer(pos_unitig);
         if (isAbundant && (pos == 0)) return cdbg->h_kmers_ccov.find(pos_unitig).getKey();
 
         if (!isShort && !isAbundant && (pos < cdbg->v_unitigs[pos_unitig]->numKmers())) {
 
-            return cdbg->v_unitigs[pos_unitig]->seq.getKmer(pos);
+            return cdbg->v_unitigs[pos_unitig]->getSeq().getKmer(pos);
         }
     }
 
@@ -145,17 +151,17 @@ Kmer UnitigMap<U, G, is_const>::getMappedHead() const {
 
         if (strand){
 
-            if (isShort) return cdbg->v_kmers[pos_unitig].first;
+            if (isShort) return cdbg->km_unitigs.getKmer(pos_unitig);
             if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey();
 
-            return cdbg->v_unitigs[pos_unitig]->seq.getKmer(dist);
+            return cdbg->v_unitigs[pos_unitig]->getSeq().getKmer(dist);
         }
         else {
 
-            if (isShort) return cdbg->v_kmers[pos_unitig].first.twin();
+            if (isShort) return cdbg->km_unitigs.getKmer(pos_unitig).twin();
             if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey().twin();
 
-            return cdbg->v_unitigs[pos_unitig]->seq.getKmer(dist + len - 1).twin();
+            return cdbg->v_unitigs[pos_unitig]->getSeq().getKmer(dist + len - 1).twin();
         }
     }
 
@@ -173,17 +179,17 @@ Kmer UnitigMap<U, G, is_const>::getMappedTail() const {
 
         if (strand){
 
-            if (isShort) return cdbg->v_kmers[pos_unitig].first;
+            if (isShort) return cdbg->km_unitigs.getKmer(pos_unitig);
             if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey();
 
-            return cdbg->v_unitigs[pos_unitig]->seq.getKmer(dist + len - 1);
+            return cdbg->v_unitigs[pos_unitig]->getSeq().getKmer(dist + len - 1);
         }
         else {
 
-            if (isShort) return cdbg->v_kmers[pos_unitig].first.twin();
+            if (isShort) return cdbg->km_unitigs.getKmer(pos_unitig).twin();
             if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig).getKey().twin();
 
-            return cdbg->v_unitigs[pos_unitig]->seq.getKmer(dist).twin();
+            return cdbg->v_unitigs[pos_unitig]->getSeq().getKmer(dist).twin();
         }
     }
 
@@ -201,22 +207,22 @@ Kmer UnitigMap<U, G, is_const>::getMappedKmer(const size_t pos) const {
 
         if (strand){
 
-            if (isShort && (pos + dist == 0)) return cdbg->v_kmers[pos_unitig].first;
+            if (isShort && (pos + dist == 0)) return cdbg->km_unitigs.getKmer(pos_unitig);
             if (isAbundant && (pos + dist == 0)) return cdbg->h_kmers_ccov.find(pos_unitig).getKey();
 
             if (!isShort && !isAbundant && (pos < cdbg->v_unitigs[pos_unitig]->numKmers())) {
 
-                return cdbg->v_unitigs[pos_unitig]->seq.getKmer(pos);
+                return cdbg->v_unitigs[pos_unitig]->getSeq().getKmer(pos);
             }
         }
         else {
 
-            if (isShort && (pos + dist == 0)) return cdbg->v_kmers[pos_unitig].first.twin();
+            if (isShort && (pos + dist == 0)) return cdbg->km_unitigs.getKmer(pos_unitig).twin();
             if (isAbundant && (pos + dist == 0)) return cdbg->h_kmers_ccov.find(pos_unitig).getKey().twin();
 
             if (!isShort && !isAbundant && (pos < cdbg->v_unitigs[pos_unitig]->numKmers())) {
 
-                return cdbg->v_unitigs[pos_unitig]->seq.getKmer(pos).twin();
+                return cdbg->v_unitigs[pos_unitig]->getSeq().getKmer(pos).twin();
             }
         }
     }
@@ -264,7 +270,7 @@ template<bool is_void>
 typename std::enable_if<!is_void, typename UnitigMap<U, G, is_const>::Unitig_data_ptr_t>::type UnitigMap<U, G, is_const>::getData_() const {
 
     if (isEmpty) return nullptr;
-    if (isShort) return cdbg->v_kmers[pos_unitig].second.getData();
+    if (isShort) return cdbg->km_unitigs.getData(pos_unitig);
     if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig)->getData();
 
     return cdbg->v_unitigs[pos_unitig]->getData();
@@ -284,7 +290,7 @@ typename std::enable_if<!is_void, Unitig<U>>::type UnitigMap<U, G, is_const>::sp
 
     Unitig<U> unitig;
 
-    unitig.data.extract(*this, last_split);
+    unitig.getData()->extract(*this, last_split);
 
     return unitig;
 }
@@ -344,9 +350,9 @@ void UnitigMap<U, G, is_const>::setFullCoverage() const {
 
     if (!isEmpty){
 
-        if (isShort) cdbg->v_kmers[pos_unitig].second.ccov.setFull();
+        if (isShort) cdbg->km_unitigs.setFull(pos_unitig);
         else if (isAbundant) cdbg->h_kmers_ccov.find(pos_unitig)->ccov.setFull();
-        else cdbg->v_unitigs[pos_unitig]->ccov.setFull();
+        else cdbg->v_unitigs[pos_unitig]->getCov().setFull();
     }
 }
 
@@ -355,9 +361,9 @@ void UnitigMap<U, G, is_const>::increaseCoverage() const {
 
     if (isEmpty) return; // nothing maps, move on
 
-    if (isShort) cdbg->v_kmers[pos_unitig].second.ccov.cover(dist, dist + len - 1);
+    if (isShort) cdbg->km_unitigs.cover(pos_unitig, dist, dist + len - 1);
     else if (isAbundant) cdbg->h_kmers_ccov.find(pos_unitig)->ccov.cover(dist, dist + len - 1);
-    else cdbg->v_unitigs[pos_unitig]->ccov.cover(dist, dist + len - 1);
+    else cdbg->v_unitigs[pos_unitig]->getCov().cover(dist, dist + len - 1);
 }
 
 template<typename U, typename G, bool is_const>
@@ -365,9 +371,9 @@ void UnitigMap<U, G, is_const>::decreaseCoverage() const {
 
     if (isEmpty) return; // nothing maps, move on
 
-    if (isShort) cdbg->v_kmers[pos_unitig].second.ccov.uncover(dist, dist + len - 1);
+    if (isShort) cdbg->km_unitigs.uncover(pos_unitig, dist, dist + len - 1);
     else if (isAbundant) cdbg->h_kmers_ccov.find(pos_unitig)->ccov.uncover(dist, dist + len - 1);
-    else cdbg->v_unitigs[pos_unitig]->ccov.uncover(dist, dist + len - 1);
+    else cdbg->v_unitigs[pos_unitig]->getCov().uncover(dist, dist + len - 1);
 }
 
 template<typename U, typename G, bool is_const>
@@ -375,9 +381,9 @@ bool UnitigMap<U, G, is_const>::isCoverageFull() const {
 
     if (isEmpty) return false; // nothing maps, move on
 
-    if (isShort) cdbg->v_kmers[pos_unitig].second.ccov.isFull();
+    if (isShort) cdbg->km_unitigs.isFull(pos_unitig);
     else if (isAbundant) cdbg->h_kmers_ccov.find(pos_unitig)->ccov.isFull();
-    else cdbg->v_unitigs[pos_unitig]->ccov.isFull();
+    else cdbg->v_unitigs[pos_unitig]->getCov().isFull();
 }
 
 template<typename U, typename G, bool is_const>
@@ -385,9 +391,9 @@ size_t UnitigMap<U, G, is_const>::getCoverage(const size_t pos) const {
 
     if (isEmpty || (pos > size - cdbg->getK())) return 0; // nothing maps, move on
 
-    if (isShort) cdbg->v_kmers[pos_unitig].second.ccov.covAt(pos);
-    else if (isAbundant) cdbg->h_kmers_ccov.find(pos_unitig)->ccov.covAt(pos);
-    else cdbg->v_unitigs[pos_unitig]->ccov.covAt(pos);
+    if (isShort) cdbg->km_unitigs.covAt(pos_unitig);
+    else if (isAbundant) cdbg->h_kmers_ccov.find(pos_unitig)->ccov.covAt(0);
+    else cdbg->v_unitigs[pos_unitig]->getCov().covAt(pos);
 }
 
 
