@@ -277,7 +277,7 @@ Changes in the API are reported in the [Changelog](https://github.com/pmelsted/b
 
 ### Tutorial
 
-The [API tutorial](doc/tutorial/Intro.md) should help you get started with the Bifrost API.
+The [API tutorial](doc/tutorial/Intro.md) should help you get started with the C++ API.
 
 ### Documentation
 
