@@ -2,6 +2,8 @@
 
 API only.
 
+* **04-28-2022**
+	* Color files generated prior to version 1.0.6.2 are not compatible with version 1.0.6.2 and versions onward.
 * **08-29-2018**
 	* `UnitigColors::const_iterator` only considers now the k-mer positions of the unitig mapping provided in the `UnitigMap`/`UnitigColorMap` parameter of `UnitigColors::begin()`.
 * **08-28-2018**
