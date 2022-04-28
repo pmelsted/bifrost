@@ -769,11 +769,9 @@ bool CompactedDBG<U, G>::simplify(const bool delete_short_isolated_unitigs, cons
             cout << "CompactedDBG::simplify(): Removed " << removed << " unitigs" << endl;
             cout << "CompactedDBG::simplify(): Joined " << joined << " unitigs" << endl;
         }
-
-        return true;
     }
 
-    return false;
+    return true;
 }
 
 template<typename U, typename G>
