@@ -1343,28 +1343,31 @@ bool BlockedBloomFilter::insert_unpar(const uint64_t kmh, const uint64_t minh) {
 
     while (i != k_) {
 
-        uint64_t kmh1 = kmh_s1;
-        uint64_t bid1 = (minh1 - (minh1 / fast_div_) * blocks_);
+        uint64_t kmh1 = kmh_s1, kmh2 = kmh_s1;
+        uint64_t minh2 = minh1 + minh_s2;
 
-        for (i = 0; i != k_; ++i) {
+        uint64_t bid1 = minh1 - (minh1 / fast_div_) * blocks_;
+        uint64_t bid2 = minh2 - (minh2 / fast_div_) * blocks_;
+
+        for (i = 0; i != k_; ++i, kmh1 += kmh_s2) {
 
             if ((table_[bid1].block[(kmh1 & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmh1 & 0x3fULL))) == 0) break;
-
-            kmh1 += kmh_s2;
         }
 
         if (i != k_){
 
-            uint64_t kmh2 = kmh_s1;
-            uint64_t minh2 = minh1 + minh_s2;
-            uint64_t bid2 = (minh2 - (minh2 / fast_div_) * blocks_);
+            if (bid2 == bid1){
 
-            for (j = 0; j != k_; ++j) {
-
-                if ((table_[bid2].block[(kmh2 & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmh2 & 0x3fULL))) == 0) break;
-
-                kmh2 += kmh_s2;
+                j = i;
+                kmh2 = kmh1;
             }
+            else {
+
+		    for (j = 0; j != k_; ++j, kmh2 += kmh_s2) {
+
+		        if ((table_[bid2].block[(kmh2 & MASK_BITS_BLOCK) >> 6] & (1ULL << (kmh2 & 0x3fULL))) == 0) break;
+		    }
+	    }
 
             if (j != k_){
 
@@ -1375,19 +1378,18 @@ bool BlockedBloomFilter::insert_unpar(const uint64_t kmh, const uint64_t minh) {
                     if (table_[bid2].bits_occupancy < table_[bid1].bits_occupancy){
 
                         i = j;
-                        bid1 = bid2;
                         kmh1 = kmh2;
+
+			std::swap(bid1, bid2);
                     }
 
-                    for (; i != k_; ++i) {
+                    for (; i != k_; ++i, kmh1 += kmh_s2) {
 
                         const uint64_t div = (kmh1 & MASK_BITS_BLOCK) >> 6;
                         const uint64_t mod = 1ULL << (kmh1 & 0x3fULL);
 
                         nb_inserted_bits += static_cast<uint64_t>((table_[bid1].block[div] & mod) == 0);
                         table_[bid1].block[div] |= mod;
-
-                        kmh1 += kmh_s2;
                     }
 
                     table_[bid1].bits_occupancy += nb_inserted_bits;
