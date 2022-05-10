@@ -27,7 +27,7 @@ I will try to cover as much ground as possible in this tutorial. However, the ke
 Graphs in Bifrost are compacted bi-directed de Bruijn graphs. It is important to understand this concept before getting started as the API relies on these notions. Unitigs, compaction and bi-directed edges are all explained in this excellent [short tutorial](https://github.com/GATB/bcalm/blob/master/bidirected-graphs-in-bcalm2/bidirected-graphs-in-bcalm2.md) by Paul Medvedev and Rayan Chikhi.
 I will try to summarize quickly some of the important concepts for Bifrost:
 
-- Bifrost uses a node-centric representation of the graph. Vertices are represented explicitely while edges are represented implicitly.
+- Bifrost uses a node-centric representation of the graph. Vertices are represented explicitly while edges are represented implicitly.
 - Vertices are unitigs, i.e., sequences of length greater or equal to *k* (the *k*-mer size). Hence, a unitig is composed of at least one *k*-mer.
 - *K*-mers in a unitig are not branching (edge in-degree = edge out-degree = 1) in the graph **except** the first and last *k*-mers which **might** be branching.
 - A *k*-mer occurs in **at most** one unitig.
