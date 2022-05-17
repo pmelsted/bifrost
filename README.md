@@ -67,7 +67,7 @@ Compared to the source install, the Conda package do not support *k>31* nor nati
 * From [Bioconda](https://bioconda.github.io):
 
   ```
-  conda -c bioconda bifrost
+  conda install -c bioconda bifrost
   ```
 
 * From source
