@@ -417,9 +417,9 @@ bool ColoredCDBG<U>::buildColors(const CCDBG_Build_opt& opt){
 }
 
 template<typename U>
-bool ColoredCDBG<U>::write(const string& prefix_output_filename, const size_t nb_threads, const bool verbose) const {
+bool ColoredCDBG<U>::write(const string& prefix_output_filename, const size_t nb_threads, const bool write_meta_file, const bool verbose) const {
 
-    if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::write(prefix_output_filename, nb_threads, true, verbose)) return false; // Write graph
+    if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::write(prefix_output_filename, nb_threads, true, write_meta_file, verbose)) return false; // Write graph
 
     return this->getData()->write(prefix_output_filename, verbose); // Write colors
 }

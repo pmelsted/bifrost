@@ -160,18 +160,22 @@ struct CDBG_Build_opt {
     bool outputGFA;
     bool inexact_search;
 
+    bool writeMetaFile;
+
     double ratio_kmers;
 
     string prefixFilenameOut;
 
     string filename_graph_in;
+    string filename_meta_in;
 
     vector<string> filename_query_in;
 
     CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(-1), nb_bits_unique_kmers_bf(14),
                         nb_bits_non_unique_kmers_bf(14), ratio_kmers(0.8), min_count_km(1),
                         build(false), update(false), query(false), clipTips(false), deleteIsolated(false),
-                        inexact_search(false), useMercyKmers(false), outputGFA(true), verbose(false) {}
+                        inexact_search(false), writeMetaFile(true), useMercyKmers(false), outputGFA(true),
+                        verbose(false) {}
 };
 
 /** @typedef const_UnitigMap
@@ -410,10 +414,11 @@ class CompactedDBG {
         * @param output_filename is a string containing the name of the file in which the graph will be written.
         * @param nb_threads is a number indicating how many threads can be used to write the graph to disk.
         * @param GFA_output indicates if the graph will be output in GFA format (true) or FASTA format (false).
+        * @param write_meta_file indicates if a graph meta file is written to disk. Graph meta files enable faster graph loading.
         * @param verbose is a boolean indicating if information messages must be printed during the function execution.
         * @return boolean indicating if the graph has been written successfully.
         */
-        bool write(const string& output_filename, const size_t nb_threads = 1, const bool GFA_output = true, const bool verbose = false) const;
+        bool write(const string& output_filename, const size_t nb_threads = 1, const bool GFA_output = true, const bool write_meta_file = true, const bool verbose = false) const;
 
         /** Read a Compacted de Bruijn graph from disk (GFA1 or FASTA format).
         * If the input GFA file has not been built by Bifrost or if the input is FASTA format, it is your responsibility to make sure
@@ -623,6 +628,26 @@ class CompactedDBG {
 
     private:
 
+        bool writeBinaryGraph(ostream& out, const size_t nb_threads = 1) const;
+        bool writeBinaryGraph(const string& fn, const size_t nb_threads = 1) const;
+
+        bool writeBinaryMeta(ostream& out, const uint64_t checksum, const size_t nb_threads = 1) const;
+        bool writeBinaryMeta(const string& fn, const uint64_t checksum, const size_t nb_threads = 1) const;
+
+        pair<uint64_t, bool> readBinaryGraph(istream& in);
+        pair<uint64_t, bool> readBinaryGraph(const string& fn);
+
+        bool readBinaryMeta(istream& in, const uint64_t checksum);
+        bool readBinaryMeta(const string& fn, const uint64_t checksum);
+
+        bool readBinaryMetaHead(const string& fn, size_t& file_format_version, size_t& v_unitigs_sz, size_t& km_unitigs_sz,
+                                size_t& h_kmers_ccov_sz, size_t& hmap_min_unitigs_sz, uint64_t& read_checksum) const;
+
+        bool readBinaryMetaHead(istream& in, size_t& file_format_version, size_t& v_unitigs_sz, size_t& km_unitigs_sz,
+                                size_t& h_kmers_ccov_sz, size_t& hmap_min_unitigs_sz, uint64_t& read_checksum) const;
+
+        uint64_t checksum() const;
+
         CompactedDBG<U, G>& toDataGraph(CompactedDBG<void, void>&& o, const size_t nb_threads = 1);
 
         pair<bool, BlockedBloomFilter> filter(const CDBG_Build_opt& opt, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers);
@@ -715,11 +740,11 @@ class CompactedDBG {
         size_t joinTips(string filename_MBBF_uniq_kmers, const size_t nb_threads = 1, const bool verbose = false);
         vector<Kmer> extractMercyKmers(const BlockedBloomFilter& bf_uniq_km, const size_t nb_threads = 1, const bool verbose = false);
 
-        void writeGFA(const string& fn, const size_t nb_threads = 1) const;
-        void writeFASTA(const string& fn) const;
+        bool writeGFA(const string& fn, const size_t nb_threads = 1) const;
+        bool writeFASTA(const string& fn) const;
 
-        void readGFA(const string& fn, const size_t nb_threads = 1);
-        void readFASTA(const string& fn, const size_t nb_threads = 1);
+        void makeGraphFromGFA(const string& fn, const size_t nb_threads = 1);
+        void makeGraphFromFASTA(const string& fn, const size_t nb_threads = 1);
 
         template<bool is_void>
         typename std::enable_if<!is_void, void>::type writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const;
@@ -734,8 +759,6 @@ class CompactedDBG {
 
         void setKmerGmerLength(const int kmer_length, const int minimizer_length = -1);
         void print() const;
-
-        //bool checkMinimizerIndex() const;
 
         vector<pair<size_t, UnitigMap<U, G>>> searchSequence(   const string& seq, const bool exact, const bool insertion, const bool deletion,
                                                                 const bool substitution, const double ratio_kmers, const bool or_exclusive_match);
@@ -755,16 +778,16 @@ class CompactedDBG {
         typedef KmerHashTable<CompressedCoverage_t<U>> h_kmers_ccov_t;
 
         vector<Unitig<U>*> v_unitigs;
-
         KmerCovIndex<U> km_unitigs;
-        MinimizerIndex hmap_min_unitigs;
-
         h_kmers_ccov_t h_kmers_ccov;
+
+        MinimizerIndex hmap_min_unitigs;
 
         wrapperData<G> data;
 };
 
 #include "CompactedDBG.tcc"
 #include "Search.tcc"
+#include "IO.tcc"
 
 #endif

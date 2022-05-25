@@ -245,10 +245,11 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         * going to be written to disk. Assuming the prefix is "XXX", two files "XXX.gfa" and "XXX.bfg_colors" will
         * be written to disk.
         * @param nb_threads is the number of threads that can be used to write the graph to disk.
+        * @param write_meta_file indicates if a graph meta file is written to disk. Graph meta files enable faster graph loading.
         * @param verbose is a boolean indicating if information message are printed during writing (true) or not (false).
         * @return a boolean indicating if the graph was successfully written.
         */
-        bool write(const string& prefix_output_filename, const size_t nb_threads = 1, const bool verbose = false) const;
+        bool write(const string& prefix_output_filename, const size_t nb_threads = 1, const bool write_meta_file = true, const bool verbose = false) const;
 
         /** Read a colored and compacted de Bruijn graph from disk. The graph (in GFA format) must have been produced
         * by Bifrost.

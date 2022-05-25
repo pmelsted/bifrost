@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "Kmer.hpp"
+#include "wyhash.h"
 
 /* Short description:
  *  - Compress a DNA string by using 2 bits per base instead of 8
@@ -91,6 +92,11 @@ class CompressedSequence {
             if (isShort()) return (asBits._size >> 1);
 
             return (asPointer._length >> 1);
+        }
+
+        BFG_INLINE uint64_t hash(const uint64_t seed = 0) const {
+
+            return wyhash(getPointer(), round_to_bytes(size()), seed, _wyp);
         }
 
     private:

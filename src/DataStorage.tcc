@@ -535,7 +535,7 @@ bool DataStorage<U>::write(const string& prefix_output_filename, const bool verb
 
     if (verbose) cout << endl << "DataStorage::write(): Writing colors to disk" << endl;
 
-    const string out = prefix_output_filename + ".bfg_colors";
+    const string out = prefix_output_filename + ".color.bfg";
 
     FILE* fp = fopen(out.c_str(), "wb");
 
@@ -663,7 +663,7 @@ inline bool DataStorage<void>::write(const string& prefix_output_filename, const
 
     if (verbose) cout << endl << "DataStorage::write(): Writing colors to disk" << endl;
 
-    const string out = prefix_output_filename + ".bfg_colors";
+    const string out = prefix_output_filename + ".color.bfg";
 
     FILE* fp = fopen(out.c_str(), "wb");
 

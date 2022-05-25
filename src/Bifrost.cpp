@@ -26,11 +26,11 @@ void PrintUsage() {
 
     cout << "   > Mandatory with required argument:" << endl << endl;
 
-    cout << "   -s, --input-seq-file     Input sequence file (FASTA/FASTQ possibly gzipped)" << endl;
-    cout << "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl;
+    cout << "   -s, --input-seq-file     Input sequence file in fasta/fastq(.gz)" << endl;
+    cout << "                            Multiple files can be provided as a list in a text file (one file per line)" << endl;
     cout << "                            K-mers with exactly 1 occurrence in the input sequence files will be discarded" << endl;
-    cout << "   -r, --input-ref-file     Input reference file (FASTA/FASTQ possibly gzipped and GFA)" << endl;
-    cout << "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl;
+    cout << "   -r, --input-ref-file     Input reference file in fasta/fastq(.gz) or gfa" << endl;
+    cout << "                            Multiple files can be provided as a list in a text file (one file per line)" << endl;
     cout << "                            All k-mers of the input reference files are used" << endl;
     cout << "   -o, --output-file        Prefix for output file(s)" << endl << endl;
 
@@ -50,25 +50,26 @@ void PrintUsage() {
     cout << "   -y, --keep-mercy         Keep low coverage k-mers connecting tips" << endl;
     cout << "   -i, --clip-tips          Clip tips shorter than k k-mers in length" << endl;
     cout << "   -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl;
-    cout << "   -a, --fasta              Output file is in FASTA format (only sequences) instead of GFA" << endl;
+    cout << "   -a, --fasta              Output file is in fasta format (only sequences) instead of GFA" << endl;
     cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
 
     cout << "[PARAMETERS]: update" << endl << endl;
 
     cout << "  > Mandatory with required argument:" << endl << endl;
 
-    cout << "   -g, --input-graph-file   Input graph file to update (GFA format)" << endl;
-    cout << "   -s, --input-seq-file     Input sequence file (FASTA/FASTQ possibly gzipped)" << endl;
-    cout << "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl;
+    cout << "   -g, --input-graph-file   Input graph file to update in gfa or graph.bfg" << endl;
+    cout << "   -s, --input-seq-file     Input sequence file in fasta/fastq(.gz)" << endl;
+    cout << "                            Multiple files can be provided as a list in a text file (one file per line)" << endl;
     cout << "                            K-mers with exactly 1 occurrence in the input sequence files will be discarded" << endl;
-    cout << "   -r, --input-ref-file     Input reference file (FASTA/FASTQ possibly gzipped and GFA)" << endl;
-    cout << "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl;
+    cout << "   -r, --input-ref-file     Input reference file in fasta/fastq(.gz) or gfa" << endl;
+    cout << "                            Multiple files can be provided as a list in a text file (one file per line)" << endl;
     cout << "                            All k-mers of the input reference files are used" << endl;
     cout << "   -o, --output-file        Prefix for output file(s)" << endl << endl;
 
     cout << "   > Optional with required argument:" << endl << endl;
 
-    cout << "   -f, --input-color-file   Input color file associated with the input graph file to update" << endl;
+    cout << "   -G, --input-meta-file    Input meta file associated with graph to update in meta.bfg" << endl;
+    cout << "   -f, --input-color-file   Input color file associated with graph to update in color.bfg" << endl;
     cout << "   -t, --threads            Number of threads (default is 1)" << endl;
     cout << "   -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)" << endl;
     cout << "   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or automatically chosen)" << endl << endl;
@@ -83,15 +84,16 @@ void PrintUsage() {
 
     cout << "  > Mandatory with required argument:" << endl << endl;
 
-    cout << "   -g, --input-graph-file   Input graph file to query (GFA format)" << endl;
-    cout << "   -q, --input-query-file   Input query file (FASTA/FASTQ possibly gzipped)" << endl;
-    cout << "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl;
+    cout << "   -g, --input-graph-file   Input graph file to query in gfa or graph.bfg" << endl;
+    cout << "   -q, --input-query-file   Input query file in fasta/fastq(.gz)" << endl;
+    cout << "                            Multiple files can be provided as a list in a text file (one file per line)" << endl;
     cout << "   -o, --output-file        Prefix for output file" << endl;
     cout << "   -e, --ratio-kmers        Ratio of k-mers from queries that must occur in the graph (default is 0.8)" << endl << endl;
 
     cout << "   > Optional with required argument:" << endl << endl;
 
-    cout << "   -f, --input-color-file   Input color file associated with the input graph file to query" << endl;
+    cout << "   -G, --input-meta-file    Input meta file associated with graph to query in meta.bfg" << endl;
+    cout << "   -f, --input-color-file   Input color file associated with the graph to query in color.bfg" << endl;
     cout << "                            Presence/absence of queries will be output for each color" << endl;
     cout << "   -t, --threads            Number of threads (default is 1)" << endl;
     cout << "   -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)" << endl;
@@ -107,7 +109,7 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
 
     int option_index = 0, c;
 
-    const char* opt_string = "s:r:q:g:f:o:t:k:m:e:b:B:l:w:nidvcya";
+    const char* opt_string = "s:r:q:g:G:f:o:t:k:m:e:b:B:l:w:nidvcya";
 
     static struct option long_options[] = {
 
@@ -115,6 +117,7 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
         {"input-ref-file",      required_argument,  0, 'r'},
         {"input-query-file",    required_argument,  0, 'q'},
         {"input-graph-file",    required_argument,  0, 'g'},
+        {"input-meta-file",     required_argument,  0, 'G'},
         {"input-color-file",    required_argument,  0, 'f'},
         {"output-file",         required_argument,  0, 'o'},
         {"threads",             required_argument,  0, 't'},
@@ -159,6 +162,9 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                     break;
                 case 'g':
                     opt.filename_graph_in = optarg;
+                    break;
+                case 'G':
+                    opt.filename_meta_in = optarg;
                     break;
                 case 'f':
                     opt.filename_colors_in = optarg;
@@ -242,7 +248,7 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
 
                 const int format = FileParser::getFileFormat(file.c_str());
 
-                if (format >= 0) files_tmp.push_back(file); // File is FASTA/FASTQ/GFA
+                if (format >= 0) files_tmp.push_back(file); // File is FASTA/FASTQ/GFA/GRAPH.BFG
                 else {
 
                     FILE* fp = fopen(file.c_str(), "r");
@@ -476,7 +482,7 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
         }
         else if (!check_file_exists(opt.filename_graph_in)){
 
-            cerr << "Error: The graph file does not exist." << endl;
+            cerr << "Error: The graph file does not exist or is not a valid input file format." << endl;
             ret = false;
         }
         else {
@@ -495,7 +501,7 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
 
             if (!check_file_exists(opt.filename_colors_in)){
 
-                cerr << "Error: The input color file does not exist." << endl;
+                cerr << "Error: The input color file does not exist or is not a valid input file format." << endl;
                 ret = false;
             }
             else {
@@ -505,6 +511,26 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
                 if (fp == NULL) {
 
                     cerr << "Error: Could not read input color file " << opt.filename_colors_in << "." << endl;
+                    ret = false;
+                }
+                else fclose(fp);
+            }
+        }
+
+        if (opt.filename_meta_in.length() != 0){
+
+            if (!check_file_exists(opt.filename_meta_in)){
+
+                cerr << "Error: The input meta file does not exist or is not a valid input file format." << endl;
+                ret = false;
+            }
+            else {
+
+                FILE* fp = fopen(opt.filename_meta_in.c_str(), "rb");
+
+                if (fp == NULL) {
+
+                    cerr << "Error: Could not read meta color file " << opt.filename_meta_in << "." << endl;
                     ret = false;
                 }
                 else fclose(fp);
@@ -542,7 +568,7 @@ int main(int argc, char **argv){
 
                     if (success) success = ccdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
                     if (success) success = ccdbg.buildColors(opt);
-                    if (success) success = ccdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
+                    if (success) success = ccdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.writeMetaFile, opt.verbose);
                 }
                 else {
 
@@ -551,7 +577,7 @@ int main(int argc, char **argv){
                     success = cdbg.build(opt);
 
                     if (success) success = cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                    if (success) success = cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
+                    if (success) success = cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.writeMetaFile, opt.verbose);
                 }
             }
             else if (opt.update){
@@ -585,7 +611,7 @@ int main(int argc, char **argv){
                             if (success) success = ccdbg_a.merge(move(ccdbg_b), l_opt.nb_threads, l_opt.verbose);
 
                             if (success) success = ccdbg_a.simplify(l_opt.deleteIsolated, l_opt.clipTips, l_opt.verbose);
-                            if (success) success = ccdbg_a.write(l_opt.prefixFilenameOut, l_opt.nb_threads, l_opt.verbose);
+                            if (success) success = ccdbg_a.write(l_opt.prefixFilenameOut, l_opt.nb_threads, l_opt.writeMetaFile, l_opt.verbose);
                         }
                     }
                 }
@@ -618,7 +644,7 @@ int main(int argc, char **argv){
                             }
 
                             if (success) success = cdbg_a.simplify(l_opt.deleteIsolated, l_opt.clipTips, l_opt.verbose);
-                            if (success) success = cdbg_a.write(l_opt.prefixFilenameOut, l_opt.nb_threads, l_opt.outputGFA, l_opt.verbose);
+                            if (success) success = cdbg_a.write(l_opt.prefixFilenameOut, l_opt.nb_threads, l_opt.outputGFA, l_opt.writeMetaFile, l_opt.verbose);
                         }
                     }
                 }
