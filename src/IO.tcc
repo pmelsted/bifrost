@@ -68,7 +68,9 @@ bool CompactedDBG<U, G>::write(const string& output_filename, const size_t nb_th
             if (std::remove(out.c_str()) != 0) cerr << "CompactedDBG::write(): Could not remove temporary file " << out << endl;
         }
 
-        write_success = writeBinaryMeta(out, checksum(), nb_threads);
+        const uint64_t graph_checksum = checksum();
+
+        write_success = writeBinaryMeta(out, graph_checksum, nb_threads);
     }
 
     return write_success;
@@ -120,7 +122,6 @@ bool CompactedDBG<U, G>::read(const string& input_graph_filename, const size_t n
         }
 
         setKmerGmerLength(k, g);
-
         makeGraphFromFASTA(input_graph_filename, nb_threads);
     }
     else if (format == 2){ // GFA format
@@ -187,28 +188,20 @@ bool CompactedDBG<U, G>::read(const string& input_graph_filename, const size_t n
         }
 
         setKmerGmerLength(k, g);
-
-        if (!invalid) makeGraphFromGFA(input_graph_filename, nb_threads);
-        if (verbose) cout << endl << "CompactedDBG::read(): Finished reading graph from disk" << endl;
-
-        return !invalid;
+        makeGraphFromGFA(input_graph_filename, nb_threads);
     }
+
+    setFullCoverage(1);
 
     // Set coverages
-    {
-        setFullCoverage(1);
-
-        for (auto& unitig : *this) unitig.setFullCoverage();
-    }
-
-    invalid = false;
+    if (!invalid) for (auto& unitig : *this) unitig.setFullCoverage();
 
     if (verbose) cout << endl << "CompactedDBG::read(): Finished reading graph from disk" << endl;
 
-    return true;
+    return !invalid;
 }
 
-/*template<typename U, typename G>
+template<typename U, typename G>
 bool CompactedDBG<U, G>::read(const string& input_graph_filename, const string& input_meta_filename, const size_t nb_threads, const bool verbose){
 
     if (verbose) cout << endl << "CompactedDBG::read(): Reading graph from disk" << endl;
@@ -236,36 +229,20 @@ bool CompactedDBG<U, G>::read(const string& input_graph_filename, const string& 
         return false;
     }
 
-    if (format == 0) { // FASTA input
+    pair<uint64_t, bool> p_readSuccess_checksum;
+
+    if (format_graph == 0) { // FASTA input
 
         const int k = k_;
         const int g = g_;
 
         clear();
-
-        {
-            KmerStream_Build_opt kms_opt;
-
-            kms_opt.threads = nb_threads;
-            kms_opt.verbose = verbose;
-            kms_opt.k = k;
-            kms_opt.g = g;
-            kms_opt.q = 0;
-
-            kms_opt.files.push_back(input_graph_filename);
-
-            KmerStream kms(kms_opt);
-
-            MinimizerIndex hmap_min_unitigs_tmp(max(1UL, kms.MinimizerF0()) * 1.05);
-
-            hmap_min_unitigs = std::move(hmap_min_unitigs_tmp);
-        }
-
         setKmerGmerLength(k, g);
 
-        makeGraphFromFASTA(input_graph_filename, nb_threads);
+        p_readSuccess_checksum = readGraphFromMetaFASTA(input_graph_filename, input_meta_filename);
+        invalid = !p_readSuccess_checksum.second;
     }
-    else if (format == 2){ // GFA format
+    else if (format_graph == 2){ // GFA format
 
         FILE* fp = fopen(input_graph_filename.c_str(), "r");
 
@@ -310,45 +287,30 @@ bool CompactedDBG<U, G>::read(const string& input_graph_filename, const string& 
         }
 
         clear();
-
-        {
-            KmerStream_Build_opt kms_opt;
-
-            kms_opt.threads = nb_threads;
-            kms_opt.verbose = verbose;
-            kms_opt.k = k;
-            kms_opt.g = g;
-            kms_opt.q = 0;
-
-            kms_opt.files.push_back(input_graph_filename);
-
-            KmerStream kms(kms_opt);
-
-            MinimizerIndex hmap_min_unitigs_tmp(max(1UL, kms.MinimizerF0()) * 1.05);
-            hmap_min_unitigs = std::move(hmap_min_unitigs_tmp);
-        }
-
         setKmerGmerLength(k, g);
 
-        if (!invalid) makeGraphFromGFA(input_graph_filename, nb_threads);
-        if (verbose) cout << endl << "CompactedDBG::read(): Finished reading graph from disk" << endl;
+        p_readSuccess_checksum = readGraphFromMetaGFA(input_graph_filename, input_meta_filename);
+        invalid = !p_readSuccess_checksum.second;
+    }
+    else { // GRAPH.BFG (binary) format
 
-        return !invalid;
+    	p_readSuccess_checksum = readBinaryGraph(input_graph_filename);
+    	invalid = !p_readSuccess_checksum.second;
     }
 
-    // Set coverages
-    {
-        setFullCoverage(1);
+    setFullCoverage(1);
 
-        for (auto& unitig : *this) unitig.setFullCoverage();
+    if (!invalid) {
+
+    	for (auto& unitig : *this) unitig.setFullCoverage();
+
+    	invalid = !readBinaryMeta(input_meta_filename, p_readSuccess_checksum.first);
     }
-
-    invalid = false;
 
     if (verbose) cout << endl << "CompactedDBG::read(): Finished reading graph from disk" << endl;
 
-    return true;
-}*/
+    return !invalid;
+}
 
 template<typename U, typename G>
 template<bool is_void>
@@ -856,8 +818,6 @@ bool CompactedDBG<U, G>::readBinary(const string& fn) {
 template<typename U, typename G>
 bool CompactedDBG<U, G>::readBinary(istream& in) {
 
-    //return (!in.fail() && readBinaryGraph(in) && readBinaryMeta(in, checksum()));
-
     if (!in.fail()) {
 
     	const pair<uint64_t, bool> p_readSuccess_checksum = readBinaryGraph(in);
@@ -1025,86 +985,73 @@ bool CompactedDBG<U, G>::readBinaryMeta(istream& in, const uint64_t checksum) {
 
     if (read_success) {
 
-        size_t nb_minz_abundant_overcrowded = 0;
+        size_t nb_special_minz = 0;
 
-        in.read(reinterpret_cast<char*>(&nb_minz_abundant_overcrowded), sizeof(size_t));
+        in.read(reinterpret_cast<char*>(&nb_special_minz), sizeof(size_t));
 
         read_success = !in.fail();
 
         if (read_success) {
 
-            vector<BitContainer> v_bmp_abundant((nb_minz_abundant_overcrowded >> 32) + 1);
-            vector<BitContainer> v_bmp_overcrowded((nb_minz_abundant_overcrowded >> 32) + 1);
+            vector<BitContainer> v_bmp_abundant((nb_special_minz >> 32) + 1);
+            vector<BitContainer> v_bmp_overcrowded((nb_special_minz >> 32) + 1);
 
             for (size_t i = 0; (i < v_bmp_abundant.size()) && read_success; ++i) read_success = v_bmp_abundant[i].read(in);
             for (size_t i = 0; (i < v_bmp_overcrowded.size()) && read_success; ++i) read_success = v_bmp_overcrowded[i].read(in);
 
-            for (size_t i = 0; (i < nb_minz_abundant_overcrowded) && read_success; ++i) {
+            for (size_t i = 0; (i < nb_special_minz) && read_success; ++i) {
 
                 Minimizer minz_rep;
 
                 const bool isAbundant = v_bmp_abundant[i >> 32].contains(i & 0x00000000ffffffffULL);
                 const bool isOvercrowded = v_bmp_overcrowded[i >> 32].contains(i & 0x00000000ffffffffULL);
 
-                size_t pos_id_unitig = MASK_CONTIG_ID;
-
-                pos_id_unitig |= (static_cast<size_t>(!isOvercrowded) - 1) & MASK_CONTIG_TYPE;
+                size_t pos_id_unitig = 0;
 
                 read_success = minz_rep.read(in);
 
-                if (isAbundant && read_success) {
+                if (isAbundant || isOvercrowded) {
 
-                    uint32_t count_abundant = 0;
+	                pos_id_unitig = MASK_CONTIG_ID | ((static_cast<size_t>(!isOvercrowded) - 1) & MASK_CONTIG_TYPE);
 
-                    in.read(reinterpret_cast<char*>(&count_abundant), sizeof(uint32_t));
+	                if (isAbundant && read_success) {
 
-                    pos_id_unitig |= (static_cast<size_t>(count_abundant));
-                    read_success = !in.fail();
-                }
+	                    uint32_t count_abundant = 0;
 
-                if (read_success) {
+	                    in.read(reinterpret_cast<char*>(&count_abundant), sizeof(uint32_t));
 
-                    std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
+	                    pos_id_unitig |= (static_cast<size_t>(count_abundant));
+	                    read_success = !in.fail();
+	                }
 
-                    packed_tiny_vector& v = p.first.getVector();
-                    uint8_t& flag_v = p.first.getVectorSize();
+	                if (read_success) {
 
-                    flag_v = v.push_back(pos_id_unitig, flag_v);
-                }
-            }
-        }
-    }
+	                    std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
 
-    if (read_success) {
+	                    packed_tiny_vector& v = p.first.getVector();
+	                    uint8_t& flag_v = p.first.getVectorSize();
 
-        size_t nb_mismatch_minz = 0;
+	                    flag_v = v.push_back(pos_id_unitig, flag_v);
+	                }
+            	}
+            	else {
 
-        in.read(reinterpret_cast<char*>(&nb_mismatch_minz), sizeof(size_t));
+		            in.read(reinterpret_cast<char*>(&pos_id_unitig), sizeof(size_t));
 
-        read_success = !in.fail();
+		            read_success = !in.fail();
 
-		for (size_t i = 0; (i < nb_mismatch_minz) && read_success; ++i) {
+		            if (read_success) {
 
-            Minimizer minz_rep;
+		                std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
 
-            size_t pos_id_unitig = 0;
+		                packed_tiny_vector& v = p.first.getVector();
+		                uint8_t& flag = p.first.getVectorSize();
+		                size_t v_sz = v.size(flag);
 
-            minz_rep.read(in);
-
-            in.read(reinterpret_cast<char*>(&pos_id_unitig), sizeof(size_t));
-
-            read_success = !in.fail();
-
-            if (read_success) {
-
-                std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
-
-                packed_tiny_vector& v = p.first.getVector();
-                uint8_t& flag = p.first.getVectorSize();
-                size_t v_sz = v.size(flag);
-
-                if (v_sz == 0 || ((v(v_sz-1, flag) & MASK_CONTIG_ID) != MASK_CONTIG_ID)) flag = v.push_back(pos_id_unitig, flag);
-                else flag = v.insert(pos_id_unitig, v_sz-1, flag);
+		                if ((v_sz) == 0 || ((v(v_sz-1, flag) & MASK_CONTIG_ID) != MASK_CONTIG_ID)) flag = v.push_back(pos_id_unitig, flag);
+		                else flag = v.insert(pos_id_unitig, v_sz-1, flag);
+		            }
+            	}
             }
         }
     }
@@ -1125,26 +1072,6 @@ pair<uint64_t, bool> CompactedDBG<U, G>::readBinaryGraph(const string& fn) {
 
     return readBinaryGraph(in);
 }
-
-/*template<typename U, typename G>
-bool CompactedDBG<U, G>::readGraphFromMetaFASTA(const string& graph_fn, const string& meta_fn) {
-
-    size_t graph_file_id = 0;
-
-    FastqFile ff(vector<string>(1, fn));
-
-    string seq;
-
-	size_t file_format_version = 0, v_unitigs_sz = 0, km_unitigs_sz = 0, h_kmers_ccov_sz = 0, hmap_min_unitigs_sz = 0;
-	uint64_t read_checksum = 0;
-
-    if (!readBinaryMetaHead(meta_fn, file_format_version, v_unitigs_sz, km_unitigs_sz, h_kmers_ccov_sz, hmap_min_unitigs_sz, read_checksum)) return false;
-
-    while (ff.read_next(seq, graph_file_id) != -1) {
-
-    	if (seq.length())
-    }
-}*/
 
 template<typename U, typename G>
 pair<uint64_t, bool> CompactedDBG<U, G>::readBinaryGraph(istream& in) {
@@ -1352,6 +1279,14 @@ bool CompactedDBG<U, G>::writeBinaryMeta(ostream& out, const uint64_t checksum, 
 
     bool write_success = !out.fail();
 
+    const size_t nb_bmp_minz = (hmap_min_unitigs.size() >> 32) + 1;
+
+    std::atomic<size_t> nb_special_minz;
+
+    vector<BitContainer> v_bmp_minz(nb_bmp_minz);
+
+    nb_special_minz = 0;
+
     // 0 - Write file format version, checksum and number of minimizers
     if (write_success) {
 
@@ -1384,201 +1319,347 @@ bool CompactedDBG<U, G>::writeBinaryMeta(ostream& out, const uint64_t checksum, 
         for (size_t i = 0; i < v_unitigs_sz; ++i) v_block_len_unitigs[(i >> 4) + 1] += v_unitigs[i]->getSeq().size() - g_ + 1;
         for (size_t i = 1; i < nb_block_unitigs; ++i) v_block_len_unitigs[i] += v_block_len_unitigs[i-1];
 
-        {
-            const size_t nb_bmp_unitigs = (v_block_len_unitigs.back() >> 32) + 1;
-            const size_t nb_bmp_km_short = ((km_unitigs.size() * (k_ - g_ + 1)) >> 32) + 1;
+        const size_t nb_bmp_unitigs = (v_block_len_unitigs.back() >> 32) + 1;
+        const size_t nb_bmp_km_short = ((km_unitigs.size() * (k_ - g_ + 1)) >> 32) + 1;
 
-            vector<BitContainer> v_bmp_unitigs(nb_bmp_unitigs), v_bmp_km_short(nb_bmp_km_short), v_bmp_abundant(1), v_bmp_overcrowded(1);
+        vector<BitContainer> v_bmp_unitigs(nb_bmp_unitigs), v_bmp_km_short(nb_bmp_km_short);
+        vector<SpinLock> s_bmp_unitigs(nb_bmp_unitigs), s_bmp_km_short(nb_bmp_km_short), s_bmp_minz(nb_bmp_minz);
 
-            MinimizerIndex::const_iterator it = hmap_min_unitigs.begin();
-            MinimizerIndex::const_iterator ite = hmap_min_unitigs.end();
+        auto compactMinimizers = [&](MinimizerIndex::const_iterator it, MinimizerIndex::const_iterator ite, size_t id_minz) {
 
-            size_t nb_minz_abundant_overcrowded = 0;
-            size_t nb_mismatch_minz = 0;
+        	vector<BitContainer> lv_bmp_unitigs(nb_bmp_unitigs), lv_bmp_km_short(nb_bmp_km_short), lv_bmp_minz(nb_bmp_minz);
 
-            {
-                while (it != ite) { // Annotate in bitmap the position of every minimizer in the unitigs
+        	size_t l_nb_special_minz = 0;
 
-                    const packed_tiny_vector& v = it.getVector();
-                    const uint8_t flag_v = it.getVectorSize();
-                    const int v_sz = v.size(flag_v);
+            while (it != ite) { // Annotate in bitmap the position of every minimizer in the unitigs
 
-                    const Minimizer& minz_key = it.getKey();
+                const packed_tiny_vector& v = it.getVector();
+                const uint8_t flag_v = it.getVectorSize();
+                const int v_sz = v.size(flag_v);
 
-                    for (size_t i = 0; i < v_sz; ++i){
+                const Minimizer& minz_key = it.getKey();
 
-                        const size_t unitig_idx = v(i, flag_v);
-                        const size_t unitig_id = unitig_idx >> 32;
-                        const size_t unitig_pos = unitig_idx & MASK_CONTIG_POS;
+                for (size_t i = 0; i < v_sz; ++i){
 
-                        const bool isShort = static_cast<bool>(unitig_idx & MASK_CONTIG_TYPE);
-
-                        if (unitig_id == RESERVED_ID) {
-
-                            const size_t id_bmp = nb_minz_abundant_overcrowded >> 32;
-                            const size_t pos_bmp = nb_minz_abundant_overcrowded & 0x00000000ffffffffULL;
-
-                            while (id_bmp > (v_bmp_abundant.size() - 1)) {
-
-                                v_bmp_abundant.push_back(BitContainer());
-                                v_bmp_overcrowded.push_back(BitContainer());
-                            }
-
-                            if (unitig_pos != 0) v_bmp_abundant[id_bmp].add(pos_bmp);
-                            if (isShort) v_bmp_overcrowded[id_bmp].add(pos_bmp);
-
-                            ++nb_minz_abundant_overcrowded;
-                        }
-                        else if (isShort) {
-
-                        	const Minimizer minz = km_unitigs.getMinimizer(unitig_id, unitig_pos).rep();
-
-                        	if (minz == minz_key) {
-
-	                            const size_t pos = (unitig_id * (k_ - g_ + 1)) + unitig_pos;
-
-	                            v_bmp_km_short[pos >> 32].add(pos & 0x00000000ffffffffULL);
-                        	}
-                        	else ++nb_mismatch_minz;
-                        }
-                        else {
-
-                        	const Minimizer minz = v_unitigs[unitig_id]->getSeq().getMinimizer(unitig_pos).rep();
-
-                        	if (minz == minz_key) {
-
-	                            size_t pos = v_block_len_unitigs[unitig_id >> 4] + unitig_pos;
-
-	                            for (size_t j = (unitig_id & 0xfffffffffffffff0ULL); j < unitig_id; ++j) pos += v_unitigs[j]->getSeq().size() - g_ + 1;
-
-	                            v_bmp_unitigs[pos >> 32].add(pos & 0x00000000ffffffffULL);
-                    		}
-                    		else ++nb_mismatch_minz;
-                        }
-                    }
-
-                    ++it;
-                }
-
-                {
-                    for (auto& bmp : v_bmp_unitigs) bmp.runOptimize();
-
-                    out.write(reinterpret_cast<const char*>(&nb_bmp_unitigs), sizeof(size_t));
-
-                    write_success = !out.fail();
-
-                    for (size_t i = 0; (i < nb_bmp_unitigs) && write_success; ++i) write_success = v_bmp_unitigs[i].write(out);
-
-                    v_bmp_unitigs.clear();
-                }
-
-                {
-                    for (auto& bmp : v_bmp_km_short) bmp.runOptimize();
-
-                    out.write(reinterpret_cast<const char*>(&nb_bmp_km_short), sizeof(size_t));
-
-                    write_success = !out.fail();
-
-                    for (size_t i = 0; (i < nb_bmp_km_short) && write_success; ++i) write_success = v_bmp_km_short[i].write(out);
-
-                    v_bmp_km_short.clear();
-                }
-            }
-
-            if (write_success) {
-
-                it = hmap_min_unitigs.begin();
-                ite = hmap_min_unitigs.end();
-
-                out.write(reinterpret_cast<const char*>(&nb_minz_abundant_overcrowded), sizeof(size_t)); // Pre-reserve space
-
-                write_success = !out.fail();
-
-                {
-                    for (auto& bmp : v_bmp_abundant) bmp.runOptimize();
-                    for (auto& bmp : v_bmp_overcrowded) bmp.runOptimize();
-
-                    for (size_t i = 0; (i < v_bmp_abundant.size()) && write_success; ++i) write_success = v_bmp_abundant[i].write(out);
-                    for (size_t i = 0; (i < v_bmp_overcrowded.size()) && write_success; ++i) write_success = v_bmp_overcrowded[i].write(out);
-
-                    v_bmp_abundant.clear();
-                    v_bmp_overcrowded.clear();
-                }
-
-                while ((it != ite) && write_success) { // Annotate in bitmap the position of every minimizer in the unitigs
-
-                    const packed_tiny_vector& v = it.getVector();
-                    const uint8_t flag_v = it.getVectorSize();
-                    const int v_sz = v.size(flag_v);
-
-                    const size_t unitig_idx = v(v_sz-1, flag_v);
+                    const size_t unitig_idx = v(i, flag_v);
                     const size_t unitig_id = unitig_idx >> 32;
+                    const size_t unitig_pos = unitig_idx & MASK_CONTIG_POS;
 
-                    const uint32_t unitig_pos = static_cast<uint32_t>(unitig_idx & MASK_CONTIG_POS);
+                    const bool isShort = static_cast<bool>(unitig_idx & MASK_CONTIG_TYPE);
 
                     if (unitig_id == RESERVED_ID) {
 
-                        write_success = it.getKey().write(out);
-
-                        if (write_success && (unitig_pos != 0)) {
-
-                            out.write(reinterpret_cast<const char*>(&unitig_pos), sizeof(uint32_t)); // Pre-reserve space
-
-                            write_success = !out.fail();
-                        }
+                    	lv_bmp_minz[id_minz >> 32].add(id_minz & 0x00000000ffffffffULL);
+                    	++l_nb_special_minz;
                     }
+                    else if (isShort) {
 
-                    ++it;
+                    	const Minimizer minz = km_unitigs.getMinimizer(unitig_id, unitig_pos).rep();
+
+                    	if (minz == minz_key) {
+
+                            const size_t pos = (unitig_id * (k_ - g_ + 1)) + unitig_pos;
+
+                            lv_bmp_km_short[pos >> 32].add(pos & 0x00000000ffffffffULL);
+                    	}
+                    	else {
+
+                    		lv_bmp_minz[id_minz >> 32].add(id_minz & 0x00000000ffffffffULL);
+
+                    		++l_nb_special_minz;
+                    	}
+                    }
+                    else {
+
+                    	const Minimizer minz = v_unitigs[unitig_id]->getSeq().getMinimizer(unitig_pos).rep();
+
+                    	if (minz == minz_key) {
+
+                            size_t pos = v_block_len_unitigs[unitig_id >> 4] + unitig_pos;
+
+                            for (size_t j = (unitig_id & 0xfffffffffffffff0ULL); j < unitig_id; ++j) pos += v_unitigs[j]->getSeq().size() - g_ + 1;
+
+                            lv_bmp_unitigs[pos >> 32].add(pos & 0x00000000ffffffffULL);
+                		}
+                		else {
+
+                			lv_bmp_minz[id_minz >> 32].add(id_minz & 0x00000000ffffffffULL);
+
+                			++l_nb_special_minz;
+                		}
+                    }
                 }
+
+                ++it;
+                ++id_minz;
             }
 
-            if (write_success) {
+            {
+            	nb_special_minz += l_nb_special_minz;
 
-                it = hmap_min_unitigs.begin();
-                ite = hmap_min_unitigs.end();
+            	for (size_t i = 0; i < nb_bmp_unitigs; ++i) {
 
-                out.write(reinterpret_cast<const char*>(&nb_mismatch_minz), sizeof(size_t)); // Pre-reserve space
+            		if (!lv_bmp_unitigs[i].isEmpty()) {
 
-                write_success = !out.fail();
+            			s_bmp_unitigs[i].acquire();
 
-                while ((it != ite) && write_success) { // Annotate in bitmap the position of every minimizer in the unitigs
+            			v_bmp_unitigs[i] |= lv_bmp_unitigs[i];
 
-                    const packed_tiny_vector& v = it.getVector();
-                    const uint8_t flag_v = it.getVectorSize();
-                    const int v_sz = v.size(flag_v);
+            			s_bmp_unitigs[i].release();
+            		}
+            	}
 
-                    const Minimizer& minz_key = it.getKey();
+            	for (size_t i = 0; i < nb_bmp_km_short; ++i) {
 
-                    for (size_t i = 0; (i < v_sz) && write_success; ++i){
+            		if (!lv_bmp_km_short[i].isEmpty()) {
 
-                        const size_t unitig_idx = v(i, flag_v);
-                        const size_t unitig_id = unitig_idx >> 32;
-                        const size_t unitig_pos = unitig_idx & MASK_CONTIG_POS;
+            			s_bmp_km_short[i].acquire();
 
-                        const bool isShort = static_cast<bool>(unitig_idx & MASK_CONTIG_TYPE);
+            			v_bmp_km_short[i] |= lv_bmp_km_short[i];
 
-                        if (unitig_id != RESERVED_ID) {
+            			s_bmp_km_short[i].release();
+            		}
+            	}
 
-                        	Minimizer minz;
+            	for (size_t i = 0; i < nb_bmp_minz; ++i) {
 
-                        	if (isShort) minz = km_unitigs.getMinimizer(unitig_id, unitig_pos).rep();
-                        	else minz = v_unitigs[unitig_id]->getSeq().getMinimizer(unitig_pos).rep();
+            		if (!lv_bmp_minz[i].isEmpty()) {
 
-                        	if (minz != minz_key) {
+            			s_bmp_minz[i].acquire();
 
-                        		minz_key.write(out);
+            			v_bmp_minz[i] |= lv_bmp_minz[i];
 
-                        		out.write(reinterpret_cast<const char*>(&unitig_idx), sizeof(size_t)); // Pre-reserve space
-
-                            	write_success = !out.fail();
-                            }
-                        }
-                    }
-
-                    ++it;
-                }
+            			s_bmp_minz[i].release();
+            		}
+            	}
             }
+        };
+
+        {
+	        size_t id_minz = 0;
+
+	        MinimizerIndex::const_iterator it = hmap_min_unitigs.begin();
+	        MinimizerIndex::const_iterator ite = hmap_min_unitigs.end();
+
+	        if (nb_threads == 1) {
+
+	        	while (it != ite) {
+
+	        		MinimizerIndex::const_iterator lit = it;
+	        		MinimizerIndex::const_iterator lite = it;
+
+	        		size_t lid_minz = id_minz;
+
+	        		for (size_t i = 0; (i < 65536) && (lite != ite); ++i, ++id_minz) ++lite;
+
+	        		it = lite;
+
+	        		compactMinimizers(lit, lite, lid_minz);
+	        	}
+	        }
+	        else {
+
+		        vector<thread> workers; // need to keep track of threads so we can join them
+
+		        mutex mutex_minz_idx;
+
+		        for (size_t t = 0; t < nb_threads; ++t){
+
+		            workers.emplace_back(
+
+		                [&]{
+
+		            		MinimizerIndex::const_iterator lit;
+		            		MinimizerIndex::const_iterator lite;
+
+		            		size_t lid_minz;
+
+		                    while (true) {
+
+		                        {
+		                            unique_lock<mutex> lock(mutex_minz_idx);
+
+		                            if (it == ite) return;
+
+		                            lit = it;
+		                            lite = it;
+		                            lid_minz = id_minz;
+
+					        		for (size_t i = 0; (i < 65536) && (lite != ite); ++i, ++id_minz) ++lite;
+
+					        		it = lite;
+		                        }
+
+		                        compactMinimizers(lit, lite, lid_minz);
+		                    }
+		                }
+		            );
+		        }
+
+		        for (auto& t : workers) t.join();
+		    }
+		}
+
+        {
+            for (auto& bmp : v_bmp_unitigs) bmp.runOptimize();
+
+            out.write(reinterpret_cast<const char*>(&nb_bmp_unitigs), sizeof(size_t));
+
+            write_success = !out.fail();
+
+            for (size_t i = 0; (i < nb_bmp_unitigs) && write_success; ++i) write_success = v_bmp_unitigs[i].write(out);
+
+            v_bmp_unitigs.clear();
         }
+
+        {
+            for (auto& bmp : v_bmp_km_short) bmp.runOptimize();
+
+            out.write(reinterpret_cast<const char*>(&nb_bmp_km_short), sizeof(size_t));
+
+            write_success = !out.fail();
+
+            for (size_t i = 0; (i < nb_bmp_km_short) && write_success; ++i) write_success = v_bmp_km_short[i].write(out);
+
+            v_bmp_km_short.clear();
+        }
+
+        for (auto& bmp : v_bmp_minz) bmp.runOptimize();
+    }
+
+    if (write_success) {
+
+    	const size_t nb_bmp_special_minz = (nb_special_minz >> 32) + 1;
+
+    	size_t id_special = 0;
+
+    	vector<BitContainer> v_bmp_abundant(nb_bmp_special_minz), v_bmp_overcrowded(nb_bmp_special_minz);
+
+		{
+        	size_t id_minz = 0;
+
+			MinimizerIndex::const_iterator it = hmap_min_unitigs.begin();
+			MinimizerIndex::const_iterator ite = hmap_min_unitigs.end();
+
+	        while (it != ite) { // Annotate in bitmap the position of every minimizer in the unitigs
+
+	        	if (v_bmp_minz[id_minz >> 32].contains(id_minz & 0x00000000ffffffffULL)) {
+
+		            const packed_tiny_vector& v = it.getVector();
+		            const uint8_t flag_v = it.getVectorSize();
+		            const int v_sz = v.size(flag_v);
+
+		            const Minimizer& minz_key = it.getKey();
+
+		            for (size_t i = 0; (i < v_sz); ++i){
+
+			            const size_t unitig_idx = v(i, flag_v);
+			            const size_t unitig_id = unitig_idx >> 32;
+			            const size_t unitig_pos = unitig_idx & MASK_CONTIG_POS;
+
+		                const bool isShort = static_cast<bool>(unitig_idx & MASK_CONTIG_TYPE);
+
+			            if (unitig_id == RESERVED_ID) {
+
+		                    const size_t id_bmp = id_special >> 32;
+		                    const size_t pos_bmp = id_special & 0x00000000ffffffffULL;
+
+		                    if (unitig_pos != 0) v_bmp_abundant[id_bmp].add(pos_bmp);
+		                    if (isShort) v_bmp_overcrowded[id_bmp].add(pos_bmp);
+
+		               		++id_special;
+			            }
+		                else {
+
+		                	Minimizer minz;
+
+		                	if (isShort) minz = km_unitigs.getMinimizer(unitig_id, unitig_pos).rep();
+		                	else minz = v_unitigs[unitig_id]->getSeq().getMinimizer(unitig_pos).rep();
+
+		                	id_special += static_cast<size_t>(minz != minz_key);
+		                }
+		            }
+		        }
+
+	            ++it;
+	            ++id_minz;
+	        }
+
+        	for (auto& bmp : v_bmp_abundant) bmp.runOptimize();
+        	for (auto& bmp : v_bmp_overcrowded) bmp.runOptimize();
+    	}
+
+        {
+	        out.write(reinterpret_cast<const char*>(&nb_special_minz), sizeof(size_t)); // Pre-reserve space
+
+	        write_success = !out.fail();
+
+            for (size_t i = 0; (i < v_bmp_abundant.size()) && write_success; ++i) write_success = v_bmp_abundant[i].write(out);
+            for (size_t i = 0; (i < v_bmp_overcrowded.size()) && write_success; ++i) write_success = v_bmp_overcrowded[i].write(out);
+
+            v_bmp_abundant.clear();
+            v_bmp_overcrowded.clear();
+        }
+
+        if (write_success) {
+
+        	size_t id_minz = 0;
+
+			MinimizerIndex::const_iterator it = hmap_min_unitigs.begin();
+			MinimizerIndex::const_iterator ite = hmap_min_unitigs.end();
+
+	        while ((it != ite) && write_success) { // Annotate in bitmap the position of every minimizer in the unitigs
+
+	        	if (v_bmp_minz[id_minz >> 32].contains(id_minz & 0x00000000ffffffffULL)) {
+
+		            const packed_tiny_vector& v = it.getVector();
+		            const uint8_t flag_v = it.getVectorSize();
+		            const int v_sz = v.size(flag_v);
+
+		            const Minimizer& minz_key = it.getKey();
+
+		            for (size_t i = 0; (i < v_sz) && write_success; ++i){
+
+		                const size_t unitig_idx = v(i, flag_v);
+		                const size_t unitig_id = unitig_idx >> 32;
+		                const size_t unitig_pos = unitig_idx & MASK_CONTIG_POS;
+
+		                if (unitig_id == RESERVED_ID) {
+
+							write_success = minz_key.write(out);
+
+			                if (write_success && (unitig_pos != 0)) {
+
+			                    out.write(reinterpret_cast<const char*>(&unitig_pos), sizeof(uint32_t)); // Pre-reserve space
+
+			                    write_success = !out.fail();
+			                }
+		                }
+		                else {
+
+		                	const bool isShort = static_cast<bool>(unitig_idx & MASK_CONTIG_TYPE);
+
+		                	Minimizer minz;
+
+		                	if (isShort) minz = km_unitigs.getMinimizer(unitig_id, unitig_pos).rep();
+		                	else minz = v_unitigs[unitig_id]->getSeq().getMinimizer(unitig_pos).rep();
+
+		                	if (minz != minz_key) {
+
+		                		minz_key.write(out);
+
+		                		out.write(reinterpret_cast<const char*>(&unitig_idx), sizeof(size_t)); // Pre-reserve space
+
+		                    	write_success = !out.fail();
+		                    }
+		                }
+		            }
+		        }
+
+	            ++it;
+	            ++id_minz;
+	    	}
+	    }
     }
 
     return (write_success && !out.fail());
@@ -1738,6 +1819,233 @@ void CompactedDBG<U, G>::makeGraphFromFASTA(const string& fn, const size_t nb_th
 
         moveToAbundant();
     }
+}
+
+template<typename U, typename G>
+pair<uint64_t, bool> CompactedDBG<U, G>::readGraphFromMetaFASTA(const string& graph_fn, const string& meta_fn) {
+
+    FastqFile ff(vector<string>(1, graph_fn));
+
+    string seq;
+
+	size_t file_format_version = 0, v_unitigs_sz = 0, km_unitigs_sz = 0, h_kmers_ccov_sz = 0, hmap_min_unitigs_sz = 0, graph_file_id = 0;
+	uint64_t read_checksum = 0, graph_checksum = 0;
+
+	bool read_success = (meta_fn, file_format_version, v_unitigs_sz, km_unitigs_sz, h_kmers_ccov_sz, hmap_min_unitigs_sz, read_checksum);
+
+    // 1 - Read unitigs with length > k
+    if (read_success) {
+
+    	size_t i = 0;
+
+    	v_unitigs.reserve(v_unitigs_sz);
+
+	    while (read_success && (i < v_unitigs_sz) && (ff.read_next(seq, graph_file_id) != -1)) {
+
+	    	if (seq.length() >= k_) {
+
+                CompressedSequence cs(seq);
+                CompressedCoverage cc(seq.length() - k_ + 1, false);
+
+                Unitig<U>* unitig;
+
+                graph_checksum = cs.hash(graph_checksum);
+                unitig = new Unitig<U>(move(cs), move(cc));
+
+                v_unitigs.push_back(unitig);
+	    	}
+	    	else read_success = false;
+
+	    	++i;
+	    }
+
+	    read_success = (read_success && (i == v_unitigs_sz));
+    }
+
+    // 2 - Read unitigs with length == k which do not have abundant or over-crowded minimizers
+    if (read_success) {
+
+    	size_t i = 0;
+
+    	km_unitigs.resize(km_unitigs_sz);
+
+	    while (read_success && (i < km_unitigs_sz) && (ff.read_next(seq, graph_file_id) != -1)) {
+
+	    	if (seq.length() == k_) {
+
+	    		const Kmer km(seq.c_str());
+
+	    		read_success = km_unitigs.set(i, km);
+	    		graph_checksum = km.hash(graph_checksum);
+	    	}
+	    	else read_success = false;
+
+	    	++i;
+	    }
+
+	    read_success = (read_success && (i == km_unitigs_sz));
+	}
+
+    // 3 - Read unitigs with length == k which do not have abundant or over-crowded minimizers
+    if (read_success) {
+
+    	const CompressedCoverage cc(1, false);
+
+    	size_t i = 0;
+
+        h_kmers_ccov.reserve(h_kmers_ccov_sz);
+
+	    while (read_success && (i < h_kmers_ccov_sz) && (ff.read_next(seq, graph_file_id) != -1)) {
+
+	    	if (seq.length() == k_) {
+
+	            const Kmer km(seq.c_str());
+
+	            graph_checksum = km.hash(graph_checksum);
+	            h_kmers_ccov.insert(km, cc);
+	        }
+	        else read_success = false;
+
+	        ++i;
+        }
+
+        read_success = (read_success && (i == h_kmers_ccov_sz));
+    }
+
+	// 4 - If fasta contains more sequences than what meta file is saying, fail reading
+    read_success = (read_success && (ff.read_next(seq, graph_file_id) == -1));
+
+	return {graph_checksum, read_success};
+}
+
+template<typename U, typename G>
+pair<uint64_t, bool> CompactedDBG<U, G>::readGraphFromMetaGFA(const string& graph_fn, const string& meta_fn) {
+
+    bool new_file_opened = false;
+
+    GFA_Parser graph(graph_fn);
+
+    GFA_Parser::GFA_line r;
+
+	size_t file_format_version = 0, v_unitigs_sz = 0, km_unitigs_sz = 0, h_kmers_ccov_sz = 0, hmap_min_unitigs_sz = 0, graph_file_id = 0;
+	uint64_t read_checksum = 0, graph_checksum = 0;
+
+	bool read_success = (meta_fn, file_format_version, v_unitigs_sz, km_unitigs_sz, h_kmers_ccov_sz, hmap_min_unitigs_sz, read_checksum);
+
+	if (read_success) {
+
+		graph.open_read();
+
+		r = graph.read(graph_file_id, new_file_opened, true);
+	}
+
+    // 1 - Read unitigs with length > k
+    if (read_success) {
+
+    	size_t i = 0;
+
+    	v_unitigs.reserve(v_unitigs_sz);
+
+	    while (read_success && (i < v_unitigs_sz) && ((r.first != nullptr) || (r.second != nullptr))) {
+
+	    	if (r.first != nullptr) {
+
+	    		if (r.first->seq.length() >= k_) {
+
+	                CompressedSequence cs(r.first->seq);
+	                CompressedCoverage cc(r.first->seq.length() - k_ + 1, false);
+
+	                Unitig<U>* unitig;
+
+	                graph_checksum = cs.hash(graph_checksum);
+	                unitig = new Unitig<U>(move(cs), move(cc));
+
+	                v_unitigs.push_back(unitig);
+            	}
+            	else read_success = false;
+
+	    		++i;
+	    	}
+
+            r = graph.read(graph_file_id, new_file_opened, true);
+	    }
+
+	    read_success = (read_success && (i == v_unitigs_sz));
+    }
+
+    // 2 - Read unitigs with length == k which do not have abundant or over-crowded minimizers
+    if (read_success) {
+
+    	size_t i = 0;
+
+    	km_unitigs.resize(km_unitigs_sz);
+
+	    while (read_success && (i < km_unitigs_sz) && ((r.first != nullptr) || (r.second != nullptr))) {
+
+	    	if (r.first != nullptr) {
+
+		    	if (r.first->seq.length() == k_) {
+
+		    		const Kmer km(r.first->seq.c_str());
+
+		    		read_success = km_unitigs.set(i, km);
+		    		graph_checksum = km.hash(graph_checksum);
+		    	}
+		    	else read_success = false;
+
+		    	++i;
+	    	}
+
+	    	r = graph.read(graph_file_id, new_file_opened, true);
+	    }
+
+	    read_success = (read_success && (i == km_unitigs_sz));
+	}
+
+    // 3 - Read unitigs with length == k which do not have abundant or over-crowded minimizers
+    if (read_success) {
+
+    	const CompressedCoverage cc(1, false);
+
+    	size_t i = 0;
+
+        h_kmers_ccov.reserve(h_kmers_ccov_sz);
+
+	    while (read_success && (i < h_kmers_ccov_sz) && ((r.first != nullptr) || (r.second != nullptr))) {
+
+	    	if (r.first != nullptr) {
+
+		    	if (r.first->seq.length() == k_) {
+
+		            const Kmer km(r.first->seq.c_str());
+
+		            graph_checksum = km.hash(graph_checksum);
+		            h_kmers_ccov.insert(km, cc);
+		        }
+		        else read_success = false;
+
+		        ++i;
+	    	}
+
+	    	r = graph.read(graph_file_id, new_file_opened, true);
+        }
+
+        read_success = (read_success && (i == h_kmers_ccov_sz));
+    }
+
+	// 4 - If gfa contains more sequences than what meta file is saying, fail reading
+    while ((r.first != nullptr) || (r.second != nullptr)) {
+
+    	if (r.first != nullptr) {
+
+    		read_success = false;
+    		break;
+    	}
+
+    	r = graph.read(graph_file_id, new_file_opened, true);
+    }
+
+	return {graph_checksum, read_success};
 }
 
 #endif
