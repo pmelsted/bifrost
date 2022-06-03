@@ -2,7 +2,7 @@
 
 API only.
 
-* **06-03-2022**
+* **03-06-2022**
 	* `CompactedDBG::write()` and `ColoredCDBG::write() take 2 additional arguments: whether the output should be compressed (`compress_output`) and if a meta file should be generated (`writeBinaryMeta`). Beware that these come with default values which could override the default values of the previous versions of `write`, e.g, the default value of parameter `writeBinaryMeta` (`read()` with 7 parameters) could be used as the default value of parameter `verbose` if your code is not updated (`read()` with 5 parameters).
 	* There exists two versions of * `CompactedDBG::read()` and `ColoredCDBG::read()`, the usual graph reading function and the same function withs an additional meta graph file as input. Using the meta graph file as input considerably speeds-up the graph loading in memory.
 * **04-28-2022**
