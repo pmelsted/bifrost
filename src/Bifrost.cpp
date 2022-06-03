@@ -557,7 +557,7 @@ int main(int argc, char **argv){
         else if (check_ProgramOptions(opt)) {
 
             bool success = true; // Abort if any operation goes wrong
-
+            
             if (opt.build){ // Build the graph
 
                 if (opt.outputColors){
@@ -568,7 +568,7 @@ int main(int argc, char **argv){
 
                     if (success) success = ccdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
                     if (success) success = ccdbg.buildColors(opt);
-                    if (success) success = ccdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.writeMetaFile, opt.verbose);
+                    if (success) success = ccdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.writeMetaFile, opt.compressOutput, opt.verbose);
                 }
                 else {
 
@@ -577,7 +577,7 @@ int main(int argc, char **argv){
                     success = cdbg.build(opt);
 
                     if (success) success = cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                    if (success) success = cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.writeMetaFile, opt.verbose);
+                    if (success) success = cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.writeMetaFile, opt.compressOutput, opt.verbose);
                 }
             }
             else if (opt.update){
@@ -611,7 +611,7 @@ int main(int argc, char **argv){
                             if (success) success = ccdbg_a.merge(move(ccdbg_b), l_opt.nb_threads, l_opt.verbose);
 
                             if (success) success = ccdbg_a.simplify(l_opt.deleteIsolated, l_opt.clipTips, l_opt.verbose);
-                            if (success) success = ccdbg_a.write(l_opt.prefixFilenameOut, l_opt.nb_threads, l_opt.writeMetaFile, l_opt.verbose);
+                            if (success) success = ccdbg_a.write(l_opt.prefixFilenameOut, l_opt.nb_threads, l_opt.writeMetaFile, l_opt.compressOutput, l_opt.verbose);
                         }
                     }
                 }
@@ -644,7 +644,7 @@ int main(int argc, char **argv){
                             }
 
                             if (success) success = cdbg_a.simplify(l_opt.deleteIsolated, l_opt.clipTips, l_opt.verbose);
-                            if (success) success = cdbg_a.write(l_opt.prefixFilenameOut, l_opt.nb_threads, l_opt.outputGFA, l_opt.writeMetaFile, l_opt.verbose);
+                            if (success) success = cdbg_a.write(l_opt.prefixFilenameOut, l_opt.nb_threads, l_opt.outputGFA, l_opt.writeMetaFile, l_opt.compressOutput, l_opt.verbose);
                         }
                     }
                 }

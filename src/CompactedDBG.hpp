@@ -158,6 +158,7 @@ struct CDBG_Build_opt {
     bool useMercyKmers;
 
     bool outputGFA;
+    bool compressOutput;
     bool inexact_search;
 
     bool writeMetaFile;
@@ -175,7 +176,7 @@ struct CDBG_Build_opt {
                         nb_bits_non_unique_kmers_bf(14), ratio_kmers(0.8), min_count_km(1),
                         build(false), update(false), query(false), clipTips(false), deleteIsolated(false),
                         inexact_search(false), writeMetaFile(true), useMercyKmers(false), outputGFA(true),
-                        verbose(false) {}
+                        compressOutput(true), verbose(false) {}
 };
 
 /** @typedef const_UnitigMap
@@ -415,10 +416,11 @@ class CompactedDBG {
         * @param nb_threads is a number indicating how many threads can be used to write the graph to disk.
         * @param GFA_output indicates if the graph will be output in GFA format (true) or FASTA format (false).
         * @param write_meta_file indicates if a graph meta file is written to disk. Graph meta files enable faster graph loading.
+        * @param compressed_output indicates if the output file is compressed.
         * @param verbose is a boolean indicating if information messages must be printed during the function execution.
         * @return boolean indicating if the graph has been written successfully.
         */
-        bool write(const string& output_filename, const size_t nb_threads = 1, const bool GFA_output = true, const bool write_meta_file = true, const bool verbose = false) const;
+        bool write(const string& output_filename, const size_t nb_threads = 1, const bool GFA_output = true, const bool write_meta_file = true, const bool compressed_output = false, const bool verbose = false) const;
 
         /** Load a Compacted de Bruijn graph from disk (GFA1 or FASTA format). This function does not use a meta graph file (META.BFG format)
         * and hence, loading will be slower than read() with the meta graph file.
@@ -754,8 +756,8 @@ class CompactedDBG {
         size_t joinTips(string filename_MBBF_uniq_kmers, const size_t nb_threads = 1, const bool verbose = false);
         vector<Kmer> extractMercyKmers(const BlockedBloomFilter& bf_uniq_km, const size_t nb_threads = 1, const bool verbose = false);
 
-        bool writeGFA(const string& fn, const size_t nb_threads = 1) const;
-        bool writeFASTA(const string& fn) const;
+        bool writeGFA(const string& fn, const size_t nb_threads = 1, const bool compressed_output = false) const;
+        bool writeFASTA(const string& fn, const bool compressed_output = false) const;
 
         void makeGraphFromGFA(const string& fn, const size_t nb_threads = 1);
         void makeGraphFromFASTA(const string& fn, const size_t nb_threads = 1);

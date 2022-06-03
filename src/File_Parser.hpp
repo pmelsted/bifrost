@@ -70,7 +70,7 @@ class FileParser {
                 if (!files_gfa.empty()){
 
                     gfap = GFA_Parser(files_gfa);
-                    invalid = !gfap.open_read();
+                    invalid = !gfap.open_read().second;
                     reading_fastx = (files[0] != files_gfa[0]);
                 }
             }

@@ -2,7 +2,7 @@
 #define BIFROST_IO_CDBG_TCC
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::write(const string& output_filename, const size_t nb_threads, const bool GFA_output, const bool write_meta_file, const bool verbose) const {
+bool CompactedDBG<U, G>::write(const string& output_filename, const size_t nb_threads, const bool GFA_output, const bool write_meta_file, const bool compressed_output, const bool verbose) const {
 
     if (invalid){
 
@@ -27,13 +27,26 @@ bool CompactedDBG<U, G>::write(const string& output_filename, const size_t nb_th
     {
         if (verbose) cout << endl << "CompactedDBG::write(): Writing graph to disk" << endl;
 
-        const string out = output_filename + (GFA_output ? ".gfa" : ".fasta");
+        string fn = output_filename;
 
-        FILE* fp = fopen(out.c_str(), "w");
+        // Add file extensions if missing
+	    {
+	        const string g_ext = (GFA_output ? ".gfa" : ".fasta");
+	        const string c_ext = ".gz";
+	        const string gc_ext = g_ext + c_ext;
+
+	        const size_t pos_ext = fn.find_last_of(".");
+
+	        if (pos_ext == string::npos) fn.append(compressed_output ? gc_ext : g_ext);
+	        else if (!compressed_output && (fn.substr(pos_ext) != g_ext)) fn.append(g_ext);
+	        else if (compressed_output && (fn.substr(pos_ext) != c_ext)) fn.append(gc_ext);
+	    }
+
+        FILE* fp = fopen(fn.c_str(), "w");
 
         if (fp == NULL) {
 
-            cerr << "CompactedDBG::write(): Could not open file " << out << " for writing graph" << endl;
+            cerr << "CompactedDBG::write(): Could not open file " << fn << " for writing graph" << endl;
 
             return false;
         }
@@ -41,23 +54,30 @@ bool CompactedDBG<U, G>::write(const string& output_filename, const size_t nb_th
 
             fclose(fp);
 
-            if (std::remove(out.c_str()) != 0) cerr << "CompactedDBG::write(): Could not remove temporary file " << out << endl;
+            if (std::remove(fn.c_str()) != 0) cerr << "CompactedDBG::write(): Could not remove temporary file " << fn << endl;
         }
 
-        write_success = (GFA_output ? writeGFA(out, nb_threads) : writeFASTA(out));
+        write_success = (GFA_output ? writeGFA(fn, nb_threads, compressed_output) : writeFASTA(fn, compressed_output));
     }
 
     if (write_success && write_meta_file) {
 
         if (verbose) cout << endl << "CompactedDBG::write(): Writing meta file to disk" << endl;
 
-        const string out = output_filename + ".meta.bfg";
+        string fn = output_filename;
 
-        FILE* fp = fopen(out.c_str(), "w");
+        // Add file extensions if missing
+	    {
+	    	const string ext = ".meta.bfg";
+
+	        if ((fn.length() < ext.length()) || (fn.substr(fn.length() - ext.length()) != ext)) fn.append(ext);
+	    }
+
+        FILE* fp = fopen(fn.c_str(), "w");
 
         if (fp == NULL) {
 
-            cerr << "CompactedDBG::write(): Could not open file " << out << " for writing meta file" << endl;
+            cerr << "CompactedDBG::write(): Could not open file " << fn << " for writing meta file" << endl;
             
             return false;
         }
@@ -65,12 +85,12 @@ bool CompactedDBG<U, G>::write(const string& output_filename, const size_t nb_th
 
             fclose(fp);
 
-            if (std::remove(out.c_str()) != 0) cerr << "CompactedDBG::write(): Could not remove temporary file " << out << endl;
+            if (std::remove(fn.c_str()) != 0) cerr << "CompactedDBG::write(): Could not remove temporary file " << fn << endl;
         }
 
         const uint64_t graph_checksum = checksum();
 
-        write_success = writeBinaryMeta(out, graph_checksum, nb_threads);
+        write_success = writeBinaryMeta(fn, graph_checksum, nb_threads);
     }
 
     return write_success;
@@ -126,49 +146,52 @@ bool CompactedDBG<U, G>::read(const string& input_graph_filename, const size_t n
     }
     else if (format == 2){ // GFA format
 
-        FILE* fp = fopen(input_graph_filename.c_str(), "r");
+    	string header;
 
-        if (fp == NULL) {
+	    int k = k_, g = g_;
 
-            cerr << "CompactedDBG::read(): Could not open file " << input_graph_filename << " for reading graph" << endl;
-            return false;
-        }
+    	{
+	        FILE* fp = fopen(input_graph_filename.c_str(), "r");
 
-        fclose(fp);
+	        if (fp == NULL) {
 
-        char buffer[4096];
+	            cerr << "CompactedDBG::read(): Could not open file " << input_graph_filename << " for reading graph" << endl;
+	            return false;
+	        }
 
-        ifstream graphfile_in(input_graph_filename);
-        istream graph_in(graphfile_in.rdbuf());
+	        fclose(fp);
+    	}
 
-        graph_in.getline(buffer, 4096); // Read and discard header
-        graphfile_in.close();
+    	{
+    		size_t fn_id = 0;
 
-        const string header(buffer);
+	        GFA_Parser gfap(input_graph_filename);
 
-        if (header[0] != 'H'){
+	        header = gfap.open_read().first;
+    	}
 
-            cerr << "CompactedDBG::read(): An error occurred while reading input GFA file." << endl;
-            return false;
-        }
+    	{
+	        if (header[0] != 'H'){
 
-        stringstream hs(&buffer[2]); // Skip the first 2 char. of the line "H\t"
-        string sub;
+	            cerr << "CompactedDBG::read(): An error occurred while reading input GFA file." << endl;
+	            return false;
+	        }
 
-        int k = k_;
-        int g = g_;
+	        stringstream hs(header.c_str() + 2); // Skip the first 2 char. of the line "H\t"
+	        string sub;
 
-        while (hs.good()){ // Split line based on tabulation
+	        while (hs.good()){ // Split line based on tabulation
 
-            getline(hs, sub, '\t');
+	            getline(hs, sub, '\t');
 
-            const string tag = sub.substr(0, 5);
+	            const string tag = sub.substr(0, 5);
 
-            if (tag == "KL:Z:") k = atoi(sub.c_str() + 5);
-            else if (tag == "ML:Z:") g = atoi(sub.c_str() + 5);
-        }
+	            if (tag == "KL:Z:") k = atoi(sub.c_str() + 5);
+	            else if (tag == "ML:Z:") g = atoi(sub.c_str() + 5);
+	        }
 
-        clear();
+	        clear();
+    	}
 
         {
             KmerStream_Build_opt kms_opt;
@@ -244,50 +267,55 @@ bool CompactedDBG<U, G>::read(const string& input_graph_filename, const string& 
     }
     else if (format_graph == 2){ // GFA format
 
-        FILE* fp = fopen(input_graph_filename.c_str(), "r");
+    	string header;
 
-        if (fp == NULL) {
+	    int k = k_, g = g_;
 
-            cerr << "CompactedDBG::read(): Could not open file " << input_graph_filename << " for reading graph" << endl;
-            return false;
-        }
+    	{
+	        FILE* fp = fopen(input_graph_filename.c_str(), "r");
 
-        fclose(fp);
+	        if (fp == NULL) {
 
-        char buffer[4096];
+	            cerr << "CompactedDBG::read(): Could not open file " << input_graph_filename << " for reading graph" << endl;
+	            return false;
+	        }
 
-        ifstream graphfile_in(input_graph_filename);
-        istream graph_in(graphfile_in.rdbuf());
+	        fclose(fp);
+    	}
 
-        graph_in.getline(buffer, 4096); // Read and discard header
-        graphfile_in.close();
+    	{
+    		size_t fn_id = 0;
 
-        const string header(buffer);
+	        GFA_Parser gfap(input_graph_filename);
 
-        if (header[0] != 'H'){
+	        gfap.open_read();
 
-            cerr << "CompactedDBG::read(): An error occurred while reading input GFA file." << endl;
-            return false;
-        }
+	        header = gfap.open_read().first;
+    	}
 
-        stringstream hs(&buffer[2]); // Skip the first 2 char. of the line "H\t"
-        string sub;
+    	{
+	        if (header[0] != 'H'){
 
-        int k = k_;
-        int g = g_;
+	            cerr << "CompactedDBG::read(): An error occurred while reading input GFA file." << endl;
+	            return false;
+	        }
 
-        while (hs.good()){ // Split line based on tabulation
+	        stringstream hs(header.c_str() + 2); // Skip the first 2 char. of the line "H\t"
+	        string sub;
 
-            getline(hs, sub, '\t');
+	        while (hs.good()){ // Split line based on tabulation
 
-            const string tag = sub.substr(0, 5);
+	            getline(hs, sub, '\t');
 
-            if (tag == "KL:Z:") k = atoi(sub.c_str() + 5);
-            else if (tag == "ML:Z:") g = atoi(sub.c_str() + 5);
-        }
+	            const string tag = sub.substr(0, 5);
 
-        clear();
-        setKmerGmerLength(k, g);
+	            if (tag == "KL:Z:") k = atoi(sub.c_str() + 5);
+	            else if (tag == "ML:Z:") g = atoi(sub.c_str() + 5);
+	        }
+
+	        clear();
+	        setKmerGmerLength(k, g);
+    	}
 
         p_readSuccess_checksum = readGraphFromMetaGFA(input_graph_filename, input_meta_filename);
         invalid = !p_readSuccess_checksum.second;
@@ -355,7 +383,7 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::writeGFA_sequen
 // The binary graph file is written in that order
 // and the checksum is stored in the meta file is computed for that order
 template<typename U, typename G>
-bool CompactedDBG<U, G>::writeGFA(const string& fn, const size_t nb_threads) const {
+bool CompactedDBG<U, G>::writeGFA(const string& fn, const size_t nb_threads, const bool compressed_output) const {
 
     const size_t v_unitigs_sz = v_unitigs.size();
     const size_t v_kmers_sz = km_unitigs.size();
@@ -368,7 +396,7 @@ bool CompactedDBG<U, G>::writeGFA(const string& fn, const size_t nb_threads) con
 
     GFA_Parser graph(fn);
 
-    graph.open_write(1, header_tag);
+    graph.open_write(1, header_tag, compressed_output);
 
     writeGFA_sequence_<is_void<U>::value>(graph, idmap);
 
@@ -772,31 +800,49 @@ bool CompactedDBG<U, G>::writeGFA(const string& fn, const size_t nb_threads) con
 // The binary graph file is written in that order
 // and the checksum is stored in the meta file is computed for that order
 template<typename U, typename G>
-bool CompactedDBG<U, G>::writeFASTA(const string& fn) const {
+bool CompactedDBG<U, G>::writeFASTA(const string& fn, const bool compressed_output) const {
 
     const size_t v_unitigs_sz = v_unitigs.size();
     const size_t v_kmers_sz = km_unitigs.size();
 
     size_t i = 0;
 
-    ofstream graphfile;
-    ostream graph(0);
+    bool write_success;
 
-    graphfile.open(fn.c_str());
-    graph.rdbuf(graphfile.rdbuf());
-    //graph.sync_with_stdio(false);
+    if (compressed_output) {
 
-    for (size_t j = 0; !graph.fail() && (j < v_unitigs_sz); ++j, ++i) graph << ">" << i << "\n" << v_unitigs[j]->getSeq().toString() << "\n";
-    for (size_t j = 0; !graph.fail() && (j < v_kmers_sz); ++j, ++i) graph << ">" << i << "\n" << km_unitigs.getKmer(j).toString() << "\n";
+    	zstr::ofstream gout(fn, ios_base::out);
 
-    for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); !graph.fail() && (it != h_kmers_ccov.end()); ++it, ++i) {
+	    for (size_t j = 0; !gout.fail() && (j < v_unitigs_sz); ++j, ++i) gout << ">" << i << "\n" << v_unitigs[j]->getSeq().toString() << "\n";
+	    for (size_t j = 0; !gout.fail() && (j < v_kmers_sz); ++j, ++i) gout << ">" << i << "\n" << km_unitigs.getKmer(j).toString() << "\n";
 
-        graph << ">" << i << "\n" << it.getKey().toString() << "\n";
+	    for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); !gout.fail() && (it != h_kmers_ccov.end()); ++it, ++i) {
+
+	        gout << ">" << i << "\n" << it.getKey().toString() << "\n";
+	    }
+
+	    write_success = !gout.fail();
     }
+    else {
 
-    const bool write_success = !graph.fail();
+	    ofstream graphfile;
+	    ostream graph(0);
 
-    graphfile.close();
+	    graphfile.open(fn.c_str());
+	    graph.rdbuf(graphfile.rdbuf());
+
+	    for (size_t j = 0; !graph.fail() && (j < v_unitigs_sz); ++j, ++i) graph << ">" << i << "\n" << v_unitigs[j]->getSeq().toString() << "\n";
+	    for (size_t j = 0; !graph.fail() && (j < v_kmers_sz); ++j, ++i) graph << ">" << i << "\n" << km_unitigs.getKmer(j).toString() << "\n";
+
+	    for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); !graph.fail() && (it != h_kmers_ccov.end()); ++it, ++i) {
+
+	        graph << ">" << i << "\n" << it.getKey().toString() << "\n";
+	    }
+
+	    write_success = !graph.fail();
+
+	    graphfile.close();
+	}
 
     return write_success;
 }
