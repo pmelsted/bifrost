@@ -1108,7 +1108,7 @@ bool CompactedDBG<U, G>::readBinaryMeta(istream& in, const uint64_t checksum) {
 template<typename U, typename G>
 pair<uint64_t, bool> CompactedDBG<U, G>::readBinaryGraph(const string& fn) {
 
-    if ((fn.length() == 0) || !check_file_exists(fn)) return false;
+    if ((fn.length() == 0) || !check_file_exists(fn)) return {0, false};
 
     ifstream infile;
     istream in(0);
