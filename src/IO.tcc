@@ -2,7 +2,7 @@
 #define BIFROST_IO_CDBG_TCC
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::write(const string& output_filename, const size_t nb_threads, const bool GFA_output, const bool write_meta_file, const bool compressed_output, const bool verbose) const {
+bool CompactedDBG<U, G>::write(const string& output_fn, const size_t nb_threads, const bool GFA_output, const bool write_index_file, const bool compressed_output, const bool verbose) const {
 
     if (invalid){
 
@@ -27,7 +27,7 @@ bool CompactedDBG<U, G>::write(const string& output_filename, const size_t nb_th
     {
         if (verbose) cout << endl << "CompactedDBG::write(): Writing graph to disk" << endl;
 
-        string fn = output_filename;
+        string fn = output_fn;
 
         // Add file extensions if missing
 	    {
@@ -60,15 +60,15 @@ bool CompactedDBG<U, G>::write(const string& output_filename, const size_t nb_th
         write_success = (GFA_output ? writeGFA(fn, nb_threads, compressed_output) : writeFASTA(fn, compressed_output));
     }
 
-    if (write_success && write_meta_file) {
+    if (write_success && write_index_file) {
 
         if (verbose) cout << endl << "CompactedDBG::write(): Writing meta file to disk" << endl;
 
-        string fn = output_filename;
+        string fn = output_fn;
 
         // Add file extensions if missing
 	    {
-	    	const string ext = ".meta.bfg";
+	    	const string ext = ".bfi";
 
 	        if ((fn.length() < ext.length()) || (fn.substr(fn.length() - ext.length()) != ext)) fn.append(ext);
 	    }
@@ -90,164 +90,200 @@ bool CompactedDBG<U, G>::write(const string& output_filename, const size_t nb_th
 
         const uint64_t graph_checksum = checksum();
 
-        write_success = writeBinaryMeta(fn, graph_checksum, nb_threads);
+        write_success = writeBinaryIndex(fn, graph_checksum, nb_threads);
     }
 
     return write_success;
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::read(const string& input_graph_filename, const size_t nb_threads, const bool verbose){
+bool CompactedDBG<U, G>::read(const string& input_graph_fn, const size_t nb_threads, const bool verbose){
 
     if (verbose) cout << endl << "CompactedDBG::read(): Reading graph from disk" << endl;
 
-    const int format = FileParser::getFileFormat(input_graph_filename.c_str());
+    const int format = FileParser::getFileFormat(input_graph_fn.c_str());
 
     if (format == -1){
 
-        cerr << "CompactedDBG::read(): Input graph file " << input_graph_filename << " does not exist, is ill-formed or is not a valid graph file format." << endl;
+        cerr << "CompactedDBG::read(): Input graph file " << input_graph_fn << " does not exist, is ill-formed or is not a valid graph file format." << endl;
 
         return false;
     }
     else if ((format != 0) && (format != 2) && (format != 3)){
 
-        cerr << "CompactedDBG::read(): Input graph file must be in FASTA, GFA or GRAPH.BFG format." << endl;
+        cerr << "CompactedDBG::read(): Input graph file must be in FASTA, GFA or BFG format." << endl;
 
         return false;
     }
 
-    if (format == 0) { // FASTA input
+    string input_index_fn = input_graph_fn;
 
-        const int k = k_;
-        const int g = g_;
+    // Try to open index file if available
+    {
+        size_t pos_ext = input_index_fn.find_last_of(".");
 
-        clear();
+        string ext; 
 
-        {
-            KmerStream_Build_opt kms_opt;
+        if ((pos_ext != string::npos) && (input_index_fn.substr(pos_ext) == ".gz")) {
 
-            kms_opt.threads = nb_threads;
-            kms_opt.verbose = verbose;
-            kms_opt.k = k;
-            kms_opt.g = g;
-            kms_opt.q = 0;
-
-            kms_opt.files.push_back(input_graph_filename);
-
-            KmerStream kms(kms_opt);
-
-            MinimizerIndex hmap_min_unitigs_tmp(max(1UL, kms.MinimizerF0()) * 1.05);
-
-            hmap_min_unitigs = std::move(hmap_min_unitigs_tmp);
+        	input_index_fn = input_index_fn.substr(0, pos_ext);
+			pos_ext = input_index_fn.find_last_of(".");
         }
 
-        setKmerGmerLength(k, g);
-        makeGraphFromFASTA(input_graph_filename, nb_threads);
+        if (pos_ext != string::npos) ext = input_index_fn.substr(pos_ext);
+        if ((pos_ext != string::npos) && ((ext == ".gfa")) || (ext == ".fasta") || (ext == ".bfg")) input_index_fn = input_index_fn.substr(0, pos_ext);
+
+        input_index_fn += ".bfi"; // Add Bifrost graph index extension 
     }
-    else if (format == 2){ // GFA format
 
-    	string header;
+    if ((input_graph_fn != input_index_fn) && check_file_exists(input_index_fn)) {
 
-	    int k = k_, g = g_;
+    	if (verbose) cout << "CompactedDBG::read(): Reading using Bifrost index file " << input_index_fn << "." << endl;
 
-    	{
-	        FILE* fp = fopen(input_graph_filename.c_str(), "r");
+    	return read(input_graph_fn, input_index_fn, nb_threads, verbose);
+    }
+    else {
 
-	        if (fp == NULL) {
+	    if (format == 0) { // FASTA input
 
-	            cerr << "CompactedDBG::read(): Could not open file " << input_graph_filename << " for reading graph" << endl;
-	            return false;
-	        }
-
-	        fclose(fp);
-    	}
-
-    	{
-    		size_t fn_id = 0;
-
-	        GFA_Parser gfap(input_graph_filename);
-
-	        header = gfap.open_read().first;
-    	}
-
-    	{
-	        if (header[0] != 'H'){
-
-	            cerr << "CompactedDBG::read(): An error occurred while reading input GFA file." << endl;
-	            return false;
-	        }
-
-	        stringstream hs(header.c_str() + 2); // Skip the first 2 char. of the line "H\t"
-	        string sub;
-
-	        while (hs.good()){ // Split line based on tabulation
-
-	            getline(hs, sub, '\t');
-
-	            const string tag = sub.substr(0, 5);
-
-	            if (tag == "KL:Z:") k = atoi(sub.c_str() + 5);
-	            else if (tag == "ML:Z:") g = atoi(sub.c_str() + 5);
-	        }
+	        const int k = k_;
+	        const int g = g_;
 
 	        clear();
-    	}
 
-        {
-            KmerStream_Build_opt kms_opt;
+	        {
+	            KmerStream_Build_opt kms_opt;
 
-            kms_opt.threads = nb_threads;
-            kms_opt.verbose = verbose;
-            kms_opt.k = k;
-            kms_opt.g = g;
-            kms_opt.q = 0;
+	            kms_opt.threads = nb_threads;
+	            kms_opt.verbose = verbose;
+	            kms_opt.k = k;
+	            kms_opt.g = g;
+	            kms_opt.q = 0;
 
-            kms_opt.files.push_back(input_graph_filename);
+	            kms_opt.files.push_back(input_graph_fn);
 
-            KmerStream kms(kms_opt);
+	            KmerStream kms(kms_opt);
 
-            MinimizerIndex hmap_min_unitigs_tmp(max(1UL, kms.MinimizerF0()) * 1.05);
-            hmap_min_unitigs = std::move(hmap_min_unitigs_tmp);
-        }
+	            MinimizerIndex hmap_min_unitigs_tmp(max(1UL, kms.MinimizerF0()) * 1.05);
 
-        setKmerGmerLength(k, g);
-        makeGraphFromGFA(input_graph_filename, nb_threads);
-    }
+	            hmap_min_unitigs = std::move(hmap_min_unitigs_tmp);
+	        }
 
-    setFullCoverage(1);
+	        setKmerGmerLength(k, g);
+	        makeGraphFromFASTA(input_graph_fn, nb_threads);
+	    }
+	    else if (format == 2){ // GFA format
 
-    // Set coverages
-    if (!invalid) for (auto& unitig : *this) unitig.setFullCoverage();
+	    	string header;
 
-    if (verbose) cout << endl << "CompactedDBG::read(): Finished reading graph from disk" << endl;
+		    int k = k_, g = g_;
 
-    return !invalid;
+	    	{
+		        FILE* fp = fopen(input_graph_fn.c_str(), "r");
+
+		        if (fp == NULL) {
+
+		            cerr << "CompactedDBG::read(): Could not open file " << input_graph_fn << " for reading graph" << endl;
+		            return false;
+		        }
+
+		        fclose(fp);
+	    	}
+
+	    	{
+	    		size_t fn_id = 0;
+
+		        GFA_Parser gfap(input_graph_fn);
+
+		        header = gfap.open_read().first;
+	    	}
+
+	    	{
+		        if (header[0] != 'H'){
+
+		            cerr << "CompactedDBG::read(): An error occurred while reading input GFA file." << endl;
+		            return false;
+		        }
+
+		        stringstream hs(header.c_str() + 2); // Skip the first 2 char. of the line "H\t"
+		        string sub;
+
+		        while (hs.good()){ // Split line based on tabulation
+
+		            getline(hs, sub, '\t');
+
+		            const string tag = sub.substr(0, 5);
+
+		            if (tag == "KL:Z:") k = atoi(sub.c_str() + 5);
+		            else if (tag == "ML:Z:") g = atoi(sub.c_str() + 5);
+		        }
+
+		        clear();
+	    	}
+
+	        {
+	            KmerStream_Build_opt kms_opt;
+
+	            kms_opt.threads = nb_threads;
+	            kms_opt.verbose = verbose;
+	            kms_opt.k = k;
+	            kms_opt.g = g;
+	            kms_opt.q = 0;
+
+	            kms_opt.files.push_back(input_graph_fn);
+
+	            KmerStream kms(kms_opt);
+
+	            MinimizerIndex hmap_min_unitigs_tmp(max(1UL, kms.MinimizerF0()) * 1.05);
+	            hmap_min_unitigs = std::move(hmap_min_unitigs_tmp);
+	        }
+
+	        setKmerGmerLength(k, g);
+	        makeGraphFromGFA(input_graph_fn, nb_threads);
+	    }
+	    else { // BFG format
+
+	    	cerr << "CompactedDBG::read(): No index found for Bifrost graph file " << input_graph_fn << endl;
+
+	    	invalid = true;
+	    }
+
+	    setFullCoverage(1);
+
+	    // Set coverages
+	    if (!invalid) for (auto& unitig : *this) unitig.setFullCoverage();
+
+	    if (verbose) cout << endl << "CompactedDBG::read(): Finished reading graph from disk" << endl;
+
+    	return !invalid;
+	}
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::read(const string& input_graph_filename, const string& input_meta_filename, const size_t nb_threads, const bool verbose){
+bool CompactedDBG<U, G>::read(const string& input_graph_fn, const string& input_index_fn, const size_t nb_threads, const bool verbose){
 
     if (verbose) cout << endl << "CompactedDBG::read(): Reading graph from disk" << endl;
 
-    const int format_graph = FileParser::getFileFormat(input_graph_filename.c_str());
-    const int format_meta = FileParser::getFileFormat(input_meta_filename.c_str());
+    const int format_graph = FileParser::getFileFormat(input_graph_fn.c_str());
+    const int format_index = FileParser::getFileFormat(input_index_fn.c_str());
 
     if (format_graph == -1){
 
-        cerr << "CompactedDBG::read(): Input graph file " << input_graph_filename << " does not exist, is ill-formed or is not a valid graph file format." << endl;
+        cerr << "CompactedDBG::read(): Input graph file " << input_graph_fn << " does not exist, is ill-formed or is not a valid graph file format." << endl;
 
         return false;
     }
     else if ((format_graph != 0) && (format_graph != 2) && (format_graph != 3)){
 
-        cerr << "CompactedDBG::read(): Input graph file must be in FASTA, GFA or GRAPH.BFG format." << endl;
+        cerr << "CompactedDBG::read(): Input graph file must be in FASTA, GFA or BFG format." << endl;
 
         return false;
     }
 
-    if (format_meta != 4) {
+    if (format_index != 4) {
 
-         cerr << "CompactedDBG::read(): Input meta file " << input_meta_filename << " does not exist, is ill-formed or is not a valid meta file format." << endl;
+    	//cerr << format_index << endl;
+        cerr << "CompactedDBG::read(): Input index file " << input_index_fn << " does not exist, is ill-formed or is not a valid index file format." << endl;
 
         return false;
     }
@@ -262,7 +298,7 @@ bool CompactedDBG<U, G>::read(const string& input_graph_filename, const string& 
         clear();
         setKmerGmerLength(k, g);
 
-        p_readSuccess_checksum = readGraphFromMetaFASTA(input_graph_filename, input_meta_filename);
+        p_readSuccess_checksum = readGraphFromIndexFASTA(input_graph_fn, input_index_fn, k_, g_);
         invalid = !p_readSuccess_checksum.second;
     }
     else if (format_graph == 2){ // GFA format
@@ -272,11 +308,11 @@ bool CompactedDBG<U, G>::read(const string& input_graph_filename, const string& 
 	    int k = k_, g = g_;
 
     	{
-	        FILE* fp = fopen(input_graph_filename.c_str(), "r");
+	        FILE* fp = fopen(input_graph_fn.c_str(), "r");
 
 	        if (fp == NULL) {
 
-	            cerr << "CompactedDBG::read(): Could not open file " << input_graph_filename << " for reading graph" << endl;
+	            cerr << "CompactedDBG::read(): Could not open file " << input_graph_fn << " for reading graph" << endl;
 	            return false;
 	        }
 
@@ -286,9 +322,7 @@ bool CompactedDBG<U, G>::read(const string& input_graph_filename, const string& 
     	{
     		size_t fn_id = 0;
 
-	        GFA_Parser gfap(input_graph_filename);
-
-	        gfap.open_read();
+	        GFA_Parser gfap(input_graph_fn);
 
 	        header = gfap.open_read().first;
     	}
@@ -317,12 +351,12 @@ bool CompactedDBG<U, G>::read(const string& input_graph_filename, const string& 
 	        setKmerGmerLength(k, g);
     	}
 
-        p_readSuccess_checksum = readGraphFromMetaGFA(input_graph_filename, input_meta_filename);
+        p_readSuccess_checksum = readGraphFromIndexGFA(input_graph_fn, input_index_fn, k_, g_);
         invalid = !p_readSuccess_checksum.second;
     }
-    else { // GRAPH.BFG (binary) format
+    else { // BFG (binary) format
 
-    	p_readSuccess_checksum = readBinaryGraph(input_graph_filename);
+    	p_readSuccess_checksum = readBinaryGraph(input_graph_fn);
     	invalid = !p_readSuccess_checksum.second;
     }
 
@@ -332,7 +366,7 @@ bool CompactedDBG<U, G>::read(const string& input_graph_filename, const string& 
 
     	for (auto& unitig : *this) unitig.setFullCoverage();
 
-    	invalid = !readBinaryMeta(input_meta_filename, p_readSuccess_checksum.first);
+    	invalid = !readBinaryIndex(input_index_fn, p_readSuccess_checksum.first);
     }
 
     if (verbose) cout << endl << "CompactedDBG::read(): Finished reading graph from disk" << endl;
@@ -868,14 +902,14 @@ bool CompactedDBG<U, G>::readBinary(istream& in) {
 
     	const pair<uint64_t, bool> p_readSuccess_checksum = readBinaryGraph(in);
 
-    	if (p_readSuccess_checksum.second) return readBinaryMeta(in, p_readSuccess_checksum.first);
+    	if (p_readSuccess_checksum.second) return readBinaryIndex(in, p_readSuccess_checksum.first);
     }
 
     return false;
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::readBinaryMeta(const string& fn, const uint64_t checksum) {
+bool CompactedDBG<U, G>::readBinaryIndex(const string& fn, const uint64_t checksum) {
 
     if ((fn.length() == 0) || !check_file_exists(fn)) return false;
 
@@ -885,11 +919,11 @@ bool CompactedDBG<U, G>::readBinaryMeta(const string& fn, const uint64_t checksu
     infile.open(fn.c_str());
     in.rdbuf(infile.rdbuf());
 
-    return readBinaryMeta(in, checksum);
+    return readBinaryIndex(in, checksum);
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::readBinaryMetaHead(const string& fn, size_t& file_format_version, size_t& v_unitigs_sz, size_t& km_unitigs_sz,
+bool CompactedDBG<U, G>::readBinaryIndexHead(const string& fn, size_t& file_format_version, size_t& v_unitigs_sz, size_t& km_unitigs_sz,
 											size_t& h_kmers_ccov_sz, size_t& hmap_min_unitigs_sz, uint64_t& read_checksum) const {
 
     if ((fn.length() == 0) || !check_file_exists(fn)) return false;
@@ -900,11 +934,11 @@ bool CompactedDBG<U, G>::readBinaryMetaHead(const string& fn, size_t& file_forma
     infile.open(fn.c_str());
     in.rdbuf(infile.rdbuf());
 
-    return readBinaryMetaHead(in, file_format_version, v_unitigs_sz, km_unitigs_sz, h_kmers_ccov_sz, hmap_min_unitigs_sz, read_checksum);
+    return readBinaryIndexHead(in, file_format_version, v_unitigs_sz, km_unitigs_sz, h_kmers_ccov_sz, hmap_min_unitigs_sz, read_checksum);
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::readBinaryMetaHead(istream& in, size_t& file_format_version, size_t& v_unitigs_sz, size_t& km_unitigs_sz,
+bool CompactedDBG<U, G>::readBinaryIndexHead(istream& in, size_t& file_format_version, size_t& v_unitigs_sz, size_t& km_unitigs_sz,
 											size_t& h_kmers_ccov_sz, size_t& hmap_min_unitigs_sz, uint64_t& read_checksum) const {
 
 	if (in.fail()) return false;
@@ -921,7 +955,7 @@ bool CompactedDBG<U, G>::readBinaryMetaHead(istream& in, size_t& file_format_ver
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::readBinaryMeta(istream& in, const uint64_t checksum) {
+bool CompactedDBG<U, G>::readBinaryIndex(istream& in, const uint64_t checksum) {
 
     bool read_success = !in.fail();
 
@@ -931,7 +965,7 @@ bool CompactedDBG<U, G>::readBinaryMeta(istream& in, const uint64_t checksum) {
         size_t file_format_version = 0, v_unitigs_sz = 0, km_unitigs_sz = 0, h_kmers_ccov_sz = 0, hmap_min_unitigs_sz = 0;
         uint64_t read_checksum = 0;
 
-        read_success = readBinaryMetaHead(in, file_format_version, v_unitigs_sz, km_unitigs_sz, h_kmers_ccov_sz, hmap_min_unitigs_sz, read_checksum);
+        read_success = readBinaryIndexHead(in, file_format_version, v_unitigs_sz, km_unitigs_sz, h_kmers_ccov_sz, hmap_min_unitigs_sz, read_checksum);
 
         if (!read_success || ((file_format_version >> 32) != BFG_METABIN_FORMAT_HEADER)) return false;
         if (!read_success || (read_checksum != checksum)) return false;
@@ -1242,7 +1276,7 @@ bool CompactedDBG<U, G>::writeBinary(const string& fn, const size_t nb_threads) 
 template<typename U, typename G>
 bool CompactedDBG<U, G>::writeBinary(ostream& out, const size_t nb_threads) const {
 
-    return (!out.fail() && writeBinaryGraph(out, nb_threads) && writeBinaryMeta(out, checksum(), nb_threads));
+    return (!out.fail() && writeBinaryGraph(out, nb_threads) && writeBinaryIndex(out, checksum(), nb_threads));
 }
 
 template<typename U, typename G>
@@ -1307,7 +1341,7 @@ bool CompactedDBG<U, G>::writeBinaryGraph(ostream& out, const size_t nb_threads)
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::writeBinaryMeta(const string& fn, const uint64_t checksum, const size_t nb_threads) const {
+bool CompactedDBG<U, G>::writeBinaryIndex(const string& fn, const uint64_t checksum, const size_t nb_threads) const {
 
     if (fn.length() == 0) return false;
 
@@ -1317,11 +1351,11 @@ bool CompactedDBG<U, G>::writeBinaryMeta(const string& fn, const uint64_t checks
     outfile.open(fn.c_str());
     out.rdbuf(outfile.rdbuf());
 
-    return writeBinaryMeta(out, checksum, nb_threads);
+    return writeBinaryIndex(out, checksum, nb_threads);
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::writeBinaryMeta(ostream& out, const uint64_t checksum, const size_t nb_threads) const {
+bool CompactedDBG<U, G>::writeBinaryIndex(ostream& out, const uint64_t checksum, const size_t nb_threads) const {
 
     bool write_success = !out.fail();
 
@@ -1868,7 +1902,7 @@ void CompactedDBG<U, G>::makeGraphFromFASTA(const string& fn, const size_t nb_th
 }
 
 template<typename U, typename G>
-pair<uint64_t, bool> CompactedDBG<U, G>::readGraphFromMetaFASTA(const string& graph_fn, const string& meta_fn) {
+pair<uint64_t, bool> CompactedDBG<U, G>::readGraphFromIndexFASTA(const string& graph_fn, const string& index_fn, const size_t k, const size_t g) {
 
     FastqFile ff(vector<string>(1, graph_fn));
 
@@ -1877,7 +1911,12 @@ pair<uint64_t, bool> CompactedDBG<U, G>::readGraphFromMetaFASTA(const string& gr
 	size_t file_format_version = 0, v_unitigs_sz = 0, km_unitigs_sz = 0, h_kmers_ccov_sz = 0, hmap_min_unitigs_sz = 0, graph_file_id = 0;
 	uint64_t read_checksum = 0, graph_checksum = 0;
 
-	bool read_success = (meta_fn, file_format_version, v_unitigs_sz, km_unitigs_sz, h_kmers_ccov_sz, hmap_min_unitigs_sz, read_checksum);
+	bool read_success = readBinaryIndexHead(index_fn, file_format_version, v_unitigs_sz, km_unitigs_sz, h_kmers_ccov_sz, hmap_min_unitigs_sz, read_checksum);
+
+	{
+        graph_checksum = wyhash(&k, sizeof(size_t), 0, _wyp);
+        graph_checksum = wyhash(&g, sizeof(size_t), graph_checksum, _wyp);
+	}
 
     // 1 - Read unitigs with length > k
     if (read_success) {
@@ -1888,7 +1927,7 @@ pair<uint64_t, bool> CompactedDBG<U, G>::readGraphFromMetaFASTA(const string& gr
 
 	    while (read_success && (i < v_unitigs_sz) && (ff.read_next(seq, graph_file_id) != -1)) {
 
-	    	if (seq.length() >= k_) {
+	    	if (seq.length() > k_) {
 
                 CompressedSequence cs(seq);
                 CompressedCoverage cc(seq.length() - k_ + 1, false);
@@ -1965,7 +2004,7 @@ pair<uint64_t, bool> CompactedDBG<U, G>::readGraphFromMetaFASTA(const string& gr
 }
 
 template<typename U, typename G>
-pair<uint64_t, bool> CompactedDBG<U, G>::readGraphFromMetaGFA(const string& graph_fn, const string& meta_fn) {
+pair<uint64_t, bool> CompactedDBG<U, G>::readGraphFromIndexGFA(const string& graph_fn, const string& index_fn, const size_t k, const size_t g) {
 
     bool new_file_opened = false;
 
@@ -1976,9 +2015,12 @@ pair<uint64_t, bool> CompactedDBG<U, G>::readGraphFromMetaGFA(const string& grap
 	size_t file_format_version = 0, v_unitigs_sz = 0, km_unitigs_sz = 0, h_kmers_ccov_sz = 0, hmap_min_unitigs_sz = 0, graph_file_id = 0;
 	uint64_t read_checksum = 0, graph_checksum = 0;
 
-	bool read_success = (meta_fn, file_format_version, v_unitigs_sz, km_unitigs_sz, h_kmers_ccov_sz, hmap_min_unitigs_sz, read_checksum);
+	bool read_success = readBinaryIndexHead(index_fn, file_format_version, v_unitigs_sz, km_unitigs_sz, h_kmers_ccov_sz, hmap_min_unitigs_sz, read_checksum);
 
 	if (read_success) {
+
+        graph_checksum = wyhash(&k, sizeof(size_t), 0, _wyp);
+        graph_checksum = wyhash(&g, sizeof(size_t), graph_checksum, _wyp);
 
 		graph.open_read();
 
@@ -1996,7 +2038,7 @@ pair<uint64_t, bool> CompactedDBG<U, G>::readGraphFromMetaGFA(const string& grap
 
 	    	if (r.first != nullptr) {
 
-	    		if (r.first->seq.length() >= k_) {
+	    		if (r.first->seq.length() > k_) {
 
 	                CompressedSequence cs(r.first->seq);
 	                CompressedCoverage cc(r.first->seq.length() - k_ + 1, false);
@@ -2034,8 +2076,8 @@ pair<uint64_t, bool> CompactedDBG<U, G>::readGraphFromMetaGFA(const string& grap
 
 		    		const Kmer km(r.first->seq.c_str());
 
-		    		read_success = km_unitigs.set(i, km);
 		    		graph_checksum = km.hash(graph_checksum);
+		    		read_success = km_unitigs.set(i, km);
 		    	}
 		    	else read_success = false;
 

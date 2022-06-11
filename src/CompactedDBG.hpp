@@ -161,21 +161,21 @@ struct CDBG_Build_opt {
     bool compressOutput;
     bool inexact_search;
 
-    bool writeMetaFile;
+    bool writeIndexFile;
 
     double ratio_kmers;
 
     string prefixFilenameOut;
 
     string filename_graph_in;
-    string filename_meta_in;
+    string filename_index_in;
 
     vector<string> filename_query_in;
 
     CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(-1), nb_bits_unique_kmers_bf(14),
                         nb_bits_non_unique_kmers_bf(14), ratio_kmers(0.8), min_count_km(1),
                         build(false), update(false), query(false), clipTips(false), deleteIsolated(false),
-                        inexact_search(false), writeMetaFile(true), useMercyKmers(false), outputGFA(true),
+                        inexact_search(false), writeIndexFile(true), useMercyKmers(false), outputGFA(true),
                         compressOutput(true), verbose(false) {}
 };
 
@@ -412,40 +412,42 @@ class CompactedDBG {
         bool simplify(const bool delete_short_isolated_unitigs = true, const bool clip_short_tips = true, const bool verbose = false);
 
         /** Write the Compacted de Bruijn graph to disk (GFA1 format).
-        * @param output_filename is a string containing the name of the file in which the graph will be written.
+        * @param output_fn is a string containing the name of the file in which the graph will be written.
         * @param nb_threads is a number indicating how many threads can be used to write the graph to disk.
         * @param GFA_output indicates if the graph will be output in GFA format (true) or FASTA format (false).
-        * @param write_meta_file indicates if a graph meta file is written to disk. Graph meta files enable faster graph loading.
+        * @param write_index_file indicates if an index file is written to disk. Index files enable faster graph loading.
         * @param compressed_output indicates if the output file is compressed.
         * @param verbose is a boolean indicating if information messages must be printed during the function execution.
         * @return boolean indicating if the graph has been written successfully.
         */
-        bool write(const string& output_filename, const size_t nb_threads = 1, const bool GFA_output = true, const bool write_meta_file = true, const bool compressed_output = false, const bool verbose = false) const;
+        bool write( const string& output_fn, const size_t nb_threads = 1, const bool GFA_output = true, const bool write_index_file = true,
+                    const bool compressed_output = false, const bool verbose = false) const;
 
-        /** Load a Compacted de Bruijn graph from disk (GFA1 or FASTA format). This function does not use a meta graph file (META.BFG format)
-        * and hence, loading will be slower than read() with the meta graph file.
+        /** Load a Compacted de Bruijn graph from disk (GFA1 or FASTA format). This function detects if an index file (BFI format)
+        * exists (same prefix as graph) for the input graph and will use it to load the graph. Otherwise, loading will be slower
+        * than read() with the index graph file.
         * If the input GFA file has not been built by Bifrost or if the input is FASTA format, it is your responsibility to make sure
         * that the graph is correctly compacted and to set correctly the parameters of the graph (such as the k-mer length) before the
         * call to this function.
-        * @param input_filename is a string containing the name of the graph file to read.
+        * @param input_graph_fn is a string containing the name of the graph file to read.
         * @param nb_threads is a number indicating how many threads can be used to read the graph from disk.
         * @param verbose is a boolean indicating if information messages must be printed during the function execution.
         * @return boolean indicating if the graph has been read successfully.
         */
-        bool read(const string& input_filename, const size_t nb_threads = 1, const bool verbose = false);
+        bool read(const string& input_graph_fn, const size_t nb_threads = 1, const bool verbose = false);
 
-        /** Read a Compacted de Bruijn graph from disk (GFA1, FASTA or GRAPH.BFG format) using a meta graph file (META.BFG format).
-        * Meta graph files make the loading much faster than the other function read() without meta graph file.
+        /** Read a Compacted de Bruijn graph from disk (GFA1, FASTA or BFG format) using an index file (BFI format).
+        * Index files make the loading much faster than the other function read() without meta graph file.
         * If the input GFA file has not been built by Bifrost or if the input is FASTA format, it is your responsibility to make sure
         * that the graph is correctly compacted and to set correctly the parameters of the graph (k-mer length and g-mer) before the
         * call to this function.
-        * @param input_filename is a string containing the name of the graph file to read.
-        * @param input_meta_filename is a string containing the name of the meta file to read.
+        * @param input_graph_fn is a string containing the name of the graph file to read.
+        * @param input_index_fn is a string containing the name of the index file to read.
         * @param nb_threads is a number indicating how many threads can be used to read the graph from disk.
         * @param verbose is a boolean indicating if information messages must be printed during the function execution.
         * @return boolean indicating if the graph has been read successfully.
         */
-        bool read(const string& input_graph_filename, const string& input_meta_filename, const size_t nb_threads = 1, const bool verbose = false);
+        bool read(const string& input_graph_fn, const string& input_index_fn, const size_t nb_threads = 1, const bool verbose = false);
 
         /** Find the unitig containing the queried k-mer in the Compacted de Bruijn graph.
         * @param km is the queried k-mer (see Kmer class). It does not need to be a canonical k-mer.
@@ -647,19 +649,19 @@ class CompactedDBG {
         bool writeBinaryGraph(ostream& out, const size_t nb_threads = 1) const;
         bool writeBinaryGraph(const string& fn, const size_t nb_threads = 1) const;
 
-        bool writeBinaryMeta(ostream& out, const uint64_t checksum, const size_t nb_threads = 1) const;
-        bool writeBinaryMeta(const string& fn, const uint64_t checksum, const size_t nb_threads = 1) const;
+        bool writeBinaryIndex(ostream& out, const uint64_t checksum, const size_t nb_threads = 1) const;
+        bool writeBinaryIndex(const string& fn, const uint64_t checksum, const size_t nb_threads = 1) const;
 
         pair<uint64_t, bool> readBinaryGraph(istream& in);
         pair<uint64_t, bool> readBinaryGraph(const string& fn);
 
-        bool readBinaryMeta(istream& in, const uint64_t checksum);
-        bool readBinaryMeta(const string& fn, const uint64_t checksum);
+        bool readBinaryIndex(istream& in, const uint64_t checksum);
+        bool readBinaryIndex(const string& fn, const uint64_t checksum);
 
-        bool readBinaryMetaHead(const string& fn, size_t& file_format_version, size_t& v_unitigs_sz, size_t& km_unitigs_sz,
+        bool readBinaryIndexHead(const string& fn, size_t& file_format_version, size_t& v_unitigs_sz, size_t& km_unitigs_sz,
                                 size_t& h_kmers_ccov_sz, size_t& hmap_min_unitigs_sz, uint64_t& read_checksum) const;
 
-        bool readBinaryMetaHead(istream& in, size_t& file_format_version, size_t& v_unitigs_sz, size_t& km_unitigs_sz,
+        bool readBinaryIndexHead(istream& in, size_t& file_format_version, size_t& v_unitigs_sz, size_t& km_unitigs_sz,
                                 size_t& h_kmers_ccov_sz, size_t& hmap_min_unitigs_sz, uint64_t& read_checksum) const;
 
         uint64_t checksum() const;
@@ -762,8 +764,8 @@ class CompactedDBG {
         void makeGraphFromGFA(const string& fn, const size_t nb_threads = 1);
         void makeGraphFromFASTA(const string& fn, const size_t nb_threads = 1);
 
-        pair<uint64_t, bool> readGraphFromMetaGFA(const string& graph_fn, const string& meta_fn);
-        pair<uint64_t, bool> readGraphFromMetaFASTA(const string& graph_fn, const string& meta_fn);
+        pair<uint64_t, bool> readGraphFromIndexGFA(const string& graph_fn, const string& index_fn, const size_t k, const size_t g);
+        pair<uint64_t, bool> readGraphFromIndexFASTA(const string& graph_fn, const string& index_fn, const size_t k, const size_t g);
 
         template<bool is_void>
         typename std::enable_if<!is_void, void>::type writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const;

@@ -227,8 +227,8 @@ class FileParser {
                 if (buffer[0] == '>') ret_v = 0; // FASTA
                 else if (buffer[0] == '@') ret_v = 1;// FASTQ
                 else if (strncmp(buffer, static_cast<char*>(gfa_header), sz_gfa_header) == 0) ret_v = 2; // GFA
-                else if ((reinterpret_cast<size_t>(buffer) >> 32) == BFG_GRAPHBIN_FORMAT_HEADER) ret_v = 3; // GRAPH.BFG
-                else if ((reinterpret_cast<size_t>(buffer) >> 32) == BFG_METABIN_FORMAT_HEADER) ret_v = 4; // GRAPH.BFG
+                else if ((reinterpret_cast<size_t*>(buffer)[0] >> 32) == BFG_GRAPHBIN_FORMAT_HEADER) ret_v = 3; // BFG
+                else if ((reinterpret_cast<size_t*>(buffer)[0] >> 32) == BFG_METABIN_FORMAT_HEADER) ret_v = 4; // BFI
             }
 
             return ret_v;
