@@ -2,7 +2,7 @@
 #define BIFROST_IO_CDBG_TCC
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::write(const string& output_fn, const size_t nb_threads, const bool GFA_output, const bool write_index_file, const bool compressed_output, const bool verbose) const {
+bool CompactedDBG<U, G>::write(const string& output_fn, const size_t nb_threads, const bool GFA_output, const bool FASTA_output, const bool BFG_output, const bool write_index_file, const bool compressed_output, const bool verbose) const {
 
     if (invalid){
 
@@ -22,6 +22,18 @@ bool CompactedDBG<U, G>::write(const string& output_fn, const size_t nb_threads,
         return false;
     }
 
+    if (!GFA_output && !FASTA_output && !BFG_output){
+
+        cerr << "CompactedDBG::write(): No type of format output selected" << endl;
+        return false;
+    }
+
+    if (static_cast<int>(GFA_output) + static_cast<int>(FASTA_output) + static_cast<int>(BFG_output) > 1){
+
+        cerr << "CompactedDBG::write(): Multiple output formats selected. Please choose one." << endl;
+        return false;
+    }
+
     bool write_success = true;
 
     {
@@ -30,7 +42,8 @@ bool CompactedDBG<U, G>::write(const string& output_fn, const size_t nb_threads,
         string fn = output_fn;
 
         // Add file extensions if missing
-	    {
+	    if (GFA_output || FASTA_output) {
+
 	        const string g_ext = (GFA_output ? ".gfa" : ".fasta");
 	        const string c_ext = ".gz";
 	        const string gc_ext = g_ext + c_ext;
@@ -40,6 +53,15 @@ bool CompactedDBG<U, G>::write(const string& output_fn, const size_t nb_threads,
 	        if (pos_ext == string::npos) fn.append(compressed_output ? gc_ext : g_ext);
 	        else if (!compressed_output && (fn.substr(pos_ext) != g_ext)) fn.append(g_ext);
 	        else if (compressed_output && (fn.substr(pos_ext) != c_ext)) fn.append(gc_ext);
+	    }
+	    else if (BFG_output) {
+
+	    	const string g_ext = ".bfg";
+	    	const size_t pos_ext = fn.find_last_of(".");
+
+	    	if ((pos_ext == string::npos) || (fn.substr(pos_ext) != g_ext)) fn.append(g_ext);
+
+
 	    }
 
         FILE* fp = fopen(fn.c_str(), "w");
@@ -57,12 +79,14 @@ bool CompactedDBG<U, G>::write(const string& output_fn, const size_t nb_threads,
             if (std::remove(fn.c_str()) != 0) cerr << "CompactedDBG::write(): Could not remove temporary file " << fn << endl;
         }
 
-        write_success = (GFA_output ? writeGFA(fn, nb_threads, compressed_output) : writeFASTA(fn, compressed_output));
+        if (GFA_output) write_success = writeGFA(fn, nb_threads, compressed_output);
+        else if (FASTA_output) write_success = writeFASTA(fn, compressed_output);
+        else if (BFG_output) write_success = writeBinaryGraph(fn, nb_threads);
     }
 
-    if (write_success && write_index_file) {
+    if (write_success && (write_index_file || BFG_output)) {
 
-        if (verbose) cout << endl << "CompactedDBG::write(): Writing meta file to disk" << endl;
+        if (verbose) cout << endl << "CompactedDBG::write(): Writing index file to disk" << endl;
 
         string fn = output_fn;
 
@@ -77,7 +101,7 @@ bool CompactedDBG<U, G>::write(const string& output_fn, const size_t nb_threads,
 
         if (fp == NULL) {
 
-            cerr << "CompactedDBG::write(): Could not open file " << fn << " for writing meta file" << endl;
+            cerr << "CompactedDBG::write(): Could not open file " << fn << " for writing index file" << endl;
             
             return false;
         }
@@ -415,7 +439,7 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::writeGFA_sequen
 // 2 - All unitigs with length == k which do not have abundant minimizers
 // 3 - All unitigs with length == k which have abundant minimizers
 // The binary graph file is written in that order
-// and the checksum is stored in the meta file is computed for that order
+// and the checksum is stored in the index file is computed for that order
 template<typename U, typename G>
 bool CompactedDBG<U, G>::writeGFA(const string& fn, const size_t nb_threads, const bool compressed_output) const {
 
@@ -832,7 +856,7 @@ bool CompactedDBG<U, G>::writeGFA(const string& fn, const size_t nb_threads, con
 // 2 - All unitigs with length == k which do not have abundant minimizers
 // 3 - All unitigs with length == k which have abundant minimizers
 // The binary graph file is written in that order
-// and the checksum is stored in the meta file is computed for that order
+// and the checksum is stored in the index file is computed for that order
 template<typename U, typename G>
 bool CompactedDBG<U, G>::writeFASTA(const string& fn, const bool compressed_output) const {
 
@@ -1377,7 +1401,7 @@ bool CompactedDBG<U, G>::writeBinaryIndex(ostream& out, const uint64_t checksum,
 		const size_t h_kmers_ccov_sz = h_kmers_ccov.size();
         const size_t hmap_min_unitigs_sz = hmap_min_unitigs.size();
 
-        out.write(reinterpret_cast<const char*>(&fileformat_version), sizeof(size_t)); // Write header for binary meta file, including file format version
+        out.write(reinterpret_cast<const char*>(&fileformat_version), sizeof(size_t)); // Write header for binary index file, including file format version
         out.write(reinterpret_cast<const char*>(&checksum), sizeof(uint64_t)); // Write graph checksum
 
         out.write(reinterpret_cast<const char*>(&v_unitigs_sz), sizeof(size_t)); // Write number of unitigs with length > k
@@ -1997,7 +2021,7 @@ pair<uint64_t, bool> CompactedDBG<U, G>::readGraphFromIndexFASTA(const string& g
         read_success = (read_success && (i == h_kmers_ccov_sz));
     }
 
-	// 4 - If fasta contains more sequences than what meta file is saying, fail reading
+	// 4 - If fasta contains more sequences than what index file is saying, fail reading
     read_success = (read_success && (ff.read_next(seq, graph_file_id) == -1));
 
 	return {graph_checksum, read_success};
@@ -2121,7 +2145,7 @@ pair<uint64_t, bool> CompactedDBG<U, G>::readGraphFromIndexGFA(const string& gra
         read_success = (read_success && (i == h_kmers_ccov_sz));
     }
 
-	// 4 - If gfa contains more sequences than what meta file is saying, fail reading
+	// 4 - If gfa contains more sequences than what index file is saying, fail reading
     while ((r.first != nullptr) || (r.second != nullptr)) {
 
     	if (r.first != nullptr) {

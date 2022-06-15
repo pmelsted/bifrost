@@ -75,11 +75,8 @@ using namespace std;
 * Print information messages during execution if true. Default is false.
 * @var CDBG_Build_opt::nb_threads
 * Number of threads to use for building the graph. Default is 1.
-* @var CDBG_Build_opt::nb_bits_unique_kmers_bf
-* Number of Bloom filter bits per k-mer occurring at least once in the FASTA/FASTQ/GFA files of
-* CDBG_Build_opt::filename_in. Default is 14.
-* @var CDBG_Build_opt::nb_bits_non_unique_kmers_bf
-* Number of Bloom filter bits per k-mer occurring at least twice in the FASTA/FASTQ/GFA files of
+* @var CDBG_Build_opt::nb_bits_kmers_bf
+* Number of Bloom filter bits per k-mer occurring in the FASTA/FASTQ/GFA files of
 * CDBG_Build_opt::filename_in. Default is 14.
 * @var CDBG_Build_opt::prefixFilenameOut
 * Prefix for the name of the file to which the graph must be written. Mandatory parameter.
@@ -122,8 +119,11 @@ using namespace std;
 * String containing the name of a GFA file to read using CompactedDBG<U, G>::read. Default is empty
 * string (no input file).
 * @var CDBG_Build_opt::outputGFA
-* Boolean indicating if the graph is written to a GFA file (true) or if the unitigs are written to a
-* FASTA file (false). Default is true.
+* Boolean indicating if the graph is written to a GFA file. Default is true.
+* @var CDBG_Build_opt::outputFASTA
+* Boolean indicating if the graph is written to a FASTA file. Default is false.
+* @var CDBG_Build_opt::outputBFG
+* Boolean indicating if the graph is written to a BFG/BFI file. Default is false.
 */
 struct CDBG_Build_opt {
 
@@ -133,8 +133,7 @@ struct CDBG_Build_opt {
 
     size_t min_count_km;
 
-    size_t nb_bits_unique_kmers_bf;
-    size_t nb_bits_non_unique_kmers_bf;
+    size_t nb_bits_kmers_bf;
 
     string inFilenameBBF;
     string outFilenameBBF;
@@ -158,6 +157,9 @@ struct CDBG_Build_opt {
     bool useMercyKmers;
 
     bool outputGFA;
+    bool outputFASTA;
+    bool outputBFG;
+
     bool compressOutput;
     bool inexact_search;
 
@@ -172,11 +174,10 @@ struct CDBG_Build_opt {
 
     vector<string> filename_query_in;
 
-    CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(-1), nb_bits_unique_kmers_bf(14),
-                        nb_bits_non_unique_kmers_bf(14), ratio_kmers(0.8), min_count_km(1),
+    CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(-1), nb_bits_kmers_bf(14), ratio_kmers(0.8), min_count_km(1),
                         build(false), update(false), query(false), clipTips(false), deleteIsolated(false),
                         inexact_search(false), writeIndexFile(true), useMercyKmers(false), outputGFA(true),
-                        compressOutput(true), verbose(false) {}
+                        outputFASTA(false), outputBFG(false), compressOutput(true), verbose(false) {}
 };
 
 /** @typedef const_UnitigMap
@@ -414,14 +415,18 @@ class CompactedDBG {
         /** Write the Compacted de Bruijn graph to disk (GFA1 format).
         * @param output_fn is a string containing the name of the file in which the graph will be written.
         * @param nb_threads is a number indicating how many threads can be used to write the graph to disk.
-        * @param GFA_output indicates if the graph will be output in GFA format (true) or FASTA format (false).
+        * @param GFA_output indicates if the graph will be output in GFA format.
+        * @param FASTA_output indicates if the graph will be output in FASTA format.
+        * @param BFG_output indicates if the graph will be output in BFG/BFI format.
         * @param write_index_file indicates if an index file is written to disk. Index files enable faster graph loading.
+        * This parameter is discarded if BFG format output is selected (index output is required then).
         * @param compressed_output indicates if the output file is compressed.
         * @param verbose is a boolean indicating if information messages must be printed during the function execution.
         * @return boolean indicating if the graph has been written successfully.
         */
-        bool write( const string& output_fn, const size_t nb_threads = 1, const bool GFA_output = true, const bool write_index_file = true,
-                    const bool compressed_output = false, const bool verbose = false) const;
+        bool write( const string& output_fn, const size_t nb_threads = 1, const bool GFA_output = true, const bool FASTA_output = false,
+                    const bool BFG_output = false, const bool write_index_file = true, const bool compressed_output = false,
+                    const bool verbose = false) const;
 
         /** Load a Compacted de Bruijn graph from disk (GFA1 or FASTA format). This function detects if an index file (BFI format)
         * exists (same prefix as graph) for the input graph and will use it to load the graph. Otherwise, loading will be slower

@@ -39,8 +39,7 @@ void PrintUsage() {
     cout << "   -t, --threads            Number of threads (default is 1)" << endl;
     cout << "   -k, --kmer-length        Length of k-mers (default is 31)" << endl;
     cout << "   -m, --min-length         Length of minimizers (default is automatically chosen)" << endl;
-    cout << "   -b, --bloom-bits1        Number of Bloom filter bits per k-mer with 1+ occurrences in the input files (default is 14)" << endl;
-    cout << "   -B, --bloom-bits2        Number of Bloom filter bits per k-mer with 2+ occurrences in the input files (default is 14)" << endl;
+    cout << "   -B, --bloom-bits         Number of Bloom filter bits per k-mer (default is 14)" << endl;
     cout << "   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default is no input)" << endl;
     cout << "   -w, --write-mbbf         Output Blocked Bloom Filter file (default is no output)" << endl;
 
@@ -50,7 +49,8 @@ void PrintUsage() {
     //cout << "   -y, --keep-mercy         Keep low coverage k-mers connecting tips" << endl;
     cout << "   -i, --clip-tips          Clip tips shorter than k k-mers in length" << endl;
     cout << "   -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl;
-    cout << "   -f, --fasta-out          Output file is in fasta format (only sequences) instead of gfa (unless colors are output)" << endl;
+    cout << "   -f, --fasta-out          Output file is in fasta format (only sequences) instead of gfa (unless graph is colored)" << endl;
+    cout << "   -b, --bfg-out            Output file is in bfg/bfi format (Bifrost graph and index) instead of gfa (unless graph is colored)" << endl;
     cout << "   -n, --no-compress-out    Output files must be uncompressed" << endl << endl;
     cout << "   -N, --no-index-out       No index file is created" << endl << endl;
     cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
@@ -81,6 +81,7 @@ void PrintUsage() {
     cout << "   -i, --clip-tips          Clip tips shorter than k k-mers in length" << endl;
     cout << "   -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl;
     cout << "   -f, --fasta-out          Output file is in fasta format (only sequences) instead of gfa (unless colors are output)" << endl;
+    cout << "   -b, --bfg-out            Output file is in bfg/bfi format (Bifrost graph and index) instead of gfa (unless graph is colored)" << endl;
     cout << "   -n, --no-compress-out    Output files must be uncompressed" << endl << endl;
     cout << "   -N, --no-index-out       No index file is created" << endl << endl;
     cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
@@ -114,7 +115,7 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
 
     int option_index = 0, c;
 
-    const char* opt_string = "s:r:q:g:I:C:o:t:k:m:e:b:B:l:w:aidvcyfnN";
+    const char* opt_string = "s:r:q:g:I:C:o:t:k:m:e:B:l:w:aidvcyfbnN";
 
     static struct option long_options[] = {
 
@@ -129,8 +130,7 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
         {"kmer-length",         required_argument,  0, 'k'},
         {"min-length",          required_argument,  0, 'm'},
         {"ratio-kmers",         required_argument,  0, 'e'},
-        {"bloom-bits1",         required_argument,  0, 'b'},
-        {"bloom-bits2",         required_argument,  0, 'B'},
+        {"bloom-bits",          required_argument,  0, 'B'},
         {"load-mbbf",           required_argument,  0, 'l'},
         {"write-mbbf",          required_argument,  0, 'w'},
         {"approximate",         no_argument,        0, 'a'},
@@ -140,6 +140,7 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
         {"colors",              no_argument,        0, 'c'},
         //{"keep-mercy",          no_argument,        0, 'y'},
         {"fasta-out",           no_argument,        0, 'f'},
+        {"bfg-out",             no_argument,        0, 'b'},
         {"no-compress-out",     no_argument,        0, 'n'},
         {"no-index-out",        no_argument,        0, 'N'},
         {0,                     0,                  0,  0 }
@@ -191,11 +192,8 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                 case 'e':
                     opt.ratio_kmers = atof(optarg);
                     break;
-                case 'b':
-                    opt.nb_bits_unique_kmers_bf = atoi(optarg);
-                    break;
                 case 'B':
-                    opt.nb_bits_non_unique_kmers_bf = atoi(optarg);
+                    opt.nb_bits_kmers_bf = atoi(optarg);
                     break;
                 case 'w':
                     opt.outFilenameBBF = optarg;
@@ -223,6 +221,11 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                     break;*/
                 case 'f':
                     opt.outputGFA = false;
+                    opt.outputFASTA = true;
+                    break;
+                case 'b':
+                    opt.outputGFA = false;
+                    opt.outputBFG = true;
                     break;
                 case 'n':
                     opt.compressOutput = false;
@@ -486,7 +489,23 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
         }
     }
 
-    if (opt.update || opt.query){
+    if (opt.build || opt.update) {
+
+        if (opt.outputFASTA && opt.outputBFG) {
+
+            cerr << "Error: Two output format selected: FASTA and GFA. Rerun with one format selected." << endl;
+            ret = false;
+        }
+
+        if (opt.outputBFG && !opt.writeIndexFile) {
+
+            cerr << "Error: Bifrost index file output (.bfi) is required to output Bifrost graph file (.bfg). Remove the no index output argument." << endl;
+            ret = false;
+        }
+
+    }
+
+    if (opt.update || opt.query) {
 
         if (opt.filename_graph_in.length() == 0){
 
@@ -590,7 +609,7 @@ int main(int argc, char **argv){
                     success = cdbg.build(opt);
 
                     if (success) success = cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                    if (success) success = cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.writeIndexFile, opt.compressOutput, opt.verbose);
+                    if (success) success = cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.outputFASTA, opt.outputBFG, opt.writeIndexFile, opt.compressOutput, opt.verbose);
                 }
             }
             else if (opt.update){
@@ -659,7 +678,8 @@ int main(int argc, char **argv){
                             }
 
                             if (success) success = cdbg_a.simplify(l_opt.deleteIsolated, l_opt.clipTips, l_opt.verbose);
-                            if (success) success = cdbg_a.write(l_opt.prefixFilenameOut, l_opt.nb_threads, l_opt.outputGFA, l_opt.writeIndexFile, l_opt.compressOutput, l_opt.verbose);
+                            if (success) success = cdbg_a.write(l_opt.prefixFilenameOut, l_opt.nb_threads, l_opt.outputGFA,
+                                                                l_opt.outputFASTA, l_opt.outputBFG, l_opt.writeIndexFile, l_opt.compressOutput, l_opt.verbose);
                         }
                     }
                 }

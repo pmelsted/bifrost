@@ -35,20 +35,6 @@ class CompressedSequence {
 
         void clear();
 
-        void toString(char *s, const size_t offset, const size_t length) const;
-        string toString(const size_t offset, const size_t length) const;
-
-
-        inline string toString() const {
-
-            return toString(0, size());
-        }
-
-        inline void toString(char *s) const {
-
-            toString(s, 0, size());
-        }
-
         Kmer getKmer(size_t offset) const;
         Minimizer getMinimizer(size_t offset) const;
         char getChar(const size_t offset) const;
@@ -58,6 +44,20 @@ class CompressedSequence {
 
         void setSequence(const CompressedSequence& o, const size_t offset_o, const size_t length_o, const size_t offset = 0, const bool reversed = false);
         void setSequence(const char *s, const size_t offset, const size_t length, const bool reversed = false);
+
+        void toString(char *s, const size_t offset, const size_t length) const;
+        string toString(const size_t offset, const size_t length) const;
+
+        BFG_INLINE string toString() const {
+
+            return toString(0, size());
+        }
+
+        BFG_INLINE void toString(char *s) const {
+
+            toString(s, 0, size());
+        }
+
 
         BFG_INLINE void setSequence(const string& s, const size_t offset, const size_t length, const bool reversed = false) {
 
@@ -117,6 +117,10 @@ class CompressedSequence {
             return wyhash(getPointer(), round_to_bytes(size()), seed, _wyp);
         }
 
+    private:
+
+        void _resize_and_copy(const size_t new_cap, const size_t copy_limit);
+
         BFG_INLINE size_t capacity() const {
 
             if (isShort()) return 31; // 31 bytes
@@ -128,10 +132,6 @@ class CompressedSequence {
 
             return (len+3)/4;
         }
-
-    private:
-
-        void _resize_and_copy(const size_t new_cap, const size_t copy_limit);
 
         BFG_INLINE void initShort() {
 

@@ -2605,9 +2605,9 @@ pair<bool, BlockedBloomFilter> CompactedDBG<U, G>::filter(const CDBG_Build_opt& 
 
     const bool reference_mode = (opt.filename_ref_in.size() != 0);
 
-    BlockedBloomFilter bf1(nb_unique_kmers, opt.nb_bits_unique_kmers_bf), bf2;
+    BlockedBloomFilter bf1(nb_unique_kmers, opt.nb_bits_kmers_bf), bf2;
 
-    if (!reference_mode) bf2 = BlockedBloomFilter(nb_non_unique_kmers, opt.nb_bits_non_unique_kmers_bf);
+    if (!reference_mode) bf2 = BlockedBloomFilter(nb_non_unique_kmers, opt.nb_bits_kmers_bf);
 
     string s;
 
