@@ -1300,7 +1300,14 @@ bool CompactedDBG<U, G>::writeBinary(const string& fn, const size_t nb_threads) 
 template<typename U, typename G>
 bool CompactedDBG<U, G>::writeBinary(ostream& out, const size_t nb_threads) const {
 
-    return (!out.fail() && writeBinaryGraph(out, nb_threads) && writeBinaryIndex(out, checksum(), nb_threads));
+	if (!out.fail()) {
+
+		const bool write_success = writeBinaryGraph(out, nb_threads);
+
+		if (write_success) return writeBinaryIndex(out, checksum(), nb_threads);
+	}
+
+    return false;
 }
 
 template<typename U, typename G>
