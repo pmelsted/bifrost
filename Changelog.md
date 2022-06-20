@@ -2,9 +2,9 @@
 
 API only.
 
-* **03-06-2022**
-	* `CompactedDBG::write()` and `ColoredCDBG::write()` take 2 additional arguments: whether the output should be compressed (`compress_output`) and if a meta file should be generated (`writeBinaryMeta`). Beware that these come with default values which could override the default values of the previous versions of `write`, e.g, the default value of parameter `writeBinaryMeta` (`read()` with 7 parameters) could be used as the default value of parameter `verbose` if your code is not updated (`read()` with 5 parameters).
-	* There exists two versions of * `CompactedDBG::read()` and `ColoredCDBG::read()`, the usual graph reading function and the same function withs an additional meta graph file as input. Using the meta graph file as input considerably speeds-up the graph loading in memory.
+* **15-06-2022**
+	* Function `CompactedDBG()::write()` takes additional arguments. In particular, `compress_output` indicates whether the output should be compressed and `write_index_file` indicates whether an index file should be generated to enable faster graph loading. Furthermore, having argument `outputGFA` set to false would automatically make the function output the graph in FASTA format. Instead, the new function has 3 separate booleans, `GFA_output`, `FASTA_output` and `BFG_output` to select the output file format. Beware that these new arguments come with default values which could override the default values of the previous versions of `write`, e.g, the default value of parameter `FASTA_output` (`read()` with 8 parameters) could be used as the default value of parameter `verbose` if your code is not updated (`read()` with 5 parameters).
+	* There exists two versions of * `CompactedDBG::read()` and `ColoredCDBG::read()`, the "usual" graph reading function and the same function with an additional index graph file as input. Using the index graph file as input considerably speeds-up the graph loading in memory. The "usual" graph reading function will automatically use the graph index file if available.
 * **04-28-2022**
 	* Color files generated prior to version 1.0.6.2 are **not** compatible with version 1.0.6.2 and onward.
 	* `CompactedDBG::simplify()` and `ColoredCDBG::simplify()` now return true even if no simplification was performed ("null-simplification" in case all input parameters are set to false). The goal is to only return false if the graph is invalid or in case of unexpected behavior. 
