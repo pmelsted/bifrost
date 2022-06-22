@@ -33,7 +33,7 @@
 To install Bifrost using Bioconda or Brew, go directly to Section [Installation](#installation). To install from source, you will need:
 
 * C++11 compiler:
-    * [GCC](https://gcc.gnu.org/) >= 5.4.0
+    * [GCC](https://gcc.gnu.org/) >= 5.1.0
     * [Clang](http://clang.llvm.org/) >= 3.5
 * [Cmake](https://cmake.org/) >= 2.8.12
 * [Zlib](https://zlib.net/)
