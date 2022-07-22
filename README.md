@@ -69,6 +69,9 @@ Compared to the source install, the Conda package do not support *k>31* nor nati
   ```
   conda install -c bioconda bifrost
   ```
+  
+  This binary is compiled to generic x86-64 architecture and does not include advanced SSE and AVX instructions.
+  See installing from source through conda for a natively compiled installation.
 
 * From source
 
@@ -92,6 +95,27 @@ Compared to the source install, the Conda package do not support *k>31* nor nati
   * Bifrost uses AVX2 instructions during graph construction which can be disabled by adding the option `-DENABLE_AVX2=OFF` to the `cmake` command.
 
   If you encounter any problem during the installation, see the [Troubleshooting](#troubleshooting) section.
+
+* From source through pypi (Bifrost v1.0.4)
+
+```
+pip install bifrost-src --no-binary bifrost-src
+```
+
+This installation method compiles the code natively with all SSE and AVX instructions
+supported by your CPU architecture turned on. This installation method requires the compiler and build essentials to have
+been installed as described in the Requirements section.
+
+* From source through conda (Bifrost v1.0.4)
+
+```
+conda env create -n bifrost -f environment-linux.yml
+conda activate bifrost
+```
+
+This installation method compiles the code natively with all SSE and AVX instructions
+supported by your CPU architecture turned on. It does not require
+the compiler and build essentials described in the Requirements section.  
 
 ### Large *k*-mers
 
