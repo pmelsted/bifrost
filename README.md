@@ -193,9 +193,7 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
    -f, --fasta-out          Output file is in fasta format (only sequences) instead of gfa (unless colors are output)
    -b, --bfg-out            Output file is in bfg/bfi format (Bifrost graph and index) instead of gfa (unless graph is colored)
    -n, --no-compress-out    Output files must be uncompressed
-
    -N, --no-index-out       No index file is created
-
    -v, --verbose            Print information messages during execution
 
 [PARAMETERS]: query
