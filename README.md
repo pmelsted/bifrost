@@ -5,12 +5,12 @@
 * **Build**, **index**, **color** and **query** the compacted de Bruijn graph
 * **No need to build the uncompacted** de Bruijn graph
 * **Reads** or **assembled genomes** as input
-* Output **graph in GFA** (can be visualized with [Bandage](https://github.com/rrwick/Bandage))
+* Output **graph in GFA** (can be visualized with [Bandage](https://github.com/rrwick/Bandage)), **FASTA** or **binary**
 * **Graph cleaning**: short tip clipping, etc.
 * **No disk** usage (adapted for cluster architectures)
-* **Multi-threaded** and **SIMD** optimized
+* **Multi-threaded**
 * **No parameters to estimate** with other tools
-* **Inexact** *k*-mer search of queries
+* **Exact** or **approximate** *k*-mer search of queries
 * **C++ API** available:
     * Associate **your data with vertices**
     * **Add** or **remove** (sub-)sequences / *k*-mers / colors
@@ -130,18 +130,18 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
 [COMMAND]:
 
    build                   Build a compacted de Bruijn graph, with or without colors
-   update                  Update a compacted (possible colored) de Bruijn graph with new sequences
-   query                   Query a compacted (possible colored) de Bruijn graph
+   update                  Update a compacted (colored) de Bruijn graph with new sequences
+   query                   Query a compacted (colored) de Bruijn graph
 
 [PARAMETERS]: build
 
    > Mandatory with required argument:
 
-   -s, --input-seq-file     Input sequence file (FASTA/FASTQ possibly gzipped)
-                            Multiple files can be provided as a list in a TXT file (one file per line)
+   -s, --input-seq-file     Input sequence file in fasta/fastq(.gz) format
+                            Multiple files can be provided as a list in a text file (one file per line)
                             K-mers with exactly 1 occurrence in the input sequence files will be discarded
-   -r, --input-ref-file     Input reference file (FASTA/FASTQ possibly gzipped and GFA)
-                            Multiple files can be provided as a list in a TXT file (one file per line)
+   -r, --input-ref-file     Input reference file in fasta/fastq(.gz) or gfa(.gz) format
+                            Multiple files can be provided as a list in a text file (one file per line)
                             All k-mers of the input reference files are used
    -o, --output-file        Prefix for output file(s)
 
@@ -149,69 +149,78 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
 
    -t, --threads            Number of threads (default is 1)
    -k, --kmer-length        Length of k-mers (default is 31)
-   -m, --min-length         Length of minimizers (default is 23)
-   -b, --bloom-bits         Number of Bloom filter bits per k-mer with 1+ occurrences in the input files (default is 14)
-   -B, --bloom-bits2        Number of Bloom filter bits per k-mer with 2+ occurrences in the input files (default is 14)
+   -m, --min-length         Length of minimizers (default is automatically chosen)
+   -B, --bloom-bits         Number of Bloom filter bits per k-mer (default is 14)
    -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default is no input)
    -w, --write-mbbf         Output Blocked Bloom Filter file (default is no output)
-   -u, --chunk-size         Read chunk size per thread (default is 64)
-
    > Optional with no argument:
 
    -c, --colors             Color the compacted de Bruijn graph (default is no coloring)
-   -y, --keep-mercy         Keep low coverage k-mers connecting tips
    -i, --clip-tips          Clip tips shorter than k k-mers in length
    -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length
-   -a, --fasta              Output file is in FASTA format (only sequences) instead of GFA
+   -f, --fasta-out          Output file is in fasta format (only sequences) instead of gfa (unless graph is colored)
+   -b, --bfg-out            Output file is in bfg/bfi format (Bifrost graph and index) instead of gfa (unless graph is colored)
+   -n, --no-compress-out    Output files must be uncompressed
+
+   -N, --no-index-out       No index file is created
+
    -v, --verbose            Print information messages during execution
 
 [PARAMETERS]: update
 
   > Mandatory with required argument:
 
-   -g, --input-graph-file   Input graph file to update (GFA format)
-   -s, --input-seq-file     Input sequence file (FASTA/FASTQ possibly gzipped)
-                            Multiple files can be provided as a list in a TXT file (one file per line)
+   -g, --input-graph-file   Input graph file to update in gfa(.gz) or bfg format
+   -s, --input-seq-file     Input sequence file in fasta/fastq(.gz) format
+                            Multiple files can be provided as a list in a text file (one file per line)
                             K-mers with exactly 1 occurrence in the input sequence files will be discarded
-   -r, --input-ref-file     Input reference file (FASTA/FASTQ possibly gzipped and GFA)
-                            Multiple files can be provided as a list in a TXT file (one file per line)
+   -r, --input-ref-file     Input reference file in fasta/fastq(.gz) or gfa(.gz) format
+                            Multiple files can be provided as a list in a text file (one file per line)
                             All k-mers of the input reference files are used
    -o, --output-file        Prefix for output file(s)
 
    > Optional with required argument:
 
-   -f, --input-color-file   Input color file associated with the input graph file to update
+   -I, --input-index-file   Input index file associated with graph to update in bfi format
+   -C, --input-color-file   Input color file associated with graph to update in color.bfg format
    -t, --threads            Number of threads (default is 1)
    -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)
-   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or 23)
+   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or automatically chosen)
 
    > Optional with no argument:
 
    -i, --clip-tips          Clip tips shorter than k k-mers in length
    -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length
+   -f, --fasta-out          Output file is in fasta format (only sequences) instead of gfa (unless colors are output)
+   -b, --bfg-out            Output file is in bfg/bfi format (Bifrost graph and index) instead of gfa (unless graph is colored)
+   -n, --no-compress-out    Output files must be uncompressed
+
+   -N, --no-index-out       No index file is created
+
    -v, --verbose            Print information messages during execution
 
 [PARAMETERS]: query
 
   > Mandatory with required argument:
 
-   -g, --input-graph-file   Input graph file to query (GFA format)
-   -q, --input-query-file   Input query file (FASTA/FASTQ possibly gzipped)
-                            Multiple files can be provided as a list in a TXT file (one file per line)
+   -g, --input-graph-file   Input graph file to query in gfa(.gz) or bfg
+   -q, --input-query-file   Input query file in fasta/fastq(.gz)
+                            Multiple files can be provided as a list in a text file (one file per line)
    -o, --output-file        Prefix for output file
    -e, --ratio-kmers        Ratio of k-mers from queries that must occur in the graph (default is 0.8)
 
    > Optional with required argument:
 
-   -f, --input-color-file   Input color file associated with the input graph file to query
+   -I, --input-index-file   Input index file associated with graph to query in bfi format
+   -C, --input-color-file   Input color file associated with the graph to query in color.bfg format
                             Presence/absence of queries will be output for each color
    -t, --threads            Number of threads (default is 1)
    -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)
-   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or 23)
+   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or or automatically chosen)
 
    > Optional with no argument:
 
-   -n, --inexact            Graph is searched with exact and inexact k-mers (1 substitution or indel) from queries         
+   -a, --approximate        Graph is searched with exact and inexact k-mers (1 substitution or indel) from queries
    -v, --verbose            Print information messages during execution
 ```
 
