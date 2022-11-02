@@ -153,6 +153,7 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
    -B, --bloom-bits         Number of Bloom filter bits per k-mer (default is 14)
    -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default is no input)
    -w, --write-mbbf         Output Blocked Bloom Filter file (default is no output)
+   
    > Optional with no argument:
 
    -c, --colors             Color the compacted de Bruijn graph (default is no coloring)
@@ -256,7 +257,7 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
      ```
      Bifrost update -t 4 -i -d -s E.fastq -s F.fastq -g ABC.gfa.gz -f ABC.bfg_colors -o ABCEF 
      ```
-     The compacted and colored de Bruijn graph *ABC* (`-g ABC.gfa.gz -f ABC.bfg_colors`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of files *E.fastq* and *F.fastq* (`-s E.fastq -s F.fastq`). The Bifrost index *ABC_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. Graph simplification steps are performed after merging (`-i -d`). The graph is written to file *ABCEF.gfa.gz*, the colors are written to file *ABCEF.bfg_colors* and a Bifrost index is written to file *ABCEF_graph.bfi*(`-o ABCEF`).
+     The compacted and colored de Bruijn graph *ABC* (`-g ABC.gfa.gz -f ABC.bfg_colors`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of files *E.fastq* and *F.fastq* (`-s E.fastq -s F.fastq`). The Bifrost index *ABC_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. Graph simplification steps are performed after merging (`-i -d`). The graph is written to file *ABCEF.gfa.gz*, the colors are written to file *ABCEF.bfg_colors* and a Bifrost index is written to file *ABCEF_graph.bfi* (`-o ABCEF`).
 
 - **Query**
 
