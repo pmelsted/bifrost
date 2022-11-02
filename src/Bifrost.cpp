@@ -41,7 +41,7 @@ void PrintUsage() {
     cout << "   -m, --min-length         Length of minimizers (default is automatically chosen)" << endl;
     cout << "   -B, --bloom-bits         Number of Bloom filter bits per k-mer (default is 14)" << endl;
     cout << "   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default is no input)" << endl;
-    cout << "   -w, --write-mbbf         Output Blocked Bloom Filter file (default is no output)" << endl;
+    cout << "   -w, --write-mbbf         Output Blocked Bloom Filter file (default is no output)" << endl << endl;
 
     cout << "   > Optional with no argument:" << endl << endl;
 
@@ -51,8 +51,8 @@ void PrintUsage() {
     cout << "   -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl;
     cout << "   -f, --fasta-out          Output file is in fasta format (only sequences) instead of gfa (unless graph is colored)" << endl;
     cout << "   -b, --bfg-out            Output file is in bfg/bfi format (Bifrost graph and index) instead of gfa (unless graph is colored)" << endl;
-    cout << "   -n, --no-compress-out    Output files must be uncompressed" << endl << endl;
-    cout << "   -N, --no-index-out       No index file is created" << endl << endl;
+    cout << "   -n, --no-compress-out    Output files must be uncompressed" << endl;
+    cout << "   -N, --no-index-out       No index file is created" << endl;
     cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
 
     cout << "[PARAMETERS]: update" << endl << endl;
@@ -82,8 +82,8 @@ void PrintUsage() {
     cout << "   -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl;
     cout << "   -f, --fasta-out          Output file is in fasta format (only sequences) instead of gfa (unless colors are output)" << endl;
     cout << "   -b, --bfg-out            Output file is in bfg/bfi format (Bifrost graph and index) instead of gfa (unless graph is colored)" << endl;
-    cout << "   -n, --no-compress-out    Output files must be uncompressed" << endl << endl;
-    cout << "   -N, --no-index-out       No index file is created" << endl << endl;
+    cout << "   -n, --no-compress-out    Output files must be uncompressed" << endl;
+    cout << "   -N, --no-index-out       No index file is created" << endl;
     cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
 
     cout << "[PARAMETERS]: query" << endl << endl;
