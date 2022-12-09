@@ -123,6 +123,14 @@ void BlockedBloomFilter::clear() {
     lck_ush.clear(std::memory_order_release);
 }
 
+void BlockedBloomFilter::reset() {
+
+    for (size_t i = 0; (table_ != nullptr) && (i < blocks_); ++i) table_[i].clear();
+
+    ush.clear();
+    lck_ush.clear(std::memory_order_release);
+}
+
 void BlockedBloomFilter::init_arrays() {
 
     fast_div_ = libdivide::divider<uint64_t>(blocks_);

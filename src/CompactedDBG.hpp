@@ -677,7 +677,7 @@ class CompactedDBG {
         bool construct(const CDBG_Build_opt& opt, BlockedBloomFilter& bf, Roaring& r, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers);
 
         void addUnitigSequence(const Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km, LockGraph& lck_g, const bool map_read = true);
-        //void addUnitigSequence(const string& seq);
+        void addUnitigSequence(const string& seq);
 
         size_t findUnitigSequenceBBF(const BlockedBloomFilter& bf, const Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip);
         size_t findUnitigSequenceBBF(const BlockedBloomFilter& bf, const Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip, LockGraph& lck_g);
@@ -712,7 +712,7 @@ class CompactedDBG {
 
         bool addUnitig(const string& str_unitig, const size_t id_unitig);
         bool addUnitig(const string& str_unitig, const size_t id_unitig, const size_t id_unitig_r, const size_t is_short_r);
-        bool addUnitig(const string& str_unitig, const size_t id_unitig, SpinLock& lck_unitig, SpinLock& lck_kmer/*, const bool enable_abundant = true*/);
+        //bool addUnitig(const string& str_unitig, const size_t id_unitig, SpinLock& lck_unitig, SpinLock& lck_kmer/*, const bool enable_abundant = true*/);
         void swapUnitigs(const bool isShort, const size_t id_a, const size_t id_b);
 
         bool mergeUnitig(const string& seq, const bool verbose = false);
@@ -780,8 +780,8 @@ class CompactedDBG {
         template<bool is_void>
         typename std::enable_if<is_void, void>::type writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const;
 
-        void mapRead(const const_UnitigMap<U, G>& um);
-        void mapRead(const const_UnitigMap<U, G>& um, LockGraph& lck_g);
+        bool mapRead(const const_UnitigMap<U, G>& um);
+        bool mapRead(const const_UnitigMap<U, G>& um, LockGraph& lck_g);
 
         void unmapRead(const const_UnitigMap<U, G>& um);
         void unmapRead(const const_UnitigMap<U, G>& um, LockGraph& lck_g);

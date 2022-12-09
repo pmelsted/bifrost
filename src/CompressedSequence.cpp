@@ -19,25 +19,30 @@ CompressedSequence::~CompressedSequence() {
 // post: the DNA string in _cs and is the same as in cs
 CompressedSequence::CompressedSequence(const CompressedSequence& o) {
 
+    initShort();
+
     if (o.isShort()) {
 
         asBits._size = o.asBits._size;
-        memcpy(asBits._arr, o.asBits._arr, 31);
+
+        memcpy(asBits._arr, o.asBits._arr, 15);
     }
     else setSequence(o, 0, o.size()); // copy sequence and pointers etc.
 }
 
 CompressedSequence::CompressedSequence(CompressedSequence&& o) {
 
+    initShort();
+
     if (o.isShort()) {
 
         asBits._size = o.asBits._size;
-        memcpy(asBits._arr, o.asBits._arr, 31); // plain vanilla copy
+
+        memcpy(asBits._arr, o.asBits._arr, 15); // plain vanilla copy
     }
     else {
 
         asPointer._length = o.asPointer._length;
-        asPointer._capacity = o.asPointer._capacity;
         asPointer._data = o.asPointer._data;
 
         o.initShort();
@@ -54,7 +59,8 @@ CompressedSequence& CompressedSequence::operator=(const CompressedSequence& o) {
         if (o.isShort()) {
 
             asBits._size = o.asBits._size;
-            memcpy(asBits._arr, o.asBits._arr,31); // plain vanilla copy
+
+            memcpy(asBits._arr, o.asBits._arr, 15); // plain vanilla copy
         }
         else setSequence(o, 0, o.size()); // copy sequence and pointers etc.
     }
@@ -69,14 +75,13 @@ CompressedSequence& CompressedSequence::operator=(CompressedSequence&& o) {
         if (o.isShort()) {
 
             asBits._size = o.asBits._size;
-            memcpy(asBits._arr, o.asBits._arr, 31); // plain vanilla copy
+            memcpy(asBits._arr, o.asBits._arr, 15); // plain vanilla copy
         }
         else {
 
             clear();
 
             asPointer._length = o.asPointer._length;
-            asPointer._capacity = o.asPointer._capacity;
             asPointer._data = o.asPointer._data;
 
             o.initShort();
@@ -93,7 +98,7 @@ CompressedSequence::CompressedSequence(const char *s) {
 
     initShort();
 
-    if (s != NULL) setSequence(s, 0, strlen(s));
+    if (s != nullptr) setSequence(s, 0, strlen(s));
 }
 
 
@@ -121,40 +126,39 @@ CompressedSequence::CompressedSequence(const Kmer& km) {
 // pre:
 // post: The DNA string in cs has space for at least new_length bases
 //       the first copy_limit characters of cs are the same as before this method
-void CompressedSequence::_resize_and_copy(const size_t new_cap, const size_t copy_limit) {
+void CompressedSequence::_resize_and_copy(const size_t new_capacity, const size_t copy_limit) {
 
-    if (new_cap <= capacity()) return;
+    const size_t curr_capacity = round_to_bytes(size());
 
-    unsigned char* new_data = new unsigned char[new_cap](); // allocate new storage
-    size_t bytes = round_to_bytes(copy_limit);
+    if (new_capacity <= curr_capacity) return;
+
+    const size_t bytes = round_to_bytes(copy_limit);
+
+    unsigned char* new_data = new unsigned char[new_capacity](); // allocate new storage
 
     memcpy(new_data, getPointer(), bytes); // copy old data
 
     if (isShort()) {
 
-        size_t sz = size();
+        const size_t sz = size();
 
         asBits._size = 0; // this is now a long sequence.
 
         setSize(sz);
 
         asPointer._data = new_data;
-        asPointer._capacity = new_cap;
     }
     else {
 
         delete[] asPointer._data;
 
         asPointer._data = new_data;
-        asPointer._capacity = new_cap;
     }
 }
 
 void CompressedSequence::setSequence(const CompressedSequence& o, const size_t offset_o, const size_t length_o, const size_t offset, const bool reversed) {
 
-    const size_t nb_bytes_o = round_to_bytes(length_o + offset);
-
-    if (nb_bytes_o > capacity()) _resize_and_copy(nb_bytes_o, size());
+    _resize_and_copy(round_to_bytes(length_o + offset), size());
 
     unsigned char* data = const_cast<unsigned char*>(getPointer());
     const unsigned char* data_o = o.getPointer();
@@ -195,11 +199,9 @@ void CompressedSequence::setSequence(const CompressedSequence& o, const size_t o
 
 void CompressedSequence::setSequence(const char *s, const size_t offset, const size_t length, const bool reversed) {
 
-    const size_t rounded_length = round_to_bytes(length);
+    _resize_and_copy(round_to_bytes(length), size());
 
     const char* s_offset = s + offset;
-
-    if (rounded_length > capacity()) _resize_and_copy(rounded_length, size());
 
     unsigned char* data = const_cast<unsigned char*>(getPointer());
 
@@ -604,7 +606,7 @@ size_t CompressedSequence::jump(const char *s, const size_t i, int pos, const bo
 
 void CompressedSequence::clear() {
 
-    if (!isShort() && (asPointer._capacity > 0) && (asPointer._data != NULL)) delete[] asPointer._data;
+    if (!isShort() && (asPointer._length > 0) && (asPointer._data != nullptr)) delete[] asPointer._data;
 
     initShort();
 }

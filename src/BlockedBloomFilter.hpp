@@ -42,6 +42,7 @@ class BlockedBloomFilter {
         bool ReadBloomFilter(FILE *fp);
 
         void clear();
+        void reset();
 
         inline bool contains(const uint64_t kmh, const uint64_t minh) const {
 

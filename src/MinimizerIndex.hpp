@@ -5,6 +5,9 @@
 #include <string>
 #include <iterator>
 #include <algorithm>
+#include <thread>
+#include <atomic>
+#include <mutex>
 
 #include "Kmer.hpp"
 #include "Lock.hpp"
@@ -27,7 +30,17 @@ class MinimizerIndex {
             iterator_(MI_ptr_t ht_) : ht(ht_), h(ht_->size_) {}
             iterator_(MI_ptr_t ht_, size_t h_) :  ht(ht_), h(h_) {}
             iterator_(const iterator_<false>& o) : ht(o.ht), h(o.h) {}
-            iterator_& operator=(const iterator_& o) { ht=o.ht; h=o.h; return *this; }
+
+            iterator_& operator=(const iterator_& o) {
+
+                if (this != &o) {
+
+                    ht=o.ht;
+                    h=o.h;
+                }
+
+                return *this;
+            }
 
             BFG_INLINE Minimizer getKey() const {
 
@@ -95,6 +108,7 @@ class MinimizerIndex {
         //private:
 
             MI_ptr_t ht;
+
             size_t h;
     };
 
@@ -106,7 +120,7 @@ class MinimizerIndex {
         typedef iterator_<false> iterator;
 
         MinimizerIndex();
-        MinimizerIndex(const size_t sz);
+        MinimizerIndex(const size_t sz, const double max_ratio_occupancy = 0.95);
 
         MinimizerIndex(const MinimizerIndex& o);
         MinimizerIndex(MinimizerIndex&& o);
@@ -119,6 +133,11 @@ class MinimizerIndex {
         BFG_INLINE size_t size() const {
 
             return pop;
+        }
+
+        BFG_INLINE size_t capacity() const {
+
+            return size_;
         }
 
         BFG_INLINE bool empty() const {
@@ -134,12 +153,12 @@ class MinimizerIndex {
         iterator find(const size_t h);
         const_iterator find(const size_t h) const;
 
-        iterator erase(const_iterator it);
+        void erase(const_iterator it);
         size_t erase(const Minimizer& minz);
 
         pair<iterator, bool> insert(const Minimizer& key, const packed_tiny_vector& v, const uint8_t& flag);
 
-        void init_threads();
+        /*void init_threads();
         void release_threads();
 
         iterator find_p(const Minimizer& key);
@@ -153,7 +172,7 @@ class MinimizerIndex {
 
         size_t erase_p(const Minimizer& minz);
 
-        pair<iterator, bool> insert_p(const Minimizer& key, const packed_tiny_vector& v, const uint8_t& flag);
+        pair<iterator, bool> insert_p(const Minimizer& key, const packed_tiny_vector& v, const uint8_t& flag);*/
 
         iterator begin();
         const_iterator begin() const;
@@ -161,27 +180,42 @@ class MinimizerIndex {
         iterator end();
         const_iterator end() const;
 
+        void recomputeMaxPSL(const size_t nb_threads = 1);
+
+        BFG_INLINE size_t get_mean_psl() const {
+
+            return sum_psl / (pop + 1); // Slightly biased computation but avoids to check for (psl == 0). Fine since we just need an approximate result.
+        }
+
+        BFG_INLINE size_t get_max_psl() const {
+
+            return max_psl;
+        }
+
     private:
 
         void clear_tables();
         void init_tables(const size_t sz);
         void reserve(const size_t sz);
+        void swap(const size_t i, const size_t j);
 
-        size_t size_, pop, num_empty;
+        double max_ratio_occupancy;
+
+        size_t size_, pop, max_psl, sum_psl;
 
         Minimizer* table_keys;
         packed_tiny_vector* table_tinyv;
         uint8_t* table_tinyv_sz;
 
-        mutable vector<SpinLock> lck_min;
+        /*mutable vector<SpinLock> lck_min;
         mutable SpinLockRW lck_edit_table;
 
-        atomic<size_t> pop_p, num_empty_p;
+        atomic<size_t> pop_p;
 
         // For future myself: lck_block_sz must be a poswer of 2. If you change it, change lck_block_div_shift accordingly.
         // For future myself, this could automated in a much better looking implementation. 
         static const size_t lck_block_sz;
-        static const size_t lck_block_div_shift;
+        static const size_t lck_block_div_shift;*/
 };
 
 /*class CompactedMinimizerIndex {

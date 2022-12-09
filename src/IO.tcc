@@ -1789,7 +1789,7 @@ void CompactedDBG<U, G>::makeGraphFromGFA(const string& fn, const size_t nb_thre
 
     GFA_Parser::GFA_line r = graph.read(graph_file_id, new_file_opened, true);
 
-    if (nb_threads == 1){
+    /*if (nb_threads == 1)*/{
 
         while ((r.first != nullptr) || (r.second != nullptr)){
 
@@ -1798,7 +1798,7 @@ void CompactedDBG<U, G>::makeGraphFromGFA(const string& fn, const size_t nb_thre
             r = graph.read(graph_file_id, new_file_opened, true);
         }
     }
-    else {
+    /*else {
 
         const size_t block_sz = 1024;
 
@@ -1857,7 +1857,7 @@ void CompactedDBG<U, G>::makeGraphFromGFA(const string& fn, const size_t nb_thre
         hmap_min_unitigs.release_threads();
 
         moveToAbundant();
-	}
+	}*/
 }
 
 template<typename U, typename G>
@@ -1869,11 +1869,11 @@ void CompactedDBG<U, G>::makeGraphFromFASTA(const string& fn, const size_t nb_th
 
     string seq;
 
-    if (nb_threads == 1){
+    /*if (nb_threads == 1)*/{
 
         while (ff.read_next(seq, graph_file_id) != -1) addUnitig(seq, (seq.length() == k_) ? km_unitigs.size() : v_unitigs.size());
     }
-    else {
+    /*else {
 
         const size_t block_sz = 1024;
 
@@ -1929,7 +1929,7 @@ void CompactedDBG<U, G>::makeGraphFromFASTA(const string& fn, const size_t nb_th
         hmap_min_unitigs.release_threads();
 
         moveToAbundant();
-    }
+    }*/
 }
 
 template<typename U, typename G>
