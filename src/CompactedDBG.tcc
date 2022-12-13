@@ -4193,6 +4193,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, BlockedBloomFilter
     check_fp_tips(ignored_km_tips);
 
     ignored_km_tips.clear_tables();
+
     hmap_min_unitigs.recomputeMaxPSL(opt.nb_threads);
 
     const int unitigsAfter2 = size();
