@@ -3999,14 +3999,79 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, BlockedBloomFilter
                     pv_unitigs.second.clear();
                 }
             }
-
-            //cout << "Size: " << hmap_min_unitigs.size() << endl;
-            //cout << "Capacity: " << hmap_min_unitigs.capacity() << endl;
-            //cout << "Mean PSL: " << hmap_min_unitigs.get_mean_psl() << endl;
-            //cout << "Max PSL: " << hmap_min_unitigs.get_max_psl() << endl;
         }
 
         for (size_t t = 0; t < opt.nb_threads; ++t) delete[] v_buffer_seq[t];
+
+        /*{
+            mutex mtx_graph;
+
+            vector<thread> workers;
+
+            for (size_t t = 0; t < opt.nb_threads; ++t) {
+
+                workers.emplace_back(
+
+                    [&]{
+
+                        pair<vector<CompressedSequence>, vector<Kmer>> pv_unitigs;
+
+                        char* buffer_seq = new char[thread_seq_buf_sz];
+
+                        size_t buffer_seq_sz = 0;
+                        size_t count_km = 0;
+
+                        while (true) {
+
+                            {
+                                unique_lock<mutex> lock(mtx_fn);
+
+                                stop = stop || (its == ite);
+
+                                if (stop) break;
+
+                                stop = reading_build_function(fp, buffer_seq, buffer_seq_sz);
+                            }
+
+                            const pair<vector<CompressedSequence>, vector<Kmer>> p_approx_unitigs = worker_build_function(fp, buffer_seq, buffer_seq_sz);
+
+                            for (const auto& cs : p_approx_unitigs.first) count_km += cs.size() - k_ + 1;
+                            for (const auto& km : p_approx_unitigs.second) ++count_km;
+
+                            pv_unitigs.first.insert(pv_unitigs.first.end(), p_approx_unitigs.first.begin(), p_approx_unitigs.first.end());
+                            pv_unitigs.second.insert(pv_unitigs.second.end(), p_approx_unitigs.second.begin(), p_approx_unitigs.second.end());
+
+                            if (count_km >= 1000000) {
+
+                                unique_lock<mutex> lock(mtx_graph);
+
+                                {
+                                    for (auto& cs : pv_unitigs.first) {
+
+                                        addUnitigSequence(cs.toString());
+                                        cs.clear();
+                                    }
+
+                                    pv_unitigs.first.clear();
+                                }
+
+                                {
+                                    for (const auto& km : pv_unitigs.second) addUnitigSequence(km.toString());
+
+                                    pv_unitigs.second.clear();
+                                }
+
+                                count_km = 0;
+                            }
+                        }
+
+                        delete[] buffer_seq;
+                    }
+                );
+            }
+
+            for (auto& t : workers) t.join();
+        }*/
 
         fp.close();
     }

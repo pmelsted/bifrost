@@ -26,10 +26,11 @@ class MinimizerIndex {
             typedef typename std::conditional<is_const, const uint8_t&, uint8_t&>::type MI_tinyv_sz_ref_t;
             typedef typename std::conditional<is_const, const uint8_t*, uint8_t*>::type MI_tinyv_sz_ptr_t;
 
-            iterator_() : ht(nullptr), h(0xffffffffffffffffULL) {}
-            iterator_(MI_ptr_t ht_) : ht(ht_), h(ht_->size_) {}
-            iterator_(MI_ptr_t ht_, size_t h_) :  ht(ht_), h(h_) {}
-            iterator_(const iterator_<false>& o) : ht(o.ht), h(o.h) {}
+            iterator_() : ht(nullptr), h(0xffffffffffffffffULL), psl(0xffffffffffffffffULL) {}
+            iterator_(MI_ptr_t ht_) : ht(ht_), h(ht_->size_), psl(0xffffffffffffffffULL) {}
+            iterator_(MI_ptr_t ht_, size_t h_) :  ht(ht_), h(h_), psl(0xffffffffffffffffULL) {}
+            iterator_(MI_ptr_t ht_, size_t h_, size_t psl_) :  ht(ht_), h(h_), psl(psl_) {}
+            iterator_(const iterator_<false>& o) : ht(o.ht), h(o.h), psl(o.psl) {}
 
             iterator_& operator=(const iterator_& o) {
 
@@ -37,6 +38,7 @@ class MinimizerIndex {
 
                     ht=o.ht;
                     h=o.h;
+                    psl=o.psl;
                 }
 
                 return *this;
@@ -50,6 +52,11 @@ class MinimizerIndex {
             BFG_INLINE size_t getHash() const {
 
                 return h;
+            }
+
+            BFG_INLINE size_t getPSL() const {
+
+                return psl;
             }
 
             BFG_INLINE MI_tinyv_sz_ref_t getVectorSize() const {
@@ -81,13 +88,9 @@ class MinimizerIndex {
 
             iterator_& operator++() {
 
-                if (h == ht->size_) return *this;
+                for (++h; h < ht->size_; ++h) {
 
-                ++h;
-
-                for (; h < ht->size_; ++h) {
-
-                    if (!ht->table_keys[h].isEmpty() && !ht->table_keys[h].isDeleted()) break;
+                    if (!ht->table_keys[h].isEmpty()) break;
                 }
 
                 return *this;
@@ -110,6 +113,7 @@ class MinimizerIndex {
             MI_ptr_t ht;
 
             size_t h;
+            size_t psl;
     };
 
     public:
@@ -153,8 +157,14 @@ class MinimizerIndex {
         iterator find(const size_t h);
         const_iterator find(const size_t h) const;
 
-        void erase(const_iterator it);
-        size_t erase(const Minimizer& minz);
+        size_t erase(const_iterator it);
+
+        BFG_INLINE size_t erase(const Minimizer& minz) {
+
+            const const_iterator it = find(minz);
+
+            return erase(it);
+        }
 
         pair<iterator, bool> insert(const Minimizer& key, const packed_tiny_vector& v, const uint8_t& flag);
 
