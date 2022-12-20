@@ -682,8 +682,8 @@ class CompactedDBG {
         size_t findUnitigSequenceBBF(const BlockedBloomFilter& bf, const Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip);
         size_t findUnitigSequenceBBF(const BlockedBloomFilter& bf, const Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip, LockGraph& lck_g);
 
-        bool bwStepBBF(const BlockedBloomFilter& bf, const Kmer km, Kmer& front, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand = true) const;
-        bool fwStepBBF(const BlockedBloomFilter& bf, const Kmer km, Kmer& end, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand = true) const;
+        pair<int, RepHash> bwStepBBF(const BlockedBloomFilter& bf, const Kmer km, Kmer& front, const RepHash& rep_front, const char* front_str, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand = true) const;
+        pair<int, RepHash> fwStepBBF(const BlockedBloomFilter& bf, const Kmer km, Kmer& end, const RepHash& rep_end, const char* end_str, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand = true) const;
 
         inline size_t find(const preAllocMinHashIterator<RepHash>& it_min_h) const {
 
@@ -760,7 +760,7 @@ class CompactedDBG {
         void createJoinHT(vector<Kmer>* v_joins, KmerHashTable<char>& joins, const size_t nb_threads) const;
 
         bool checkJoin(const Kmer& a, const const_UnitigMap<U, G>& cm_a, Kmer& b) const;
-        void check_fp_tips(KmerHashTable<bool>& ignored_km_tips);
+        void check_fp_tips(KmerHashTable<uint8_t>& ignored_km_tips);
         size_t removeUnitigs(bool rmIsolated, bool clipTips, vector<Kmer>& v);
 
         size_t joinTips(string filename_MBBF_uniq_kmers, const size_t nb_threads = 1, const bool verbose = false);

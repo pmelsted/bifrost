@@ -168,22 +168,6 @@ class MinimizerIndex {
 
         pair<iterator, bool> insert(const Minimizer& key, const packed_tiny_vector& v, const uint8_t& flag);
 
-        /*void init_threads();
-        void release_threads();
-
-        iterator find_p(const Minimizer& key);
-        const_iterator find_p(const Minimizer& key) const;
-
-        iterator find_p(const size_t h);
-        const_iterator find_p(const size_t h) const;
-
-        void release_p(const_iterator it) const;
-        void release_p(iterator it);
-
-        size_t erase_p(const Minimizer& minz);
-
-        pair<iterator, bool> insert_p(const Minimizer& key, const packed_tiny_vector& v, const uint8_t& flag);*/
-
         iterator begin();
         const_iterator begin() const;
 
@@ -216,16 +200,6 @@ class MinimizerIndex {
         Minimizer* table_keys;
         packed_tiny_vector* table_tinyv;
         uint8_t* table_tinyv_sz;
-
-        /*mutable vector<SpinLock> lck_min;
-        mutable SpinLockRW lck_edit_table;
-
-        atomic<size_t> pop_p;
-
-        // For future myself: lck_block_sz must be a poswer of 2. If you change it, change lck_block_div_shift accordingly.
-        // For future myself, this could automated in a much better looking implementation. 
-        static const size_t lck_block_sz;
-        static const size_t lck_block_div_shift;*/
 };
 
 /*class CompactedMinimizerIndex {

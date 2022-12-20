@@ -3565,7 +3565,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, BlockedBloomFilter
     LockGraph lck_g(nb_locks);
     LockGraph lck_h(nb_locks);
 
-    KmerHashTable<bool> ignored_km_tips;
+    KmerHashTable<uint8_t> ignored_km_tips;
 
     vector<SpinLock> locks_fp;
 
@@ -3579,15 +3579,18 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, BlockedBloomFilter
 
     auto worker_build_function = [&](FileParser& fp, char* seq_buf, const size_t seq_buf_sz) {
 
+        const char* str_end = seq_buf + seq_buf_sz;
+
+        const bool multi_threaded = (opt.nb_threads > 1);
+
+        char* str = seq_buf;
+
         vector<Kmer> l_ignored_km_tips;
 
         vector<CompressedSequence> v_approx_cs;
         vector<Kmer> v_approx_km;
 
         RepHash rep;
-
-        char* str = seq_buf;
-        const char* str_end = seq_buf + seq_buf_sz;
 
         while (str < str_end) { // for each input
 
@@ -3626,8 +3629,6 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, BlockedBloomFilter
 
                         if ((approx_unitig.length() != 0) && (reference_mode || !isIsolated)) { // If the extracted unitig is of length 0, it means it was already extracted by another thread
 
-                            const bool multi_threaded = (opt.nb_threads > 1);
-
                             bool already_inserted = false;
 
                             KmerHashIterator<RepHash> it_kmer_h2(approx_unitig.c_str(), approx_unitig.length(), k_), it_kmer_h_end2;
@@ -3665,7 +3666,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, BlockedBloomFilter
 
             while (lock_ignored_km_tips.test_and_set(std::memory_order_acquire));
 
-            for (const auto& km_tip : l_ignored_km_tips) ignored_km_tips.insert(km_tip, false);
+            for (const auto& km_tip : l_ignored_km_tips) ignored_km_tips.insert(km_tip, 0);
 
             lock_ignored_km_tips.clear(std::memory_order_release);
         }
@@ -3799,7 +3800,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, BlockedBloomFilter
 
             while (lock_ignored_km_tips.test_and_set(std::memory_order_acquire));
 
-            for (const auto& km_tip : l_ignored_km_tips) ignored_km_tips.insert(km_tip, false);
+            for (const auto& km_tip : l_ignored_km_tips) ignored_km_tips.insert(km_tip, 0);
 
             lock_ignored_km_tips.clear(std::memory_order_release);
         }
@@ -4253,11 +4254,13 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, BlockedBloomFilter
 
     const int unitigsAfter1 = size();
 
-    if (opt.verbose) cout << endl << "CompactedDBG::construct(): Splitting unitigs (2/2)" << endl;
+    {
+        if (opt.verbose) cout << endl << "CompactedDBG::construct(): Splitting unitigs (2/2)" << endl;
 
-    check_fp_tips(ignored_km_tips);
+        check_fp_tips(ignored_km_tips);
 
-    ignored_km_tips.clear_tables();
+        ignored_km_tips.clear();
+    }
 
     hmap_min_unitigs.recomputeMaxPSL(opt.nb_threads);
 
@@ -4371,6 +4374,11 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(const BlockedBloomFilter& bf, c
     Kmer end(km);
     Kmer last(km);
 
+    char km_str[MAX_KMER_SIZE];
+    char neigh_str[MAX_KMER_SIZE];
+
+    RepHash rep_km(k_), rep_neigh(k_);
+
     const Kmer twin(km.twin());
 
     char c;
@@ -4380,9 +4388,18 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(const BlockedBloomFilter& bf, c
     bool has_no_neighbor;
     bool self_loop = false;
 
+    km.toString(km_str);
+    km.toString(neigh_str);
+
+    rep_km.init(km_str);
+
+    rep_neigh = rep_km;
+
     isIsolated = false;
 
-    while (fwStepBBF(bf, end, end, c, has_no_neighbor, l_ignored_km_tip)) {
+    pair<int, RepHash> p_neigh = fwStepBBF(bf, end, end, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
+
+    while (p_neigh.first != -1) {
 
         ++j;
 
@@ -4390,26 +4407,45 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(const BlockedBloomFilter& bf, c
 
         if (self_loop || (end == twin) || (end == last.twin())) break;
 
-        fw_s.push_back(c);
+        fw_s.push_back(alpha[p_neigh.first]);
+
+        std::memmove(neigh_str, neigh_str + 1, (k_ - 1) * sizeof(char));
+
         last = end;
+        rep_neigh = p_neigh.second;
+        neigh_str[k_-1] = alpha[p_neigh.first];
+
+        p_neigh = fwStepBBF(bf, end, end, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
     }
 
     if (!self_loop) {
 
         Kmer front(km);
-        Kmer first(front);
+        Kmer first(km);
+
+        km.toString(neigh_str);
 
         isIsolated = (j == 0) && has_no_neighbor;
         j = 0;
+        rep_neigh = rep_km;
 
-        while (bwStepBBF(bf, front, front, c, has_no_neighbor, l_ignored_km_tip)) {
+        p_neigh = bwStepBBF(bf, front, front, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
+
+        while (p_neigh.first != -1) {
 
             ++j;
 
             if ((front == km) || (front == twin) || (front == first.twin())) break;
 
-            bw_s.push_back(c);
+            bw_s.push_back(alpha[p_neigh.first]);
+
+            std::memmove(neigh_str + 1, neigh_str, (k_ - 1) * sizeof(char));
+
+            neigh_str[0] = alpha[p_neigh.first];
             first = front;
+            rep_neigh = p_neigh.second;
+
+            p_neigh = bwStepBBF(bf, front, front, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
         }
 
         isIsolated = isIsolated && (j == 0) && has_no_neighbor;
@@ -4417,13 +4453,9 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(const BlockedBloomFilter& bf, c
         reverse(bw_s.begin(), bw_s.end());
     }
 
-    char tmp[MAX_KMER_SIZE];
-
-    km.toString(tmp);
-
     s.reserve(k_ + fw_s.length() + bw_s.length());
     s.append(bw_s);
-    s.append(tmp);
+    s.append(km_str);
     s.append(fw_s);
 
     return bw_s.length();
@@ -4437,18 +4469,29 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(const BlockedBloomFilter& bf, c
     Kmer end(km);
     Kmer last(km);
 
-    const Kmer twin(km.twin());
+    char km_str[MAX_KMER_SIZE];
+    char neigh_str[MAX_KMER_SIZE];
 
-    char c;
+    RepHash rep_km(k_), rep_neigh(k_);
+
+    const Kmer twin(km.twin());
 
     size_t j = 0;
 
     bool has_no_neighbor;
     bool self_loop = false;
 
+    km.toString(km_str);
+    km.toString(neigh_str);
+
+    rep_km.init(km_str);
+
+    rep_neigh = rep_km;
     isIsolated = false;
 
-    while (fwStepBBF(bf, end, end, c, has_no_neighbor, l_ignored_km_tip)) {
+    pair<int, RepHash> p_neigh = fwStepBBF(bf, end, end, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
+
+    while (p_neigh.first != -1) {
 
         ++j;
 
@@ -4456,7 +4499,8 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(const BlockedBloomFilter& bf, c
 
         if (self_loop || (end == twin) || (end == last.twin())) break;
 
-        fw_s.push_back(c);
+        fw_s.push_back(alpha[p_neigh.first]);
+
         last = end;
 
         if ((fw_s.length() % 100) == 0) {
@@ -4476,23 +4520,34 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(const BlockedBloomFilter& bf, c
                 return 0;
             }
         }
+
+        std::memmove(neigh_str, neigh_str + 1, (k_ - 1) * sizeof(char));
+
+        neigh_str[k_-1] = alpha[p_neigh.first];
+        rep_neigh = p_neigh.second;
+        p_neigh = fwStepBBF(bf, end, end, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
     }
 
     if (!self_loop) {
 
         Kmer front(km);
-        Kmer first(front);
+        Kmer first(km);
+
+        km.toString(neigh_str);
 
         isIsolated = (j == 0) && has_no_neighbor;
         j = 0;
+        rep_neigh = rep_km;
 
-        while (bwStepBBF(bf, front, front, c, has_no_neighbor, l_ignored_km_tip)) {
+        p_neigh = bwStepBBF(bf, front, front, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
+
+        while (p_neigh.first != -1) {
 
             ++j;
 
             if ((front == km) || (front == twin) || (front == first.twin())) break;
 
-            bw_s.push_back(c);
+            bw_s.push_back(alpha[p_neigh.first]);
             first = front;
 
             if ((bw_s.length() % 100) == 0) {
@@ -4512,6 +4567,12 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(const BlockedBloomFilter& bf, c
                     return 0;
                 }
             }
+
+            std::memmove(neigh_str + 1, neigh_str, (k_ - 1) * sizeof(char));
+
+            neigh_str[0] = alpha[p_neigh.first];
+            rep_neigh = p_neigh.second;
+            p_neigh = bwStepBBF(bf, front, front, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
         }
 
         isIsolated = isIsolated && (j == 0) && has_no_neighbor;
@@ -4519,50 +4580,41 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(const BlockedBloomFilter& bf, c
         reverse(bw_s.begin(), bw_s.end());
     }
 
-    char tmp[MAX_KMER_SIZE];
-
-    km.toString(tmp);
-
     s.reserve(k_ + fw_s.size() + bw_s.size());
     s.append(bw_s);
-    s.append(tmp);
+    s.append(km_str);
     s.append(fw_s);
 
     return bw_s.length();
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::bwStepBBF(const BlockedBloomFilter& bf, const Kmer km, Kmer& front, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand) const {
+pair<int, RepHash> CompactedDBG<U, G>::bwStepBBF(const BlockedBloomFilter& bf, const Kmer km, Kmer& front, const RepHash& rep_front, const char* front_str, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand) const {
 
     char km_tmp[MAX_KMER_SIZE];
 
-    int found_fp_bw = 0;
-
     bool neigh_bw[4] = {false, false, false, false};
+
+    RepHash rep_bw[4] = {rep_front, rep_front, rep_front, rep_front};
+
     uint64_t hashes_bw[4];
 
-    RepHash rep_h(k_), rep_h_cpy;
+    int found_fp_bw = 0;
 
-    front.toString(km_tmp);
-    rep_h.init(km_tmp);
+    rep_bw[0].updateBW(front_str[k_-1], alpha[0]);
+    rep_bw[1].updateBW(front_str[k_-1], alpha[1]);
+    rep_bw[2].updateBW(front_str[k_-1], alpha[2]);
+    rep_bw[3].updateBW(front_str[k_-1], alpha[3]);
 
-    rep_h_cpy = rep_h;
-    rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[0]);
-    hashes_bw[0] = rep_h_cpy.hash();
+    hashes_bw[0] = rep_bw[0].hash();
+    hashes_bw[1] = rep_bw[1].hash();
+    hashes_bw[2] = rep_bw[2].hash();
+    hashes_bw[3] = rep_bw[3].hash();
 
-    rep_h_cpy = rep_h;
-    rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[1]);
-    hashes_bw[1] = rep_h_cpy.hash();
+    std::memcpy(km_tmp + 1, front_str, (k_ - 1) * sizeof(char));
 
-    rep_h_cpy = rep_h;
-    rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[2]);
-    hashes_bw[2] = rep_h_cpy.hash();
-
-    rep_h_cpy = rep_h;
-    rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[3]);
-    hashes_bw[3] = rep_h_cpy.hash();
-
-    std::memmove(km_tmp + 1, km_tmp, (k_ - 1) * sizeof(char));
+    km_tmp[0] = alpha[0];
+    km_tmp[k_] = '\0';
 
     const uint64_t it_min_h_bw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
 
@@ -4577,14 +4629,15 @@ bool CompactedDBG<U, G>::bwStepBBF(const BlockedBloomFilter& bf, const Kmer km, 
 
             if (neigh_bw[i]){
 
-                char dummy;
                 bool has_no_neighbor_tmp = false;
 
                 Kmer km_fp(front.backwardBase(alpha[i]));
 
-                bwStepBBF(bf, km_fp, km_fp, dummy, has_no_neighbor_tmp, l_ignored_km_tip, false);
+                km_tmp[0] = alpha[i];
 
-                neigh_bw[i] = has_no_neighbor_tmp && fwStepBBF(bf, km_fp, km_fp, dummy, has_no_neighbor_tmp, l_ignored_km_tip, false);
+                bwStepBBF(bf, km_fp, km_fp, rep_bw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false);
+
+                neigh_bw[i] = has_no_neighbor_tmp && (fwStepBBF(bf, km_fp, km_fp, rep_bw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false).first != -1);
                 found_fp_bw += neigh_bw[i];
                 j_tmp += (i - j_tmp) & (static_cast<size_t>(neigh_bw[i]) - 1);
             }
@@ -4604,39 +4657,36 @@ bool CompactedDBG<U, G>::bwStepBBF(const BlockedBloomFilter& bf, const Kmer km, 
     if (nb_neigh != 1) {
 
         has_no_neighbor = (nb_neigh == 0);
-        return false;
+
+        return {-1, RepHash()};
     }
     else has_no_neighbor = false;
 
     if (check_fp_cand){
 
-        int found_fp_fw = 0;
-
-        bool neigh_fw[4] = {false, false, false, false};
-        uint64_t hashes_fw[4];
-
         const Kmer bw(front.backwardBase(alpha[j]));
 
-        bw.toString(km_tmp);
-        rep_h.init(km_tmp);
+        bool neigh_fw[4] = {false, false, false, false};
 
-        rep_h_cpy = rep_h;
-        rep_h_cpy.updateFW(km_tmp[0], alpha[0]);
-        hashes_fw[0] = rep_h_cpy.hash();
+        RepHash rep_fw[4] = {rep_bw[j], rep_bw[j], rep_bw[j], rep_bw[j]};
 
-        rep_h_cpy = rep_h;
-        rep_h_cpy.updateFW(km_tmp[0], alpha[1]);
-        hashes_fw[1] = rep_h_cpy.hash();
+        uint64_t hashes_fw[4];
 
-        rep_h_cpy = rep_h;
-        rep_h_cpy.updateFW(km_tmp[0], alpha[2]);
-        hashes_fw[2] = rep_h_cpy.hash();
+        int found_fp_fw = 0;
 
-        rep_h_cpy = rep_h;
-        rep_h_cpy.updateFW(km_tmp[0], alpha[3]);
-        hashes_fw[3] = rep_h_cpy.hash();
+        rep_fw[0].updateFW(alpha[j], alpha[0]);
+        rep_fw[1].updateFW(alpha[j], alpha[1]);
+        rep_fw[2].updateFW(alpha[j], alpha[2]);
+        rep_fw[3].updateFW(alpha[j], alpha[3]);
+
+        hashes_fw[0] = rep_fw[0].hash();
+        hashes_fw[1] = rep_fw[1].hash();
+        hashes_fw[2] = rep_fw[2].hash();
+        hashes_fw[3] = rep_fw[3].hash();
 
         std::memmove(km_tmp, km_tmp + 1, (k_ - 1) * sizeof(char));
+
+        km_tmp[k_-1] = alpha[0];
 
         const uint64_t it_min_h_fw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
 
@@ -4648,14 +4698,15 @@ bool CompactedDBG<U, G>::bwStepBBF(const BlockedBloomFilter& bf, const Kmer km, 
 
                 if (neigh_fw[i]){
 
-                    char dummy;
                     bool has_no_neighbor_tmp = false;
 
                     Kmer km_fp(bw.forwardBase(alpha[i]));
 
-                    fwStepBBF(bf, km_fp, km_fp, dummy, has_no_neighbor_tmp, l_ignored_km_tip, false);
+                    km_tmp[k_-1] = alpha[i];
 
-                    neigh_fw[i] = has_no_neighbor_tmp && bwStepBBF(bf, km_fp, km_fp, dummy, has_no_neighbor_tmp, l_ignored_km_tip, false);
+                    fwStepBBF(bf, km_fp, km_fp, rep_fw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false);
+
+                    neigh_fw[i] = has_no_neighbor_tmp && (bwStepBBF(bf, km_fp, km_fp, rep_fw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false).first != -1);
 
                     if (neigh_fw[i] && (km_fp == km)){
 
@@ -4673,10 +4724,9 @@ bool CompactedDBG<U, G>::bwStepBBF(const BlockedBloomFilter& bf, const Kmer km, 
             }
         }
 
-        if (nb_neigh != 1) return false;
+        if (nb_neigh != 1) return {-1, RepHash()};
 
         if (bw != km) {
-            // exactly one k-mer in bw, character used is c
 
             for (size_t i = 0; (i < 4) && (found_fp_fw != 0); ++i) {
 
@@ -4699,49 +4749,43 @@ bool CompactedDBG<U, G>::bwStepBBF(const BlockedBloomFilter& bf, const Kmer km, 
             }
 
             front = bw;
-            c = alpha[j];
 
-            return true;
+            return {j, rep_bw[j]};
         }
 
-        return false;
+        return {-1, RepHash()};
     }
 
-    return true;
+    return {j, rep_bw[j]};
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::fwStepBBF(const BlockedBloomFilter& bf, const Kmer km, Kmer& end, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand) const {
+pair<int, RepHash> CompactedDBG<U, G>::fwStepBBF(const BlockedBloomFilter& bf, const Kmer km, Kmer& end, const RepHash& rep_end, const char* end_str, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand) const {
 
     char km_tmp[MAX_KMER_SIZE];
 
-    int found_fp_fw = 0;
-
     bool neigh_fw[4] = {false, false, false, false};
+
+    RepHash rep_fw[4] = {rep_end, rep_end, rep_end, rep_end};
+
     uint64_t hashes_fw[4];
 
-    RepHash rep_h(k_), rep_h_cpy;
+    int found_fp_fw = 0;
 
-    end.toString(km_tmp);
-    rep_h.init(km_tmp);
+    rep_fw[0].updateFW(end_str[0], alpha[0]);
+    rep_fw[1].updateFW(end_str[0], alpha[1]);
+    rep_fw[2].updateFW(end_str[0], alpha[2]);
+    rep_fw[3].updateFW(end_str[0], alpha[3]);
 
-    rep_h_cpy = rep_h;
-    rep_h_cpy.updateFW(km_tmp[0], alpha[0]);
-    hashes_fw[0] = rep_h_cpy.hash();
+    hashes_fw[0] = rep_fw[0].hash();
+    hashes_fw[1] = rep_fw[1].hash();
+    hashes_fw[2] = rep_fw[2].hash();
+    hashes_fw[3] = rep_fw[3].hash();
 
-    rep_h_cpy = rep_h;
-    rep_h_cpy.updateFW(km_tmp[0], alpha[1]);
-    hashes_fw[1] = rep_h_cpy.hash();
+    std::memcpy(km_tmp, end_str + 1, (k_ - 1) * sizeof(char));
 
-    rep_h_cpy = rep_h;
-    rep_h_cpy.updateFW(km_tmp[0], alpha[2]);
-    hashes_fw[2] = rep_h_cpy.hash();
-
-    rep_h_cpy = rep_h;
-    rep_h_cpy.updateFW(km_tmp[0], alpha[3]);
-    hashes_fw[3] = rep_h_cpy.hash();
-
-    std::memmove(km_tmp, km_tmp + 1, (k_ - 1) * sizeof(char));
+    km_tmp[k_-1] = alpha[0];
+    km_tmp[k_] = '\0';
 
     const uint64_t it_min_h_fw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
 
@@ -4756,14 +4800,15 @@ bool CompactedDBG<U, G>::fwStepBBF(const BlockedBloomFilter& bf, const Kmer km, 
 
             if (neigh_fw[i]){
 
-                char dummy;
                 bool has_no_neighbor_tmp = false;
 
                 Kmer km_fp(end.forwardBase(alpha[i]));
 
-                fwStepBBF(bf, km_fp, km_fp, dummy, has_no_neighbor_tmp, l_ignored_km_tip, false);
+                km_tmp[k_-1] = alpha[i];
 
-                neigh_fw[i] = has_no_neighbor_tmp && bwStepBBF(bf, km_fp, km_fp, dummy, has_no_neighbor_tmp, l_ignored_km_tip, false);
+                fwStepBBF(bf, km_fp, km_fp, rep_fw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false);
+
+                neigh_fw[i] = has_no_neighbor_tmp && (bwStepBBF(bf, km_fp, km_fp, rep_fw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false).first != -1);
 
                 found_fp_fw += neigh_fw[i];
                 j_tmp += (i - j_tmp) & (static_cast<size_t>(neigh_fw[i]) - 1);
@@ -4784,39 +4829,36 @@ bool CompactedDBG<U, G>::fwStepBBF(const BlockedBloomFilter& bf, const Kmer km, 
     if (nb_neigh != 1) {
 
         has_no_neighbor = (nb_neigh == 0);
-        return false;
+        
+        return {-1, RepHash()};
     }
     else has_no_neighbor = false;
 
     if (check_fp_cand){
 
-        int found_fp_bw = 0;
-
-        bool neigh_bw[4] = {false, false, false, false};
-        uint64_t hashes_bw[4];
-
         const Kmer fw(end.forwardBase(alpha[j]));
 
-        fw.toString(km_tmp);
-        rep_h.init(km_tmp);
+        bool neigh_bw[4] = {false, false, false, false};
 
-        rep_h_cpy = rep_h;
-        rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[0]);
-        hashes_bw[0] = rep_h_cpy.hash();
+        RepHash rep_bw[4] = {rep_fw[j], rep_fw[j], rep_fw[j], rep_fw[j]};
 
-        rep_h_cpy = rep_h;
-        rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[1]);
-        hashes_bw[1] = rep_h_cpy.hash();
+        uint64_t hashes_bw[4];
 
-        rep_h_cpy = rep_h;
-        rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[2]);
-        hashes_bw[2] = rep_h_cpy.hash();
+        int found_fp_bw = 0;
 
-        rep_h_cpy = rep_h;
-        rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[3]);
-        hashes_bw[3] = rep_h_cpy.hash();
+        rep_bw[0].updateBW(alpha[j], alpha[0]);
+        rep_bw[1].updateBW(alpha[j], alpha[1]);
+        rep_bw[2].updateBW(alpha[j], alpha[2]);
+        rep_bw[3].updateBW(alpha[j], alpha[3]);
+
+        hashes_bw[0] = rep_bw[0].hash();
+        hashes_bw[1] = rep_bw[1].hash();
+        hashes_bw[2] = rep_bw[2].hash();
+        hashes_bw[3] = rep_bw[3].hash();
 
         std::memmove(km_tmp + 1, km_tmp, (k_ - 1) * sizeof(char));
+
+        km_tmp[0] = alpha[0];
 
         const uint64_t it_min_h_bw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
 
@@ -4828,14 +4870,15 @@ bool CompactedDBG<U, G>::fwStepBBF(const BlockedBloomFilter& bf, const Kmer km, 
 
                 if (neigh_bw[i]){
 
-                    char dummy;
                     bool has_no_neighbor_tmp = false;
 
                     Kmer km_fp(fw.backwardBase(alpha[i]));
 
-                    bwStepBBF(bf, km_fp, km_fp, dummy, has_no_neighbor_tmp, l_ignored_km_tip, false);
+                    km_tmp[0] = alpha[i];
 
-                    neigh_bw[i] = has_no_neighbor_tmp && fwStepBBF(bf, km_fp, km_fp, dummy, has_no_neighbor_tmp, l_ignored_km_tip, false);
+                    bwStepBBF(bf, km_fp, km_fp, rep_bw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false);
+
+                    neigh_bw[i] = has_no_neighbor_tmp && (fwStepBBF(bf, km_fp, km_fp, rep_bw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false).first != -1);
 
                     if (neigh_bw[i] && (km_fp == km)){
 
@@ -4853,7 +4896,7 @@ bool CompactedDBG<U, G>::fwStepBBF(const BlockedBloomFilter& bf, const Kmer km, 
             }
         }
 
-        if (nb_neigh != 1) return false;
+        if (nb_neigh != 1) return {-1, RepHash()};
 
         if (fw != km) {
 
@@ -4878,15 +4921,14 @@ bool CompactedDBG<U, G>::fwStepBBF(const BlockedBloomFilter& bf, const Kmer km, 
             }
 
             end = fw;
-            c = alpha[j];
 
-            return true;
+            return {j, rep_fw[j]};
         }
 
-        return false;
+        return {-1, RepHash()};
     }
 
-    return true;
+    return {j, rep_fw[j]};
 }
 
 // use:  cc = cm.findUnitig(km,s,pos)
@@ -8198,7 +8240,7 @@ bool CompactedDBG<U, G>::checkJoin(const Kmer& a, const const_UnitigMap<U, G>& c
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::check_fp_tips(KmerHashTable<bool>& ignored_km_tips){
+void CompactedDBG<U, G>::check_fp_tips(KmerHashTable<uint8_t>& ignored_km_tips){
 
     uint64_t nb_real_short_tips = 0;
 
@@ -8208,11 +8250,11 @@ void CompactedDBG<U, G>::check_fp_tips(KmerHashTable<bool>& ignored_km_tips){
 
     vector<pair<int,int>> sp;
 
-    for (KmerHashTable<bool>::iterator it(ignored_km_tips.begin()); it != ignored_km_tips.end(); ++it) {
+    for (KmerHashTable<uint8_t>::iterator it(ignored_km_tips.begin()); it != ignored_km_tips.end(); ++it) {
 
         Kmer km(it.getKey());
 
-        UnitigMap<U, G> cm(find(km, true)); // Check if the (short) tip actually exists
+        const_UnitigMap<U, G> cm(find(km, true)); // Check if the (short) tip actually exists
 
         if (!cm.isEmpty){ // IF the tip exists
 
@@ -8222,11 +8264,10 @@ void CompactedDBG<U, G>::check_fp_tips(KmerHashTable<bool>& ignored_km_tips){
 
             for (size_t i = 0; (i < 4) && not_found; ++i) {
 
-                UnitigMap<U, G> cm_bw(find(km.backwardBase(alpha[i])));
+                const_UnitigMap<U, G> cm_bw(find(km.backwardBase(alpha[i])));
 
                 if (!cm_bw.isEmpty && !cm_bw.isAbundant && !cm_bw.isShort){
 
-                    //if (cm_bw.strand) ++cm_bw.dist;
                     cm_bw.dist += cm_bw.strand;
 
                     if ((cm_bw.dist != 0) && (cm_bw.dist != cm_bw.size - k_ + 1)){
@@ -8245,11 +8286,10 @@ void CompactedDBG<U, G>::check_fp_tips(KmerHashTable<bool>& ignored_km_tips){
 
             for (size_t i = 0; (i < 4) && not_found; ++i) {
 
-                UnitigMap<U, G> cm_fw(find(km.forwardBase(alpha[i])));
+                const_UnitigMap<U, G> cm_fw(find(km.forwardBase(alpha[i])));
 
                 if (!cm_fw.isEmpty && !cm_fw.isAbundant && !cm_fw.isShort){
 
-                    //if (!cm_fw.strand) ++cm_fw.dist;
                     cm_fw.dist += !cm_fw.strand;
 
                     if ((cm_fw.dist != 0) && (cm_fw.dist != cm_fw.size - k_ + 1)){
