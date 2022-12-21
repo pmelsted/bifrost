@@ -75,6 +75,7 @@ CompressedSequence& CompressedSequence::operator=(CompressedSequence&& o) {
         if (o.isShort()) {
 
             asBits._size = o.asBits._size;
+
             memcpy(asBits._arr, o.asBits._arr, 15); // plain vanilla copy
         }
         else {
@@ -211,10 +212,9 @@ void CompressedSequence::setSequence(const char *s, const size_t offset, const s
 
             const size_t i = index >> 2;
             const size_t j = (index & 0x3) << 1;
-            const uint8_t c = bases[0x03-bits[static_cast<uint8_t>(s_offset[length-index-1])]];
 
             data[i] &= ~(0x03 << j); // set bits to 0, default
-            data[i] |= (bits[c] << j);
+            data[i] |= (convertDNAtoComplementIndex(s_offset[length-index-1]) << j);
         }
     }
     else {
@@ -223,10 +223,9 @@ void CompressedSequence::setSequence(const char *s, const size_t offset, const s
 
             const size_t i = index >> 2;
             const size_t j = (index & 0x3) << 1;
-            const uint8_t c = static_cast<uint8_t>(s_offset[index]);
 
             data[i] &= ~(0x03 << j); // set bits to 0, default
-            data[i] |= (bits[c] << j);
+            data[i] |= (convertDNAtoIndex(s_offset[index]) << j);
         }
     }
 
@@ -245,7 +244,7 @@ string CompressedSequence::toString(const size_t offset, const size_t length) co
 
     for (size_t index = offset; index < offset+length; ++index) {
 
-        s[index-offset] = bases[(data[index >> 2] >> ((index & 0x3) << 1)) & 0x03];
+        s[index-offset] = alpha[(data[index >> 2] >> ((index & 0x3) << 1)) & 0x03];
     }
 
     return s;
@@ -262,7 +261,7 @@ void CompressedSequence::toString(char *s, const size_t offset, const size_t len
 
     for (size_t index = offset; index < offset+length; ++index) {
 
-        s[index-offset] = bases[(data[index >> 2] >> ((index & 0x3) << 1)) & 0x03];
+        s[index-offset] = alpha[(data[index >> 2] >> ((index & 0x3) << 1)) & 0x03];
     }
 
     s[length] = 0; // 0-terminated string
@@ -308,11 +307,6 @@ bool CompressedSequence::read(std::istream& stream_in) {
     }
 
     return false;
-}
-
-char CompressedSequence::getChar(const size_t offset) const {
-
-    return bases[(getPointer()[offset >> 2] >> ((offset & 0x3) << 1)) & 0x03];
 }
 
 Kmer CompressedSequence::getKmer(const size_t offset) const {
@@ -470,7 +464,7 @@ int64_t CompressedSequence::findKmer(const Kmer& km) const {
 
                 if ((i & 0x3) == 0) tmp = data[i >> 2];
 
-                km_cs.selfForwardBase(bases[tmp & 0x3]);
+                km_cs.selfForwardBase(alpha[tmp & 0x3]);
 
                 if (km_cs == km) return i-k+1;
             }
@@ -512,7 +506,7 @@ int64_t CompressedSequence::findKmer(const Kmer& km) const {
                 idx_mod = 6;
             }
 
-            if (s[i_cpy] != bases[3-((data[idx_div] >> idx_mod) & 0x03)]) break;
+            if (s[i_cpy] != alpha[3-((data[idx_div] >> idx_mod) & 0x03)]) break;
         }
     }
     else {
@@ -526,7 +520,7 @@ int64_t CompressedSequence::findKmer(const Kmer& km) const {
         for (; (s[i_cpy] != '\0') && (pos != cs_size); ++pos, ++i_cpy, tmp >>= 2) {
 
             if ((pos & 0x3) == 0) tmp = data[pos >> 2];
-            if (s[i_cpy] != bases[tmp & 0x3]) break;
+            if (s[i_cpy] != alpha[tmp & 0x3]) break;
         }
     }
 
@@ -542,7 +536,7 @@ size_t CompressedSequence::jump(const char *s, const size_t i, int pos, const bo
 
         for (; (*s_tmp != '\0') && (pos != -1); --pos, ++s_tmp) {
 
-            if (*s_tmp != bases[3 - ((data[pos >> 2] >> ((pos & 0x3) << 1)) & 0x03)]) break;
+            if (*s_tmp != alpha[3 - ((data[pos >> 2] >> ((pos & 0x3) << 1)) & 0x03)]) break;
         }
     }
     else {
@@ -551,7 +545,7 @@ size_t CompressedSequence::jump(const char *s, const size_t i, int pos, const bo
 
         for (; (*s_tmp != '\0') && (pos < cs_size); ++pos, ++s_tmp) {
 
-            if (*s_tmp != bases[(data[pos >> 2] >> ((pos & 0x3) << 1)) & 0x3]) break;
+            if (*s_tmp != alpha[(data[pos >> 2] >> ((pos & 0x3) << 1)) & 0x3]) break;
         }
     }
 
@@ -580,7 +574,7 @@ size_t CompressedSequence::jump(const char *s, const size_t i, int pos, const bo
         for (; (i_cpy != -1) && (pos != cs_size); ++pos, --i_cpy, tmp >>= 2) {
 
             if (pos%4 == 0) tmp = data[pos/4];
-            if (s[i_cpy] != bases[3 - (tmp & 0x3)]) break;
+            if (s[i_cpy] != alpha[3 - (tmp & 0x3)]) break;
         }
     }
     else {
@@ -597,7 +591,7 @@ size_t CompressedSequence::jump(const char *s, const size_t i, int pos, const bo
                 idx_mod = 6;
             }
 
-            if (s[i_cpy] != bases[(data[idx_div] >> idx_mod) & 0x03]) break;
+            if (s[i_cpy] != alpha[(data[idx_div] >> idx_mod) & 0x03]) break;
         }
     }
 
@@ -610,44 +604,6 @@ void CompressedSequence::clear() {
 
     initShort();
 }
-
-const char CompressedSequence::bases[256] = {
-    'A','C','G','T','N','N','N','N',  'N','N','N','N','N','N','N','N',
-    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N',
-    'N','N','N','N','N','N','N','N',  'N','N','N','N','N','N','N','N'
-};
-
-const uint8_t CompressedSequence::bits[256] = {
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-};
 
 const uint8_t CompressedSequence::revBits[256] =
 {

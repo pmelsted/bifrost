@@ -20,11 +20,6 @@ class StreamCounter {
             seed = 0;
             sz = 0;
             mask = 0;
-            maxCount = 0;
-
-            //std::memset(M, 0, MAX_TABLE * sizeof(size_t));
-
-            //for (size_t i = 0; i < MAX_TABLE; ++i) atomic_M[i].val = 0;
 
             if (blocks != nullptr) {
 
@@ -46,26 +41,18 @@ class StreamCounter {
 
             sz = rndup((numcounts + countsPerLong - 1) / countsPerLong);
             mask = (sz * countsPerLong) - 1;
-            maxCount = sz * countsPerLong * maxVal;
-
-            //std::memset(M, 0, MAX_TABLE * sizeof(size_t));
 
             blocks = new Block[((sz * MAX_TABLE) + block_sz - 1) / block_sz];
-
-            //for (size_t i = 0; i < MAX_TABLE; ++i) atomic_M[i].val = 0;
         }
 
-        StreamCounter(const StreamCounter& o) : e(o.e), seed(o.seed), mask(o.mask), maxCount(o.maxCount),
+        StreamCounter(const StreamCounter& o) : e(o.e), seed(o.seed), mask(o.mask),
                                                 shift_div_idx(o.shift_div_idx), mask_mod_idx(o.mask_mod_idx), sz(o.sz) {
-
-            //std::memcpy(M, o.M, MAX_TABLE * sizeof(size_t));
 
             const size_t nb_blocks = ((sz * MAX_TABLE) + block_sz - 1) / block_sz;
 
             blocks = new Block[nb_blocks];
 
             for (size_t i = 0; i < nb_blocks; ++i) blocks[i] = o.blocks[i];
-            //for (size_t i = 0; i < MAX_TABLE; ++i) atomic_M[i].val = o.atomic_M[i].val.load();
         }
 
         StreamCounter& operator=(const StreamCounter& o) {
@@ -77,17 +64,13 @@ class StreamCounter {
                 e = o.e;
                 seed = o.seed;
                 mask = o.mask;
-                maxCount = o.maxCount;
                 sz = o.sz;
-
-                //std::memcpy(M, o.M, MAX_TABLE * sizeof(size_t));
 
                 const size_t nb_blocks = ((sz * MAX_TABLE) + block_sz - 1) / block_sz;
 
                 blocks = new Block[nb_blocks];
 
                 for (size_t i = 0; i < nb_blocks; ++i) blocks[i] = o.blocks[i];
-               // for (size_t i = 0; i < MAX_TABLE; ++i) atomic_M[i].val = o.atomic_M[i].val.load();
             }
 
             return *this;
@@ -102,13 +85,8 @@ class StreamCounter {
                 e = o.e;
                 seed = o.seed;
                 mask = o.mask;
-                maxCount = o.maxCount;
                 sz = o.sz;
                 blocks = o.blocks;
-
-                //std::memcpy(M, o.M, MAX_TABLE * sizeof(size_t));
-
-                //for (size_t i = 0; i < MAX_TABLE; ++i) atomic_M[i].val = o.atomic_M[i].val.load();
 
                 o.blocks = nullptr;
 
@@ -133,14 +111,11 @@ class StreamCounter {
             const size_t nb_blocks = ((sz * MAX_TABLE) + block_sz - 1) / block_sz;
 
             for (size_t i = 0; i < nb_blocks; ++i) blocks[i].clear();
-            //for (size_t i = 0; i < MAX_TABLE; ++i) atomic_M[i].val = 0;
         }
 
         void release_threads() {
 
             const size_t nb_blocks = ((sz * MAX_TABLE) + block_sz - 1) / block_sz;
-
-            //for (size_t i = 0; i < MAX_TABLE; ++i) M[i] = atomic_M[i].val.load();
         }
 
         void initialize(const double e_, const int seed_ = 0) {
@@ -154,13 +129,8 @@ class StreamCounter {
 
             sz = rndup((numcounts + countsPerLong - 1) / countsPerLong);
             mask = (sz * countsPerLong) - 1;
-            maxCount = sz * countsPerLong * maxVal;
-
-            //std::memset(M, 0, MAX_TABLE * sizeof(size_t));
 
             blocks = new Block[((sz * MAX_TABLE) + block_sz - 1) / block_sz];
-
-            //for (size_t i = 0; i < MAX_TABLE; ++i) atomic_M[i].val = 0;
         }
 
         void update(const size_t h) {
@@ -178,17 +148,9 @@ class StreamCounter {
 
             Block& block = blocks[wordindex >> shift_div_idx];
 
-            //if (M[w] < maxCount){
+            const size_t val = (block.table[pos_block] & bitmask) >> bitshift;
 
-                const size_t val = (block.table[pos_block] & bitmask) >> bitshift;
-
-                if (val != maxVal) {
-
-                    block.table[pos_block] = ((((val + 1) & maxVal) << bitshift) & bitmask) | (block.table[pos_block] & ~bitmask);
-
-                    //++M[w];
-                }
-            //}
+            if (val != maxVal) block.table[pos_block] = ((((val + 1) & maxVal) << bitshift) & bitmask) | (block.table[pos_block] & ~bitmask);
         }
 
         void update_p(const size_t h) {
@@ -209,34 +171,11 @@ class StreamCounter {
 
             block.lock.acquire();
 
-            //if (block.M[w] < maxCount){
+            const size_t val = (block.table[pos_block] & bitmask) >> bitshift;
 
-                const size_t val = (block.table[pos_block] & bitmask) >> bitshift;
-
-                if (val != maxVal) {
-
-                    block.table[pos_block] = ((((val + 1) & maxVal) << bitshift) & bitmask) | (block.table[pos_block] & rev_bitmask);
-                    //block.M[w] = ++atomic_M[w].val;
-                }
-            //}
+            if (val != maxVal) block.table[pos_block] = ((((val + 1) & maxVal) << bitshift) & bitmask) | (block.table[pos_block] & rev_bitmask);
 
             block.lock.release();
-
-            /*if (((block.table[pos_block] & bitmask) >> bitshift) != maxVal) {
-
-                block.lock.acquire();
-
-                const size_t val = (block.table[pos_block] & bitmask) >> bitshift;
-
-                if (val != maxVal) {
-
-                    block.table[pos_block] = ((((val + 1) & maxVal) << bitshift) & bitmask) | (block.table[pos_block] & rev_bitmask);
-                    
-                    if (block.M[w] < maxCount) block.M[w] = ++atomic_M[w].val;
-                }
-
-                block.lock.release();
-            }*/
         }
 
         void update_p(const vector<size_t>& vh) {
@@ -283,16 +222,9 @@ class StreamCounter {
                     block.lock.acquire();
                 }
 
-                //if (block.M[hf.w] < maxCount){
+                const size_t val = (block.table[hf.pos_block] & hf.bitmask) >> hf.bitshift;
 
-                    const size_t val = (block.table[hf.pos_block] & hf.bitmask) >> hf.bitshift;
-
-                    if (val != maxVal) {
-
-                        block.table[hf.pos_block] = ((((val + 1) & maxVal) << hf.bitshift) & hf.bitmask) | (block.table[hf.pos_block] & hf.rev_bitmask);
-                        //block.M[hf.w] = ++atomic_M[hf.w].val;
-                    }
-                //}
+                if (val != maxVal) block.table[hf.pos_block] = ((((val + 1) & maxVal) << hf.bitshift) & hf.bitmask) | (block.table[hf.pos_block] & hf.rev_bitmask);
             }
 
             if (prev_block_id != 0xffffffffffffffffULL) blocks[prev_block_id].lock.release();
@@ -306,14 +238,8 @@ class StreamCounter {
 
             for (size_t i = 0; i < MAX_TABLE; ++i) {
 
-                //M[i] = 0;
+                for (size_t j = 0; j < R; ++j) setVal(j, i, getVal(j,i) + o.getVal(j,i));
 
-                for (size_t j = 0; j < R; ++j) {
-
-                    setVal(j, i, getVal(j,i) + o.getVal(j,i));
-
-                    //M[i] += getVal(j,i);
-                }
             }
 
             return true;
@@ -487,7 +413,6 @@ class StreamCounter {
             SpinLock lock;
 
             size_t table[block_sz];
-            //size_t M[MAX_TABLE];
 
             Block() {
 
@@ -497,7 +422,6 @@ class StreamCounter {
             Block(const Block& o) {
 
                 std::memcpy(table, o.table, block_sz * sizeof(size_t));
-                //std::memcpy(M, o.M, MAX_TABLE * sizeof(size_t));
             }
 
             Block& operator=(const Block& o) {
@@ -505,7 +429,6 @@ class StreamCounter {
                 if (this != &o) {
 
                     std::memcpy(table, o.table, block_sz * sizeof(size_t));
-                    //std::memcpy(M, o.M, MAX_TABLE * sizeof(size_t));
                 }
 
                 return *this;
@@ -514,7 +437,6 @@ class StreamCounter {
             void clear() {
 
                 std::memset(table, 0, block_sz * sizeof(size_t));
-                //std::memset(M, 0, MAX_TABLE * sizeof(size_t));
             }
         };
 
@@ -523,16 +445,12 @@ class StreamCounter {
         double e;
 
         size_t sz;
-        size_t maxCount;
         size_t mask;
 
         size_t nb_blocks;
 
         const size_t shift_div_idx;
         const size_t mask_mod_idx;
-
-        //size_t M[MAX_TABLE];
-        //atomic_uint64_t atomic_M[MAX_TABLE];
 
         Block* blocks;
 };

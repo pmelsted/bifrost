@@ -49,6 +49,17 @@ BFG_INLINE bool isDNA(const char c) {
     return static_cast<bool>((DNAbits[c >> 6] >> (c & 0x3F)) & 0x1ULL);
 }
 
+BFG_INLINE uint8_t convertDNAtoIndex(const char c) {
+
+    return (0b11 & ((c >> 2) ^ (c >> 1)));
+}
+
+BFG_INLINE uint8_t convertDNAtoComplementIndex(const char c) {
+
+    return (0x3 - (0b11 & ((c >> 2) ^ (c >> 1))));
+}
+
+
 BFG_INLINE size_t cstrMatch(const char* a, const char* b) {
 
     const char* a_ = a;

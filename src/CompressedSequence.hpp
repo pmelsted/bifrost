@@ -37,7 +37,6 @@ class CompressedSequence {
 
         Kmer getKmer(size_t offset) const;
         Minimizer getMinimizer(size_t offset) const;
-        char getChar(const size_t offset) const;
 
         //bool compareKmer(const size_t offset, const Kmer& km) const;
         bool compareKmer(const size_t offset, const size_t length, const Kmer& km) const;
@@ -95,9 +94,14 @@ class CompressedSequence {
            _resize_and_copy(round_to_bytes(new_length), size());
         }
 
-        BFG_INLINE char operator[](const size_t idx) const {
+        BFG_INLINE char operator[](const size_t offset) const {
 
-            return bases[(getPointer()[idx >> 2] >> ((idx & 0x3) << 1)) & 0x03];
+            return alpha[(getPointer()[offset >> 2] >> ((offset & 0x3) << 1)) & 0x03];
+        }
+
+        BFG_INLINE char getChar(const size_t offset) const {
+
+            return alpha[(getPointer()[offset >> 2] >> ((offset & 0x3) << 1)) & 0x03];
         }
 
         BFG_INLINE bool isShort() const {
@@ -107,11 +111,12 @@ class CompressedSequence {
 
         BFG_INLINE size_t size() const {
 
-            //if (isShort()) return (asBits._size >> 1);
-            //return (asPointer._length >> 1);
+            if (isShort()) return (asBits._size >> 1);
 
-            const bool is_short = isShort();
-            return ((static_cast<size_t>(asBits._size) & (static_cast<size_t>(!is_short)-1)) + (static_cast<size_t>(asPointer._length) & (static_cast<size_t>(is_short)-1))) >> 1;
+            return (asPointer._length >> 1);
+
+            //const bool is_short = isShort();
+            //return ((static_cast<size_t>(asBits._size) & (static_cast<size_t>(!is_short)-1)) + (static_cast<size_t>(asPointer._length) & (static_cast<size_t>(is_short)-1))) >> 1;
         }
 
         BFG_INLINE uint64_t hash(const uint64_t seed = 0) const {
@@ -144,14 +149,10 @@ class CompressedSequence {
         BFG_INLINE const unsigned char* getPointer() const {
 
             if (isShort()) return &(asBits._arr[0]);
-            return asPointer._data;
 
-            //const bool is_short = isShort();
-            //return reinterpret_cast<const unsigned char*>((reinterpret_cast<uintptr_t>(asBits._arr) & (static_cast<uintptr_t>(!is_short)-1)) | (reinterpret_cast<uintptr_t>(asPointer._data) & (static_cast<uintptr_t>(is_short)-1)));
+            return asPointer._data;
         }
 
-        static const char bases[256];
-        static const uint8_t bits[256];
         static const uint8_t revBits[256];
 
         union {

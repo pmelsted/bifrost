@@ -15,6 +15,7 @@
 #include <sstream>
 #include <stdint.h>
 #include <string>
+#include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -674,7 +675,7 @@ class CompactedDBG {
         CompactedDBG<U, G>& toDataGraph(CompactedDBG<void, void>&& o, const size_t nb_threads = 1);
 
         pair<bool, pair<BlockedBloomFilter, Roaring>> filter(const CDBG_Build_opt& opt, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers);
-        bool construct(const CDBG_Build_opt& opt, BlockedBloomFilter& bf, Roaring& r, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers);
+        bool construct(const CDBG_Build_opt& opt, BlockedBloomFilter& bf, Roaring& r, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers);
 
         void addUnitigSequence(const Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km, LockGraph& lck_g, const bool map_read = true);
         void addUnitigSequence(const string& seq);
@@ -760,7 +761,8 @@ class CompactedDBG {
         void createJoinHT(vector<Kmer>* v_joins, KmerHashTable<char>& joins, const size_t nb_threads) const;
 
         bool checkJoin(const Kmer& a, const const_UnitigMap<U, G>& cm_a, Kmer& b) const;
-        void check_fp_tips(KmerHashTable<uint8_t>& ignored_km_tips);
+        //void check_fp_tips(KmerHashTable<uint16_t>& ignored_km_tips, const size_t nb_threads = 1);
+        void check_fp_tips(BlockedBloomFilter& bf, const size_t nb_threads = 1);
         size_t removeUnitigs(bool rmIsolated, bool clipTips, vector<Kmer>& v);
 
         size_t joinTips(string filename_MBBF_uniq_kmers, const size_t nb_threads = 1, const bool verbose = false);
