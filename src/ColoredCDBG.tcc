@@ -608,12 +608,15 @@ bool ColoredCDBG<U>::read(const string& input_graph_fn, const string& input_colo
     if (valid_input_files){
 
         if (verbose) cout << "ColoredCDBG::read(): Reading graph." << endl;
+        
+        invalid = !CompactedDBG<DataAccessor<U>, DataStorage<U>>::read(input_graph_fn, nb_threads, verbose);
 
-        if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::read(input_graph_fn, nb_threads, verbose)) return false; // Read graph
-
+        if (invalid) return false; // Read graph
         if (verbose) cout << "ColoredCDBG::read(): Reading colors." << endl;
+        
+        invalid = !loadColors(input_graph_fn, input_colors_fn, nb_threads, verbose);
 
-        if (!loadColors(input_graph_fn, input_colors_fn, nb_threads, verbose)) return false;
+        if (invalid) return false;
     }
 
     return valid_input_files;
@@ -702,12 +705,15 @@ bool ColoredCDBG<U>::read(const string& input_graph_fn, const string& input_inde
     if (valid_input_files){
 
         if (verbose) cout << "ColoredCDBG::read(): Reading graph." << endl;
+        
+        invalid = !CompactedDBG<DataAccessor<U>, DataStorage<U>>::read(input_graph_fn, input_index_fn, nb_threads, verbose);
 
-        if (!CompactedDBG<DataAccessor<U>, DataStorage<U>>::read(input_graph_fn, input_index_fn, nb_threads, verbose)) return false; // Read graph
-
+        if (invalid) return false; // Read graph
         if (verbose) cout << "ColoredCDBG::read(): Reading colors." << endl;
+        
+        invalid = !loadColors(input_graph_fn, input_colors_fn, nb_threads, verbose);
 
-        if (!loadColors(input_graph_fn, input_colors_fn, nb_threads, verbose)) return false;
+        if (invalid) return false;
     }
 
     return valid_input_files;
