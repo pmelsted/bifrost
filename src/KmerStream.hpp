@@ -23,7 +23,7 @@
 #include "RepHash.hpp"
 #include "StreamCounter.hpp"
 
-#define NB_STREAMCOUNTER_PER_READHASHER 4
+#define NB_STREAMCOUNTER_PER_READHASHER 1
 
 using namespace std;
 
@@ -55,7 +55,7 @@ class ReadQualityHasherMinimizer {
 
         ReadQualityHasherMinimizer() :    k(0), g(0), q_cutoff(0), q_base(0) {}
 
-        ReadQualityHasherMinimizer(const double e_, const size_t q_base_) :    k(0), g(0), q_cutoff(0), q_base(q_base_), sc_min(e_) {
+        /*ReadQualityHasherMinimizer(const double e_, const size_t q_base_) :    k(0), g(0), q_cutoff(0), q_base(q_base_), sc_min(e_) {
 
             for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i].initialize(e_);
         }
@@ -63,7 +63,10 @@ class ReadQualityHasherMinimizer {
         ReadQualityHasherMinimizer(const ReadQualityHasherMinimizer& o) :   k(o.k), g(o.g), q_cutoff(o.q_cutoff), q_base(o.q_base), sc_min(o.sc_min) {
 
             for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i] = o.sc_km[i];
-        }
+        }*/
+
+        ReadQualityHasherMinimizer(const double e_, const size_t q_base_) :    k(0), g(0), q_cutoff(0), q_base(q_base_), sc_min(e_), sc_km(e_) {}
+        ReadQualityHasherMinimizer(const ReadQualityHasherMinimizer& o) :   k(o.k), g(o.g), q_cutoff(o.q_cutoff), q_base(o.q_base), sc_min(o.sc_min), sc_km(o.sc_km) {}
 
         BFG_INLINE void setK(const size_t _k) {
 
@@ -89,7 +92,7 @@ class ReadQualityHasherMinimizer {
 
             sc_min.clear();
 
-            for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i].clear();
+            /*for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i)*/ sc_km/*[i]*/.clear();
         }
 
         void initialize(const double e_, const size_t q_cutoff_, const size_t q_base_, const size_t _k, const size_t _g) {
@@ -104,7 +107,7 @@ class ReadQualityHasherMinimizer {
 
             sc_min.initialize(e_);
 
-            for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i].initialize(e_);
+            /*for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i)*/ sc_km/*[i]*/.initialize(e_);
         }
 
         // create hashes for all k-mers
@@ -119,7 +122,7 @@ class ReadQualityHasherMinimizer {
 
             bool last_valid = false;
 
-            const char q_base_cut = (char) (q_base + q_cutoff);
+            const char q_base_cut = static_cast<char>(q_base + q_cutoff);
 
             minHashIterator<RepHash> min_it = minHashIterator<RepHash>(s, l, k, g, RepHash(), true);
 
@@ -160,7 +163,7 @@ class ReadQualityHasherMinimizer {
 
                     const size_t min_pos = min_it.getPosition();
 
-                    sc_km[0].update(hf.hash());
+                    sc_km/*[0]*/.update(hf.hash());
 
                     ++l_sumCount_km_F1;
 
@@ -180,10 +183,10 @@ class ReadQualityHasherMinimizer {
 
         pair<size_t, size_t> update(const char* seq_buf, const char* qual_buf, const size_t buf_sz) {
 
-            const char q_base_cut = (char) (q_base + q_cutoff);
+            const char q_base_cut = static_cast<char>(q_base + q_cutoff);
 
             const char* str = seq_buf;
-            const char* str_end = &seq_buf[buf_sz];
+            const char* str_end = seq_buf + buf_sz;
             const char* q_str = qual_buf;
 
             size_t l_sumCount_min_F1 = 0;
@@ -237,7 +240,7 @@ class ReadQualityHasherMinimizer {
 
                             const size_t min_pos = min_it.getPosition();
 
-                            sc_km[0].update(hf.hash());
+                            sc_km/*[0]*/.update(hf.hash());
 
                             ++l_sumCount_km_F1;
 
@@ -271,7 +274,7 @@ class ReadQualityHasherMinimizer {
 
             bool last_valid = false;
 
-            const char q_base_cut = (char) (q_base + q_cutoff);
+            const char q_base_cut = static_cast<char>(q_base + q_cutoff);
 
             minHashIterator<RepHash> min_it = minHashIterator<RepHash>(s, l, k, g, RepHash(), true);
 
@@ -311,7 +314,7 @@ class ReadQualityHasherMinimizer {
 
                     const size_t min_pos = min_it.getPosition();
 
-                    if (min_pos != prev_pos_min){
+                    /*if (min_pos != prev_pos_min){
 
                         const size_t min_h = min_it.getHash();
 
@@ -323,7 +326,18 @@ class ReadQualityHasherMinimizer {
                         ++l_sumCount_min_F1;
                     }
                     
-                    sc_km[min_idx].update_p(hf.hash());
+                    sc_km[min_idx].update_p(hf.hash());*/
+
+                    sc_km.update_p(hf.hash());
+
+                    if (min_pos != prev_pos_min){
+
+                        sc_min.update_p(min_it.getHash());
+
+                        prev_pos_min = min_pos;
+
+                        ++l_sumCount_min_F1;
+                    }
 
                     ++l_sumCount_km_F1;
                 }
@@ -334,7 +348,7 @@ class ReadQualityHasherMinimizer {
 
         pair<size_t, size_t> update_p(const char* seq_buf, const char* qual_buf, const size_t buf_sz) {
 
-            const char q_base_cut = (char) (q_base + q_cutoff);
+            const char q_base_cut = static_cast<char>(q_base + q_cutoff);
 
             const char* str = seq_buf;
             const char* str_end = &seq_buf[buf_sz];
@@ -392,7 +406,7 @@ class ReadQualityHasherMinimizer {
 
                             const size_t min_pos = min_it.getPosition();
 
-                            if (min_pos != prev_pos_min){
+                            /*if (min_pos != prev_pos_min){
 
                                 const size_t min_h = min_it.getHash();
 
@@ -404,7 +418,20 @@ class ReadQualityHasherMinimizer {
                                 ++l_sumCount_min_F1;
                             }
                             
-                            sc_km[min_idx].update_p(hf.hash());
+                            sc_km[min_idx].update_p(hf.hash());*/
+
+                            sc_km.update_p(hf.hash());
+
+                            if (min_pos != prev_pos_min){
+
+                                sc_min.update_p(min_it.getHash());
+
+                                prev_pos_min = min_pos;
+
+                                ++l_sumCount_min_F1;
+                            }
+
+
 
                             ++l_sumCount_km_F1;
                         }
@@ -422,14 +449,14 @@ class ReadQualityHasherMinimizer {
 
             bool join_rhm = sc_min.join(o.sc_min);
 
-            for (size_t i = 0; join_rhm && (i < NB_STREAMCOUNTER_PER_READHASHER); ++i) join_rhm = join_rhm && (sc_km[i].join(o.sc_km[i]));
+            /*for (size_t i = 0; join_rhm && (i < NB_STREAMCOUNTER_PER_READHASHER); ++i)*/ join_rhm = join_rhm && (sc_km/*[i]*/.join(o.sc_km/*[i]*/));
 
             return join_rhm;
         }
 
         BFG_INLINE bool join(const ReadHasherMinimizer& o);
 
-        BFG_INLINE size_t KmerF0() const {
+        /*BFG_INLINE size_t KmerF0() const {
 
             StreamCounter sc(sc_km[0]);
 
@@ -445,7 +472,11 @@ class ReadQualityHasherMinimizer {
             for (size_t i = 1; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc.join(sc_km[i]);
 
             return sc.f1();
-        }
+        }*/
+
+        BFG_INLINE size_t KmerF0() const { return sc_km.F0(); }
+
+        BFG_INLINE size_t Kmerf1() const { return sc_km.f1(); }
 
         BFG_INLINE size_t MinimizerF0() const {
 
@@ -457,20 +488,6 @@ class ReadQualityHasherMinimizer {
             return sc_min.f1();
         }
 
-        BFG_INLINE void init_threads() {
-
-            sc_min.init_threads();
-
-            for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i].init_threads();
-        }
-
-        BFG_INLINE void release_threads() {
-
-            sc_min.release_threads();
-
-            for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i].release_threads();
-        }
-
     private:
 
         size_t q_cutoff;
@@ -480,7 +497,7 @@ class ReadQualityHasherMinimizer {
         size_t g;
 
         StreamCounter sc_min;
-        StreamCounter sc_km[NB_STREAMCOUNTER_PER_READHASHER];
+        StreamCounter sc_km/*[NB_STREAMCOUNTER_PER_READHASHER]*/;
 };
 
 class ReadHasherMinimizer {
@@ -491,7 +508,7 @@ class ReadHasherMinimizer {
 
         ReadHasherMinimizer() :  k(0), g(0) {}
 
-        ReadHasherMinimizer(const double e) : k(0), g(0), sc_min(e) {
+        /*ReadHasherMinimizer(const double e) : k(0), g(0), sc_min(e) {
 
             for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i].initialize(e);
         }
@@ -509,7 +526,15 @@ class ReadHasherMinimizer {
         ReadHasherMinimizer(const ReadQualityHasherMinimizer& o) : k(o.k), g(o.g), sc_min(o.sc_min) {
 
             for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i] = o.sc_km[i];
-        }
+        }*/
+
+        ReadHasherMinimizer(const double e) : k(0), g(0), sc_min(e), sc_km(e) {}
+
+        ReadHasherMinimizer(const ReadHasherMinimizer& o) : k(o.k), g(o.g), sc_min(o.sc_min), sc_km(o.sc_km) {}
+
+        ReadHasherMinimizer(ReadQualityHasherMinimizer&& o) : k(o.k), g(o.g), sc_min(move(o.sc_min)), sc_km(move(o.sc_km)) {}
+
+        ReadHasherMinimizer(const ReadQualityHasherMinimizer& o) : k(o.k), g(o.g), sc_min(o.sc_min), sc_km(o.sc_km) {}
 
         void clear() {
 
@@ -518,7 +543,7 @@ class ReadHasherMinimizer {
 
             sc_min.clear();
 
-            for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i].clear();
+            /*for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i)*/ sc_km/*[i]*/.clear();
         }
 
         void initialize(const double e_, const size_t _k, const size_t _g) {
@@ -530,7 +555,7 @@ class ReadHasherMinimizer {
 
             sc_min.initialize(e_);
 
-            for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i].initialize(e_);
+            /*for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i)*/ sc_km/*[i]*/.initialize(e_);
         }
 
         BFG_INLINE void setK(const size_t _k) {
@@ -594,7 +619,7 @@ class ReadHasherMinimizer {
 
                     const size_t min_pos = min_it.getPosition();
 
-                    sc_km[0].update(hf.hash());
+                    sc_km/*[0]*/.update(hf.hash());
 
                     ++l_sumCount_km_F1;
 
@@ -668,7 +693,7 @@ class ReadHasherMinimizer {
 
                             const size_t min_pos = min_it.getPosition();
 
-                            sc_km[0].update(hf.hash());
+                            sc_km/*[0]*/.update(hf.hash());
 
                             ++l_sumCount_km_F1;
 
@@ -739,7 +764,7 @@ class ReadHasherMinimizer {
 
                 if (last_valid) {
 
-                    const size_t min_pos = min_it.getPosition();
+                    /*const size_t min_pos = min_it.getPosition();
 
                     if (min_pos != prev_pos_min){
 
@@ -755,7 +780,20 @@ class ReadHasherMinimizer {
 
                     ++l_sumCount_km_F1;
                     
-                    sc_km[min_idx].update_p(hf.hash());
+                    sc_km[min_idx].update_p(hf.hash());*/
+
+                    sc_km.update_p(hf.hash());
+
+                    ++l_sumCount_km_F1;
+
+                    if (min_it.getPosition() != prev_pos_min){
+
+                        sc_min.update_p(min_it.getHash());
+
+                        prev_pos_min = min_it.getPosition();
+
+                        ++l_sumCount_min_F1;
+                    }
                 }
             }
 
@@ -818,7 +856,7 @@ class ReadHasherMinimizer {
 
                         if (last_valid) {
 
-                            const size_t min_pos = min_it.getPosition();
+                            /*const size_t min_pos = min_it.getPosition();
 
                             if (min_pos != prev_pos_min){
 
@@ -834,7 +872,20 @@ class ReadHasherMinimizer {
 
                             ++l_sumCount_km_F1;
                             
-                            sc_km[min_idx].update_p(hf.hash());
+                            sc_km[min_idx].update_p(hf.hash());*/
+
+                            sc_km.update_p(hf.hash());
+
+                            ++l_sumCount_km_F1;
+
+                            if (min_it.getPosition() != prev_pos_min){
+
+                                sc_min.update_p(min_it.getHash());
+
+                                prev_pos_min = min_it.getPosition();
+
+                                ++l_sumCount_min_F1;
+                            }
                         }
                     }
                 }
@@ -847,18 +898,25 @@ class ReadHasherMinimizer {
 
         BFG_INLINE void setQualityCutoff(const size_t q) {}
 
-        BFG_INLINE bool join(const ReadHasherMinimizer& o) {
+        /*BFG_INLINE bool join(const ReadHasherMinimizer& o) {
 
             bool join_rhm = sc_min.join(o.sc_min);
 
             for (size_t i = 0; join_rhm && (i < NB_STREAMCOUNTER_PER_READHASHER); ++i) join_rhm = join_rhm && (sc_km[i].join(o.sc_km[i]));
 
             return join_rhm;
+        }*/
+        BFG_INLINE bool join(const ReadHasherMinimizer& o) {
+
+            const bool join_km = sc_km.join(o.sc_km);
+            const bool join_min = sc_min.join(o.sc_min);
+
+            return (join_km && join_min);
         }
 
         BFG_INLINE bool join(const ReadQualityHasherMinimizer& o);
 
-        BFG_INLINE size_t KmerF0() const {
+        /*BFG_INLINE size_t KmerF0() const {
 
             StreamCounter sc(sc_km[0]);
 
@@ -874,7 +932,9 @@ class ReadHasherMinimizer {
             for (size_t i = 1; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc.join(sc_km[i]);
 
             return sc.f1();
-        }
+        }*/
+        BFG_INLINE size_t KmerF0() const { return sc_km.F0(); }
+        BFG_INLINE size_t Kmerf1() const { return sc_km.f1(); }
 
         BFG_INLINE size_t MinimizerF0() const {
 
@@ -886,30 +946,16 @@ class ReadHasherMinimizer {
             return sc_min.f1();
         }
 
-        BFG_INLINE void init_threads() {
-
-            sc_min.init_threads();
-
-            for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i].init_threads();
-        }
-
-        BFG_INLINE void release_threads() {
-
-            sc_min.release_threads();
-
-            for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i].release_threads();
-        }
-
     private:
 
         size_t k;
         size_t g;
 
         StreamCounter sc_min;
-        StreamCounter sc_km[NB_STREAMCOUNTER_PER_READHASHER];
+        StreamCounter sc_km/*[NB_STREAMCOUNTER_PER_READHASHER]*/;
 };
 
-inline bool ReadQualityHasherMinimizer::join(const ReadHasherMinimizer& o) {
+/*inline bool ReadQualityHasherMinimizer::join(const ReadHasherMinimizer& o) {
 
     bool join_rhm = sc_min.join(o.sc_min);
 
@@ -925,6 +971,21 @@ inline bool ReadHasherMinimizer::join(const ReadQualityHasherMinimizer& o) {
     for (size_t i = 0; join_rhm && (i < NB_STREAMCOUNTER_PER_READHASHER); ++i) join_rhm = join_rhm && (sc_km[i].join(o.sc_km[i]));
 
     return join_rhm;
+}*/
+BFG_INLINE bool ReadQualityHasherMinimizer::join(const ReadHasherMinimizer& o) {
+
+    const bool join_km = sc_km.join(o.sc_km);
+    const bool join_min = sc_min.join(o.sc_min);
+
+    return (join_km && join_min);
+}
+
+BFG_INLINE bool ReadHasherMinimizer::join(const ReadQualityHasherMinimizer& o) {
+
+    const bool join_km = sc_km.join(o.sc_km);
+    const bool join_min = sc_min.join(o.sc_min);
+
+    return (join_km && join_min);
 }
 
 class KmerStream {
@@ -1147,8 +1208,6 @@ class KmerStream {
 
                 mutex mutex_file;
 
-                rqh.init_threads();
-
                 for (size_t t = 0; t < nb_threads; ++t){
 
                     workers.emplace_back(
@@ -1197,8 +1256,6 @@ class KmerStream {
                 }
 
                 for (auto& t : workers) t.join();
-
-                rqh.release_threads();
             }
 
             fp.close();
@@ -1230,7 +1287,6 @@ class KmerStream {
             size_t pos_read = 0;
             size_t len_read = 0;
 
-            const size_t max_len_seq = rndup(static_cast<size_t>(1024 + k - 1));
             const size_t thread_seq_buf_sz = BUFFER_SIZE;
 
             FileParser fp(files_no_quality);
@@ -1294,8 +1350,6 @@ class KmerStream {
 
                 bool stop = false;
 
-                rsh.init_threads();
-
                 for (size_t t = 0; t != nb_threads; ++t){
 
                     workers.emplace_back(
@@ -1340,8 +1394,6 @@ class KmerStream {
                 }
 
                 for (auto& t : workers) t.join();
-
-                rsh.release_threads();
             }
 
             fp.close();

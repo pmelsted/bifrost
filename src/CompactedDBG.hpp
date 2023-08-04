@@ -674,17 +674,22 @@ class CompactedDBG {
 
         CompactedDBG<U, G>& toDataGraph(CompactedDBG<void, void>&& o, const size_t nb_threads = 1);
 
-        pair<bool, pair<BlockedBloomFilter, Roaring>> filter(const CDBG_Build_opt& opt, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers);
-        bool construct(const CDBG_Build_opt& opt, BlockedBloomFilter& bf, Roaring& r, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers);
+        bool filter(const CDBG_Build_opt& opt, DualBlockedBloomFilter& bf_d, Roaring& r, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers);
+
+        bool construct(const CDBG_Build_opt& opt, DualBlockedBloomFilter& bf, Roaring& r, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers);
 
         void addUnitigSequence(const Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km, LockGraph& lck_g, const bool map_read = true);
         void addUnitigSequence(const string& seq);
 
         size_t findUnitigSequenceBBF(const BlockedBloomFilter& bf, const Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip);
-        size_t findUnitigSequenceBBF(const BlockedBloomFilter& bf, const Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip, LockGraph& lck_g);
+        size_t findUnitigSequenceBBF(const DualBlockedBloomFilter& bf, const Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip);
+        //size_t findUnitigSequenceBBF(const BlockedBloomFilter& bf, const Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip, LockGraph& lck_g);
 
         pair<int, RepHash> bwStepBBF(const BlockedBloomFilter& bf, const Kmer km, Kmer& front, const RepHash& rep_front, const char* front_str, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand = true) const;
+        pair<int, RepHash> bwStepBBF(const DualBlockedBloomFilter& bf, const Kmer km, Kmer& front, const RepHash& rep_front, const char* front_str, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand = true) const;
+        
         pair<int, RepHash> fwStepBBF(const BlockedBloomFilter& bf, const Kmer km, Kmer& end, const RepHash& rep_end, const char* end_str, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand = true) const;
+        pair<int, RepHash> fwStepBBF(const DualBlockedBloomFilter& bf, const Kmer km, Kmer& end, const RepHash& rep_end, const char* end_str, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand = true) const;
 
         inline size_t find(const preAllocMinHashIterator<RepHash>& it_min_h) const {
 
@@ -696,8 +701,6 @@ class CompactedDBG {
         const_UnitigMap<U, G> find(const char* s, const size_t pos_km, const minHashIterator<RepHash>& it_min, const bool extremities_only = false) const;
 
         UnitigMap<U, G> find(const Kmer& km, const preAllocMinHashIterator<RepHash>& it_min_h);
-
-        //vector<const_UnitigMap<U, G>> find(const Minimizer& minz) const;
 
         vector<const_UnitigMap<U, G>> findPredecessors(const Kmer& km, const bool extremities_only = false) const;
         vector<const_UnitigMap<U, G>> findSuccessors(const Kmer& km, const size_t limit = 4, const bool extremities_only = false) const;
