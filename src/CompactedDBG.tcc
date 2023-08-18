@@ -2571,14 +2571,13 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, DualBlockedBloomFilte
 
     FileParser fp(filename_in);
 
-    BlockedBloomFilter bf1;
-    DualBlockedBloomFilter bf1_d;
+    BlockedBloomFilter bf1, bf2;
 
-    if (reference_mode) bf1_d.initialize(nb_unique_kmers, opt.nb_bits_kmers_bf);
+    if (reference_mode) bf_d.initialize(nb_unique_kmers, opt.nb_bits_kmers_bf);
     else {
 
         bf1.initialize(nb_unique_kmers, opt.nb_bits_kmers_bf);
-        bf_d.initialize(nb_non_unique_kmers, opt.nb_bits_kmers_bf);
+        bf2.initialize(nb_non_unique_kmers, opt.nb_bits_kmers_bf);
     }
 
     // Main worker thread
@@ -2610,7 +2609,7 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, DualBlockedBloomFilte
 
                     it_min += (p_.second - it_min.getKmerPosition()); //If one or more k-mer were jumped because contained non-ACGT char.
 
-                    const bool inserted = bf1_d.insert(p_.first, it_min.getHash(), 0, multi_threaded);
+                    const bool inserted = bf_d.insert(p_.first, it_min.getHash(), 0, multi_threaded);
 
                     l_num_ins += static_cast<uint64_t>(inserted);
                     count_new_km += static_cast<uint64_t>(inserted);
@@ -2629,7 +2628,7 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, DualBlockedBloomFilte
                     const uint64_t min_hr = it_min.getHash();
 
                     if (bf1.insert(p_.first, min_hr, multi_threaded)) ++l_num_ins;
-                    else count_new_km += static_cast<uint64_t>(bf_d.insert(p_.first, min_hr, 0, multi_threaded));
+                    else count_new_km += static_cast<uint64_t>(bf2.insert(p_.first, min_hr, multi_threaded));
                 }
 
                 if (count_new_km > 1) lr.add(prev_read_id);
@@ -2752,9 +2751,84 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, DualBlockedBloomFilte
 
     fp.close();
 
-    if (reference_mode) bf_d = move(bf1_d);
-
     r.runOptimize();
+
+    if (!reference_mode){
+
+        char* tmp_dir = nullptr;
+
+        string tmp_dir_path;
+
+        bf1.clear(); // Empty BF1, not needed anymore
+
+        // Make tmp dir
+        {
+            if (opt.prefixTmp.length() != 0) {
+
+                if (!check_dir_writable(opt.prefixTmp) || !check_dir_readable(opt.prefixTmp)) {
+
+                    cerr << "CompactedDBG::filter(): Tmp directory does not exist or is not readable/writable. Abort." << endl;
+
+                    return false;
+                }
+
+                tmp_dir_path = opt.prefixTmp;
+
+                if (opt.prefixTmp.back() != '/') tmp_dir_path += '/';
+
+                tmp_dir_path += "tmp.bifrost.XXXXXX";
+            }
+            else tmp_dir_path = opt.prefixFilenameOut + ".tmp.bifrost.XXXXXX";
+            
+            tmp_dir = new char[tmp_dir_path.length() + 1];
+
+            memcpy(tmp_dir, tmp_dir_path.c_str(), tmp_dir_path.length() + 1);
+
+            if (mkdtemp(tmp_dir) == nullptr) {
+
+                cerr << "CompactedDBG::filter(): Could not create tmp directory. Abort." << endl;
+
+                return false;
+            }
+        }
+
+        {
+            const string tmp_bbf_fn = string(tmp_dir) + string("/km.bbf");
+
+            // Write BF2 to disk
+            {
+                FILE* fp_bbf = fopen(tmp_bbf_fn.c_str(), "wb");
+
+                if (!bf2.write(fp_bbf)) {
+
+                    cerr << "CompactedDBG::filter(): Could not write temporary Blocked Bloom Filter file. Abort." << endl;
+
+                    exit(1);
+                }
+
+                fclose(fp_bbf);
+            }
+
+            bf2.clear(); // Empty BF2, not needed anymore
+
+            {
+                FILE* fp_bbf = fopen(tmp_bbf_fn.c_str(), "rb");
+
+                if (!bf_d.readFromBBF(fp_bbf, 0)) {
+
+                    cerr << "CompactedDBG::construct(): Could not read temporary Blocked Bloom Filter file. Abort." << endl;
+                    exit(1);
+                }
+
+                fclose(fp_bbf);
+            }
+
+            if (std::remove(tmp_bbf_fn.c_str()) != 0) cerr << "CompactedDBG::construct(): Could not remove temporary Blocked Bloom Filter file." << endl;
+        }
+
+        if (rmdir(tmp_dir) != 0) cerr << "CompactedDBG::construct(): Could not remove temporary directory." << endl;
+        if (tmp_dir != nullptr) delete[] tmp_dir;
+    }
 
     if (opt.verbose) {
 
@@ -2792,14 +2866,14 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
 
     Roaring::const_iterator its = r.begin(), ite = r.end();
 
-    std::atomic_flag lock_ignored_km_tips = ATOMIC_FLAG_INIT;
+    uint64_t* unitig_full = nullptr;
 
-    tiny_vector<Kmer, 1>* fp_candidate = nullptr;
+    KmerHashTable<uint8_t> kmt_fp_cand;
 
     LockGraph lck_g(nb_locks);
     LockGraph lck_h(nb_locks);
 
-    vector<SpinLock> locks_fp;
+    SpinLock lck_kmt_fp_cand;
 
     string s;
 
@@ -2927,9 +3001,12 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
         RepHash rep;
 
         char* str = seq_buf;
+
         const char* str_end = seq_buf + seq_buf_sz;
 
         const bool multi_threaded = (opt.nb_threads > 1);
+
+        const size_t v_unitigs_sz = v_unitigs.size();
 
         while (str < str_end) { // for each input
 
@@ -2955,9 +3032,8 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
                     it_min += (p_.second - it_min.getKmerPosition());
 
                     const uint64_t it_min_h = it_min.getHash();
-                    const int64_t bid = bf.contains_bids(p_.first, it_min_h);
 
-                    if (bid != -1){
+                    if (bf.contains(p_.first, it_min_h)){
 
                         const Kmer km = Kmer(str_tmp + p_.second);
 
@@ -2981,31 +3057,21 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
 
                                 if (!reference_mode && isIsolated){ // According to the BF, k-mer is isolated in the graph and is a potential false positive
 
-                                    const uint64_t id_lock = bid % nb_locks;
                                     const Kmer km_rep(km.rep());
 
-                                    tiny_vector<Kmer, 1>& v = fp_candidate[bid];
+                                    bool has_full_cov = false;
 
-                                    size_t i = 0;
+                                    lck_kmt_fp_cand.acquire();
 
-                                    locks_fp[id_lock].acquire();
+                                    const pair<KmerHashTable<uint8_t>::const_iterator, bool> p_insert_kmt_fp_cand = kmt_fp_cand.insert(km_rep, 0);
 
-                                    for (; i < v.size(); ++i){ // Search list of fp candidate for k-mer
+                                    has_full_cov = !p_insert_kmt_fp_cand.second;
 
-                                        if (v[i] == km_rep) break;
-                                    }
+                                    if (has_full_cov) kmt_fp_cand.erase(p_insert_kmt_fp_cand.first);
+                                    
+                                    lck_kmt_fp_cand.release();
 
-                                    if (i >= v.size()){
-
-                                        v.push_back(km_rep);
-
-                                        locks_fp[id_lock].release();
-                                    }
-                                    else {
-
-                                        v.remove(i);
-
-                                        locks_fp[id_lock].release();
+                                    if (has_full_cov) {
 
                                         dbg_extra.addUnitigSequence(km, approx_unitig, pos_match, 1, lck_h, true);
                                         dbg_extra.addUnitigSequence(km, approx_unitig, pos_match, 1, lck_h, true);
@@ -3031,7 +3097,15 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
                         }
                         else { // kmer did not map, push into queue for next unitig generation round
 
-                            mapRead(um, lck_g);
+                            if (um.isAbundant) mapRead(um, lck_g);
+                            else {
+
+                                const size_t pos_unitig = um.pos_unitig + (v_unitigs_sz & (static_cast<size_t>(!um.isShort) - 1));
+                                const size_t pos_div = pos_unitig >> 6;
+                                const size_t mask_mod = 0x1ULL << (pos_unitig & 0x3fULL);
+
+                                if (((unitig_full[pos_div] & mask_mod) == 0) && mapRead(um, lck_g)) unitig_full[pos_div] |= mask_mod;
+                            }
 
                             it_kmer_h += um.len - 1;
                         }
@@ -3049,7 +3123,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
             const string km_str = km_tip.toString();
             const uint64_t kmh = km_tip.hash();
 
-            minHashIterator<RepHash> it_min(km_str.c_str(), km_str.length(), k_, g_, rep, true);
+            const minHashIterator<RepHash> it_min(km_str.c_str(), km_str.length(), k_, g_, rep, true);
 
             const uint64_t minh = it_min.getHash();
 
@@ -3165,19 +3239,39 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
     };
 
     {
-        char* tmp_dir = new char[opt.prefixFilenameOut.length() + 8];
+        char* tmp_dir = nullptr;
 
-        memcpy(tmp_dir, opt.prefixFilenameOut.c_str(), opt.prefixFilenameOut.length());
-        memset(tmp_dir + opt.prefixFilenameOut.length() + 1, 'X', 6);
+        string tmp_dir_path;
 
-        tmp_dir[opt.prefixFilenameOut.length()] = '.';
-        tmp_dir[opt.prefixFilenameOut.length() + 7] = '\0';
+        // Create tmp dir
+        {
+            if (opt.prefixTmp.length() != 0) {
 
-        if (mkdtemp(tmp_dir) == nullptr) {
+                if (!check_dir_writable(opt.prefixTmp) || !check_dir_readable(opt.prefixTmp)) {
 
-            cerr << "CompactedDBG::construct(): Could not create tmp directory. Abort." << endl;
+                    cerr << "CompactedDBG::construct(): Tmp directory does not exist or is not readable/writable. Abort." << endl;
 
-            exit(1);
+                    return false;
+                }
+
+                tmp_dir_path = opt.prefixTmp;
+
+                if (opt.prefixTmp.back() != '/') tmp_dir_path += '/';
+
+                tmp_dir_path += "tmp.bifrost.XXXXXX";
+            }
+            else tmp_dir_path = opt.prefixFilenameOut + ".tmp.bifrost.XXXXXX";
+            
+            tmp_dir = new char[tmp_dir_path.length() + 1];
+
+            memcpy(tmp_dir, tmp_dir_path.c_str(), tmp_dir_path.length() + 1);
+
+            if (mkdtemp(tmp_dir) == nullptr) {
+
+                cerr << "CompactedDBG::construct(): Could not create tmp directory. Abort." << endl;
+
+                return false;
+            }
         }
 
         const string tmp_graph_fn = string(tmp_dir) + string("/approx_unitigs.fasta");
@@ -3323,12 +3417,14 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
             while (fp_approx_unitigs.read(approx_unitig, file_id_approx)) addUnitigSequence(approx_unitig);
 
             fp_approx_unitigs.close();
+
+            hmap_min_unitigs.recomputeMaxPSL(opt.nb_threads);
         }
 
         if (std::remove(tmp_graph_fn.c_str()) != 0) cerr << "CompactedDBG::construct(): Could not remove temporary file." << endl;
         if (rmdir(tmp_dir) != 0) cerr << "CompactedDBG::construct(): Could not remove temporary directory." << endl;
 
-        delete[] tmp_dir;
+        if (tmp_dir != nullptr) delete[] tmp_dir;
     }
 
     // Build
@@ -3347,11 +3443,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
 
         if (opt.verbose) cout << "CompactedDBG::construct(): Extract approximate unitigs (2/3)" << endl;
 
-        if (!reference_mode) {
-
-            fp_candidate = new tiny_vector<Kmer, 1>[bf.getNbBlocks()];
-            locks_fp = vector<SpinLock>(nb_locks);
-        }
+        unitig_full = new uint64_t[(v_unitigs.size() + km_unitigs.size() + 63) / 64](); // Kmers with abundant minimizers cannot be included here
 
         if ((nb_estimated_min * 1.05) > hmap_min_unitigs.size()) dbg_extra.hmap_min_unitigs = MinimizerIndex((nb_estimated_min * 1.05) - hmap_min_unitigs.size());
         else if (nb_estimated_min > hmap_min_unitigs.size()) dbg_extra.hmap_min_unitigs = MinimizerIndex(nb_estimated_min - hmap_min_unitigs.size());
@@ -3392,9 +3484,9 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
 
         fp.close();
 
-        locks_fp.clear();
+        kmt_fp_cand.clear();
 
-        if (fp_candidate != nullptr) delete[] fp_candidate;
+        if (unitig_full != nullptr) delete[] unitig_full;
     }
 
     bf.clear();
@@ -3646,6 +3738,8 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(const BlockedBloomFilter& bf, c
         neigh_str[k_-1] = alpha[p_neigh.first];
 
         p_neigh = fwStepBBF(bf, end, end, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
+
+        self_loop = (p_neigh.first != -1) && (end == km);
     }
 
     if (!self_loop) {
@@ -3785,133 +3879,6 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(const DualBlockedBloomFilter& b
 
     return bw_s.length();
 }
-
-/*template<typename U, typename G>
-size_t CompactedDBG<U, G>::findUnitigSequenceBBF(const BlockedBloomFilter& bf, const Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip, LockGraph& lck_g) {
-
-    string fw_s, bw_s;
-
-    Kmer end(km);
-    Kmer last(km);
-
-    char km_str[MAX_KMER_SIZE];
-    char neigh_str[MAX_KMER_SIZE];
-
-    RepHash rep_km(k_), rep_neigh(k_);
-
-    const Kmer twin(km.twin());
-
-    size_t j = 0;
-
-    bool has_no_neighbor;
-    bool self_loop = false;
-
-    km.toString(km_str);
-    km.toString(neigh_str);
-
-    rep_km.init(km_str);
-
-    rep_neigh = rep_km;
-    isIsolated = false;
-
-    pair<int, RepHash> p_neigh = fwStepBBF(bf, end, end, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
-
-    while (p_neigh.first != -1) {
-
-        ++j;
-
-        self_loop = (end == km);
-
-        if (self_loop || (end == twin) || (end == last.twin())) break;
-
-        fw_s.push_back(alpha[p_neigh.first]);
-
-        last = end;
-
-        if ((fw_s.length() % 100) == 0) {
-
-            const Kmer km_fw_tail(fw_s.c_str() + fw_s.length() - k_);
-
-            lck_g.acquire_reader();
-
-            const const_UnitigMap<U, G> um = find(km_fw_tail);
-
-            lck_g.release_reader();
-
-            if (!um.isEmpty) {
-
-                s.clear();
-
-                return 0;
-            }
-        }
-
-        std::memmove(neigh_str, neigh_str + 1, (k_ - 1) * sizeof(char));
-
-        neigh_str[k_-1] = alpha[p_neigh.first];
-        rep_neigh = p_neigh.second;
-        p_neigh = fwStepBBF(bf, end, end, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
-    }
-
-    if (!self_loop) {
-
-        Kmer front(km);
-        Kmer first(km);
-
-        km.toString(neigh_str);
-
-        isIsolated = (j == 0) && has_no_neighbor;
-        j = 0;
-        rep_neigh = rep_km;
-
-        p_neigh = bwStepBBF(bf, front, front, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
-
-        while (p_neigh.first != -1) {
-
-            ++j;
-
-            if ((front == km) || (front == twin) || (front == first.twin())) break;
-
-            bw_s.push_back(alpha[p_neigh.first]);
-            first = front;
-
-            if ((bw_s.length() % 100) == 0) {
-
-                const Kmer km_fw_head(bw_s.c_str() + bw_s.length() - k_);
-
-                lck_g.acquire_reader();
-
-                const const_UnitigMap<U, G> um = find(km_fw_head);
-
-                lck_g.release_reader();
-
-                if (!um.isEmpty) {
-
-                    s.clear();
-
-                    return 0;
-                }
-            }
-
-            std::memmove(neigh_str + 1, neigh_str, (k_ - 1) * sizeof(char));
-
-            neigh_str[0] = alpha[p_neigh.first];
-            rep_neigh = p_neigh.second;
-            p_neigh = bwStepBBF(bf, front, front, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
-        }
-
-        isIsolated = isIsolated && (j == 0) && has_no_neighbor;
-
-        reverse(bw_s.begin(), bw_s.end());
-    }
-
-    s.reserve(k_ + fw_s.size() + bw_s.size());
-    s.append(bw_s);
-    s.append(km_str);
-    s.append(fw_s);
-
-    return bw_s.length();
-}*/
 
 template<typename U, typename G>
 pair<int, RepHash> CompactedDBG<U, G>::bwStepBBF(const BlockedBloomFilter& bf, const Kmer km, Kmer& front, const RepHash& rep_front, const char* front_str, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand) const {

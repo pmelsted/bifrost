@@ -188,11 +188,12 @@ int BlockedBloomFilter::contains(const uint64_t (&kmh)[4], const uint64_t minh, 
 
 std::array<int64_t, 4> BlockedBloomFilter::contains_bids(const uint64_t (&kmh)[4], const uint64_t minh, const int limit) const {
 
-    const uint64_t minh_s1 = wyhash(&minh, sizeof(uint64_t), seed1, _wyp);
+    const uint64_t minh_s1 = /*wyhash(&minh, sizeof(uint64_t), seed1, _wyp)*/ minh;
     const uint64_t minh_s2 = wyhash(&minh, sizeof(uint64_t), seed2, _wyp);
 
-    const uint64_t kmh_s1[4] = {wyhash(&kmh[0], sizeof(uint64_t), seed1, _wyp), wyhash(&kmh[1], sizeof(uint64_t), seed1, _wyp),
-                                wyhash(&kmh[2], sizeof(uint64_t), seed1, _wyp), wyhash(&kmh[3], sizeof(uint64_t), seed1, _wyp)};
+    /*const uint64_t kmh_s1[4] = {wyhash(&kmh[0], sizeof(uint64_t), seed1, _wyp), wyhash(&kmh[1], sizeof(uint64_t), seed1, _wyp),
+                                wyhash(&kmh[2], sizeof(uint64_t), seed1, _wyp), wyhash(&kmh[3], sizeof(uint64_t), seed1, _wyp)};*/
+    const uint64_t kmh_s1[4] = {kmh[0], kmh[1], kmh[2], kmh[3]};
 
     const uint64_t kmh_s2[4] = {wyhash(&kmh[0], sizeof(uint64_t), seed2, _wyp), wyhash(&kmh[1], sizeof(uint64_t), seed2, _wyp),
                                 wyhash(&kmh[2], sizeof(uint64_t), seed2, _wyp), wyhash(&kmh[3], sizeof(uint64_t), seed2, _wyp)};
@@ -276,10 +277,10 @@ std::array<int64_t, 4> BlockedBloomFilter::contains_bids(const uint64_t (&kmh)[4
 
 int64_t BlockedBloomFilter::contains_bids(const uint64_t kmh, const uint64_t minh) const {
 
-    const uint64_t minh_s1 = wyhash(&minh, sizeof(uint64_t), seed1, _wyp);
+    const uint64_t minh_s1 = /*wyhash(&minh, sizeof(uint64_t), seed1, _wyp)*/ minh;
     const uint64_t minh_s2 = wyhash(&minh, sizeof(uint64_t), seed2, _wyp);
 
-    const uint64_t kmh_s1 = wyhash(&kmh, sizeof(uint64_t), seed1, _wyp);
+    const uint64_t kmh_s1 = /*wyhash(&kmh, sizeof(uint64_t), seed1, _wyp)*/ kmh;
     const uint64_t kmh_s2 = wyhash(&kmh, sizeof(uint64_t), seed2, _wyp);
 
     const uint64_t min_overload_bits = BBF_NB_BITS_BLOCK * BBF_OVERLOAD_RATIO;
@@ -395,10 +396,10 @@ bool BlockedBloomFilter::read(FILE *fp) {
 
 uint64_t BlockedBloomFilter::insert_par(const uint64_t kmh, const uint64_t minh) {
 
-    const uint64_t minh_s1 = wyhash(&minh, sizeof(uint64_t), seed1, _wyp);
+    const uint64_t minh_s1 = /*wyhash(&minh, sizeof(uint64_t), seed1, _wyp)*/ minh;
     const uint64_t minh_s2 = wyhash(&minh, sizeof(uint64_t), seed2, _wyp);
 
-    const uint64_t kmh_s1 = wyhash(&kmh, sizeof(uint64_t), seed1, _wyp);
+    const uint64_t kmh_s1 = /*wyhash(&kmh, sizeof(uint64_t), seed1, _wyp)*/ kmh;
     const uint64_t kmh_s2 = wyhash(&kmh, sizeof(uint64_t), seed2, _wyp);
 
     const uint64_t min_overload_bits = BBF_NB_BITS_BLOCK * BBF_OVERLOAD_RATIO;
@@ -506,10 +507,10 @@ uint64_t BlockedBloomFilter::insert_par(const uint64_t kmh, const uint64_t minh)
 
 uint64_t BlockedBloomFilter::insert_unpar(const uint64_t kmh, const uint64_t minh) {
 
-    const uint64_t minh_s1 = wyhash(&minh, sizeof(uint64_t), seed1, _wyp);
+    const uint64_t minh_s1 = /*wyhash(&minh, sizeof(uint64_t), seed1, _wyp)*/ minh;
     const uint64_t minh_s2 = wyhash(&minh, sizeof(uint64_t), seed2, _wyp);
 
-    const uint64_t kmh_s1 = wyhash(&kmh, sizeof(uint64_t), seed1, _wyp);
+    const uint64_t kmh_s1 = /*wyhash(&kmh, sizeof(uint64_t), seed1, _wyp)*/ kmh;
     const uint64_t kmh_s2 = wyhash(&kmh, sizeof(uint64_t), seed2, _wyp);
 
     const uint64_t min_overload_bits = BBF_NB_BITS_BLOCK * BBF_OVERLOAD_RATIO;
@@ -765,11 +766,12 @@ int DualBlockedBloomFilter::contains(const uint64_t (&kmh)[4], const uint64_t mi
 
 std::array<int64_t, 4> DualBlockedBloomFilter::contains_bids(const uint64_t (&kmh)[4], const uint64_t minh, const int limit, const uint64_t idx_bbf) const {
 
-    const uint64_t minh_s1 = wyhash(&minh, sizeof(uint64_t), seed1, _wyp);
+    const uint64_t minh_s1 = /*wyhash(&minh, sizeof(uint64_t), seed1, _wyp)*/ minh;
     const uint64_t minh_s2 = wyhash(&minh, sizeof(uint64_t), seed2, _wyp);
 
-    const uint64_t kmh_s1[4] = {wyhash(&kmh[0], sizeof(uint64_t), seed1, _wyp), wyhash(&kmh[1], sizeof(uint64_t), seed1, _wyp),
-                                wyhash(&kmh[2], sizeof(uint64_t), seed1, _wyp), wyhash(&kmh[3], sizeof(uint64_t), seed1, _wyp)};
+    /*const uint64_t kmh_s1[4] = {wyhash(&kmh[0], sizeof(uint64_t), seed1, _wyp), wyhash(&kmh[1], sizeof(uint64_t), seed1, _wyp),
+                                wyhash(&kmh[2], sizeof(uint64_t), seed1, _wyp), wyhash(&kmh[3], sizeof(uint64_t), seed1, _wyp)};*/
+    const uint64_t kmh_s1[4] = {kmh[0], kmh[1], kmh[2], kmh[3]};
 
     const uint64_t kmh_s2[4] = {wyhash(&kmh[0], sizeof(uint64_t), seed2, _wyp), wyhash(&kmh[1], sizeof(uint64_t), seed2, _wyp),
                                 wyhash(&kmh[2], sizeof(uint64_t), seed2, _wyp), wyhash(&kmh[3], sizeof(uint64_t), seed2, _wyp)};
@@ -854,10 +856,10 @@ std::array<int64_t, 4> DualBlockedBloomFilter::contains_bids(const uint64_t (&km
 
 int64_t DualBlockedBloomFilter::contains_bids(const uint64_t kmh, const uint64_t minh, const uint64_t idx_bbf) const {
 
-    const uint64_t minh_s1 = wyhash(&minh, sizeof(uint64_t), seed1, _wyp);
+    const uint64_t minh_s1 = /*wyhash(&minh, sizeof(uint64_t), seed1, _wyp)*/ minh;
     const uint64_t minh_s2 = wyhash(&minh, sizeof(uint64_t), seed2, _wyp);
 
-    const uint64_t kmh_s1 = wyhash(&kmh, sizeof(uint64_t), seed1, _wyp);
+    const uint64_t kmh_s1 = /*wyhash(&kmh, sizeof(uint64_t), seed1, _wyp)*/ kmh;
     const uint64_t kmh_s2 = wyhash(&kmh, sizeof(uint64_t), seed2, _wyp);
 
     const uint64_t min_overload_bits = BBF_NB_BITS_BLOCK * BBF_OVERLOAD_RATIO;
@@ -1069,10 +1071,10 @@ bool DualBlockedBloomFilter::readFromBBF(FILE *fp, const uint64_t idx_bbf) {
 
 uint64_t DualBlockedBloomFilter::insert_par(const uint64_t kmh, const uint64_t minh, const uint64_t idx_bbf) {
 
-    const uint64_t minh_s1 = wyhash(&minh, sizeof(uint64_t), seed1, _wyp);
+    const uint64_t minh_s1 = /*wyhash(&minh, sizeof(uint64_t), seed1, _wyp)*/ minh;
     const uint64_t minh_s2 = wyhash(&minh, sizeof(uint64_t), seed2, _wyp);
 
-    const uint64_t kmh_s1 = wyhash(&kmh, sizeof(uint64_t), seed1, _wyp);
+    const uint64_t kmh_s1 = /*wyhash(&kmh, sizeof(uint64_t), seed1, _wyp)*/ kmh;
     const uint64_t kmh_s2 = wyhash(&kmh, sizeof(uint64_t), seed2, _wyp);
 
     const uint64_t min_overload_bits = BBF_NB_BITS_BLOCK * BBF_OVERLOAD_RATIO;
@@ -1181,10 +1183,10 @@ uint64_t DualBlockedBloomFilter::insert_par(const uint64_t kmh, const uint64_t m
 
 uint64_t DualBlockedBloomFilter::insert_unpar(const uint64_t kmh, const uint64_t minh, const uint64_t idx_bbf) {
 
-    const uint64_t minh_s1 = wyhash(&minh, sizeof(uint64_t), seed1, _wyp);
+    const uint64_t minh_s1 = /*wyhash(&minh, sizeof(uint64_t), seed1, _wyp)*/ minh;
     const uint64_t minh_s2 = wyhash(&minh, sizeof(uint64_t), seed2, _wyp);
 
-    const uint64_t kmh_s1 = wyhash(&kmh, sizeof(uint64_t), seed1, _wyp);
+    const uint64_t kmh_s1 = /*wyhash(&kmh, sizeof(uint64_t), seed1, _wyp)*/ kmh;
     const uint64_t kmh_s2 = wyhash(&kmh, sizeof(uint64_t), seed2, _wyp);
 
     const uint64_t min_overload_bits = BBF_NB_BITS_BLOCK * BBF_OVERLOAD_RATIO;

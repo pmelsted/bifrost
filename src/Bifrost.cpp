@@ -10,6 +10,8 @@ void PrintVersion() {
 
 void PrintUsage() {
 
+    const CCDBG_Build_opt opt;
+
     cout << "Bifrost " << BFG_VERSION << endl << endl;
 
     cout << "Highly parallel construction, indexing and querying of colored and compacted de Bruijn graphs" << endl << endl;
@@ -36,23 +38,23 @@ void PrintUsage() {
 
     cout << "   > Optional with required argument:" << endl << endl;
 
-    cout << "   -t, --threads            Number of threads (default is 1)" << endl;
-    cout << "   -k, --kmer-length        Length of k-mers (default is 31)" << endl;
-    cout << "   -m, --min-length         Length of minimizers (default is automatically chosen)" << endl;
-    cout << "   -B, --bloom-bits         Number of Bloom filter bits per k-mer (default is 14)" << endl;
-    cout << "   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default is no input)" << endl;
-    cout << "   -w, --write-mbbf         Output Blocked Bloom Filter file (default is no output)" << endl << endl;
+    cout << "   -t, --threads            Number of threads (default: " << opt.nb_threads << ")" << endl;
+    cout << "   -k, --kmer-length        Length of k-mers (default: " << opt.k << ")" << endl;
+    cout << "   -m, --min-length         Length of minimizers (default: " << ((opt.g == -1) ? string("auto") : to_string(opt.g)) << ")" << endl;
+    cout << "   -B, --bloom-bits         Number of Bloom filter bits per k-mer (default: " << opt.nb_bits_kmers_bf << ")" << endl;
+    cout << "   -T, --tmp-dir            Path for tmp directory (default: creates tmp directory in output directory)" << endl;
+    cout << "   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default: no input)" << endl;
+    cout << "   -w, --write-mbbf         Output Blocked Bloom Filter file (default: no output)" << endl << endl;
 
     cout << "   > Optional with no argument:" << endl << endl;
 
-    cout << "   -c, --colors             Color the compacted de Bruijn graph (default is no coloring)" << endl;
-    //cout << "   -y, --keep-mercy         Keep low coverage k-mers connecting tips" << endl;
+    cout << "   -c, --colors             Color the compacted de Bruijn graph" << endl;
     cout << "   -i, --clip-tips          Clip tips shorter than k k-mers in length" << endl;
     cout << "   -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl;
     cout << "   -f, --fasta-out          Output file is in fasta format (only sequences) instead of gfa (unless graph is colored)" << endl;
     cout << "   -b, --bfg-out            Output file is in bfg/bfi format (Bifrost graph and index) instead of gfa (unless graph is colored)" << endl;
     cout << "   -n, --no-compress-out    Output files must be uncompressed" << endl;
-    cout << "   -N, --no-index-out       No index file is created" << endl;
+    cout << "   -N, --no-index-out       Do not make index file" << endl;
     cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
 
     cout << "[PARAMETERS]: update" << endl << endl;
@@ -72,9 +74,10 @@ void PrintUsage() {
 
     cout << "   -I, --input-index-file   Input index file associated with graph to update in bfi format" << endl;
     cout << "   -C, --input-color-file   Input color file associated with graph to update in color.bfg format" << endl;
-    cout << "   -t, --threads            Number of threads (default is 1)" << endl;
-    cout << "   -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)" << endl;
-    cout << "   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or automatically chosen)" << endl << endl;
+    cout << "   -t, --threads            Number of threads (default: " << opt.nb_threads << ")" << endl;
+    cout << "   -k, --kmer-length        Length of k-mers (default: read from input graph file if built with Bifrost or " << opt.k << ")" << endl;
+    cout << "   -m, --min-length         Length of minimizers (default: read from input graph file if built with Bifrost, auto otherwise)" << endl;
+    cout << "   -T, --tmp-dir            Path for tmp directory (default: creates tmp directory in output directory)" << endl << endl;
 
     cout << "   > Optional with no argument:" << endl << endl;
 
@@ -83,7 +86,7 @@ void PrintUsage() {
     cout << "   -f, --fasta-out          Output file is in fasta format (only sequences) instead of gfa (unless colors are output)" << endl;
     cout << "   -b, --bfg-out            Output file is in bfg/bfi format (Bifrost graph and index) instead of gfa (unless graph is colored)" << endl;
     cout << "   -n, --no-compress-out    Output files must be uncompressed" << endl;
-    cout << "   -N, --no-index-out       No index file is created" << endl;
+    cout << "   -N, --no-index-out       Do not make index file" << endl;
     cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
 
     cout << "[PARAMETERS]: query" << endl << endl;
@@ -94,16 +97,17 @@ void PrintUsage() {
     cout << "   -q, --input-query-file   Input query file in fasta/fastq(.gz)" << endl;
     cout << "                            Multiple files can be provided as a list in a text file (one file per line)" << endl;
     cout << "   -o, --output-file        Prefix for output file" << endl;
-    cout << "   -e, --ratio-kmers        Ratio of k-mers from queries that must occur in the graph (default is 0.8)" << endl << endl;
+    cout << "   -e, --ratio-kmers        Ratio of k-mers from queries that must occur in the graph (default: " << opt.ratio_kmers << ")" << endl << endl;
 
     cout << "   > Optional with required argument:" << endl << endl;
 
     cout << "   -I, --input-index-file   Input index file associated with graph to query in bfi format" << endl;
     cout << "   -C, --input-color-file   Input color file associated with the graph to query in color.bfg format" << endl;
     cout << "                            Presence/absence of queries will be output for each color" << endl;
-    cout << "   -t, --threads            Number of threads (default is 1)" << endl;
-    cout << "   -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)" << endl;
-    cout << "   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or or automatically chosen)" << endl << endl;
+    cout << "   -t, --threads            Number of threads (default: " << opt.nb_threads << ")" << endl;
+    cout << "   -k, --kmer-length        Length of k-mers (default: read from input graph file if built with Bifrost or " << opt.k << ")" << endl;
+    cout << "   -m, --min-length         Length of minimizers (default: read from input graph file if built with Bifrost, auto otherwise)" << endl;
+    cout << "   -T, --tmp-dir            Path for tmp directory (default: creates tmp directory in output directory)" << endl << endl;
 
     cout << "   > Optional with no argument:" << endl << endl;
 
@@ -115,7 +119,7 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
 
     int option_index = 0, c;
 
-    const char* opt_string = "s:r:q:g:I:C:o:t:k:m:e:B:l:w:aidvcyfbnN";
+    const char* opt_string = "s:r:q:g:I:C:T:o:t:k:m:e:B:l:w:aidvcyfbnN";
 
     static struct option long_options[] = {
 
@@ -125,6 +129,7 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
         {"input-graph-file",    required_argument,  0, 'g'},
         {"input-index-file",    required_argument,  0, 'I'},
         {"input-color-file",    required_argument,  0, 'C'},
+        {"tmp-dir",             required_argument,  0, 'T'},        
         {"output-file",         required_argument,  0, 'o'},
         {"threads",             required_argument,  0, 't'},
         {"kmer-length",         required_argument,  0, 'k'},
@@ -138,7 +143,6 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
         {"del-isolated",        no_argument,        0, 'd'},
         {"verbose",             no_argument,        0, 'v'},
         {"colors",              no_argument,        0, 'c'},
-        //{"keep-mercy",          no_argument,        0, 'y'},
         {"fasta-out",           no_argument,        0, 'f'},
         {"bfg-out",             no_argument,        0, 'b'},
         {"no-compress-out",     no_argument,        0, 'n'},
@@ -176,6 +180,9 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                     break;
                 case 'C':
                     opt.filename_colors_in = optarg;
+                    break;
+                case 'T':
+                    opt.prefixTmp = optarg;
                     break;
                 case 'o':
                     opt.prefixFilenameOut = optarg;
@@ -216,9 +223,6 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                 case 'c':
                     opt.outputColors = true;
                     break;
-                /*case 'y':
-                    opt.useMercyKmers = true;
-                    break;*/
                 case 'f':
                     opt.outputGFA = false;
                     opt.outputFASTA = true;
@@ -568,6 +572,12 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
                 else fclose(fp);
             }
         }
+    }
+
+    if ((opt.prefixTmp.length() != 0) && (!check_dir_writable(opt.prefixTmp) || !check_dir_readable(opt.prefixTmp))) {
+
+        cerr << "Error: Given directory " << opt.prefixTmp << " to create tmp dir does not exist or is not writable/readable." << endl;
+        ret = false;
     }
 
     return ret;

@@ -168,6 +168,7 @@ struct CDBG_Build_opt {
 
     double ratio_kmers;
 
+    string prefixTmp;
     string prefixFilenameOut;
 
     string filename_graph_in;
@@ -175,7 +176,7 @@ struct CDBG_Build_opt {
 
     vector<string> filename_query_in;
 
-    CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(-1), nb_bits_kmers_bf(14), ratio_kmers(0.8), min_count_km(1),
+    CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(-1), nb_bits_kmers_bf(24), ratio_kmers(0.8), min_count_km(1),
                         build(false), update(false), query(false), clipTips(false), deleteIsolated(false),
                         inexact_search(false), writeIndexFile(true), useMercyKmers(false), outputGFA(true),
                         outputFASTA(false), outputBFG(false), compressOutput(true), verbose(false) {}
@@ -677,6 +678,7 @@ class CompactedDBG {
         bool filter(const CDBG_Build_opt& opt, DualBlockedBloomFilter& bf_d, Roaring& r, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers);
 
         bool construct(const CDBG_Build_opt& opt, DualBlockedBloomFilter& bf, Roaring& r, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers);
+        bool construct_dev(const CDBG_Build_opt& opt, DualBlockedBloomFilter& bf, Roaring& r, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers);
 
         void addUnitigSequence(const Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km, LockGraph& lck_g, const bool map_read = true);
         void addUnitigSequence(const string& seq);

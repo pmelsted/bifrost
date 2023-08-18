@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <zlib.h>
 
 #include "wyhash.h"
@@ -224,6 +225,16 @@ BFG_INLINE bool check_file_exists(const string& filename) {
     struct stat stFileInfo;
 
     return (stat(filename.c_str(), &stFileInfo) == 0);
+}
+
+BFG_INLINE bool check_dir_writable(const string& path) {
+
+    return (access(path.c_str(), W_OK) == 0);
+}
+
+BFG_INLINE bool check_dir_readable(const string& path) {
+
+    return (access(path.c_str(), R_OK) == 0);
 }
 
 BFG_INLINE uint32_t crc32_checksum(istream& in) {

@@ -18,7 +18,8 @@ MinimizerIndex::MinimizerIndex(const size_t sz, const double ratio_occupancy) : 
     }
 }
 
-MinimizerIndex::MinimizerIndex(const MinimizerIndex& o) :   size_(o.size_), pop(o.pop), sum_psl(o.sum_psl), max_psl(o.max_psl), max_ratio_occupancy(o.max_ratio_occupancy) {
+MinimizerIndex::MinimizerIndex(const MinimizerIndex& o) :   size_(o.size_), pop(o.pop), sum_psl(o.sum_psl), max_psl(o.max_psl),
+                                                            max_ratio_occupancy(o.max_ratio_occupancy) {
 
     table_keys = new Minimizer[size_];
     table_tinyv = new packed_tiny_vector[size_];
@@ -126,16 +127,14 @@ MinimizerIndex::iterator MinimizerIndex::find(const Minimizer& key) {
     const size_t end_table = size_-1;
     const size_t mean_psl = get_mean_psl();
 
-    size_t h = key.hash() % size_;
     size_t psl = 0;
+    size_t h = key.hash() % size_;
 
     if (mean_psl <= 2) {
 
-        while (psl != max_psl) {
+        while ((psl != max_psl) && !table_keys[h].isEmpty() && (table_keys[h] != key)) {
 
-            if (table_keys[h].isEmpty() || (table_keys[h] == key)) break;
-
-            h = (h+1) & (static_cast<size_t>(h==end_table)-1);
+            h = (h+1) & (static_cast<size_t>(h == end_table) - 1);
             ++psl;
         }
 
@@ -155,8 +154,9 @@ MinimizerIndex::iterator MinimizerIndex::find(const Minimizer& key) {
 
             if (table_keys[h_dec] == key) return iterator(this, h_dec, mean_psl - i);
 
-            if (table_keys[h_dec].isEmpty() || table_keys[h_inc].isEmpty()) has_empty_key = true;
-            else if (table_keys[h_inc] == key) return iterator(this, h_inc, mean_psl + i);
+            has_empty_key = table_keys[h_dec].isEmpty() || table_keys[h_inc].isEmpty();
+
+            if (!has_empty_key && (table_keys[h_inc] == key)) return iterator(this, h_inc, mean_psl + i);
 
             h_dec = (h_dec - 1) + ((static_cast<size_t>(h_dec != 0) - 1) & size_);
             h_inc = (h_inc + 1) & (static_cast<size_t>(h_inc == end_table) - 1);
@@ -166,8 +166,8 @@ MinimizerIndex::iterator MinimizerIndex::find(const Minimizer& key) {
         for (; !has_empty_key && (mean_psl + i <= max_psl); ++i) {
 
             if (table_keys[h_inc] == key) return iterator(this, h_inc, mean_psl + i);
-            if (table_keys[h_inc].isEmpty()) has_empty_key = true;
 
+            has_empty_key = table_keys[h_inc].isEmpty();
             h_inc = (h_inc + 1) & (static_cast<size_t>(h_inc == end_table) - 1);
         }
 
@@ -196,9 +196,7 @@ MinimizerIndex::const_iterator MinimizerIndex::find(const Minimizer& key) const 
 
         size_t psl = 0;
 
-        while (psl != max_psl) {
-
-            if (table_keys[h].isEmpty() || (table_keys[h] == key)) break;
+        while ((psl != max_psl) && !table_keys[h].isEmpty() && (table_keys[h] != key)) {
 
             h = (h+1) & (static_cast<size_t>(h==end_table)-1);
             ++psl;
@@ -220,8 +218,9 @@ MinimizerIndex::const_iterator MinimizerIndex::find(const Minimizer& key) const 
 
             if (table_keys[h_dec] == key) return const_iterator(this, h_dec, mean_psl - i);
 
-            if (table_keys[h_dec].isEmpty() || table_keys[h_inc].isEmpty()) has_empty_key = true;
-            else if (table_keys[h_inc] == key) return const_iterator(this, h_inc, mean_psl + i);
+            has_empty_key = table_keys[h_dec].isEmpty() || table_keys[h_inc].isEmpty();
+
+            if (!has_empty_key && (table_keys[h_inc] == key)) return const_iterator(this, h_inc, mean_psl + i);
 
             h_dec = (h_dec - 1) + ((static_cast<size_t>(h_dec != 0) - 1) & size_);
             h_inc = (h_inc + 1) & (static_cast<size_t>(h_inc == end_table) - 1);
@@ -231,8 +230,8 @@ MinimizerIndex::const_iterator MinimizerIndex::find(const Minimizer& key) const 
         for (; !has_empty_key && (mean_psl + i <= max_psl); ++i) {
 
             if (table_keys[h_inc] == key) return const_iterator(this, h_inc, mean_psl + i);
-            if (table_keys[h_inc].isEmpty()) has_empty_key = true;
 
+            has_empty_key = table_keys[h_inc].isEmpty();
             h_inc = (h_inc + 1) & (static_cast<size_t>(h_inc == end_table) - 1);
         }
 
@@ -282,21 +281,25 @@ size_t MinimizerIndex::erase(const_iterator it) {
 
         const size_t h = table_keys[it.h].hash() % size_;
 
-        sum_psl -= (it.h < h) ? (size_ - h + it.h) : (it.h - h);
+        sum_psl -= (size_ - h + it.h) & (static_cast<size_t>(it.h >= h) - 1);
+        sum_psl -= (it.h - h) & (static_cast<size_t>(it.h < h) - 1);
     }
 
     // Robin-hood hashing
     // Push the tombstone further away if subsequent keys can be closer to where they were supposed to be
-    for (size_t i = 0, j1 = it.h; i != size_; ++i) {
+    size_t i = 0;
+    size_t j1 = it.h;
+    size_t j2 = (it.h + 1) & (static_cast<size_t>(it.h == end_table) - 1);
 
-        const size_t j2 = (j1 + 1) & (static_cast<size_t>(j1==end_table)-1);
-
-        if (table_keys[j2].isEmpty() || ((table_keys[j2].hash() % size_) == j2)) break;
+    while ((i != size_) && !table_keys[j2].isEmpty() && ((table_keys[j2].hash() % size_) != j2)) {
 
         swap(j1, j2);
 
         j1 = j2;
-        --sum_psl;
+        j2 = (j1 + 1) & (static_cast<size_t>(j1 == end_table) - 1);
+
+        --sum_psl; 
+        ++i;
     }
 
     return 1;
@@ -383,7 +386,7 @@ pair<MinimizerIndex::iterator, bool> MinimizerIndex::insert(const Minimizer& key
 
             const size_t h_curr = table_keys[h].hash() % size_;
             
-            psl_curr_key = (h < h_curr) ? (size_ - h_curr + h) : (h - h_curr);
+            psl_curr_key = ((size_ - h_curr + h) & (static_cast<size_t>(h >= h_curr) - 1)) + ((h - h_curr) & (static_cast<size_t>(h < h_curr) - 1));
 
             if (psl_ins_key > psl_curr_key) {
 
@@ -411,7 +414,7 @@ void MinimizerIndex::recomputeMaxPSL(const size_t nb_threads) {
                 if (!table_keys[i].isEmpty()) {
 
                     const size_t h = table_keys[i].hash() % size_;
-                    const size_t psl = (i < h) ? (size_ - h + i) : (i - h);
+                    const size_t psl = ((size_ - h + i) & (static_cast<size_t>(i >= h) - 1)) + ((i - h) & (static_cast<size_t>(i < h) - 1));
 
                     max_psl = max(max_psl, psl + 1);
                 }
@@ -441,7 +444,7 @@ void MinimizerIndex::recomputeMaxPSL(const size_t nb_threads) {
                             if (!table_keys[i].isEmpty()) {
 
                                 const size_t h = table_keys[i].hash() % size_;
-                                const size_t psl = (i < h) ? (size_ - h + i) : (i - h);
+                                const size_t psl = ((size_ - h + i) & (static_cast<size_t>(i >= h) - 1)) + ((i - h) & (static_cast<size_t>(i < h) - 1));
 
                                 l_max_psl = max(l_max_psl, psl + 1);
                             }
@@ -576,6 +579,7 @@ void MinimizerIndex::reserve(const size_t sz) {
 void MinimizerIndex::swap(const size_t i, const size_t j) {
 
     uint8_t ptv_sz = packed_tiny_vector::FLAG_EMPTY;
+
     packed_tiny_vector ptv;
 
     ptv.move(ptv_sz, move(table_tinyv[i]), move(table_tinyv_sz[i]));
