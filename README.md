@@ -273,9 +273,9 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
 
   3. **Query a colored and compacted de Bruijn graph for presence/absence of queries in each color of the graph**
      ```
-     Bifrost query -t 4 -e 0.8 -g ABCEF.gfa.gz -C ABCEF.bfg_colors -q queries.fasta -o presence_queries 
+     Bifrost query -t 4 -e 0.8 -g ABCEF.gfa.gz -C ABCEF.color.bfg -q queries.fasta -o presence_queries 
      ```
-     The compacted and colored de Bruijn graph *ABCEF* (`-g ABCEF.gfa.gz -C ABCEF.bfg_colors`) is queried (`query`) with 4 threads (`-t 4`) for the sequences of file *queries.fasta* (`-q queries.fasta`). The Bifrost index *ABCEF_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. At least 80% of each query *k*-mers must be found in a color of the graph to have the query reported as present for that color (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, columns are the colors, intersection of a row and a column is a binary value indicating presence/absence of the query in the color of the graph (1 is present, 0 is not present).
+     The compacted and colored de Bruijn graph *ABCEF* (`-g ABCEF.gfa.gz -C ABCEF.color.bfg`) is queried (`query`) with 4 threads (`-t 4`) for the sequences of file *queries.fasta* (`-q queries.fasta`). The Bifrost index *ABCEF_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. At least 80% of each query *k*-mers must be found in a color of the graph to have the query reported as present for that color (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, columns are the colors, intersection of a row and a column is a binary value indicating presence/absence of the query in the color of the graph (1 is present, 0 is not present).
 
 ## API
 
