@@ -273,9 +273,9 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
 
   3. **Query a colored and compacted de Bruijn graph for presence/absence of queries in each color of the graph**
      ```
-     Bifrost query -t 4 -e 0.8 -g ABCEF.gfa.gz -f ABCEF.bfg_colors -q queries.fasta -o presence_queries 
+     Bifrost query -t 4 -e 0.8 -g ABCEF.gfa.gz -C ABCEF.bfg_colors -q queries.fasta -o presence_queries 
      ```
-     The compacted and colored de Bruijn graph *ABCEF* (`-g ABCEF.gfa.gz -f ABCEF.bfg_colors`) is queried (`query`) with 4 threads (`-t 4`) for the sequences of file *queries.fasta* (`-q queries.fasta`). The Bifrost index *ABCEF_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. At least 80% of each query *k*-mers must be found in a color of the graph to have the query reported as present for that color (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, columns are the colors, intersection of a row and a column is a binary value indicating presence/absence of the query in the color of the graph (1 is present, 0 is not present).
+     The compacted and colored de Bruijn graph *ABCEF* (`-g ABCEF.gfa.gz -C ABCEF.bfg_colors`) is queried (`query`) with 4 threads (`-t 4`) for the sequences of file *queries.fasta* (`-q queries.fasta`). The Bifrost index *ABCEF_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. At least 80% of each query *k*-mers must be found in a color of the graph to have the query reported as present for that color (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, columns are the colors, intersection of a row and a column is a binary value indicating presence/absence of the query in the color of the graph (1 is present, 0 is not present).
 
 ## API
 
@@ -368,6 +368,10 @@ A color corresponds to an input file the graph was built/updated from. The order
 **Different runs of Bifrost on the same dataset with the same parameters produces graphs with different unitigs. Which graph is correct?**
 
 All of them. The difference between the graphs resides in circular unitigs (unitigs connecting to themselves) which are their own connected components ("isolated"). These unitigs can have a different sequence from one run to another because the starting position will be different, yet they represent exactly the same sequence. As an example, circular unitig ATAT composed of 3-mers can also be represented with sequence TATA. The number of unitigs will remain the same from one graph to another.
+
+**Is it possible to get the colors per *k*-mer in a parsable (non-binary) file format?**
+
+Yes, please see [this solution](https://github.com/pmelsted/bifrost/issues/50)
 
 ## Troubleshooting
 
