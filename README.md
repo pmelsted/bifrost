@@ -415,11 +415,11 @@ For any question, feedback or problem, please feel free to file an issue on this
 
 ## License
 
-* Bifrost is BSD2 licensed (https://github.com/pmelsted/bifrost/blob/master/LICENSE)
-* The wyhash library is Unlicense licensed (https://github.com/wangyi-fudan/wyhash)
-* The popcount library is BSD licensed (https://github.com/kimwalisch/libpopcnt)
-* The libdivide library is zlib licensed (https://github.com/ridiculousfish/libdivide)
-* The kseq library is copyrighted by Heng Li and released under the MIT license (http://lh3lh3.users.sourceforge.net/kseq.shtml)
-* The CRoaring library is Apache 2.0 licensed (https://github.com/RoaringBitmap/CRoaring)
-* The zstr library is MIT licensed (https://github.com/mateidavid/zstr)
+* [Bifrost](https://github.com/pmelsted/bifrost/blob/master/LICENSE) is BSD2 licensed
+* The [wyhash](https://github.com/wangyi-fudan/wyhash) library is Unlicense licensed
+* The [popcount](https://github.com/kimwalisch/libpopcnt) library is BSD licensed
+* The [libdivide](https://github.com/ridiculousfish/libdivide) library is zlib licensed
+* The [kseq](http://lh3lh3.users.sourceforge.net/kseq.shtml) library is copyrighted by Heng Li and released under the MIT license
+* The [CRoaring](https://github.com/RoaringBitmap/CRoaring) library is Apache 2.0 licensed
+* The [zstr](https://github.com/mateidavid/zstr) library is MIT licensed
 * The GetRSS library is Creative Commons Attribution 3.0 licensed
