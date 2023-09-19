@@ -164,6 +164,10 @@ struct CDBG_Build_opt {
     bool compressOutput;
     bool inexact_search;
 
+    bool get_nb_found_km;
+    bool get_ratio_found_km;
+
+
     bool writeIndexFile;
 
     double ratio_kmers;
@@ -179,7 +183,8 @@ struct CDBG_Build_opt {
     CDBG_Build_opt() :  nb_threads(1), k(DEFAULT_K), g(-1), nb_bits_kmers_bf(24), ratio_kmers(0.8), min_count_km(1),
                         build(false), update(false), query(false), clipTips(false), deleteIsolated(false),
                         inexact_search(false), writeIndexFile(true), useMercyKmers(false), outputGFA(true),
-                        outputFASTA(false), outputBFG(false), compressOutput(true), verbose(false) {}
+                        outputFASTA(false), outputBFG(false), compressOutput(true), verbose(false),
+                        get_nb_found_km(false), get_ratio_found_km(false) {}
 };
 
 /** @typedef const_UnitigMap
@@ -627,8 +632,8 @@ class CompactedDBG {
         inline const G* getData() const { return data.getData(); }
 
         bool search(const vector<string>& query_filenames, const string& out_filename_prefix,
-                    const double ratio_kmers, const bool inexact_search, const size_t nb_threads,
-                    const size_t verbose = false) const;
+                    const double ratio_kmers, const bool get_nb_found_km, const bool get_ratio_found_km,
+                    const bool inexact_search, const size_t nb_threads, const size_t verbose = false) const;
 
         bool writeBinary(const string& fn, const size_t nb_threads = 1) const;
         bool writeBinary(ostream& out, const size_t nb_threads = 1) const;
