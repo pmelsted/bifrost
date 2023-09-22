@@ -11,7 +11,7 @@
 #include <random>
 #include <unordered_set>
 
-#include "libdivide.h"
+#include "fastmod.h"
 #include "libpopcnt.h"
 #include "wyhash.h"
 
@@ -142,7 +142,7 @@ class BlockedBloomFilter {
 
         int k_; //Nb hash functions
 
-        libdivide::divider<uint64_t> fast_div_; // fast division
+        __uint128_t M_u64; // for fast division/modulo
 
         uint64_t seed1, seed2; // Random seeds for hash functions
 
@@ -286,7 +286,7 @@ class DualBlockedBloomFilter {
 
         int k_; //Nb hash functions
 
-        libdivide::divider<uint64_t> fast_div_; // fast division
+        __uint128_t M_u64; // for fast division/modulo
 
         uint64_t seed1, seed2; // Random seeds for hash functions
 
@@ -305,7 +305,7 @@ class DualBlockedBloomFilter {
         uint64_t insert_unpar(const uint64_t kmer_hash, const uint64_t min_hash, const uint64_t idx_bbf);
 };
 
-class CountingBlockedBloomFilter : public BlockedBloomFilter {
+/*class CountingBlockedBloomFilter : public BlockedBloomFilter {
 
     public:
 
@@ -349,6 +349,6 @@ class CountingBlockedBloomFilter : public BlockedBloomFilter {
 
         uint64_t* hashbit; //Bitmap of used hashes for approximate counts (BBHash-style)
         uint8_t* counts; //Counts
-};
+};*/
 
 #endif // BFG_BLOCKEDBLOOMFILTER_HPP

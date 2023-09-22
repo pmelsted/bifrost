@@ -1,13 +1,15 @@
 #ifndef BIFROST_MINIMIZER_IDX_HPP
 #define BIFROST_MINIMIZER_IDX_HPP
 
-#include <utility>
-#include <string>
-#include <iterator>
 #include <algorithm>
-#include <thread>
 #include <atomic>
+#include <iterator>
 #include <mutex>
+#include <thread>
+#include <string>
+#include <utility>
+
+#include "fastmod.h"
 
 #include "Kmer.hpp"
 #include "Lock.hpp"
@@ -194,6 +196,8 @@ class MinimizerIndex {
         void swap(const size_t i, const size_t j);
 
         double max_ratio_occupancy;
+
+        __uint128_t M_u64;
 
         size_t size_, pop, max_psl, sum_psl;
 

@@ -1,13 +1,15 @@
 #include "MinimizerIndex.hpp"
 
 MinimizerIndex::MinimizerIndex() :  table_keys(nullptr), table_tinyv(nullptr), table_tinyv_sz(nullptr),
-                                    size_(0), pop(0), sum_psl(0), max_psl(1), max_ratio_occupancy(0.95)  {
+                                    size_(0), pop(0), sum_psl(0), max_psl(1), max_ratio_occupancy(0.95),
+                                    M_u64(0)  {
 
     init_tables(1024);
 }
 
 MinimizerIndex::MinimizerIndex(const size_t sz, const double ratio_occupancy) : table_keys(nullptr), table_tinyv(nullptr), table_tinyv_sz(nullptr),
-                                                                                size_(0), pop(0), sum_psl(0), max_psl(1), max_ratio_occupancy(ratio_occupancy) {
+                                                                                size_(0), pop(0), sum_psl(0), max_psl(1), M_u64(0),
+                                                                                max_ratio_occupancy(ratio_occupancy) {
 
     if (sz == 0) init_tables(1024);
     else {
@@ -19,7 +21,7 @@ MinimizerIndex::MinimizerIndex(const size_t sz, const double ratio_occupancy) : 
 }
 
 MinimizerIndex::MinimizerIndex(const MinimizerIndex& o) :   size_(o.size_), pop(o.pop), sum_psl(o.sum_psl), max_psl(o.max_psl),
-                                                            max_ratio_occupancy(o.max_ratio_occupancy) {
+                                                            M_u64(o.M_u64), max_ratio_occupancy(o.max_ratio_occupancy) {
 
     table_keys = new Minimizer[size_];
     table_tinyv = new packed_tiny_vector[size_];
@@ -34,17 +36,9 @@ MinimizerIndex::MinimizerIndex(const MinimizerIndex& o) :   size_(o.size_), pop(
     }
 }
 
-MinimizerIndex::MinimizerIndex(MinimizerIndex&& o){
-
-    size_ = o.size_;
-    pop = o.pop;
-    sum_psl = o.sum_psl;
-    max_psl = o.max_psl;
-    max_ratio_occupancy = o.max_ratio_occupancy;
-
-    table_keys = o.table_keys;
-    table_tinyv = o.table_tinyv;
-    table_tinyv_sz = o.table_tinyv_sz;
+MinimizerIndex::MinimizerIndex(MinimizerIndex&& o) :    table_keys(o.table_keys), table_tinyv(o.table_tinyv), table_tinyv_sz(o.table_tinyv_sz),
+                                                        size_(o.size_), pop(o.pop), sum_psl(o.sum_psl), max_psl(o.max_psl),
+                                                        M_u64(o.M_u64), max_ratio_occupancy(o.max_ratio_occupancy) {
 
     o.table_keys = nullptr;
     o.table_tinyv = nullptr;
@@ -64,6 +58,7 @@ MinimizerIndex& MinimizerIndex::operator=(const MinimizerIndex& o) {
         sum_psl = o.sum_psl;
         max_psl = o.max_psl;
         max_ratio_occupancy = o.max_ratio_occupancy;
+        M_u64 = o.M_u64;
 
         table_keys = new Minimizer[size_];
         table_tinyv = new packed_tiny_vector[size_];
@@ -92,6 +87,7 @@ MinimizerIndex& MinimizerIndex::operator=(MinimizerIndex&& o){
         sum_psl = o.sum_psl;
         max_psl = o.max_psl;
         max_ratio_occupancy = o.max_ratio_occupancy;
+        M_u64 = o.M_u64;
 
         table_keys = o.table_keys;
         table_tinyv = o.table_tinyv;
@@ -128,7 +124,7 @@ MinimizerIndex::iterator MinimizerIndex::find(const Minimizer& key) {
     const size_t mean_psl = get_mean_psl();
 
     size_t psl = 0;
-    size_t h = key.hash() % size_;
+    size_t h = fastmod::fastmod_u64(key.hash(), M_u64, size_);
 
     if (mean_psl <= 2) {
 
@@ -142,7 +138,7 @@ MinimizerIndex::iterator MinimizerIndex::find(const Minimizer& key) {
     }
     else {
 
-        size_t h_mean = (h + mean_psl) % size_;
+        size_t h_mean = fastmod::fastmod_u64(h + mean_psl, M_u64, size_);
         size_t h_inc = h_mean, h_dec = h_mean;
 
         bool has_empty_key = false;
@@ -190,7 +186,7 @@ MinimizerIndex::const_iterator MinimizerIndex::find(const Minimizer& key) const 
     const size_t end_table = size_-1;
     const size_t mean_psl = get_mean_psl();
 
-    size_t h = key.hash() % size_;
+    size_t h = fastmod::fastmod_u64(key.hash(), M_u64, size_);
 
     if (mean_psl <= 2) {
 
@@ -206,7 +202,8 @@ MinimizerIndex::const_iterator MinimizerIndex::find(const Minimizer& key) const 
     }
     else {
 
-        size_t h_mean = (h + mean_psl) % size_;
+        //size_t h_mean = (h + mean_psl) % size_;
+        size_t h_mean = fastmod::fastmod_u64(h + mean_psl, M_u64, size_);
         size_t h_inc = h_mean, h_dec = h_mean;
 
         bool has_empty_key = false;
@@ -279,7 +276,8 @@ size_t MinimizerIndex::erase(const_iterator it) {
     if (it.psl != 0xffffffffffffffffULL) sum_psl -= it.psl;
     else {
 
-        const size_t h = table_keys[it.h].hash() % size_;
+        //const size_t h = table_keys[it.h].hash() % size_;
+        const size_t h = fastmod::fastmod_u64(table_keys[it.h].hash(), M_u64, size_);
 
         sum_psl -= (size_ - h + it.h) & (static_cast<size_t>(it.h >= h) - 1);
         sum_psl -= (it.h - h) & (static_cast<size_t>(it.h < h) - 1);
@@ -291,7 +289,7 @@ size_t MinimizerIndex::erase(const_iterator it) {
     size_t j1 = it.h;
     size_t j2 = (it.h + 1) & (static_cast<size_t>(it.h == end_table) - 1);
 
-    while ((i != size_) && !table_keys[j2].isEmpty() && ((table_keys[j2].hash() % size_) != j2)) {
+    while ((i != size_) && !table_keys[j2].isEmpty() && (fastmod::fastmod_u64(table_keys[j2].hash(), M_u64, size_) != j2)) {
 
         swap(j1, j2);
 
@@ -321,7 +319,7 @@ pair<MinimizerIndex::iterator, bool> MinimizerIndex::insert(const Minimizer& key
 
     bool has_rich_psl = false, cascade_ins = false;
 
-    size_t h = key.hash() % size_;
+    size_t h = fastmod::fastmod_u64(key.hash(), M_u64, size_);
     size_t h_rich_psl_ins = 0;
     size_t psl_ins_key = 0, psl_rich_key = 0, psl_curr_key = 0;
 
@@ -384,7 +382,7 @@ pair<MinimizerIndex::iterator, bool> MinimizerIndex::insert(const Minimizer& key
         }
         else if (!has_rich_psl) {
 
-            const size_t h_curr = table_keys[h].hash() % size_;
+            const size_t h_curr = fastmod::fastmod_u64(table_keys[h].hash(), M_u64, size_);
             
             psl_curr_key = ((size_ - h_curr + h) & (static_cast<size_t>(h >= h_curr) - 1)) + ((h - h_curr) & (static_cast<size_t>(h < h_curr) - 1));
 
@@ -413,7 +411,7 @@ void MinimizerIndex::recomputeMaxPSL(const size_t nb_threads) {
 
                 if (!table_keys[i].isEmpty()) {
 
-                    const size_t h = table_keys[i].hash() % size_;
+                    const size_t h = fastmod::fastmod_u64(table_keys[i].hash(), M_u64, size_);
                     const size_t psl = ((size_ - h + i) & (static_cast<size_t>(i >= h) - 1)) + ((i - h) & (static_cast<size_t>(i < h) - 1));
 
                     max_psl = max(max_psl, psl + 1);
@@ -443,7 +441,7 @@ void MinimizerIndex::recomputeMaxPSL(const size_t nb_threads) {
 
                             if (!table_keys[i].isEmpty()) {
 
-                                const size_t h = table_keys[i].hash() % size_;
+                                const size_t h = fastmod::fastmod_u64(table_keys[i].hash(), M_u64, size_);
                                 const size_t psl = ((size_ - h + i) & (static_cast<size_t>(i >= h) - 1)) + ((i - h) & (static_cast<size_t>(i < h) - 1));
 
                                 l_max_psl = max(l_max_psl, psl + 1);
@@ -512,6 +510,7 @@ void MinimizerIndex::clear_tables() {
     pop  = 0;
     sum_psl = 0;
     max_psl = 1;
+    M_u64 = 0;
 }
 
 void MinimizerIndex::init_tables(const size_t sz) {
@@ -522,6 +521,7 @@ void MinimizerIndex::init_tables(const size_t sz) {
 
     pop = 0;
     size_ = sz;
+    M_u64 = fastmod::computeM_u64(size_);
 
     table_keys = new Minimizer[size_];
     table_tinyv = new packed_tiny_vector[size_];
@@ -550,6 +550,7 @@ void MinimizerIndex::reserve(const size_t sz) {
     pop = 0;
     sum_psl = 0;
     max_psl = 1;
+    M_u64 = fastmod::computeM_u64(size_);
 
     table_keys = new Minimizer[size_];
     table_tinyv = new packed_tiny_vector[size_];

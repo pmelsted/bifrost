@@ -11,7 +11,7 @@ BlockedBloomFilter::BlockedBloomFilter(const size_t nb_elem, const size_t bits_p
 }
 
 BlockedBloomFilter::BlockedBloomFilter(const BlockedBloomFilter& o) :   table_(nullptr), blocks_(o.blocks_), nb_bits_per_elem(o.nb_bits_per_elem),
-                                                                        k_(o.k_), fast_div_(o.fast_div_), seed1(o.seed1), seed2(o.seed2), ush(o.ush) {
+                                                                        k_(o.k_), M_u64(o.M_u64), seed1(o.seed1), seed2(o.seed2), ush(o.ush) {
 
     if (blocks_ != 0) {
 
@@ -27,7 +27,7 @@ BlockedBloomFilter::BlockedBloomFilter(const BlockedBloomFilter& o) :   table_(n
 }
 
 BlockedBloomFilter::BlockedBloomFilter(BlockedBloomFilter&& o) :    table_(o.table_), blocks_(o.blocks_), nb_bits_per_elem(o.nb_bits_per_elem),
-                                                                    k_(o.k_), fast_div_(o.fast_div_), seed1(o.seed1), seed2(o.seed2), ush(move(o.ush)) {
+                                                                    k_(o.k_), M_u64(o.M_u64), seed1(o.seed1), seed2(o.seed2), ush(move(o.ush)) {
 
     o.table_ = nullptr;
 
@@ -46,7 +46,7 @@ BlockedBloomFilter& BlockedBloomFilter::operator=(const BlockedBloomFilter& o) {
     blocks_ = o.blocks_;
     k_ = o.k_;
     nb_bits_per_elem = o.nb_bits_per_elem;
-    fast_div_ = o.fast_div_;
+    M_u64 = o.M_u64;
     seed1 = o.seed1;
     seed2 = o.seed2;
     ush = o.ush;
@@ -76,7 +76,7 @@ BlockedBloomFilter& BlockedBloomFilter::operator=(BlockedBloomFilter&& o) {
         blocks_ = o.blocks_;
         k_ = o.k_;
         nb_bits_per_elem = o.nb_bits_per_elem;
-        fast_div_ = o.fast_div_;
+        M_u64 = o.M_u64;
         seed1 = o.seed1;
         seed2 = o.seed2;
 
@@ -126,6 +126,7 @@ void BlockedBloomFilter::clear() {
     seed1 = 0;
     seed2 = 0;
     nb_bits_per_elem = 0;
+    M_u64 = 0;
 
     ush.clear();
 
@@ -142,7 +143,7 @@ void BlockedBloomFilter::reset() {
 
 void BlockedBloomFilter::init_arrays() {
 
-    fast_div_ = libdivide::divider<uint64_t>(blocks_);
+    M_u64 = fastmod::computeM_u64(blocks_);
     table_ = new BBF_Block[blocks_];
 }
 
@@ -155,7 +156,7 @@ DualBlockedBloomFilter BlockedBloomFilter::transferToDBBF(const uint64_t idx_bbf
     dbbf.blocks_ = blocks_;
     dbbf.k_ = k_;
     dbbf.nb_bits_per_elem = nb_bits_per_elem;
-    dbbf.fast_div_ = fast_div_;
+    dbbf.M_u64 = M_u64;
     dbbf.seed1 = seed1;
     dbbf.seed2 = seed2;
 
@@ -209,7 +210,7 @@ std::array<int64_t, 4> BlockedBloomFilter::contains_bids(const uint64_t (&kmh)[4
 
     while (nb_overflow < 8) {
 
-        uint64_t bid1 = minh1 - (minh1 / fast_div_) * blocks_;
+        uint64_t bid1 = fastmod::fastmod_u64(minh1, M_u64, blocks_);
 
         const uint64_t bits_occupancy_1 = table_[bid1].bits_occupancy;
 
@@ -232,7 +233,7 @@ std::array<int64_t, 4> BlockedBloomFilter::contains_bids(const uint64_t (&kmh)[4
         if (cpt != limit){
 
             minh1 += minh_s2;
-            bid1 = minh1 - (minh1 / fast_div_) * blocks_;
+            bid1 = fastmod::fastmod_u64(minh1, M_u64, blocks_);
 
             const uint64_t bits_occupancy_2 = table_[bid1].bits_occupancy;
 
@@ -294,7 +295,8 @@ int64_t BlockedBloomFilter::contains_bids(const uint64_t kmh, const uint64_t min
     while (nb_overflow < 8) {
 
         kmh1 = kmh_s1;
-        bid1 = minh1 - (minh1 / fast_div_) * blocks_;
+
+        uint64_t bid1 = fastmod::fastmod_u64(minh1, M_u64, blocks_);
 
         const uint64_t bits_occupancy_1 = table_[bid1].bits_occupancy;
 
@@ -306,7 +308,7 @@ int64_t BlockedBloomFilter::contains_bids(const uint64_t kmh, const uint64_t min
         if (i != k_){
 
             minh1 += minh_s2;
-            bid1 = minh1 - (minh1 / fast_div_) * blocks_;
+            bid1 = fastmod::fastmod_u64(minh1, M_u64, blocks_);
             kmh1 = kmh_s1;
 
             const uint64_t bits_occupancy_2 = table_[bid1].bits_occupancy;
@@ -414,8 +416,8 @@ uint64_t BlockedBloomFilter::insert_par(const uint64_t kmh, const uint64_t minh)
         uint64_t kmh1 = kmh_s1, kmh2 = kmh_s1;
         uint64_t minh2 = minh1 + minh_s2;
 
-        uint64_t bid1 = minh1 - (minh1 / fast_div_) * blocks_;
-        uint64_t bid2 = minh2 - (minh2 / fast_div_) * blocks_;
+        uint64_t bid1 = fastmod::fastmod_u64(minh1, M_u64, blocks_);
+        uint64_t bid2 = fastmod::fastmod_u64(minh2, M_u64, blocks_);
 
         if (bid2 < bid1) std::swap(bid1, bid2);
 
@@ -525,8 +527,8 @@ uint64_t BlockedBloomFilter::insert_unpar(const uint64_t kmh, const uint64_t min
         uint64_t kmh1 = kmh_s1, kmh2 = kmh_s1;
         uint64_t minh2 = minh1 + minh_s2;
 
-        uint64_t bid1 = minh1 - (minh1 / fast_div_) * blocks_;
-        uint64_t bid2 = minh2 - (minh2 / fast_div_) * blocks_;
+        uint64_t bid1 = fastmod::fastmod_u64(minh1, M_u64, blocks_);
+        uint64_t bid2 = fastmod::fastmod_u64(minh2, M_u64, blocks_);
 
         for (i = 0; i != k_; ++i, kmh1 += kmh_s2) {
 
@@ -604,8 +606,7 @@ DualBlockedBloomFilter::DualBlockedBloomFilter(const size_t nb_elem, const size_
 }
 
 DualBlockedBloomFilter::DualBlockedBloomFilter(const DualBlockedBloomFilter& o) :   table_(nullptr), blocks_(o.blocks_), nb_bits_per_elem(o.nb_bits_per_elem),
-                                                                                    k_(o.k_), fast_div_(o.fast_div_),
-                                                                                    seed1(o.seed1), seed2(o.seed2), ush(o.ush) {
+                                                                                    k_(o.k_), M_u64(o.M_u64), seed1(o.seed1), seed2(o.seed2), ush(o.ush) {
 
     if (blocks_ != 0) {
 
@@ -621,8 +622,7 @@ DualBlockedBloomFilter::DualBlockedBloomFilter(const DualBlockedBloomFilter& o) 
 }
 
 DualBlockedBloomFilter::DualBlockedBloomFilter(DualBlockedBloomFilter&& o) :    table_(o.table_), blocks_(o.blocks_), nb_bits_per_elem(o.nb_bits_per_elem),
-                                                                                k_(o.k_), fast_div_(o.fast_div_),
-                                                                                seed1(o.seed1), seed2(o.seed2) {
+                                                                                k_(o.k_), M_u64(o.M_u64), seed1(o.seed1), seed2(o.seed2) {
 
     ush[0] = move(o.ush[0]);
     ush[1] = move(o.ush[1]);
@@ -644,7 +644,7 @@ DualBlockedBloomFilter& DualBlockedBloomFilter::operator=(const DualBlockedBloom
     blocks_ = o.blocks_;
     nb_bits_per_elem = o.nb_bits_per_elem;
     k_ = o.k_;
-    fast_div_ = o.fast_div_;
+    M_u64 = o.M_u64;
     seed1 = o.seed1;
     seed2 = o.seed2;
 
@@ -676,7 +676,7 @@ DualBlockedBloomFilter& DualBlockedBloomFilter::operator=(DualBlockedBloomFilter
         blocks_ = o.blocks_;
         nb_bits_per_elem = o.nb_bits_per_elem;
         k_ = o.k_;
-        fast_div_ = o.fast_div_;
+        M_u64 = o.M_u64;
         seed1 = o.seed1;
         seed2 = o.seed2;
 
@@ -727,6 +727,7 @@ void DualBlockedBloomFilter::clear() {
     k_ = 0;
     seed1 = 0;
     seed2 = 0;
+    M_u64 = 0;
 
     ush[0].clear();
     ush[1].clear();
@@ -748,7 +749,7 @@ void DualBlockedBloomFilter::reset() {
 
 void DualBlockedBloomFilter::init_arrays() {
 
-    fast_div_ = libdivide::divider<uint64_t>(blocks_);
+    M_u64 = fastmod::computeM_u64(blocks_);
     table_ = new BBF_Block[blocks_ << 1];
 }
 
@@ -788,7 +789,7 @@ std::array<int64_t, 4> DualBlockedBloomFilter::contains_bids(const uint64_t (&km
 
     while (nb_overflow < 8) {
 
-        uint64_t bid1 = ((minh1 - (minh1 / fast_div_) * blocks_) << 1) + idx_bbf_norm;
+        uint64_t bid1 = (fastmod::fastmod_u64(minh1, M_u64, blocks_) << 1) + idx_bbf_norm;
 
         const uint64_t bits_occupancy_1 = table_[bid1].bits_occupancy;
 
@@ -811,7 +812,7 @@ std::array<int64_t, 4> DualBlockedBloomFilter::contains_bids(const uint64_t (&km
         if (cpt != limit){
 
             minh1 += minh_s2;
-            bid1 = ((minh1 - (minh1 / fast_div_) * blocks_) << 1) + idx_bbf_norm;
+            bid1 = (fastmod::fastmod_u64(minh1, M_u64, blocks_) << 1) + idx_bbf_norm;
 
             const uint64_t bits_occupancy_2 = table_[bid1].bits_occupancy;
 
@@ -874,7 +875,8 @@ int64_t DualBlockedBloomFilter::contains_bids(const uint64_t kmh, const uint64_t
     while (nb_overflow < 8) {
 
         kmh1 = kmh_s1;
-        bid1 = ((minh1 - (minh1 / fast_div_) * blocks_) << 1) + idx_bbf_norm;
+
+        uint64_t bid1 = (fastmod::fastmod_u64(minh1, M_u64, blocks_) << 1) + idx_bbf_norm;
 
         const uint64_t bits_occupancy_1 = table_[bid1].bits_occupancy;
 
@@ -886,7 +888,7 @@ int64_t DualBlockedBloomFilter::contains_bids(const uint64_t kmh, const uint64_t
         if (i != k_){
 
             minh1 += minh_s2;
-            bid1 = ((minh1 - (minh1 / fast_div_) * blocks_) << 1) + idx_bbf_norm;
+            bid1 = (fastmod::fastmod_u64(minh1, M_u64, blocks_) << 1) + idx_bbf_norm;
             kmh1 = kmh_s1;
 
             const uint64_t bits_occupancy_2 = table_[bid1].bits_occupancy;
@@ -924,9 +926,9 @@ BlockedBloomFilter DualBlockedBloomFilter::transferToBBF(const uint64_t idx_bbf)
 
     bbf.blocks_ = blocks_;
     bbf.k_ = k_;
-    bbf.fast_div_ = fast_div_;
     bbf.seed1 = seed1;
     bbf.seed2 = seed2;
+    bbf.M_u64 = M_u64;
 
     bbf.ush = move(ush[idx_bbf_norm]);
     bbf.table_ = new BlockedBloomFilter::BBF_Block[blocks_];
@@ -1090,8 +1092,8 @@ uint64_t DualBlockedBloomFilter::insert_par(const uint64_t kmh, const uint64_t m
         uint64_t kmh1 = kmh_s1, kmh2 = kmh_s1;
         uint64_t minh2 = minh1 + minh_s2;
 
-        uint64_t bid1 = ((minh1 - (minh1 / fast_div_) * blocks_) << 1) + idx_bbf_norm;
-        uint64_t bid2 = ((minh2 - (minh2 / fast_div_) * blocks_) << 1) + idx_bbf_norm;
+        uint64_t bid1 = (fastmod::fastmod_u64(minh1, M_u64, blocks_) << 1) + idx_bbf_norm;
+        uint64_t bid2 = (fastmod::fastmod_u64(minh2, M_u64, blocks_) << 1) + idx_bbf_norm;
 
         if (bid2 < bid1) std::swap(bid1, bid2);
 
@@ -1202,8 +1204,8 @@ uint64_t DualBlockedBloomFilter::insert_unpar(const uint64_t kmh, const uint64_t
         uint64_t kmh1 = kmh_s1, kmh2 = kmh_s1;
         uint64_t minh2 = minh1 + minh_s2;
 
-        uint64_t bid1 = ((minh1 - (minh1 / fast_div_) * blocks_) << 1) + idx_bbf_norm;
-        uint64_t bid2 = ((minh2 - (minh2 / fast_div_) * blocks_) << 1) + idx_bbf_norm;
+        uint64_t bid1 = (fastmod::fastmod_u64(minh1, M_u64, blocks_) << 1) + idx_bbf_norm;
+        uint64_t bid2 = (fastmod::fastmod_u64(minh2, M_u64, blocks_) << 1) + idx_bbf_norm;
 
         for (i = 0; i != k_; ++i, kmh1 += kmh_s2) {
 
@@ -1270,7 +1272,7 @@ uint64_t DualBlockedBloomFilter::insert_unpar(const uint64_t kmh, const uint64_t
     return 0;
 }
 
-CountingBlockedBloomFilter::CountingBlockedBloomFilter() : BlockedBloomFilter::BlockedBloomFilter(), hashbit(nullptr), counts(nullptr) {
+/*CountingBlockedBloomFilter::CountingBlockedBloomFilter() : BlockedBloomFilter::BlockedBloomFilter(), hashbit(nullptr), counts(nullptr) {
 
     clear();
 }
@@ -1638,6 +1640,6 @@ bool CountingBlockedBloomFilter::read(FILE *fp) {
     if (fread(counts, sizeof(uint8_t), BlockedBloomFilter::blocks_ * elems_per_block, fp) != (blocks_ * elems_per_block)) return false;
 
     return true;
-}
+}*/
 
 //#endif
