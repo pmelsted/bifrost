@@ -1349,7 +1349,9 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& k
 
                         for (size_t j = 0; j != 4; ++j){
 
-                            if ((it_km = h_kmers_ccov.find(km_rep[j])) != h_kmers_ccov.end()){
+                            it_km = h_kmers_ccov.find(km_rep[j]);
+
+                            if (it_km!= h_kmers_ccov.end()){
 
                                 v_um[j].partialCopy(const_UnitigMap<U, G>(it_km.getHash(), 0, 1, k_, false, true, km_pred[j] == km_rep[j], this));
                             }
@@ -1503,7 +1505,9 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& km, con
 
                         for (size_t j = 0; j != 4; ++j){
 
-                            if ((it_km = h_kmers_ccov.find(km_rep[j])) != h_kmers_ccov.end()){
+                            it_km = h_kmers_ccov.find(km_rep[j]);
+
+                            if (it_km != h_kmers_ccov.end()){
 
                                 v_um[j] = UnitigMap<U, G>(it_km.getHash(), 0, 1, k_, false, true, km_pred[j] == km_rep[j], this);
                             }
@@ -1661,11 +1665,16 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
 
                         for (size_t j = 0; j != 4; ++j){
 
-                            if (v_um[j].isEmpty && ((it_km = h_kmers_ccov.find(km_rep[j])) != h_kmers_ccov.end())){
+                            if (v_um[j].isEmpty) {
 
-                                v_um[j].partialCopy(const_UnitigMap<U, G>(it_km.getHash(), 0, 1, k_, false, true, km_succ[j] == km_rep[j], this));
+                                it_km = h_kmers_ccov.find(km_rep[j]);
 
-                                if (++nb_found == limit) return v_um;
+                                if (it_km != h_kmers_ccov.end()){
+
+                                    v_um[j].partialCopy(const_UnitigMap<U, G>(it_km.getHash(), 0, 1, k_, false, true, km_succ[j] == km_rep[j], this));
+
+                                    if (++nb_found == limit) return v_um;
+                                }
                             }
                         }
                     }
@@ -1846,11 +1855,16 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
 
                         for (size_t j = 0; j != 4; ++j){
 
-                            if (v_um[j].isEmpty && ((it_km = h_kmers_ccov.find(km_rep[j])) != h_kmers_ccov.end())){
+                            if (v_um[j].isEmpty) {
 
-                                v_um[j] = UnitigMap<U, G>(it_km.getHash(), 0, 1, k_, false, true, km_succ[j] == km_rep[j], this);
+                                it_km = h_kmers_ccov.find(km_rep[j]);
 
-                                if (++nb_found == limit) return v_um;
+                                if (it_km != h_kmers_ccov.end()){
+
+                                    v_um[j] = UnitigMap<U, G>(it_km.getHash(), 0, 1, k_, false, true, km_succ[j] == km_rep[j], this);
+
+                                    if (++nb_found == limit) return v_um;
+                                }
                             }
                         }
                     }
@@ -2816,17 +2830,17 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, DualBlockedBloomFilte
 
                 if (!bf_d.readFromBBF(fp_bbf, 0)) {
 
-                    cerr << "CompactedDBG::construct(): Could not read temporary Blocked Bloom Filter file. Abort." << endl;
+                    cerr << "CompactedDBG::filter(): Could not read temporary Blocked Bloom Filter file. Abort." << endl;
                     exit(1);
                 }
 
                 fclose(fp_bbf);
             }
 
-            if (std::remove(tmp_bbf_fn.c_str()) != 0) cerr << "CompactedDBG::construct(): Could not remove temporary Blocked Bloom Filter file." << endl;
+            if (std::remove(tmp_bbf_fn.c_str()) != 0) cerr << "CompactedDBG::filter(): Could not remove temporary Blocked Bloom Filter file." << endl;
         }
 
-        if (rmdir(tmp_dir) != 0) cerr << "CompactedDBG::construct(): Could not remove temporary directory." << endl;
+        if (rmdir(tmp_dir) != 0) cerr << "CompactedDBG::filter(): Could not remove temporary directory." << endl;
         if (tmp_dir != nullptr) delete[] tmp_dir;
     }
 
@@ -3419,6 +3433,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
             fp_approx_unitigs.close();
 
             hmap_min_unitigs.recomputeMaxPSL(opt.nb_threads);
+            h_kmers_ccov.recomputeMaxPSL(opt.nb_threads);
         }
 
         if (std::remove(tmp_graph_fn.c_str()) != 0) cerr << "CompactedDBG::construct(): Could not remove temporary file." << endl;
@@ -3498,7 +3513,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
         if (opt.verbose) cout << "CompactedDBG::construct(): Extract approximate unitigs (3/3)" << endl;
 
         {
-            for (typename h_kmers_ccov_t::iterator it(dbg_extra.h_kmers_ccov.begin()); it != dbg_extra.h_kmers_ccov.end(); ++it) {
+            for (typename h_kmers_ccov_t::iterator it = dbg_extra.h_kmers_ccov.begin(); it != dbg_extra.h_kmers_ccov.end(); ++it) {
 
                 if (it->ccov.isFull()){
 
@@ -3582,6 +3597,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
         }
 
         hmap_min_unitigs.recomputeMaxPSL(opt.nb_threads);
+        h_kmers_ccov.recomputeMaxPSL(opt.nb_threads);
 
         dbg_extra.clear();
     }
@@ -3603,6 +3619,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
     bf_fp_tips.clear();
 
     hmap_min_unitigs.recomputeMaxPSL(opt.nb_threads);
+    h_kmers_ccov.recomputeMaxPSL(opt.nb_threads);
 
     const int unitigsAfter2 = size();
 
@@ -3622,6 +3639,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
     const int unitigsAfter3 = size();
 
     hmap_min_unitigs.recomputeMaxPSL(opt.nb_threads);
+    h_kmers_ccov.recomputeMaxPSL(opt.nb_threads);
 
     if (opt.verbose) {
 
@@ -6802,7 +6820,7 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>
 
         if (nb_threads == 1){
 
-            for (typename h_kmers_ccov_t::const_iterator it_ccov(h_kmers_ccov.begin()); it_ccov != h_kmers_ccov.end(); ++it_ccov) {
+            for (typename h_kmers_ccov_t::const_iterator it_ccov = h_kmers_ccov.begin(); it_ccov != h_kmers_ccov.end(); ++it_ccov) {
 
                 const Kmer tail(it_ccov.getKey());
                 const Kmer head_twin(tail.twin());
@@ -7122,7 +7140,7 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<char>
 
         if (nb_threads == 1){
 
-            for (typename h_kmers_ccov_t::const_iterator it_ccov(h_kmers_ccov.begin()); it_ccov != h_kmers_ccov.end(); ++it_ccov) {
+            for (typename h_kmers_ccov_t::const_iterator it_ccov = h_kmers_ccov.begin(); it_ccov != h_kmers_ccov.end(); ++it_ccov) {
 
                 const Kmer tail(it_ccov.getKey());
                 const Kmer head_twin(tail.twin());
@@ -7448,7 +7466,7 @@ typename std::enable_if<!is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_
 
     if (v_joins != nullptr) v_joins->clear();
 
-    for (KmerHashTable<char>::iterator it(joins.begin()); it != joins.end(); ++it) {
+    for (KmerHashTable<char>::iterator it = joins.begin(); it != joins.end(); ++it) {
 
         const Kmer tail(it.getKey().twin());
         const Kmer head(tail.backwardBase(*it));
@@ -7617,7 +7635,7 @@ typename std::enable_if<is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_(
 
     if (v_joins != nullptr) v_joins->clear();
 
-    for (KmerHashTable<char>::iterator it(joins.begin()); it != joins.end(); ++it) {
+    for (KmerHashTable<char>::iterator it = joins.begin(); it != joins.end(); ++it) {
 
         const Kmer tail(it.getKey().twin());
         const Kmer head(tail.backwardBase(*it));
@@ -8572,8 +8590,11 @@ void CompactedDBG<U, G>::setKmerGmerLength(const int kmer_length, const int mini
         k_ = kmer_length;
 
         if (minimizer_length >= 0) g_ = minimizer_length;
-        else if (kmer_length >= 15) g_ = k_ - DEFAULT_G_DEC1;
-        else if (kmer_length >= 7) g_ = k_ - DEFAULT_G_DEC2;
+        else if (kmer_length >= 27) g_ = k_ - 8;
+        else if (kmer_length >= 25) g_ = k_ - 7;
+        else if (kmer_length >= 23) g_ = k_ - 6;
+        else if (kmer_length >= 21) g_ = k_ - 5;
+        else if (kmer_length >= 19) g_ = k_ - 4;
         else g_ = k_ - 2;
 
         Kmer::set_k(k_);

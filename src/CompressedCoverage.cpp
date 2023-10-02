@@ -43,7 +43,8 @@ CompressedCoverage::CompressedCoverage(const CompressedCoverage& o) {
 CompressedCoverage::CompressedCoverage(CompressedCoverage&& o){
 
     asBits = o.asBits;
-    o.asBits = o.isFull() ? fullMask : tagMask;
+    //o.asBits = o.isFull() ? fullMask : tagMask;
+    o.asBits = tagMask;
 }
 
 CompressedCoverage& CompressedCoverage::operator=(const CompressedCoverage& o){
@@ -72,7 +73,8 @@ CompressedCoverage& CompressedCoverage::operator=(CompressedCoverage&& o){
         releasePointer();
 
         asBits = o.asBits;
-        o.asBits = o.isFull() ? fullMask : tagMask;
+        //o.asBits = o.isFull() ? fullMask : tagMask;
+        o.asBits = tagMask;
     }
 
     return *this;

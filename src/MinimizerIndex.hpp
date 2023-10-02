@@ -15,6 +15,9 @@
 #include "Lock.hpp"
 #include "TinyVector.hpp"
 
+#define BIFROST_MI_MAX_OCCUPANCY 0.95
+#define BIFROST_MI_INIT_SZ 1024
+
 class MinimizerIndex {
 
     template<bool is_const = true>
@@ -29,7 +32,7 @@ class MinimizerIndex {
             typedef typename std::conditional<is_const, const uint8_t*, uint8_t*>::type MI_tinyv_sz_ptr_t;
 
             iterator_() : ht(nullptr), h(0xffffffffffffffffULL), psl(0xffffffffffffffffULL) {}
-            iterator_(MI_ptr_t ht_) : ht(ht_), h(ht_->size_), psl(0xffffffffffffffffULL) {}
+            iterator_(MI_ptr_t ht_) : ht(ht_), h(0xffffffffffffffffULL), psl(0xffffffffffffffffULL) {}
             iterator_(MI_ptr_t ht_, size_t h_) :  ht(ht_), h(h_), psl(0xffffffffffffffffULL) {}
             iterator_(MI_ptr_t ht_, size_t h_, size_t psl_) :  ht(ht_), h(h_), psl(psl_) {}
             iterator_(const iterator_<false>& o) : ht(o.ht), h(o.h), psl(o.psl) {}
@@ -90,10 +93,12 @@ class MinimizerIndex {
 
             iterator_& operator++() {
 
-                for (++h; h < ht->size_; ++h) {
+                h += static_cast<size_t>(h < ht->size_);
 
-                    if (!ht->table_keys[h].isEmpty()) break;
-                }
+                while ((h < ht->size_) && ht->table_keys[h].isEmpty()) ++h;
+
+                h |= static_cast<size_t>(h < ht->size_) - 1;
+                psl = 0xffffffffffffffffULL;
 
                 return *this;
             }
@@ -106,6 +111,21 @@ class MinimizerIndex {
             BFG_INLINE bool operator!=(const iterator_ &o) const {
 
                 return (ht != o.ht) || (h != o.h);
+            }
+
+            void get_to_first() {
+
+                h = 0xffffffffffffffffULL;
+                psl = 0xffffffffffffffffULL;
+
+                if ((ht != nullptr) && (ht->size_ != 0)) {
+
+                    h = 0;
+
+                    while ((h < ht->size_) && ht->table_keys[h].isEmpty()) ++h;
+
+                    h |= static_cast<size_t>(h < ht->size_) - 1;
+                }
             }
 
             friend class iterator_<true>;
@@ -126,7 +146,7 @@ class MinimizerIndex {
         typedef iterator_<false> iterator;
 
         MinimizerIndex();
-        MinimizerIndex(const size_t sz, const double max_ratio_occupancy = 0.95);
+        MinimizerIndex(const size_t sz, const double max_ratio_occupancy = BIFROST_MI_MAX_OCCUPANCY);
 
         MinimizerIndex(const MinimizerIndex& o);
         MinimizerIndex(MinimizerIndex&& o);

@@ -52,9 +52,6 @@
 
 #define DEFAULT_K 31
 
-#define DEFAULT_G_DEC1 8
-#define DEFAULT_G_DEC2 4
-
 /** @file src/CompactedDBG.hpp
 * Interface for the Compacted de Bruijn graph API.
 * Code snippets using this interface are provided in snippets/test.cpp.
