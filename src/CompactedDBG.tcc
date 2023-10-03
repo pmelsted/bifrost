@@ -3426,7 +3426,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
 
             string approx_unitig;
 
-            hmap_min_unitigs = MinimizerIndex(nb_estimated_min * 1.05);
+            hmap_min_unitigs = MinimizerIndex(nb_estimated_min * 1.07); // Index has 95% max occupancy by default
 
             while (fp_approx_unitigs.read(approx_unitig, file_id_approx)) addUnitigSequence(approx_unitig);
 

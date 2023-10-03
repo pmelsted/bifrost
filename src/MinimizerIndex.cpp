@@ -550,45 +550,49 @@ void MinimizerIndex::init_tables(const size_t sz) {
 
 void MinimizerIndex::reserve(const size_t sz) {
 
-    if ((size_ != 0) && (sz <= size_)) return;
+    if (sz <= size_) return;
 
-    const size_t old_size_ = size_;
+    if (size_ == 0) init_tables(sz);
+    else {
 
-    Minimizer empty_key;
+        const size_t old_size_ = size_;
 
-    Minimizer* old_table_keys = table_keys;
-    packed_tiny_vector* old_table_tinyv = table_tinyv;
-    uint8_t* old_table_tinyv_sz = table_tinyv_sz;
+        Minimizer empty_key;
 
-    size_ = sz;
-    pop = 0;
-    sum_psl = 0;
-    max_psl = 1;
-    M_u64 = fastmod::computeM_u64(size_);
+        Minimizer* old_table_keys = table_keys;
+        packed_tiny_vector* old_table_tinyv = table_tinyv;
+        uint8_t* old_table_tinyv_sz = table_tinyv_sz;
 
-    table_keys = new Minimizer[size_];
-    table_tinyv = new packed_tiny_vector[size_];
-    table_tinyv_sz = new uint8_t[size_];
+        size_ = sz;
+        pop = 0;
+        sum_psl = 0;
+        max_psl = 1;
+        M_u64 = fastmod::computeM_u64(size_);
 
-    empty_key.set_empty();
+        table_keys = new Minimizer[size_];
+        table_tinyv = new packed_tiny_vector[size_];
+        table_tinyv_sz = new uint8_t[size_];
 
-    std::fill(table_keys, table_keys + size_, empty_key);
+        empty_key.set_empty();
 
-    memset(table_tinyv_sz, packed_tiny_vector::FLAG_EMPTY, size_ * sizeof(uint8_t));
+        std::fill(table_keys, table_keys + size_, empty_key);
 
-    for (size_t i = 0; i < old_size_; ++i) {
+        memset(table_tinyv_sz, packed_tiny_vector::FLAG_EMPTY, size_ * sizeof(uint8_t));
 
-        if (!old_table_keys[i].isEmpty()){
+        for (size_t i = 0; i < old_size_; ++i) {
 
-            insert(old_table_keys[i], old_table_tinyv[i], old_table_tinyv_sz[i]);
+            if (!old_table_keys[i].isEmpty()){
 
-            old_table_tinyv[i].destruct(old_table_tinyv_sz[i]);
+                insert(old_table_keys[i], old_table_tinyv[i], old_table_tinyv_sz[i]);
+
+                old_table_tinyv[i].destruct(old_table_tinyv_sz[i]);
+            }
         }
-    }
 
-    delete[] old_table_keys;
-    delete[] old_table_tinyv;
-    delete[] old_table_tinyv_sz;
+        delete[] old_table_keys;
+        delete[] old_table_tinyv;
+        delete[] old_table_tinyv_sz;
+    }
 }
 
 void MinimizerIndex::swap(const size_t i, const size_t j) {

@@ -785,35 +785,39 @@ struct KmerHashTable {
 
     void reserve(const size_t sz) {
 
-        if ((size_ != 0) && (sz <= size_)) return;
+        if (sz <= size_) return;
 
-        const size_t old_size_ = size_;
+        if (size_ == 0) init_tables(sz);
+        else {
 
-        Kmer empty_key;
+            const size_t old_size_ = size_;
 
-        Kmer* old_table_keys = table_keys;
-        T* old_table_values = table_values;
+            Kmer empty_key;
 
-        size_ = sz;
-        pop = 0;
-        sum_psl = 0;
-        max_psl = 1;
-        M_u64 = fastmod::computeM_u64(size_);
+            Kmer* old_table_keys = table_keys;
+            T* old_table_values = table_values;
 
-        table_keys = new Kmer[size_];
-        table_values = new T[size_];
+            size_ = sz;
+            pop = 0;
+            sum_psl = 0;
+            max_psl = 1;
+            M_u64 = fastmod::computeM_u64(size_);
 
-        empty_key.set_empty();
+            table_keys = new Kmer[size_];
+            table_values = new T[size_];
 
-        std::fill(table_keys, table_keys + size_, empty_key);
+            empty_key.set_empty();
 
-        for (size_t i = 0; i < old_size_; ++i) {
+            std::fill(table_keys, table_keys + size_, empty_key);
 
-            if (!old_table_keys[i].isEmpty()) insert(std::move(old_table_keys[i]), std::move(old_table_values[i]));
+            for (size_t i = 0; i < old_size_; ++i) {
+
+                if (!old_table_keys[i].isEmpty()) insert(std::move(old_table_keys[i]), std::move(old_table_values[i]));
+            }
+
+            delete[] old_table_keys;
+            delete[] old_table_values;
         }
-
-        delete[] old_table_keys;
-        delete[] old_table_values;
     }
 
     void swap(const size_t i, const size_t j) {
