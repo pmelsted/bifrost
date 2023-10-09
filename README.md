@@ -120,7 +120,7 @@ Bifrost
 
 displays the command line interface:
 ```
-Bifrost x.y
+Bifrost x.y.z
 
 Highly parallel construction, indexing and querying of colored and compacted de Bruijn graphs
 
@@ -146,22 +146,23 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
 
    > Optional with required argument:
 
-   -t, --threads            Number of threads (default is 1)
-   -k, --kmer-length        Length of k-mers (default is 31)
-   -m, --min-length         Length of minimizers (default is automatically chosen)
-   -B, --bloom-bits         Number of Bloom filter bits per k-mer (default is 14)
-   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default is no input)
-   -w, --write-mbbf         Output Blocked Bloom Filter file (default is no output)
-   
+   -t, --threads            Number of threads (default: 1)
+   -k, --kmer-length        Length of k-mers (default: 31)
+   -m, --min-length         Length of minimizers (default: auto)
+   -B, --bloom-bits         Number of Bloom filter bits per k-mer (default: 24)
+   -T, --tmp-dir            Path for tmp directory (default: creates tmp directory in output directory)
+   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default: no input)
+   -w, --write-mbbf         Output Blocked Bloom Filter file (default: no output)
+
    > Optional with no argument:
 
-   -c, --colors             Color the compacted de Bruijn graph (default is no coloring)
+   -c, --colors             Color the compacted de Bruijn graph
    -i, --clip-tips          Clip tips shorter than k k-mers in length
    -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length
-   -f, --fasta-out          Output file is in fasta format (only sequences) instead of gfa (unless graph is colored)
-   -b, --bfg-out            Output file is in bfg/bfi format (Bifrost graph and index) instead of gfa (unless graph is colored)
+   -f, --fasta-out          Output file in fasta format (only sequences) instead of gfa (unless graph is colored)
+   -b, --bfg-out            Output file in bfg/bfi format (Bifrost graph/index) instead of gfa (unless graph is colored)
    -n, --no-compress-out    Output files must be uncompressed
-   -N, --no-index-out       No index file is created
+   -N, --no-index-out       Do not make index file
    -v, --verbose            Print information messages during execution
 
 [PARAMETERS]: update
@@ -181,18 +182,19 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
 
    -I, --input-index-file   Input index file associated with graph to update in bfi format
    -C, --input-color-file   Input color file associated with graph to update in color.bfg format
-   -t, --threads            Number of threads (default is 1)
-   -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)
-   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or automatically chosen)
+   -t, --threads            Number of threads (default: 1)
+   -k, --kmer-length        Length of k-mers (default: read from input graph file if built with Bifrost or 31)
+   -m, --min-length         Length of minimizers (default: read from input graph if built with Bifrost, auto otherwise)
+   -T, --tmp-dir            Path for tmp directory (default: creates tmp directory in output directory)
 
    > Optional with no argument:
 
    -i, --clip-tips          Clip tips shorter than k k-mers in length
    -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length
-   -f, --fasta-out          Output file is in fasta format (only sequences) instead of gfa (unless colors are output)
-   -b, --bfg-out            Output file is in bfg/bfi format (Bifrost graph and index) instead of gfa (unless graph is colored)
+   -f, --fasta-out          Output file in fasta format (only sequences) instead of gfa (unless colors are output)
+   -b, --bfg-out            Output file in bfg/bfi format (Bifrost graph/index) instead of gfa (unless graph is colored)
    -n, --no-compress-out    Output files must be uncompressed
-   -N, --no-index-out       No index file is created
+   -N, --no-index-out       Do not make index file
    -v, --verbose            Print information messages during execution
 
 [PARAMETERS]: query
@@ -203,20 +205,23 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
    -q, --input-query-file   Input query file in fasta/fastq(.gz)
                             Multiple files can be provided as a list in a text file (one file per line)
    -o, --output-file        Prefix for output file
-   -e, --ratio-kmers        Ratio of k-mers from queries that must occur in the graph (default is 0.8)
+   -e, --ratio-kmers        Ratio of k-mers from queries that must occur in the graph (default: 0.8)
 
    > Optional with required argument:
 
    -I, --input-index-file   Input index file associated with graph to query in bfi format
    -C, --input-color-file   Input color file associated with the graph to query in color.bfg format
                             Presence/absence of queries will be output for each color
-   -t, --threads            Number of threads (default is 1)
-   -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)
-   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or or automatically chosen)
+   -t, --threads            Number of threads (default: 1)
+   -k, --kmer-length        Length of k-mers (default: read from input graph if built with Bifrost or 31)
+   -m, --min-length         Length of minimizers (default: read from input graph if built with Bifrost, auto otherwise)
+   -T, --tmp-dir            Path for tmp directory (default: creates tmp directory in output directory)
 
    > Optional with no argument:
 
-   -a, --approximate        Graph is searched with exact and inexact k-mers (1 substitution or indel) from queries
+   -p, --nb-found-km        Output the number of found k-mers for each query (disable parameter -e)
+   -P, --ratio-found-km     Output the ratio of found k-mers for each query (disable parameter -e)
+   -a, --approximate        Graph is searched using exact and inexact k-mers (1 substitution or indel allowed per k-mer)
    -v, --verbose            Print information messages during execution
 ```
 
