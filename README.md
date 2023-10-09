@@ -422,7 +422,7 @@ For any question, feedback or problem, please feel free to file an issue on this
 * [Bifrost](https://github.com/pmelsted/bifrost/blob/master/LICENSE) is BSD2 licensed
 * The [wyhash](https://github.com/wangyi-fudan/wyhash) library is Unlicense licensed
 * The [popcount](https://github.com/kimwalisch/libpopcnt) library is BSD licensed
-* The [libdivide](https://github.com/ridiculousfish/libdivide) library is zlib licensed
+* The [fastmod](https://github.com/lemire/fastmod) library is Apache 2.0 licensed
 * The [kseq](http://lh3lh3.users.sourceforge.net/kseq.shtml) library is copyrighted by Heng Li and released under the MIT license
 * The [CRoaring](https://github.com/RoaringBitmap/CRoaring) library is Apache 2.0 licensed
 * The [zstr](https://github.com/mateidavid/zstr) library is MIT licensed
