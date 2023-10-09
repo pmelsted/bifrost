@@ -7,7 +7,6 @@
 * **Reads** or **assembled genomes** as input
 * Output **graph in GFA** (can be visualized with [Bandage](https://github.com/rrwick/Bandage)), **FASTA** or **binary**
 * **Graph cleaning**: short tip clipping, etc.
-* **No disk** usage (adapted for cluster architectures)
 * **Multi-threaded**
 * **No parameters to estimate** with other tools
 * **Exact** or **approximate** *k*-mer search of queries
@@ -121,7 +120,7 @@ Bifrost
 
 displays the command line interface:
 ```
-Bifrost x.y
+Bifrost x.y.z
 
 Highly parallel construction, indexing and querying of colored and compacted de Bruijn graphs
 
@@ -147,22 +146,23 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
 
    > Optional with required argument:
 
-   -t, --threads            Number of threads (default is 1)
-   -k, --kmer-length        Length of k-mers (default is 31)
-   -m, --min-length         Length of minimizers (default is automatically chosen)
-   -B, --bloom-bits         Number of Bloom filter bits per k-mer (default is 14)
-   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default is no input)
-   -w, --write-mbbf         Output Blocked Bloom Filter file (default is no output)
-   
+   -t, --threads            Number of threads (default: 1)
+   -k, --kmer-length        Length of k-mers (default: 31)
+   -m, --min-length         Length of minimizers (default: auto)
+   -B, --bloom-bits         Number of Bloom filter bits per k-mer (default: 24)
+   -T, --tmp-dir            Path for tmp directory (default: creates tmp directory in output directory)
+   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default: no input)
+   -w, --write-mbbf         Output Blocked Bloom Filter file (default: no output)
+
    > Optional with no argument:
 
-   -c, --colors             Color the compacted de Bruijn graph (default is no coloring)
+   -c, --colors             Color the compacted de Bruijn graph
    -i, --clip-tips          Clip tips shorter than k k-mers in length
    -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length
-   -f, --fasta-out          Output file is in fasta format (only sequences) instead of gfa (unless graph is colored)
-   -b, --bfg-out            Output file is in bfg/bfi format (Bifrost graph and index) instead of gfa (unless graph is colored)
+   -f, --fasta-out          Output file in fasta format (only sequences) instead of gfa (unless graph is colored)
+   -b, --bfg-out            Output file in bfg/bfi format (Bifrost graph/index) instead of gfa (unless graph is colored)
    -n, --no-compress-out    Output files must be uncompressed
-   -N, --no-index-out       No index file is created
+   -N, --no-index-out       Do not make index file
    -v, --verbose            Print information messages during execution
 
 [PARAMETERS]: update
@@ -182,18 +182,19 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
 
    -I, --input-index-file   Input index file associated with graph to update in bfi format
    -C, --input-color-file   Input color file associated with graph to update in color.bfg format
-   -t, --threads            Number of threads (default is 1)
-   -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)
-   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or automatically chosen)
+   -t, --threads            Number of threads (default: 1)
+   -k, --kmer-length        Length of k-mers (default: read from input graph file if built with Bifrost or 31)
+   -m, --min-length         Length of minimizers (default: read from input graph if built with Bifrost, auto otherwise)
+   -T, --tmp-dir            Path for tmp directory (default: creates tmp directory in output directory)
 
    > Optional with no argument:
 
    -i, --clip-tips          Clip tips shorter than k k-mers in length
    -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length
-   -f, --fasta-out          Output file is in fasta format (only sequences) instead of gfa (unless colors are output)
-   -b, --bfg-out            Output file is in bfg/bfi format (Bifrost graph and index) instead of gfa (unless graph is colored)
+   -f, --fasta-out          Output file in fasta format (only sequences) instead of gfa (unless colors are output)
+   -b, --bfg-out            Output file in bfg/bfi format (Bifrost graph/index) instead of gfa (unless graph is colored)
    -n, --no-compress-out    Output files must be uncompressed
-   -N, --no-index-out       No index file is created
+   -N, --no-index-out       Do not make index file
    -v, --verbose            Print information messages during execution
 
 [PARAMETERS]: query
@@ -204,20 +205,23 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
    -q, --input-query-file   Input query file in fasta/fastq(.gz)
                             Multiple files can be provided as a list in a text file (one file per line)
    -o, --output-file        Prefix for output file
-   -e, --ratio-kmers        Ratio of k-mers from queries that must occur in the graph (default is 0.8)
+   -e, --ratio-kmers        Ratio of k-mers from queries that must occur in the graph (default: 0.8)
 
    > Optional with required argument:
 
    -I, --input-index-file   Input index file associated with graph to query in bfi format
    -C, --input-color-file   Input color file associated with the graph to query in color.bfg format
                             Presence/absence of queries will be output for each color
-   -t, --threads            Number of threads (default is 1)
-   -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)
-   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or or automatically chosen)
+   -t, --threads            Number of threads (default: 1)
+   -k, --kmer-length        Length of k-mers (default: read from input graph if built with Bifrost or 31)
+   -m, --min-length         Length of minimizers (default: read from input graph if built with Bifrost, auto otherwise)
+   -T, --tmp-dir            Path for tmp directory (default: creates tmp directory in output directory)
 
    > Optional with no argument:
 
-   -a, --approximate        Graph is searched with exact and inexact k-mers (1 substitution or indel) from queries
+   -p, --nb-found-km        Output the number of found k-mers for each query (disable parameter -e)
+   -P, --ratio-found-km     Output the ratio of found k-mers for each query (disable parameter -e)
+   -a, --approximate        Graph is searched using exact and inexact k-mers (1 substitution or indel allowed per k-mer)
    -v, --verbose            Print information messages during execution
 ```
 
@@ -418,7 +422,7 @@ For any question, feedback or problem, please feel free to file an issue on this
 * [Bifrost](https://github.com/pmelsted/bifrost/blob/master/LICENSE) is BSD2 licensed
 * The [wyhash](https://github.com/wangyi-fudan/wyhash) library is Unlicense licensed
 * The [popcount](https://github.com/kimwalisch/libpopcnt) library is BSD licensed
-* The [libdivide](https://github.com/ridiculousfish/libdivide) library is zlib licensed
+* The [fastmod](https://github.com/lemire/fastmod) library is Apache 2.0 licensed
 * The [kseq](http://lh3lh3.users.sourceforge.net/kseq.shtml) library is copyrighted by Heng Li and released under the MIT license
 * The [CRoaring](https://github.com/RoaringBitmap/CRoaring) library is Apache 2.0 licensed
 * The [zstr](https://github.com/mateidavid/zstr) library is MIT licensed
