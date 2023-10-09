@@ -6,6 +6,7 @@ API only.
 	* Function `CompactedDBG()::search()` takes additional arguments:
 		* `get_nb_found_km`: boolean indicating whether to report in the output the number of found k-mers per query 
 		* `get_ratio_found_km`: boolean indicating wether to report in the output the ratio of found k-mers per query
+    
     	 Note that using either options de facto disable argument `ratio_kmers` and will impact running time as all *k*-mers of the queries will be searched for (`ratio_kmers` allows to stop the search early by detecting when the `ratio_kmers` threshold cannot be met).
 * **15-06-2022**
 	* Function `CompactedDBG()::write()` takes additional arguments with default values:
