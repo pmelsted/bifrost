@@ -7,7 +7,6 @@
 * **Reads** or **assembled genomes** as input
 * Output **graph in GFA** (can be visualized with [Bandage](https://github.com/rrwick/Bandage)), **FASTA** or **binary**
 * **Graph cleaning**: short tip clipping, etc.
-* **No disk** usage (adapted for cluster architectures)
 * **Multi-threaded**
 * **No parameters to estimate** with other tools
 * **Exact** or **approximate** *k*-mer search of queries
@@ -273,9 +272,9 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
 
   3. **Query a colored and compacted de Bruijn graph for presence/absence of queries in each color of the graph**
      ```
-     Bifrost query -t 4 -e 0.8 -g ABCEF.gfa.gz -f ABCEF.bfg_colors -q queries.fasta -o presence_queries 
+     Bifrost query -t 4 -e 0.8 -g ABCEF.gfa.gz -C ABCEF.color.bfg -q queries.fasta -o presence_queries 
      ```
-     The compacted and colored de Bruijn graph *ABCEF* (`-g ABCEF.gfa.gz -f ABCEF.bfg_colors`) is queried (`query`) with 4 threads (`-t 4`) for the sequences of file *queries.fasta* (`-q queries.fasta`). The Bifrost index *ABCEF_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. At least 80% of each query *k*-mers must be found in a color of the graph to have the query reported as present for that color (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, columns are the colors, intersection of a row and a column is a binary value indicating presence/absence of the query in the color of the graph (1 is present, 0 is not present).
+     The compacted and colored de Bruijn graph *ABCEF* (`-g ABCEF.gfa.gz -C ABCEF.color.bfg`) is queried (`query`) with 4 threads (`-t 4`) for the sequences of file *queries.fasta* (`-q queries.fasta`). The Bifrost index *ABCEF_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. At least 80% of each query *k*-mers must be found in a color of the graph to have the query reported as present for that color (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, columns are the colors, intersection of a row and a column is a binary value indicating presence/absence of the query in the color of the graph (1 is present, 0 is not present).
 
 ## API
 
@@ -369,6 +368,10 @@ A color corresponds to an input file the graph was built/updated from. The order
 
 All of them. The difference between the graphs resides in circular unitigs (unitigs connecting to themselves) which are their own connected components ("isolated"). These unitigs can have a different sequence from one run to another because the starting position will be different, yet they represent exactly the same sequence. As an example, circular unitig ATAT composed of 3-mers can also be represented with sequence TATA. The number of unitigs will remain the same from one graph to another.
 
+**Is it possible to get the colors per *k*-mer in a parsable (non-binary) file format?**
+
+Yes, please see [this solution](https://github.com/pmelsted/bifrost/issues/50)
+
 ## Troubleshooting
 
 * compilation (`make`) fails because some header files (*.h*) are not found
@@ -411,11 +414,11 @@ For any question, feedback or problem, please feel free to file an issue on this
 
 ## License
 
-* Bifrost is BSD2 licensed (https://github.com/pmelsted/bifrost/blob/master/LICENSE)
-* The wyhash library is Unlicense licensed (https://github.com/wangyi-fudan/wyhash)
-* The popcount library is BSD licensed (https://github.com/kimwalisch/libpopcnt)
-* The libdivide library is zlib licensed (https://github.com/ridiculousfish/libdivide)
-* The kseq library is copyrighted by Heng Li and released under the MIT license (http://lh3lh3.users.sourceforge.net/kseq.shtml)
-* The CRoaring library is Apache 2.0 licensed (https://github.com/RoaringBitmap/CRoaring)
-* The zstr library is MIT licensed (https://github.com/mateidavid/zstr)
+* [Bifrost](https://github.com/pmelsted/bifrost/blob/master/LICENSE) is BSD2 licensed
+* The [wyhash](https://github.com/wangyi-fudan/wyhash) library is Unlicense licensed
+* The [popcount](https://github.com/kimwalisch/libpopcnt) library is BSD licensed
+* The [libdivide](https://github.com/ridiculousfish/libdivide) library is zlib licensed
+* The [kseq](http://lh3lh3.users.sourceforge.net/kseq.shtml) library is copyrighted by Heng Li and released under the MIT license
+* The [CRoaring](https://github.com/RoaringBitmap/CRoaring) library is Apache 2.0 licensed
+* The [zstr](https://github.com/mateidavid/zstr) library is MIT licensed
 * The GetRSS library is Creative Commons Attribution 3.0 licensed
