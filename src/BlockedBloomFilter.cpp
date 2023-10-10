@@ -606,7 +606,7 @@ DualBlockedBloomFilter::DualBlockedBloomFilter(const size_t nb_elem, const size_
 }
 
 DualBlockedBloomFilter::DualBlockedBloomFilter(const DualBlockedBloomFilter& o) :   table_(nullptr), blocks_(o.blocks_), nb_bits_per_elem(o.nb_bits_per_elem),
-                                                                                    k_(o.k_), M_u64(o.M_u64), seed1(o.seed1), seed2(o.seed2), ush(o.ush) {
+                                                                                    k_(o.k_), M_u64(o.M_u64), seed1(o.seed1), seed2(o.seed2), ush{o.ush[0], o.ush[1]} {
 
     if (blocks_ != 0) {
 
@@ -622,10 +622,7 @@ DualBlockedBloomFilter::DualBlockedBloomFilter(const DualBlockedBloomFilter& o) 
 }
 
 DualBlockedBloomFilter::DualBlockedBloomFilter(DualBlockedBloomFilter&& o) :    table_(o.table_), blocks_(o.blocks_), nb_bits_per_elem(o.nb_bits_per_elem),
-                                                                                k_(o.k_), M_u64(o.M_u64), seed1(o.seed1), seed2(o.seed2) {
-
-    ush[0] = move(o.ush[0]);
-    ush[1] = move(o.ush[1]);
+                                                                                k_(o.k_), M_u64(o.M_u64), seed1(o.seed1), seed2(o.seed2), ush{move(o.ush[0]), move(o.ush[1])} {
 
     o.table_ = nullptr;
 
