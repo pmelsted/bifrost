@@ -5,12 +5,11 @@
 * **Build**, **index**, **color** and **query** the compacted de Bruijn graph
 * **No need to build the uncompacted** de Bruijn graph
 * **Reads** or **assembled genomes** as input
-* Output **graph in GFA** (can be visualized with [Bandage](https://github.com/rrwick/Bandage))
+* Output **graph in GFA** (can be visualized with [Bandage](https://github.com/rrwick/Bandage)), **FASTA** or **binary**
 * **Graph cleaning**: short tip clipping, etc.
-* **No disk** usage (adapted for cluster architectures)
-* **Multi-threaded** and **SIMD** optimized
+* **Multi-threaded**
 * **No parameters to estimate** with other tools
-* **Inexact** *k*-mer search of queries
+* **Exact** or **approximate** *k*-mer search of queries
 * **C++ API** available:
     * Associate **your data with vertices**
     * **Add** or **remove** (sub-)sequences / *k*-mers / colors
@@ -30,10 +29,10 @@
 
 ## Requirements
 
-To install Bifrost using Bioconda or Brew, go directly to Section [Installation](#installation). To install from source, you will need:
+To install Bifrost using Bioconda, go directly to Section [Installation](#installation). To install from source, you will need:
 
 * C++11 compiler:
-    * [GCC](https://gcc.gnu.org/) >= 4.8.5
+    * [GCC](https://gcc.gnu.org/) >= 5.1.0
     * [Clang](http://clang.llvm.org/) >= 3.5
 * [Cmake](https://cmake.org/) >= 2.8.12
 * [Zlib](https://zlib.net/)
@@ -62,12 +61,12 @@ sudo apt-get install build-essential cmake zlib1g-dev
 
 ## Installation
 
-Compared to the source install, the Conda package do not support *k>31* nor native compilation (including AVX2 instructions). Use the source installation for benchmarking.
+Compared to the source install, the Conda package might not have the latest Bifrost version, does not support *k>31* nor native compilation. Use the source installation for benchmarking.
 
 * From [Bioconda](https://bioconda.github.io):
 
   ```
-  conda -c bioconda bifrost
+  conda install -c bioconda bifrost
   ```
 
 * From source
@@ -121,7 +120,7 @@ Bifrost
 
 displays the command line interface:
 ```
-Bifrost x.y
+Bifrost x.y.z
 
 Highly parallel construction, indexing and querying of colored and compacted de Bruijn graphs
 
@@ -130,88 +129,99 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
 [COMMAND]:
 
    build                   Build a compacted de Bruijn graph, with or without colors
-   update                  Update a compacted (possible colored) de Bruijn graph with new sequences
-   query                   Query a compacted (possible colored) de Bruijn graph
+   update                  Update a compacted (colored) de Bruijn graph with new sequences
+   query                   Query a compacted (colored) de Bruijn graph
 
 [PARAMETERS]: build
 
    > Mandatory with required argument:
 
-   -s, --input-seq-file     Input sequence file (FASTA/FASTQ possibly gzipped)
-                            Multiple files can be provided as a list in a TXT file (one file per line)
+   -s, --input-seq-file     Input sequence file in fasta/fastq(.gz) format
+                            Multiple files can be provided as a list in a text file (one file per line)
                             K-mers with exactly 1 occurrence in the input sequence files will be discarded
-   -r, --input-ref-file     Input reference file (FASTA/FASTQ possibly gzipped and GFA)
-                            Multiple files can be provided as a list in a TXT file (one file per line)
+   -r, --input-ref-file     Input reference file in fasta/fastq(.gz) or gfa(.gz) format
+                            Multiple files can be provided as a list in a text file (one file per line)
                             All k-mers of the input reference files are used
    -o, --output-file        Prefix for output file(s)
 
    > Optional with required argument:
 
-   -t, --threads            Number of threads (default is 1)
-   -k, --kmer-length        Length of k-mers (default is 31)
-   -m, --min-length         Length of minimizers (default is 23)
-   -b, --bloom-bits         Number of Bloom filter bits per k-mer with 1+ occurrences in the input files (default is 14)
-   -B, --bloom-bits2        Number of Bloom filter bits per k-mer with 2+ occurrences in the input files (default is 14)
-   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default is no input)
-   -w, --write-mbbf         Output Blocked Bloom Filter file (default is no output)
-   -u, --chunk-size         Read chunk size per thread (default is 64)
+   -t, --threads            Number of threads (default: 1)
+   -k, --kmer-length        Length of k-mers (default: 31)
+   -m, --min-length         Length of minimizers (default: auto)
+   -B, --bloom-bits         Number of Bloom filter bits per k-mer (default: 24)
+   -T, --tmp-dir            Path for tmp directory (default: creates tmp directory in output directory)
+   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default: no input)
+   -w, --write-mbbf         Output Blocked Bloom Filter file (default: no output)
 
    > Optional with no argument:
 
-   -c, --colors             Color the compacted de Bruijn graph (default is no coloring)
-   -y, --keep-mercy         Keep low coverage k-mers connecting tips
+   -c, --colors             Color the compacted de Bruijn graph
    -i, --clip-tips          Clip tips shorter than k k-mers in length
    -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length
-   -a, --fasta              Output file is in FASTA format (only sequences) instead of GFA
+   -f, --fasta-out          Output file in fasta format (only sequences) instead of gfa (unless graph is colored)
+   -b, --bfg-out            Output file in bfg/bfi format (Bifrost graph/index) instead of gfa (unless graph is colored)
+   -n, --no-compress-out    Output files must be uncompressed
+   -N, --no-index-out       Do not make index file
    -v, --verbose            Print information messages during execution
 
 [PARAMETERS]: update
 
   > Mandatory with required argument:
 
-   -g, --input-graph-file   Input graph file to update (GFA format)
-   -s, --input-seq-file     Input sequence file (FASTA/FASTQ possibly gzipped)
-                            Multiple files can be provided as a list in a TXT file (one file per line)
+   -g, --input-graph-file   Input graph file to update in gfa(.gz) or bfg format
+   -s, --input-seq-file     Input sequence file in fasta/fastq(.gz) format
+                            Multiple files can be provided as a list in a text file (one file per line)
                             K-mers with exactly 1 occurrence in the input sequence files will be discarded
-   -r, --input-ref-file     Input reference file (FASTA/FASTQ possibly gzipped and GFA)
-                            Multiple files can be provided as a list in a TXT file (one file per line)
+   -r, --input-ref-file     Input reference file in fasta/fastq(.gz) or gfa(.gz) format
+                            Multiple files can be provided as a list in a text file (one file per line)
                             All k-mers of the input reference files are used
    -o, --output-file        Prefix for output file(s)
 
    > Optional with required argument:
 
-   -f, --input-color-file   Input color file associated with the input graph file to update
-   -t, --threads            Number of threads (default is 1)
-   -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)
-   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or 23)
+   -I, --input-index-file   Input index file associated with graph to update in bfi format
+   -C, --input-color-file   Input color file associated with graph to update in color.bfg format
+   -t, --threads            Number of threads (default: 1)
+   -k, --kmer-length        Length of k-mers (default: read from input graph file if built with Bifrost or 31)
+   -m, --min-length         Length of minimizers (default: read from input graph if built with Bifrost, auto otherwise)
+   -T, --tmp-dir            Path for tmp directory (default: creates tmp directory in output directory)
 
    > Optional with no argument:
 
    -i, --clip-tips          Clip tips shorter than k k-mers in length
    -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length
+   -f, --fasta-out          Output file in fasta format (only sequences) instead of gfa (unless colors are output)
+   -b, --bfg-out            Output file in bfg/bfi format (Bifrost graph/index) instead of gfa (unless graph is colored)
+   -n, --no-compress-out    Output files must be uncompressed
+   -N, --no-index-out       Do not make index file
    -v, --verbose            Print information messages during execution
 
 [PARAMETERS]: query
 
   > Mandatory with required argument:
 
-   -g, --input-graph-file   Input graph file to query (GFA format)
-   -q, --input-query-file   Input query file (FASTA/FASTQ possibly gzipped)
-                            Multiple files can be provided as a list in a TXT file (one file per line)
+   -g, --input-graph-file   Input graph file to query in gfa(.gz) or bfg
+   -q, --input-query-file   Input query file in fasta/fastq(.gz)
+                            Multiple files can be provided as a list in a text file (one file per line)
    -o, --output-file        Prefix for output file
-   -e, --ratio-kmers        Ratio of k-mers from queries that must occur in the graph (default is 0.8)
+   -e, --ratio-kmers        Ratio of k-mers from queries that must occur in the graph (default: 0.8)
 
    > Optional with required argument:
 
-   -f, --input-color-file   Input color file associated with the input graph file to query
+   -I, --input-index-file   Input index file associated with graph to query in bfi format
+   -C, --input-color-file   Input color file associated with the graph to query in color.bfg format
                             Presence/absence of queries will be output for each color
-   -t, --threads            Number of threads (default is 1)
-   -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)
-   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or 23)
+   -t, --threads            Number of threads (default: 1)
+   -k, --kmer-length        Length of k-mers (default: read from input graph if built with Bifrost or 31)
+   -m, --min-length         Length of minimizers (default: read from input graph if built with Bifrost, auto otherwise)
+   -T, --tmp-dir            Path for tmp directory (default: creates tmp directory in output directory)
 
    > Optional with no argument:
 
-   -n, --inexact            Graph is searched with exact and inexact k-mers (1 substitution or indel) from queries         
+   -p, --nb-found-km        Output the number of found k-mers for each query (disable parameter -e)
+   -P, --ratio-found-km     Output the ratio of found k-mers for each query (disable parameter -e)
+   -a, --approximate        Graph is searched using exact and inexact k-mers (1 substitution or indel allowed per k-mer)
    -v, --verbose            Print information messages during execution
 ```
 
@@ -223,57 +233,61 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
      ```
      Bifrost build -t 4 -k 31 -i -d -s A.fastq -s B.fastq -o AB_graph 
      ```
-     The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq* and *B.fastq* (`-s A.fastq -s B.fastq`). By using parameter `-s`, files *A.fastq* and *B.fastq* are filtered: 31-mers occurring exactly once in *A* and *B* are discarded from the construction. Graph simplification steps are performed after building (`-i -d`) and the graph is written to file *AB_graph.gfa* (`-o AB_graph`).
+     The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq* and *B.fastq* (`-s A.fastq -s B.fastq`). By using parameter `-s`, files *A.fastq* and *B.fastq* are filtered: 31-mers occurring exactly once in *A* and *B* are discarded from the construction. Graph simplification steps are performed after building (`-i -d`). The graph is written to file *AB_graph.gfa.gz* and a Bifrost index is written to file *AB_graph.bfi* (`-o AB_graph`).
 
   2. **Build a compacted de Bruijn graph from a reference genome file**
      ```
      Bifrost build -t 4 -k 31 -r C.fasta -o C_graph 
      ```
-     The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of file *C.fasta* (`-r C.fasta`). By using parameter `-r`, file *C.fasta* is NOT filtered: all 31-mers occurring in *C* are used during the construction. The graph is written to file *C_graph.gfa* (`-o C_graph`).
+     The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of file *C.fasta* (`-r C.fasta`). By using parameter `-r`, file *C.fasta* is NOT filtered: all 31-mers occurring in *C* are used during the construction.The graph is written to file *C_graph.gfa.gz* and a Bifrost index is written to file *C_graph.bfi* (`-o C_graph`).
 
   3. **Build a compacted and colored de Bruijn graph from read files and reference genome files, clean the graph**
      ```
      Bifrost build -t 4 -k 31 -c -i -d -s A.fastq -s B.fastq -r C.fasta -o ABC 
      ```
-     Combining the two previous examples, the compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq*, *B.fastq* (`-s A.fastq -s B.fastq`) and file *C.fasta* (`-r C.fasta`). Graph simplification steps are performed after building (`-i -d`). The graph is colored (`-c`), meaning that each k-mer of the graph unitigs keeps track of whether it occurs in *A*, *B* or *C*. The graph is written to file *ABC.gfa* and the colors are written to file *ABC.bfg_colors* (`-o ABC`).
+     Combining the two previous examples, the compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq*, *B.fastq* (`-s A.fastq -s B.fastq`) and file *C.fasta* (`-r C.fasta`). Graph simplification steps are performed after building (`-i -d`). The graph is colored (`-c`), meaning that each k-mer of the graph unitigs keeps track of whether it occurs in *A*, *B* or *C*. The graph is written to file *ABC_graph.gfa.gz* and a Bifrost index is written to file *ABC_graph.bfi* (`-o ABC_graph`).
 
 - **Update**
 
   1. **Update a compacted de Bruijn graph with a reference genome file**
      ```
-     Bifrost update -t 4 -r D.fasta -g C_graph.gfa -o CD_graph 
+     Bifrost update -t 4 -r D.fasta -g C_graph.gfa.gz -o CD_graph 
      ```
-     The compacted de Bruijn graph *C* (`-g C_graph.gfa`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of file *D.fasta* (`-r D.fasta`). By using parameter `-r`, file *D.fasta* is NOT filtered: all *k*-mers occurring in *D* are used during the merging. The graph is written to file *CD_graph.gfa* (`-o CD_graph`).
+     The compacted de Bruijn graph *C* (`-g C_graph.gfa.gz`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of file *D.fasta* (`-r D.fasta`). The Bifrost index *C_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. By using parameter `-r`, file *D.fasta* is NOT filtered: all *k*-mers occurring in *D* are used during the merging.  The graph is written to file *CD_graph.gfa.gz* and a Bifrost index is written to file *CD_graph.bfi* (`-o CD_graph`).
 
   2. **Update a compacted and colored de Bruijn graph with read files and clean the graph**
      ```
-     Bifrost update -t 4 -i -d -s E.fastq -s F.fastq -g ABC.gfa -f ABC.bfg_colors -o ABCEF 
+     Bifrost update -t 4 -i -d -s E.fastq -s F.fastq -g ABC.gfa.gz -f ABC.bfg_colors -o ABCEF 
      ```
-     The compacted and colored de Bruijn graph *ABC* (`-g ABC.gfa -f ABC.bfg_colors`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of files *E.fastq* and *F.fastq* (`-s E.fastq -s F.fastq`). Graph simplification steps are performed after merging (`-i -d`). The graph is written to file *ABCEF.gfa* and the colors are written to file *ABCEF.bfg_colors* (`-o ABCEF`).
+     The compacted and colored de Bruijn graph *ABC* (`-g ABC.gfa.gz -f ABC.bfg_colors`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of files *E.fastq* and *F.fastq* (`-s E.fastq -s F.fastq`). The Bifrost index *ABC_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. Graph simplification steps are performed after merging (`-i -d`). The graph is written to file *ABCEF.gfa.gz*, the colors are written to file *ABCEF.bfg_colors* and a Bifrost index is written to file *ABCEF_graph.bfi* (`-o ABCEF`).
 
 - **Query**
 
   1. **Query a compacted de Bruijn graph for presence/absence of queries in the graph**
      ```
-     Bifrost query -t 4 -e 0.8 -g ABCEF.gfa -q queries.fasta -o presence_queries 
+     Bifrost query -t 4 -e 0.8 -g ABCEF.gfa.gz -q queries.fasta -o presence_queries 
      ```
-     The compacted de Bruijn graph *ABCEF* (`-g ABCEF.gfa`) is queried (`query`) with 4 threads (`-t 4`) for the presence/absence of sequences from file *queries.fasta* (`-q queries.fasta`). At least 80% of each query *k*-mers must be found in the graph to have the query reported as present (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, column is presence/absence in graph, intersection of a row and a column is a binary value indicating presence/absence of the query in graph (1 is present, 0 is not present).
+     The compacted de Bruijn graph *ABCEF* (`-g ABCEF.gfa.gz`) is queried (`query`) with 4 threads (`-t 4`) for the presence/absence of sequences from file *queries.fasta* (`-q queries.fasta`). The Bifrost index *ABCEF_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. At least 80% of each query *k*-mers must be found in the graph to have the query reported as present (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, column is presence/absence in graph, intersection of a row and a column is a binary value indicating presence/absence of the query in graph (1 is present, 0 is not present).
 
   2. **Query a compacted de Bruijn graph for presence/absence of queries in the graph in inexact mode**
      ```
-     Bifrost query -t 4 -e 0.8 -n -g ABCEF.gfa -q queries.fasta -o presence_queries 
+     Bifrost query -t 4 -e 0.8 -n -g ABCEF.gfa.gz -q queries.fasta -o presence_queries 
      ```
-     The compacted de Bruijn graph *ABCEF* (`-g ABCEF.gfa`) is queried (`query`) with 4 threads (`-t 4`) for the presence/absence of sequences from file *queries.fasta* (`-q queries.fasta`). At least 80% of each query *k*-mers must be found in the graph to have the query reported as present (`-e 0.8`). Queries are searched for exact and inexact *k*-mers (`-n`): *k*-mers with up to one substitution or indel. The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, column is presence/absence in graph, intersection of a row and a column is a binary value indicating presence/absence of the query in graph (1 is present, 0 is not present).
+     The compacted de Bruijn graph *ABCEF* (`-g ABCEF.gfa.gz`) is queried (`query`) with 4 threads (`-t 4`) for the presence/absence of sequences from file *queries.fasta* (`-q queries.fasta`). The Bifrost index *ABCEF_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. At least 80% of each query *k*-mers must be found in the graph to have the query reported as present (`-e 0.8`). Queries are searched for exact and inexact *k*-mers (`-n`): *k*-mers with up to one substitution or indel. The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, column is presence/absence in graph, intersection of a row and a column is a binary value indicating presence/absence of the query in graph (1 is present, 0 is not present).
 
   3. **Query a colored and compacted de Bruijn graph for presence/absence of queries in each color of the graph**
      ```
-     Bifrost query -t 4 -e 0.8 -g ABCEF.gfa -f ABCEF.bfg_colors -q queries.fasta -o presence_queries 
+     Bifrost query -t 4 -e 0.8 -g ABCEF.gfa.gz -C ABCEF.color.bfg -q queries.fasta -o presence_queries 
      ```
-     The compacted and colored de Bruijn graph *ABCEF* (`-g ABCEF.gfa -f ABCEF.bfg_colors`) is queried (`query`) with 4 threads (`-t 4`) for the sequences of file *queries.fasta* (`-q queries.fasta`). At least 80% of each query *k*-mers must be found in a color of the graph to have the query reported as present for that color (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, columns are the colors, intersection of a row and a column is a binary value indicating presence/absence of the query in the color of the graph (1 is present, 0 is not present).
+     The compacted and colored de Bruijn graph *ABCEF* (`-g ABCEF.gfa.gz -C ABCEF.color.bfg`) is queried (`query`) with 4 threads (`-t 4`) for the sequences of file *queries.fasta* (`-q queries.fasta`). The Bifrost index *ABCEF_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. At least 80% of each query *k*-mers must be found in a color of the graph to have the query reported as present for that color (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, columns are the colors, intersection of a row and a column is a binary value indicating presence/absence of the query in the color of the graph (1 is present, 0 is not present).
 
 ## API
 
 Changes in the API are reported in the [Changelog](https://github.com/pmelsted/bifrost/blob/master/Changelog.md).
+
+### Tutorial
+
+The [API tutorial](doc/tutorial/Intro.md) should help you get started with the C++ API.
 
 ### Documentation
 
@@ -359,6 +373,10 @@ A color corresponds to an input file the graph was built/updated from. The order
 
 All of them. The difference between the graphs resides in circular unitigs (unitigs connecting to themselves) which are their own connected components ("isolated"). These unitigs can have a different sequence from one run to another because the starting position will be different, yet they represent exactly the same sequence. As an example, circular unitig ATAT composed of 3-mers can also be represented with sequence TATA. The number of unitigs will remain the same from one graph to another.
 
+**Is it possible to get the colors per *k*-mer in a parsable (non-binary) file format?**
+
+Yes, please see [this solution](https://github.com/pmelsted/bifrost/issues/50)
+
 ## Troubleshooting
 
 * compilation (`make`) fails because some header files (*.h*) are not found
@@ -401,10 +419,11 @@ For any question, feedback or problem, please feel free to file an issue on this
 
 ## License
 
-* The wyhash library is Unlicense licensed (https://github.com/wangyi-fudan/wyhash)
-* The popcount library is BSD licensed (https://github.com/kimwalisch/libpopcnt)
-* The libdivide library is zlib licensed (https://github.com/ridiculousfish/libdivide)
-* The kseq library is copyrighted by Heng Li and released under the MIT license (http://lh3lh3.users.sourceforge.net/kseq.shtml)
-* The CRoaring library is Apache 2.0 licensed (https://github.com/RoaringBitmap/CRoaring)
+* [Bifrost](https://github.com/pmelsted/bifrost/blob/master/LICENSE) is BSD2 licensed
+* The [wyhash](https://github.com/wangyi-fudan/wyhash) library is Unlicense licensed
+* The [popcount](https://github.com/kimwalisch/libpopcnt) library is BSD licensed
+* The [fastmod](https://github.com/lemire/fastmod) library is Apache 2.0 licensed
+* The [kseq](http://lh3lh3.users.sourceforge.net/kseq.shtml) library is copyrighted by Heng Li and released under the MIT license
+* The [CRoaring](https://github.com/RoaringBitmap/CRoaring) library is Apache 2.0 licensed
+* The [zstr](https://github.com/mateidavid/zstr) library is MIT licensed
 * The GetRSS library is Creative Commons Attribution 3.0 licensed
-* Bifrost is BSD-2 licensed [LICENSE](https://github.com/pmelsted/bifrost/blob/master/LICENSE)

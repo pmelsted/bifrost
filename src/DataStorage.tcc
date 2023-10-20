@@ -531,11 +531,11 @@ vector<string> DataStorage<U>::getSubUnitigColorNames(const const_UnitigColorMap
 }
 
 template<typename U>
-bool DataStorage<U>::write(const string& prefix_output_filename, const bool verbose) const {
+bool DataStorage<U>::write(const string& prefix_output_fn, const bool verbose) const {
 
     if (verbose) cout << endl << "DataStorage::write(): Writing colors to disk" << endl;
 
-    const string out = prefix_output_filename + ".bfg_colors";
+    const string out = prefix_output_fn + ".color.bfg";
 
     FILE* fp = fopen(out.c_str(), "wb");
 
@@ -659,11 +659,11 @@ bool DataStorage<U>::write(const string& prefix_output_filename, const bool verb
 }
 
 template<>
-inline bool DataStorage<void>::write(const string& prefix_output_filename, const bool verbose) const {
+inline bool DataStorage<void>::write(const string& prefix_output_fn, const bool verbose) const {
 
     if (verbose) cout << endl << "DataStorage::write(): Writing colors to disk" << endl;
 
-    const string out = prefix_output_filename + ".bfg_colors";
+    const string out = prefix_output_fn + ".color.bfg";
 
     FILE* fp = fopen(out.c_str(), "wb");
 
@@ -787,15 +787,15 @@ inline bool DataStorage<void>::write(const string& prefix_output_filename, const
 }
 
 template<typename U>
-bool DataStorage<U>::read(const string& filename_colors, const size_t nb_threads, const bool verbose) {
+bool DataStorage<U>::read(const string& color_fn, const size_t nb_threads, const bool verbose) {
 
     if (verbose) cout << endl << "DataStorage::read(): Reading color sets from disk" << endl;
 
-    FILE* fp = fopen(filename_colors.c_str(), "rb");
+    FILE* fp = fopen(color_fn.c_str(), "rb");
 
     if (fp == NULL) {
 
-        cerr << "DataStorage::read(): Could not open file " << filename_colors << " for reading color sets" << endl;
+        cerr << "DataStorage::read(): Could not open file " << color_fn << " for reading color sets" << endl;
         return false;
     }
     else fclose(fp);
@@ -823,7 +823,7 @@ bool DataStorage<U>::read(const string& filename_colors, const size_t nb_threads
     ifstream colorsfile_in;
     istream colors_in(nullptr);
 
-    colorsfile_in.open(filename_colors.c_str(), ios_base::in | ios_base::binary);
+    colorsfile_in.open(color_fn.c_str(), ios_base::in | ios_base::binary);
     colors_in.rdbuf(colorsfile_in.rdbuf());
 
     clear();
@@ -847,6 +847,44 @@ bool DataStorage<U>::read(const string& filename_colors, const size_t nb_threads
 
         cerr << "DataStorage::read(): Does not support more than 255 hash seeds" << endl;
         return false;
+    }
+
+    if (format_version < 3) { // Color files v1 and v2 are incompatible with Bifrost v1.0.6.2 and versions onward
+
+        stringstream ss_bfg_version(string(BFG_VERSION));
+        string segment;
+
+        vector<int> seglist;
+
+        while(getline(ss_bfg_version, segment, '.')) seglist.push_back(atoi(segment.c_str()));
+
+        const size_t len_bfg_v = seglist.size();
+
+        bool compatible = false;
+
+        if (seglist[0] == 0) compatible = true; // Major version is 0, compatible
+        else if (seglist[0] == 1) { // Version is 1xxxxxxxx
+
+            if (len_bfg_v >= 2){
+
+                if (seglist[1] == 0) { // Version is 1.0xxxxxxx
+
+                    if (len_bfg_v >= 3) {
+
+                        if (seglist[2] < 6) compatible = true; // Version is 1.0.5xxxxxxx or before
+                        else if (seglist[2] == 6) compatible = (len_bfg_v < 4) || ((len_bfg_v >= 4) && (seglist[3] < 2)); // Version is 1.0.6xxxxxxx, compatible if below 1.0.6.2
+                    }
+                    else compatible = true;
+                }
+            }
+            else compatible = true;
+        }
+
+        if (!compatible) {
+
+            cerr << "DataStorage::read(): Color files v1 and v2 (computed prior to Bifrost v1.0.6.2) are incompatible with Bifrost v1.0.6.2 and versions onward." << endl;
+            return false;
+        }
     }
 
     const size_t sz_unitig_cs_link = (sz_cs >> 6) + ((sz_cs & 0x3F) != 0);
@@ -938,7 +976,7 @@ bool DataStorage<U>::read(const string& filename_colors, const size_t nb_threads
                         ifstream colorsfile_in_t;
                         istream colors_in_t(nullptr);
 
-                        colorsfile_in_t.open(filename_colors.c_str(), ios_base::in | ios_base::binary);
+                        colorsfile_in_t.open(color_fn.c_str(), ios_base::in | ios_base::binary);
                         colors_in_t.rdbuf(colorsfile_in_t.rdbuf());
 
                         while (true) {
@@ -982,7 +1020,7 @@ bool DataStorage<U>::read(const string& filename_colors, const size_t nb_threads
                         ifstream colorsfile_in_t;
                         istream colors_in_t(nullptr);
 
-                        colorsfile_in_t.open(filename_colors.c_str(), ios_base::in | ios_base::binary);
+                        colorsfile_in_t.open(color_fn.c_str(), ios_base::in | ios_base::binary);
                         colors_in_t.rdbuf(colorsfile_in_t.rdbuf());
 
                         while (true) {
@@ -1016,7 +1054,7 @@ bool DataStorage<U>::read(const string& filename_colors, const size_t nb_threads
 
             for (auto& t : workers) t.join();
 
-            colorsfile_in.open(filename_colors.c_str(), ios_base::in | ios_base::binary);
+            colorsfile_in.open(color_fn.c_str(), ios_base::in | ios_base::binary);
             colors_in.rdbuf(colorsfile_in.rdbuf());
             colors_in.seekg(colors_in_pos);
         }
@@ -1042,15 +1080,15 @@ bool DataStorage<U>::read(const string& filename_colors, const size_t nb_threads
 }
 
 template<>
-inline bool DataStorage<void>::read(const string& filename_colors, const size_t nb_threads, const bool verbose) {
+inline bool DataStorage<void>::read(const string& color_fn, const size_t nb_threads, const bool verbose) {
 
     if (verbose) cout << endl << "DataStorage::read(): Reading color sets from disk" << endl;
 
-    FILE* fp = fopen(filename_colors.c_str(), "rb");
+    FILE* fp = fopen(color_fn.c_str(), "rb");
 
     if (fp == NULL) {
 
-        cerr << "DataStorage::read(): Could not open file " << filename_colors << " for reading color sets" << endl;
+        cerr << "DataStorage::read(): Could not open file " << color_fn << " for reading color sets" << endl;
         return false;
     }
     else fclose(fp);
@@ -1078,7 +1116,7 @@ inline bool DataStorage<void>::read(const string& filename_colors, const size_t 
     ifstream colorsfile_in;
     istream colors_in(nullptr);
 
-    colorsfile_in.open(filename_colors.c_str(), ios_base::in | ios_base::binary);
+    colorsfile_in.open(color_fn.c_str(), ios_base::in | ios_base::binary);
     colors_in.rdbuf(colorsfile_in.rdbuf());
 
     clear();
@@ -1102,6 +1140,44 @@ inline bool DataStorage<void>::read(const string& filename_colors, const size_t 
 
         cerr << "DataStorage::read(): Does not support more than 255 hash seeds" << endl;
         return false;
+    }
+
+    if (format_version < 3) { // Color files v1 and v2 are incompatible with Bifrost v1.0.6.2 and versions onward
+
+        stringstream ss_bfg_version(string(BFG_VERSION));
+        string segment;
+
+        vector<int> seglist;
+
+        while(getline(ss_bfg_version, segment, '.')) seglist.push_back(atoi(segment.c_str()));
+
+        const size_t len_bfg_v = seglist.size();
+
+        bool compatible = false;
+
+        if (seglist[0] == 0) compatible = true; // Major version is 0, compatible
+        else if (seglist[0] == 1) { // Version is 1xxxxxxxx
+
+            if (len_bfg_v >= 2){
+
+                if (seglist[1] == 0) { // Version is 1.0xxxxxxx
+
+                    if (len_bfg_v >= 3) {
+
+                        if (seglist[2] < 6) compatible = true; // Version is 1.0.5xxxxxxx or before
+                        else if (seglist[2] == 6) compatible = (len_bfg_v < 4) || ((len_bfg_v >= 4) && (seglist[3] < 2)); // Version is 1.0.6xxxxxxx, compatible if below 1.0.6.2
+                    }
+                    else compatible = true;
+                }
+            }
+            else compatible = true;
+        }
+
+        if (!compatible) {
+
+            cerr << "DataStorage::read(): Color files v1 and v2 (computed prior to Bifrost v1.0.6.2) are incompatible with Bifrost v1.0.6.2 and versions onward." << endl;
+            return false;
+        }
     }
 
     const size_t sz_unitig_cs_link = (sz_cs >> 6) + ((sz_cs & 0x3F) != 0);
@@ -1192,7 +1268,7 @@ inline bool DataStorage<void>::read(const string& filename_colors, const size_t 
                         ifstream colorsfile_in_t;
                         istream colors_in_t(nullptr);
 
-                        colorsfile_in_t.open(filename_colors.c_str(), ios_base::in | ios_base::binary);
+                        colorsfile_in_t.open(color_fn.c_str(), ios_base::in | ios_base::binary);
                         colors_in_t.rdbuf(colorsfile_in_t.rdbuf());
 
                         while (true) {
@@ -1236,7 +1312,7 @@ inline bool DataStorage<void>::read(const string& filename_colors, const size_t 
                         ifstream colorsfile_in_t;
                         istream colors_in_t(nullptr);
 
-                        colorsfile_in_t.open(filename_colors.c_str(), ios_base::in | ios_base::binary);
+                        colorsfile_in_t.open(color_fn.c_str(), ios_base::in | ios_base::binary);
                         colors_in_t.rdbuf(colorsfile_in_t.rdbuf());
 
                         while (true) {
@@ -1270,7 +1346,7 @@ inline bool DataStorage<void>::read(const string& filename_colors, const size_t 
 
             for (auto& t : workers) t.join();
 
-            colorsfile_in.open(filename_colors.c_str(), ios_base::in | ios_base::binary);
+            colorsfile_in.open(color_fn.c_str(), ios_base::in | ios_base::binary);
             colors_in.rdbuf(colorsfile_in.rdbuf());
             colors_in.seekg(colors_in_pos);
         }

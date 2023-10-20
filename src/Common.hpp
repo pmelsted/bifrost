@@ -3,8 +3,12 @@
 
 #include <cassert>
 #include <algorithm>
+#include <fstream>
+
 #include <stdint.h>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <zlib.h>
 
 #include "wyhash.h"
 
@@ -26,8 +30,14 @@
 
 #define BUFFER_SIZE 1048576
 
-#define BFG_VERSION "1.0.6"
-#define BFG_BUG_EMAIL "guillaume[d0T}holley{aT}gmail[d0T}com"
+#define BFG_VERSION "1.3.0"
+
+#define BFG_METABIN_FORMAT_VERSION 2
+#define BFG_GRAPHBIN_FORMAT_VERSION 1
+#define BFG_COLOREDCDBG_FORMAT_VERSION 3
+
+#define BFG_METABIN_FORMAT_HEADER 0x267c3d5d
+#define BFG_GRAPHBIN_FORMAT_HEADER 0x7e215f3f
 
 using namespace std;
 
@@ -39,6 +49,17 @@ BFG_INLINE bool isDNA(const char c) {
 
     return static_cast<bool>((DNAbits[c >> 6] >> (c & 0x3F)) & 0x1ULL);
 }
+
+BFG_INLINE uint8_t convertDNAtoIndex(const char c) {
+
+    return (0b11 & ((c >> 2) ^ (c >> 1)));
+}
+
+BFG_INLINE uint8_t convertDNAtoComplementIndex(const char c) {
+
+    return (0x3 - (0b11 & ((c >> 2) ^ (c >> 1))));
+}
+
 
 BFG_INLINE size_t cstrMatch(const char* a, const char* b) {
 
@@ -204,6 +225,48 @@ BFG_INLINE bool check_file_exists(const string& filename) {
     struct stat stFileInfo;
 
     return (stat(filename.c_str(), &stFileInfo) == 0);
+}
+
+BFG_INLINE bool check_dir_writable(const string& path) {
+
+    return (access(path.c_str(), W_OK) == 0);
+}
+
+BFG_INLINE bool check_dir_readable(const string& path) {
+
+    return (access(path.c_str(), R_OK) == 0);
+}
+
+BFG_INLINE uint32_t crc32_checksum(istream& in) {
+
+    unsigned char buffer[65536];
+
+    uint32_t crc = 0, prev_crc = crc + 1;
+
+    while (in.good() && (crc != prev_crc)) {
+
+        in.read(reinterpret_cast<char*>(buffer), 65536 * sizeof(char));
+
+        const size_t len_buffer_read = in.gcount();
+
+        prev_crc = crc;
+        crc = crc32(crc, buffer, len_buffer_read);
+    }
+
+    return crc;
+}
+
+BFG_INLINE uint32_t crc32_checksum(const string& fn) {
+
+    if ((fn.length() == 0) || !check_file_exists(fn)) return 0;
+
+    ifstream infile;
+    istream in(0);
+
+    infile.open(fn.c_str());
+    in.rdbuf(infile.rdbuf());
+
+    return crc32_checksum(in);
 }
 
 template<typename T> class wrapperData {

@@ -1,25 +1,6 @@
 #ifndef BIFROST_COMPACTED_DBG_TCC
 #define BIFROST_COMPACTED_DBG_TCC
 
-static const uint8_t bits[256] = {
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-};
-
 template<typename U, typename G>
 CompactedDBG<U, G>::CompactedDBG(const int kmer_length, const int minimizer_length) : invalid(false) {
 
@@ -28,7 +9,7 @@ CompactedDBG<U, G>::CompactedDBG(const int kmer_length, const int minimizer_leng
 
 template<typename U, typename G>
 CompactedDBG<U, G>::CompactedDBG(const CompactedDBG<U, G>& o) : k_(o.k_), g_(o.g_), invalid(o.invalid),
-                                                                bf(o.bf), km_unitigs(o.km_unitigs), v_unitigs(o.v_unitigs.size(), nullptr),
+                                                                km_unitigs(o.km_unitigs), v_unitigs(o.v_unitigs.size(), nullptr),
                                                                 data(o.data), h_kmers_ccov(o.h_kmers_ccov),
                                                                 hmap_min_unitigs(o.hmap_min_unitigs){
 
@@ -41,9 +22,9 @@ CompactedDBG<U, G>::CompactedDBG(const CompactedDBG<U, G>& o) : k_(o.k_), g_(o.g
 
 template<typename U, typename G>
 CompactedDBG<U, G>::CompactedDBG(CompactedDBG<U, G>&& o) :  k_(o.k_), g_(o.g_), invalid(o.invalid),
-                                                            bf(std::move(o.bf)), km_unitigs(std::move(o.km_unitigs)), data(std::move(o.data)),
-                                                            v_unitigs(std::move(o.v_unitigs)), h_kmers_ccov(std::move(o.h_kmers_ccov)),
-                                                            hmap_min_unitigs(std::move(o.hmap_min_unitigs)){
+                                                            km_unitigs(move(o.km_unitigs)), data(move(o.data)),
+                                                            v_unitigs(move(o.v_unitigs)), h_kmers_ccov(move(o.h_kmers_ccov)),
+                                                            hmap_min_unitigs(move(o.hmap_min_unitigs)){
 
     o.clear();
 }
@@ -68,8 +49,6 @@ CompactedDBG<U, G>& CompactedDBG<U, G>::operator=(const CompactedDBG<U, G>& o){
 
     h_kmers_ccov = o.h_kmers_ccov;
     hmap_min_unitigs = o.hmap_min_unitigs;
-
-    bf = o.bf;
 
     data = o.data;
 
@@ -96,7 +75,6 @@ CompactedDBG<U, G>& CompactedDBG<U, G>::toDataGraph(CompactedDBG<void, void>&& o
     km_unitigs.toData(std::move(o.km_unitigs), nb_threads);
 
     hmap_min_unitigs = std::move(o.hmap_min_unitigs);
-    bf = std::move(o.bf);
 
     data = wrapperData<G>();
 
@@ -176,8 +154,6 @@ CompactedDBG<U, G>& CompactedDBG<U, G>::operator=(CompactedDBG<U, G>&& o){
         h_kmers_ccov = std::move(o.h_kmers_ccov);
         hmap_min_unitigs = std::move(o.hmap_min_unitigs);
 
-        bf = std::move(o.bf);
-
         data = std::move(o.data);
 
         o.clear();
@@ -201,17 +177,18 @@ bool CompactedDBG<U, G>::operator==(const CompactedDBG<U, G>& o) const {
 
         for (const auto& unitig : *this){
 
-            const_UnitigMap<U, G> unitig_o(o.find(unitig.getUnitigHead(), true));
+            const_UnitigMap<U, G> um_o(o.find(unitig.getUnitigHead(), true));
 
-            if (unitig_o.isEmpty) return false;
+            if (um_o.isEmpty) return false;
             else {
 
-                unitig_o.dist = 0;
-                unitig_o.len = unitig_o.size - k_ + 1;
+                um_o.dist = 0;
+                um_o.len = um_o.size - k_ + 1;
 
-                const string unitig_o_str = unitig_o.strand ? unitig_o.referenceUnitigToString() : reverse_complement(unitig_o.referenceUnitigToString());
+                const string unitig_str = unitig.referenceUnitigToString();
+                const string unitig_o_str = um_o.referenceUnitigToString();
 
-                if (unitig_o_str != unitig.referenceUnitigToString()) return false;
+                if ((unitig_o_str != unitig_str) && (reverse_complement(unitig_o_str) != unitig_str)) return false;
             }
         }
 
@@ -241,7 +218,6 @@ void CompactedDBG<U, G>::clear(){
     km_unitigs.clear();
     hmap_min_unitigs.clear();
     h_kmers_ccov.clear();
-    bf.clear();
 }
 
 /*template<typename U, typename G>
@@ -694,46 +670,16 @@ bool CompactedDBG<U, G>::build(CDBG_Build_opt& opt){
 
             setFullCoverage(reference_mode ? 1 : 2);
 
-            if (opt.inFilenameBBF.length() != 0){
+            {
+                DualBlockedBloomFilter dbbf;
+                Roaring r;
 
-                FILE* fp = fopen(opt.inFilenameBBF.c_str(), "rb");
+                construct_finished = filter(opt, dbbf, r, nb_unique_kmers, nb_non_unique_kmers);
 
-                if (fp == NULL) {
+                if (construct_finished) construct_finished = construct(opt, dbbf, r, nb_unique_minimizers, nb_non_unique_minimizers, nb_unique_kmers, nb_non_unique_kmers); // Construction step
 
-                    cerr << "CompactedDBG::build(): Could not open input Blocked Bloom filter file " << opt.inFilenameBBF << "." << endl;
-                    construct_finished = false;
-                }
-                else {
-
-                    construct_finished = bf.ReadBloomFilter(fp);
-
-                    fclose(fp);
-                }
-            }
-            else construct_finished = filter(opt, nb_unique_kmers, nb_non_unique_kmers);
-
-            if (construct_finished){
-
-                if (opt.outFilenameBBF.length() != 0){
-
-                    FILE* fp = fopen(opt.outFilenameBBF.c_str(), "wb");
-
-                    if (fp == NULL) {
-
-                        cerr << "CompactedDBG::build(): Could not open Blocked Bloom filter file " << opt.outFilenameBBF << " for writing." << endl;
-                        construct_finished = false;
-                    }
-                    else {
-
-                        bf.WriteBloomFilter(fp);
-
-                        fclose(fp);
-                    }
-                }
-
-                if (construct_finished) construct_finished = construct(opt, nb_unique_minimizers, nb_non_unique_minimizers); // Construction step
-
-                bf.clear();
+                dbbf.clear();
+                r.clear();
             }
         }
     }
@@ -769,184 +715,7 @@ bool CompactedDBG<U, G>::simplify(const bool delete_short_isolated_unitigs, cons
             cout << "CompactedDBG::simplify(): Removed " << removed << " unitigs" << endl;
             cout << "CompactedDBG::simplify(): Joined " << joined << " unitigs" << endl;
         }
-
-        return true;
     }
-
-    return false;
-}
-
-template<typename U, typename G>
-bool CompactedDBG<U, G>::write(const string& output_filename, const size_t nb_threads, const bool GFA_output, const bool verbose) const {
-
-    if (invalid){
-
-        cerr << "CompactedDBG::write(): Graph is invalid and cannot be written to disk" << endl;
-        return false;
-    }
-
-    if (nb_threads <= 0){
-
-        cerr << "CompactedDBG::write(): Number of threads cannot be less than 0" << endl;
-        return false;
-    }
-
-    if (nb_threads > std::thread::hardware_concurrency()){
-
-        cerr << "CompactedDBG::write(): Number of threads cannot exceed " << std::thread::hardware_concurrency() << "threads" << endl;
-        return false;
-    }
-
-    if (verbose) cout << endl << "CompactedDBG::write(): Writing graph to disk" << endl;
-
-    const string out = output_filename + (GFA_output ? ".gfa" : ".fasta");
-
-    FILE* fp = fopen(out.c_str(), "w");
-
-    if (fp == NULL) {
-
-        cerr << "CompactedDBG::write(): Could not open file " << out << " for writing graph" << endl;
-        return false;
-    }
-    else {
-
-        fclose(fp);
-        if (std::remove(out.c_str()) != 0) cerr << "CompactedDBG::write(): Could not remove temporary file " << out << endl;
-    }
-
-    GFA_output ? writeGFA(out, nb_threads) : writeFASTA(out);
-
-    return true;
-}
-
-template<typename U, typename G>
-bool CompactedDBG<U, G>::read(const string& input_filename, const size_t nb_threads, const bool verbose){
-
-    if (verbose) cout << endl << "CompactedDBG::read(): Reading graph from disk" << endl;
-
-    const int format = FileParser::getFileFormat(input_filename.c_str());
-
-    if (format == -1){
-
-        cerr << "CompactedDBG::read(): Input file " << input_filename << " does not exist, is ill-formed or is not in FASTA/FASTQ/GFA format." << endl;
-
-        return false;
-    }
-    else if ((format != 0) && (format != 2)){
-
-        cerr << "CompactedDBG::read(): Input file must be in FASTA or GFA format." << endl;
-
-        return false;
-    }
-
-    if (format == 2){ // GFA format
-
-        FILE* fp = fopen(input_filename.c_str(), "r");
-
-        if (fp == NULL) {
-
-            cerr << "CompactedDBG::read(): Could not open file " << input_filename << " for reading graph" << endl;
-            return false;
-        }
-
-        fclose(fp);
-
-        char buffer[4096];
-
-        ifstream graphfile_in(input_filename);
-        istream graph_in(graphfile_in.rdbuf());
-
-        graph_in.getline(buffer, 4096); // Read and discard header
-        graphfile_in.close();
-
-        const string header(buffer);
-
-        if (header[0] != 'H'){
-
-            cerr << "CompactedDBG::read(): An error occurred while reading input GFA file." << endl;
-            return false;
-        }
-
-        stringstream hs(&buffer[2]); // Skip the first 2 char. of the line "H\t"
-        string sub;
-
-        int k = k_;
-        int g = g_;
-
-        while (hs.good()){ // Split line based on tabulation
-
-            getline(hs, sub, '\t');
-
-            const string tag = sub.substr(0, 5);
-
-            if (tag == "KL:Z:") k = atoi(sub.c_str() + 5);
-            else if (tag == "ML:Z:") g = atoi(sub.c_str() + 5);
-        }
-
-        clear();
-
-        {
-            KmerStream_Build_opt kms_opt;
-
-            kms_opt.threads = nb_threads;
-            kms_opt.verbose = verbose;
-            kms_opt.k = k;
-            kms_opt.g = g;
-            kms_opt.q = 0;
-
-            kms_opt.files.push_back(input_filename);
-
-            KmerStream kms(kms_opt);
-
-            MinimizerIndex hmap_min_unitigs_tmp(max(1UL, kms.MinimizerF0()) * 1.05);
-            hmap_min_unitigs = std::move(hmap_min_unitigs_tmp);
-        }
-
-        setKmerGmerLength(k, g);
-
-        if (!invalid) readGFA(input_filename, nb_threads);
-
-        if (verbose) cout << endl << "CompactedDBG::read(): Finished reading graph from disk" << endl;
-
-        return !invalid;
-    }
-    else {
-
-        const int k = k_;
-        const int g = g_;
-
-        clear();
-
-        {
-            KmerStream_Build_opt kms_opt;
-
-            kms_opt.threads = nb_threads;
-            kms_opt.verbose = verbose;
-            kms_opt.k = k;
-            kms_opt.g = g;
-            kms_opt.q = 0;
-
-            kms_opt.files.push_back(input_filename);
-
-            KmerStream kms(kms_opt);
-
-            MinimizerIndex hmap_min_unitigs_tmp(max(1UL, kms.MinimizerF0()) * 1.05);
-
-            hmap_min_unitigs = std::move(hmap_min_unitigs_tmp);
-        }
-
-        setKmerGmerLength(k, g);
-
-        readFASTA(input_filename, nb_threads);
-    }
-
-    setFullCoverage(1);
-
-    for (auto& unitig : *this) unitig.setFullCoverage();
-
-    invalid = false;
-
-    if (verbose) cout << endl << "CompactedDBG::read(): Finished reading graph from disk" << endl;
 
     return true;
 }
@@ -978,7 +747,8 @@ const_UnitigMap<U, G> CompactedDBG<U, G>::find(const char* s, const size_t pos_k
     while (it_it_min != it_it_min_end){
 
         const minHashResult& min_h_res = *it_it_min;
-        const size_t min_h_res_pos_km = min_h_res.pos - pos_km;
+        const size_t min_h_res_pos_km  = min_h_res.pos - pos_km;
+
         Minimizer minz(Minimizer(s + min_h_res.pos).rep());
         MinimizerIndex::const_iterator it = hmap_min_unitigs.find(minz);
 
@@ -1102,6 +872,7 @@ UnitigMap<U, G> CompactedDBG<U, G>::find(const char* s, const size_t pos_km, con
 
         const minHashResult& min_h_res = *it_it_min;
         const size_t min_h_res_pos_km = min_h_res.pos - pos_km;
+
         Minimizer minz(Minimizer(s + min_h_res.pos).rep());
         MinimizerIndex::const_iterator it = hmap_min_unitigs.find(minz);
 
@@ -1209,13 +980,13 @@ const_UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extrem
     const Kmer km_twin = km.twin();
     const Kmer& km_rep = km < km_twin ? km : km_twin;
 
-    bool isShort;
-
     size_t unitig_id_pos, unitig_id, len;
 
     int64_t pos_match;
 
     const int diff = k_ - g_;
+
+    bool isShort;
 
     char km_tmp[MAX_KMER_SIZE];
     km.toString(km_tmp); // Set k-mer to look-up in string version
@@ -1225,6 +996,7 @@ const_UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const bool extrem
     while (it_min != it_min_end){
 
         int mhr_pos = it_min.getPosition();
+
         Minimizer minz(Minimizer(km_tmp + mhr_pos).rep());
         MinimizerIndex::const_iterator it = hmap_min_unitigs.find(minz);
 
@@ -1577,7 +1349,9 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& k
 
                         for (size_t j = 0; j != 4; ++j){
 
-                            if ((it_km = h_kmers_ccov.find(km_rep[j])) != h_kmers_ccov.end()){
+                            it_km = h_kmers_ccov.find(km_rep[j]);
+
+                            if (it_km!= h_kmers_ccov.end()){
 
                                 v_um[j].partialCopy(const_UnitigMap<U, G>(it_km.getHash(), 0, 1, k_, false, true, km_pred[j] == km_rep[j], this));
                             }
@@ -1607,7 +1381,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& k
 
                             const Kmer km_unitig = km_unitigs.getKmer(unitig_id);
 
-                            uint8_t idx = bits[km_unitig.getChar(0)];
+                            uint8_t idx = convertDNAtoIndex(km_unitig.getChar(0));
 
                             if (km_unitig == km_rep[idx]) {
 
@@ -1615,7 +1389,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& k
                             }
                             else {
 
-                                idx = 0x3 - bits[km_unitig.getChar(k_ - 1)];
+                                idx = convertDNAtoComplementIndex(km_unitig.getChar(k_ - 1));
 
                                 if (km_unitig == km_rep[idx]) {
 
@@ -1633,7 +1407,8 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& k
 
                             if (((pos_match == 0) || (pos_match == len)) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match + 1, k_ - 1, km)){
 
-                                const uint8_t idx = bits[v_unitigs[unitig_id]->getSeq().getChar(pos_match)];
+                                const uint8_t idx = convertDNAtoIndex(v_unitigs[unitig_id]->getSeq().getChar(pos_match));
+
                                 v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, true, this));
                             }
 
@@ -1641,7 +1416,8 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& k
 
                             if (((pos_match == 0) || (pos_match == len)) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match, k_ - 1, km_twin_a)){
 
-                                const uint8_t idx = 0x3 - bits[v_unitigs[unitig_id]->getSeq().getChar(pos_match + k_ - 1)];
+                                const uint8_t idx = convertDNAtoComplementIndex(v_unitigs[unitig_id]->getSeq().getChar(pos_match + k_ - 1));
+
                                 v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, false, this));
                             }
                         }
@@ -1649,7 +1425,8 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& k
 
                             if ((pos_match >= 0) && (pos_match <= len) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match + 1, k_ - 1, km)){
 
-                                const uint8_t idx = bits[v_unitigs[unitig_id]->getSeq().getChar(pos_match)];
+                                const uint8_t idx = convertDNAtoIndex(v_unitigs[unitig_id]->getSeq().getChar(pos_match));
+
                                 v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, true, this));
                             }
 
@@ -1657,7 +1434,8 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& k
 
                             if ((pos_match >= 0) && (pos_match <= len) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match, k_ - 1, km_twin_a)){
 
-                                const uint8_t idx = 0x3 - bits[v_unitigs[unitig_id]->getSeq().getChar(pos_match + k_ - 1)];
+                                const uint8_t idx = convertDNAtoComplementIndex(v_unitigs[unitig_id]->getSeq().getChar(pos_match + k_ - 1));
+
                                 v_um[idx].partialCopy(const_UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, false, this));
                             }
                         }
@@ -1727,7 +1505,9 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& km, con
 
                         for (size_t j = 0; j != 4; ++j){
 
-                            if ((it_km = h_kmers_ccov.find(km_rep[j])) != h_kmers_ccov.end()){
+                            it_km = h_kmers_ccov.find(km_rep[j]);
+
+                            if (it_km != h_kmers_ccov.end()){
 
                                 v_um[j] = UnitigMap<U, G>(it_km.getHash(), 0, 1, k_, false, true, km_pred[j] == km_rep[j], this);
                             }
@@ -1757,7 +1537,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& km, con
 
                             const Kmer km_unitig = km_unitigs.getKmer(unitig_id);
 
-                            uint8_t idx = bits[km_unitig.getChar(0)];
+                            uint8_t idx = convertDNAtoIndex(km_unitig.getChar(0));
 
                             if (km_unitig == km_rep[idx]) {
 
@@ -1765,7 +1545,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& km, con
                             }
                             else {
 
-                                idx = 0x3 - bits[km_unitig.getChar(k_ - 1)];
+                                idx = convertDNAtoComplementIndex(km_unitig.getChar(k_ - 1));
 
                                 if (km_unitig == km_rep[idx]) {
 
@@ -1783,7 +1563,8 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& km, con
 
                             if (((pos_match == 0) || (pos_match == len)) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match + 1, k_ - 1, km)){
 
-                                const uint8_t idx = bits[v_unitigs[unitig_id]->getSeq().getChar(pos_match)];
+                                const uint8_t idx = convertDNAtoIndex(v_unitigs[unitig_id]->getSeq().getChar(pos_match));
+
                                 v_um[idx] = UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, true, this);
                             }
 
@@ -1791,7 +1572,8 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& km, con
 
                             if (((pos_match == 0) || (pos_match == len)) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match, k_ - 1, km_twin_a)){
 
-                                const uint8_t idx = 0x3 - bits[v_unitigs[unitig_id]->getSeq().getChar(pos_match + k_ - 1)];
+                                const uint8_t idx = convertDNAtoComplementIndex(v_unitigs[unitig_id]->getSeq().getChar(pos_match + k_ - 1));
+
                                 v_um[idx] = UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, false, this);
                             }
                         }
@@ -1799,7 +1581,8 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& km, con
 
                             if ((pos_match >= 0) && (pos_match <= len) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match + 1, k_ - 1, km)){
 
-                                const uint8_t idx = bits[v_unitigs[unitig_id]->getSeq().getChar(pos_match)];
+                                const uint8_t idx = convertDNAtoIndex(v_unitigs[unitig_id]->getSeq().getChar(pos_match));
+
                                 v_um[idx] = UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, true, this);
                             }
 
@@ -1807,7 +1590,8 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findPredecessors(const Kmer& km, con
 
                             if ((pos_match >= 0) && (pos_match <= len) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match, k_ - 1, km_twin_a)){
 
-                                const uint8_t idx = 0x3 - bits[v_unitigs[unitig_id]->getSeq().getChar(pos_match + k_ - 1)];
+                                const uint8_t idx = convertDNAtoComplementIndex(v_unitigs[unitig_id]->getSeq().getChar(pos_match + k_ - 1));
+
                                 v_um[idx] = UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, false, this);
                             }
                         }
@@ -1881,11 +1665,16 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
 
                         for (size_t j = 0; j != 4; ++j){
 
-                            if (v_um[j].isEmpty && ((it_km = h_kmers_ccov.find(km_rep[j])) != h_kmers_ccov.end())){
+                            if (v_um[j].isEmpty) {
 
-                                v_um[j].partialCopy(const_UnitigMap<U, G>(it_km.getHash(), 0, 1, k_, false, true, km_succ[j] == km_rep[j], this));
+                                it_km = h_kmers_ccov.find(km_rep[j]);
 
-                                if (++nb_found == limit) return v_um;
+                                if (it_km != h_kmers_ccov.end()){
+
+                                    v_um[j].partialCopy(const_UnitigMap<U, G>(it_km.getHash(), 0, 1, k_, false, true, km_succ[j] == km_rep[j], this));
+
+                                    if (++nb_found == limit) return v_um;
+                                }
                             }
                         }
                     }
@@ -1913,7 +1702,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
 
                             const Kmer km_unitig = km_unitigs.getKmer(unitig_id);
 
-                            uint8_t idx = bits[km_unitig.getChar(k_ - 1)];
+                            uint8_t idx = convertDNAtoIndex(km_unitig.getChar(k_ - 1));
 
                             if (v_um[idx].isEmpty && (km_unitig == km_rep[idx])){
 
@@ -1923,7 +1712,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
                             }
                             else {
 
-                                idx = 0x3 - bits[km_unitig.getChar(0)];
+                                idx = convertDNAtoComplementIndex(km_unitig.getChar(0));
 
                                 if (v_um[idx].isEmpty && (km_unitig == km_rep[idx])){
 
@@ -1943,7 +1732,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
 
                             if (((pos_match == 0) || (pos_match == len)) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match, k_ - 1, km_succ[0])){
 
-                                const int idx = bits[v_unitigs[unitig_id]->getSeq().getChar(pos_match + k_ - 1)];
+                                const int idx = convertDNAtoIndex(v_unitigs[unitig_id]->getSeq().getChar(pos_match + k_ - 1));
 
                                 if (v_um[idx].isEmpty){
 
@@ -1957,7 +1746,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
 
                             if (((pos_match == 0) || (pos_match == len)) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match + 1, k_ - 1, km_twin_a)){
 
-                                const int idx = 0x3 - bits[v_unitigs[unitig_id]->getSeq().getChar(pos_match)];
+                                const int idx = convertDNAtoComplementIndex(v_unitigs[unitig_id]->getSeq().getChar(pos_match));
 
                                 if (v_um[idx].isEmpty){
 
@@ -1971,7 +1760,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
 
                             if ((pos_match >= 0) && (pos_match <= len) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match, k_ - 1, km_succ[0])){
 
-                                const int idx = bits[v_unitigs[unitig_id]->getSeq().getChar(pos_match + k_ - 1)];
+                                const int idx = convertDNAtoIndex(v_unitigs[unitig_id]->getSeq().getChar(pos_match + k_ - 1));
 
                                 if (v_um[idx].isEmpty){
 
@@ -1986,7 +1775,7 @@ vector<const_UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km,
 
                             if ((pos_match >= 0) && (pos_match <= len) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match + 1, k_ - 1, km_twin_a)){
 
-                                const int idx = 0x3 - bits[v_unitigs[unitig_id]->getSeq().getChar(pos_match)];
+                                const int idx = convertDNAtoComplementIndex(v_unitigs[unitig_id]->getSeq().getChar(pos_match));
 
                                 if (v_um[idx].isEmpty){
 
@@ -2066,11 +1855,16 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
 
                         for (size_t j = 0; j != 4; ++j){
 
-                            if (v_um[j].isEmpty && ((it_km = h_kmers_ccov.find(km_rep[j])) != h_kmers_ccov.end())){
+                            if (v_um[j].isEmpty) {
 
-                                v_um[j] = UnitigMap<U, G>(it_km.getHash(), 0, 1, k_, false, true, km_succ[j] == km_rep[j], this);
+                                it_km = h_kmers_ccov.find(km_rep[j]);
 
-                                if (++nb_found == limit) return v_um;
+                                if (it_km != h_kmers_ccov.end()){
+
+                                    v_um[j] = UnitigMap<U, G>(it_km.getHash(), 0, 1, k_, false, true, km_succ[j] == km_rep[j], this);
+
+                                    if (++nb_found == limit) return v_um;
+                                }
                             }
                         }
                     }
@@ -2098,7 +1892,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
 
                             const Kmer km_unitig = km_unitigs.getKmer(unitig_id);
 
-                            uint8_t idx = bits[km_unitig.getChar(k_ - 1)];
+                            uint8_t idx = convertDNAtoIndex(km_unitig.getChar(k_ - 1));
 
                             if (v_um[idx].isEmpty && (km_unitig == km_rep[idx])){
 
@@ -2108,7 +1902,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
                             }
                             else {
 
-                                idx = 0x3 - bits[km_unitig.getChar(0)];
+                                idx = convertDNAtoComplementIndex(km_unitig.getChar(0));
 
                                 if (v_um[idx].isEmpty && (km_unitig == km_rep[idx])){
 
@@ -2128,7 +1922,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
 
                             if (((pos_match == 0) || (pos_match == len)) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match, k_ - 1, km_succ[0])){
 
-                                const int idx = bits[v_unitigs[unitig_id]->getSeq().getChar(pos_match + k_ - 1)];
+                                const int idx = convertDNAtoIndex(v_unitigs[unitig_id]->getSeq().getChar(pos_match + k_ - 1));
 
                                 if (v_um[idx].isEmpty){
 
@@ -2142,7 +1936,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
 
                             if (((pos_match == 0) || (pos_match == len)) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match + 1, k_ - 1, km_twin_a)){
 
-                                const int idx = 0x3 - bits[v_unitigs[unitig_id]->getSeq().getChar(pos_match)];
+                                const int idx = convertDNAtoComplementIndex(v_unitigs[unitig_id]->getSeq().getChar(pos_match));
 
                                 if (v_um[idx].isEmpty){
 
@@ -2156,7 +1950,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
 
                             if ((pos_match >= 0) && (pos_match <= len) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match, k_ - 1, km_succ[0])){
 
-                                const int idx = bits[v_unitigs[unitig_id]->getSeq().getChar(pos_match + k_ - 1)];
+                                const int idx = convertDNAtoIndex(v_unitigs[unitig_id]->getSeq().getChar(pos_match + k_ - 1));
 
                                 if (v_um[idx].isEmpty){
 
@@ -2171,7 +1965,7 @@ vector<UnitigMap<U, G>> CompactedDBG<U, G>::findSuccessors(const Kmer& km, const
 
                             if ((pos_match >= 0) && (pos_match <= len) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match + 1, k_ - 1, km_twin_a)){
 
-                                const int idx = 0x3 - bits[v_unitigs[unitig_id]->getSeq().getChar(pos_match)];
+                                const int idx = convertDNAtoComplementIndex(v_unitigs[unitig_id]->getSeq().getChar(pos_match));
 
                                 if (v_um[idx].isEmpty){
 
@@ -2766,7 +2560,7 @@ size_t CompactedDBG<U, G>::nbKmers() const {
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers) {
+bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, DualBlockedBloomFilter& bf_d, Roaring& r, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers) {
 
     if (invalid){
 
@@ -2774,54 +2568,41 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_uniqu
         return false;
     }
 
-    BlockedBloomFilter bf_tmp;
-
     const bool reference_mode = (opt.filename_ref_in.size() != 0);
-
-    if (reference_mode){
-
-        BlockedBloomFilter tmp(nb_unique_kmers, opt.nb_bits_unique_kmers_bf);
-        bf = std::move(tmp);
-    }
-    else {
-
-        {
-            BlockedBloomFilter tmp(nb_unique_kmers, opt.nb_bits_unique_kmers_bf);
-            bf_tmp = std::move(tmp);
-        }
-
-        {
-            BlockedBloomFilter tmp(nb_non_unique_kmers, opt.nb_bits_non_unique_kmers_bf);
-            bf = std::move(tmp);
-        }
-    }
-
-    string s;
-
-    size_t len_read = 0;
-    size_t pos_read = 0;
-    size_t nb_seq = 0;
-
-    //const size_t max_len_seq = 1024;
-    //const size_t thread_seq_buf_sz = 64 * max_len_seq;
-    const size_t max_len_seq = rndup(static_cast<size_t>(1024 + k_ - 1));
-    const size_t thread_seq_buf_sz = BUFFER_SIZE;
-
     const bool multi_threaded = (opt.nb_threads != 1);
 
-    atomic<uint64_t> num_kmers(0), num_ins(0);
+    const size_t thread_seq_buf_sz = BUFFER_SIZE;
 
     const vector<string>& filename_in = reference_mode ? opt.filename_ref_in : opt.filename_seq_in;
 
+    size_t len_read = 0;
+    size_t pos_read = 0;
+    size_t read_id = 0;
+
+    atomic<uint64_t> num_kmers(0), num_ins(0), num_seq_tot(0);
+
+    string s;
+
     FileParser fp(filename_in);
 
-    // Main worker thread
-    auto worker_function = [&](char* seq_buf, const size_t seq_buf_sz) {
+    BlockedBloomFilter bf1, bf2;
 
-        uint64_t l_num_kmers = 0, l_num_ins = 0;
+    if (reference_mode) bf_d.initialize(nb_unique_kmers, opt.nb_bits_kmers_bf);
+    else {
+
+        bf1.initialize(nb_unique_kmers, opt.nb_bits_kmers_bf);
+        bf2.initialize(nb_non_unique_kmers, opt.nb_bits_kmers_bf);
+    }
+
+    // Main worker thread
+    auto worker_function = [&](char* seq_buf, const size_t seq_buf_sz, size_t prev_read_id) {
+
+        Roaring lr;
+
+        uint64_t l_num_kmers = 0, l_num_ins = 0, l_num_seq_tot = 0;
 
         char* str = seq_buf;
-        const char* str_end = &seq_buf[seq_buf_sz];
+        const char* str_end = seq_buf + seq_buf_sz;
 
         while (str < str_end) { // for each input
 
@@ -2832,15 +2613,23 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_uniqu
             KmerHashIterator<RepHash> it_kmer_h(str, len, k_), it_kmer_h_end;
             minHashIterator<RepHash> it_min(str, len, k_, g_, RepHash(), true);
 
-            if (reference_mode){
+            uint64_t count_new_km = 0;
+
+            if (reference_mode) {
 
                 for (; it_kmer_h != it_kmer_h_end; ++it_kmer_h, ++l_num_kmers) {
 
                     const pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
 
                     it_min += (p_.second - it_min.getKmerPosition()); //If one or more k-mer were jumped because contained non-ACGT char.
-                    l_num_ins += bf.insert(p_.first, it_min.getHash(), multi_threaded);
+
+                    const bool inserted = bf_d.insert(p_.first, it_min.getHash(), 0, multi_threaded);
+
+                    l_num_ins += static_cast<uint64_t>(inserted);
+                    count_new_km += static_cast<uint64_t>(inserted);
                 }
+
+                if (count_new_km > 0) lr.add(prev_read_id);
             }
             else {
 
@@ -2852,17 +2641,24 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_uniqu
 
                     const uint64_t min_hr = it_min.getHash();
 
-                    if (bf_tmp.insert(p_.first, min_hr, multi_threaded)) ++l_num_ins;
-                    else bf.insert(p_.first, min_hr, multi_threaded);
+                    if (bf1.insert(p_.first, min_hr, multi_threaded)) ++l_num_ins;
+                    else count_new_km += static_cast<uint64_t>(bf2.insert(p_.first, min_hr, multi_threaded));
                 }
+
+                if (count_new_km > 1) lr.add(prev_read_id);
             }
 
             str += len + 1;
+            prev_read_id += 1;
+            l_num_seq_tot += 1;
         }
 
         // atomic adds
+        num_seq_tot += l_num_seq_tot;
         num_kmers += l_num_kmers;
         num_ins += l_num_ins;
+
+        return lr;
     };
 
     auto reading_function = [&](char* seq_buf, size_t& seq_buf_sz) {
@@ -2881,9 +2677,7 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_uniqu
 
             if (!new_reading || fp.read(s, file_id)) {
 
-                nb_seq += new_reading;
-
-                //pos_read = (new_reading ? 0 : pos_read);
+                read_id += static_cast<size_t>(new_reading);
                 pos_read &= static_cast<size_t>(new_reading) - 1;
 
                 len_read = s.length();
@@ -2893,7 +2687,7 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_uniqu
 
                     if ((thread_seq_buf_sz - seq_buf_sz - 1) < (len_read - pos_read)){
 
-                        strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], thread_seq_buf_sz - seq_buf_sz - 1);
+                        strncpy(seq_buf + seq_buf_sz, s_str + pos_read, thread_seq_buf_sz - seq_buf_sz - 1);
 
                         seq_buf[thread_seq_buf_sz - 1] = '\0';
 
@@ -2904,7 +2698,7 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_uniqu
                     }
                     else {
 
-                        strcpy(&seq_buf[seq_buf_sz], &s_str[pos_read]);
+                        strcpy(seq_buf + seq_buf_sz, s_str + pos_read);
 
                         seq_buf_sz += (len_read - pos_read) + 1;
                         pos_read = len_read;
@@ -2924,16 +2718,18 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_uniqu
         vector<thread> workers; // need to keep track of threads so we can join them
 
         mutex mutex_file;
+        mutex mutex_bitmap;
 
         for (size_t t = 0; t < opt.nb_threads; ++t){
 
             workers.emplace_back(
 
-                [&]{
+                [&, t]{
 
                     char* buffer_seq = new char[thread_seq_buf_sz]();
 
                     size_t buffer_seq_sz = 0;
+                    size_t prev_read_id = 0;
 
                     while (true) {
 
@@ -2946,10 +2742,17 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_uniqu
                                 return;
                             }
 
+                            prev_read_id = read_id;
                             stop = reading_function(buffer_seq, buffer_seq_sz);
                         }
 
-                        worker_function(buffer_seq, buffer_seq_sz);
+                        const Roaring lr = worker_function(buffer_seq, buffer_seq_sz, prev_read_id);
+
+                        {
+                            unique_lock<mutex> lock(mutex_bitmap);
+
+                            r |= lr;
+                        }
                     }
 
                     delete[] buffer_seq;
@@ -2962,36 +2765,97 @@ bool CompactedDBG<U, G>::filter(const CDBG_Build_opt& opt, const size_t nb_uniqu
 
     fp.close();
 
-    if (opt.verbose) {
+    r.runOptimize();
 
-        cout << "CompactedDBG::filter(): Closed all fasta/fastq files" << endl;
-        cout << "CompactedDBG::filter(): Processed " << num_kmers << " k-mers in " << nb_seq  << " reads" << endl;
-        cout << "CompactedDBG::filter(): Found " << num_ins << " unique k-mers" << endl;
-        cout << "CompactedDBG::filter(): Number of blocks in Bloom filter is " << bf.getNbBlocks() << endl;
-    }
+    if (!reference_mode){
 
-    if (opt.useMercyKmers && !reference_mode){
+        char* tmp_dir = nullptr;
 
-        const string mbbf_uniq_filename(opt.prefixFilenameOut + "_uniq");
+        string tmp_dir_path;
 
-        FILE* f_mbbf = fopen(mbbf_uniq_filename.c_str(), "wb");
+        bf1.clear(); // Empty BF1, not needed anymore
 
-        if (f_mbbf == NULL){
+        // Make tmp dir
+        {
+            if (opt.prefixTmp.length() != 0) {
 
-            cerr << "CompactedDBG::filter(): Minimizer Blocked Bloom filter of unique k-mers cannot be written to disk" << endl;
-            return false;
+                if (!check_dir_writable(opt.prefixTmp) || !check_dir_readable(opt.prefixTmp)) {
+
+                    cerr << "CompactedDBG::filter(): Tmp directory does not exist or is not readable/writable. Abort." << endl;
+
+                    return false;
+                }
+
+                tmp_dir_path = opt.prefixTmp;
+
+                if (opt.prefixTmp.back() != '/') tmp_dir_path += '/';
+
+                tmp_dir_path += "tmp.bifrost.XXXXXX";
+            }
+            else tmp_dir_path = opt.prefixFilenameOut + ".tmp.bifrost.XXXXXX";
+            
+            tmp_dir = new char[tmp_dir_path.length() + 1];
+
+            memcpy(tmp_dir, tmp_dir_path.c_str(), tmp_dir_path.length() + 1);
+
+            if (mkdtemp(tmp_dir) == nullptr) {
+
+                cerr << "CompactedDBG::filter(): Could not create tmp directory. Abort." << endl;
+
+                return false;
+            }
         }
 
-        bf_tmp.WriteBloomFilter(f_mbbf);
+        {
+            const string tmp_bbf_fn = string(tmp_dir) + string("/km.bbf");
 
-        fclose(f_mbbf);
+            // Write BF2 to disk
+            {
+                FILE* fp_bbf = fopen(tmp_bbf_fn.c_str(), "wb");
+
+                if (!bf2.write(fp_bbf)) {
+
+                    cerr << "CompactedDBG::filter(): Could not write temporary Blocked Bloom Filter file. Abort." << endl;
+
+                    exit(1);
+                }
+
+                fclose(fp_bbf);
+            }
+
+            bf2.clear(); // Empty BF2, not needed anymore
+
+            {
+                FILE* fp_bbf = fopen(tmp_bbf_fn.c_str(), "rb");
+
+                if (!bf_d.readFromBBF(fp_bbf, 0)) {
+
+                    cerr << "CompactedDBG::filter(): Could not read temporary Blocked Bloom Filter file. Abort." << endl;
+                    exit(1);
+                }
+
+                fclose(fp_bbf);
+            }
+
+            if (std::remove(tmp_bbf_fn.c_str()) != 0) cerr << "CompactedDBG::filter(): Could not remove temporary Blocked Bloom Filter file." << endl;
+        }
+
+        if (rmdir(tmp_dir) != 0) cerr << "CompactedDBG::filter(): Could not remove temporary directory." << endl;
+        if (tmp_dir != nullptr) delete[] tmp_dir;
+    }
+
+    if (opt.verbose) {
+
+        cout << "CompactedDBG::filter(): Processed " << num_kmers << " k-mers in " << read_id  << " reads" << endl;
+        cout << "CompactedDBG::filter(): Found " << num_ins << " unique k-mers" << endl;
+        cout << "CompactedDBG::filter(): Number of blocks in Bloom filter is " << bf_d.getNbBlocks() << endl;
     }
 
     return true;
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers){
+bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFilter& dbbf, Roaring& r, const size_t nb_unique_minimizers, const size_t nb_non_unique_minimizers, const size_t nb_unique_kmers, const size_t nb_non_unique_kmers){
 
     if (invalid){
 
@@ -3001,69 +2865,62 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
 
     const bool reference_mode = (opt.filename_ref_in.size() != 0);
 
-    const vector<string>& filename_in = reference_mode ? opt.filename_ref_in : opt.filename_seq_in;
+    const size_t max_len_seq = rndup(static_cast<size_t>(1024 + k_ - 1));
+    const size_t thread_seq_buf_sz = BUFFER_SIZE;
+    const size_t nb_locks = opt.nb_threads * 1024;
 
-    FileParser fp(filename_in);
+    const size_t nb_estimated_min = (reference_mode ? nb_unique_minimizers : nb_non_unique_minimizers);
+    const size_t nb_estimated_fp_tips = (reference_mode ? nb_unique_kmers : nb_non_unique_kmers) * 8 * dbbf.getFPrate();
 
-    string s;
+    const vector<string>& filename_in = (reference_mode ? opt.filename_ref_in : opt.filename_seq_in);
 
     size_t len_read = 0;
     size_t pos_read = 0;
+    size_t read_id = 0;
 
-    //const size_t max_len_seq = 1024;
-    //const size_t thread_seq_buf_sz = 64 * max_len_seq;
-    const size_t max_len_seq = rndup(static_cast<size_t>(1024 + k_ - 1));
-    const size_t thread_seq_buf_sz = BUFFER_SIZE;
+    Roaring::const_iterator its = r.begin(), ite = r.end();
 
-    tiny_vector<Kmer, 2>* fp_candidate = nullptr;
+    uint64_t* unitig_full = nullptr;
 
-    KmerHashTable<bool> ignored_km_tips;
-
-    const size_t nb_locks = opt.nb_threads * 1024;
-
-    std::atomic_flag lock_ignored_km_tips = ATOMIC_FLAG_INIT;
-
-    vector<SpinLock> locks_fp;
+    KmerHashTable<uint8_t> kmt_fp_cand;
 
     LockGraph lck_g(nb_locks);
+    LockGraph lck_h(nb_locks);
 
-    if (!reference_mode){
+    SpinLock lck_kmt_fp_cand;
 
-        fp_candidate = new tiny_vector<Kmer, 2>[bf.getNbBlocks()];
-        locks_fp = vector<SpinLock>(nb_locks);
+    string s;
 
-        MinimizerIndex hmap_min_unitigs_tmp(nb_non_unique_minimizers * 1.05);
+    BlockedBloomFilter bf_fp_tips(nb_estimated_fp_tips, opt.nb_bits_kmers_bf), bf;
 
-        hmap_min_unitigs = std::move(hmap_min_unitigs_tmp);
-    }
-    else {
+    CompactedDBG<U, G> dbg_extra(k_, g_);
 
-        MinimizerIndex hmap_min_unitigs_tmp(nb_unique_minimizers * 1.05);
+    auto worker_build_function = [&](FileParser& fp, char* seq_buf, const size_t seq_buf_sz) {
 
-        hmap_min_unitigs = std::move(hmap_min_unitigs_tmp);
-    }
+        const char* str_end = seq_buf + seq_buf_sz;
 
-    auto worker_function = [&](char* seq_buf, const size_t seq_buf_sz) {
+        const bool multi_threaded = (opt.nb_threads > 1);
+
+        char* str = seq_buf;
 
         vector<Kmer> l_ignored_km_tips;
 
-        Kmer km;
-        RepHash rep;
+        vector<CompressedSequence> v_approx_cs;
+        vector<Kmer> v_approx_km;
 
-        char* str = seq_buf;
-        const char* str_end = &seq_buf[seq_buf_sz];
+        RepHash rep;
 
         while (str < str_end) { // for each input
 
             const int len = strlen(str);
 
-            for (char* s = str; s != &str[len]; ++s) *s &= 0xDF;
+            for (char* s = str; s != (str + len); ++s) *s &= 0xDF;
 
             for (size_t i = 0; i < len - k_ + 1; i += max_len_seq - k_ + 1){
 
                 const int curr_len = min(len - i, max_len_seq);
                 const char saved_char = str[i + curr_len];
-                const char* str_tmp = &str[i];
+                const char* str_tmp = str + i;
 
                 str[i + curr_len] = '\0';
 
@@ -3077,72 +2934,192 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
                     it_min += (p_.second - it_min.getKmerPosition());
 
                     const uint64_t it_min_h = it_min.getHash();
-                    const int bid = bf.contains_bids(p_.first, it_min_h);
 
-                    if (bid != -1){
+                    if (dbbf.contains(p_.first, it_min_h, 0) && dbbf.insert(p_.first, it_min_h, 1, multi_threaded)) {
 
-                        km = Kmer(str_tmp + p_.second);
+                        const Kmer km = Kmer(str_tmp + p_.second);
 
-                        lck_g.acquire_reader();
+                        string approx_unitig;
 
-                        const UnitigMap<U, G> um = findUnitig(km, str_tmp, p_.second);
+                        bool isIsolated = false;
+
+                        const size_t pos_match = findUnitigSequenceBBF(dbbf, km, approx_unitig, isIsolated, l_ignored_km_tips); //Build unitig from Bloom filter
+
+                        if ((approx_unitig.length() != 0) && (reference_mode || !isIsolated)) { // If the extracted unitig is of length 0, it means it was already extracted by another thread
+
+                            bool to_insert = false;
+
+                            if (approx_unitig.length() == k_) to_insert = true;
+                            else {
+
+                                KmerHashIterator<RepHash> it_kmer_h2(approx_unitig.c_str(), approx_unitig.length(), k_), it_kmer_h_end2;
+                                minHashIterator<RepHash> it_min2(approx_unitig.c_str(), approx_unitig.length(), k_, g_, rep, true);
+
+                                vector<pair<uint64_t, uint64_t>> vh;
+
+                                vh.reserve(approx_unitig.length() - k_ + 1);
+
+                                for (; it_kmer_h2 != it_kmer_h_end2; ++it_kmer_h2) {
+
+                                    const pair<uint64_t, int> p_2 = *it_kmer_h2; // <k-mer hash, k-mer position in sequence>
+
+                                    it_min2 += (p_2.second - it_min2.getKmerPosition()); //If one or more k-mer were jumped because contained non-ACGT char.
+
+                                    vh.push_back({p_2.first, it_min2.getHash()});
+                                }
+
+                                sort(vh.begin(), vh.end(), [](const pair<uint64_t, uint64_t>& l, const pair<uint64_t, uint64_t>& r) {
+                                                                return (l.second < r.second) || ((l.second == r.second) && (l.first < r.first));
+                                                            }
+                                    );
+
+                                for (const auto& p : vh) to_insert = dbbf.insert(p.first, p.second, 1, multi_threaded) || to_insert;
+
+                                it_kmer_h += cstrMatch(str_tmp + p_.second + k_, approx_unitig.c_str() + pos_match + k_);
+                            }
+
+                            if (to_insert) {
+
+                                if (approx_unitig.length() == k_) v_approx_km.push_back(Kmer(approx_unitig.c_str()));
+                                else v_approx_cs.push_back(CompressedSequence(approx_unitig));
+                            }
+                        }
+                    }
+                }
+
+                str[i + curr_len] = saved_char;
+            }
+
+            str += len + 1;
+        }
+
+        for (const auto& km_tip : l_ignored_km_tips) {
+
+            const string km_str = km_tip.toString();
+            const uint64_t kmh = km_tip.hash();
+
+            minHashIterator<RepHash> it_min(km_str.c_str(), km_str.length(), k_, g_, rep, true);
+
+            const uint64_t minh = it_min.getHash();
+
+            bf_fp_tips.insert(kmh, minh, multi_threaded);
+        }
+
+        return pair<vector<CompressedSequence>, vector<Kmer>>(move(v_approx_cs), move(v_approx_km));
+    };
+
+    auto worker_map_function = [&](FileParser& fp, char* seq_buf, const size_t seq_buf_sz) {
+
+        vector<Kmer> l_ignored_km_tips;
+
+        RepHash rep;
+
+        char* str = seq_buf;
+
+        const char* str_end = seq_buf + seq_buf_sz;
+
+        const bool multi_threaded = (opt.nb_threads > 1);
+
+        const size_t v_unitigs_sz = v_unitigs.size();
+
+        while (str < str_end) { // for each input
+
+            const int len = strlen(str);
+
+            for (char* s = str; s != (str + len); ++s) *s &= 0xDF;
+
+            for (size_t i = 0; i < len - k_ + 1; i += max_len_seq - k_ + 1){
+
+                const int curr_len = min(len - i, max_len_seq);
+                const char saved_char = str[i + curr_len];
+                const char* str_tmp = str + i;
+
+                str[i + curr_len] = '\0';
+
+                KmerHashIterator<RepHash> it_kmer_h(str_tmp, curr_len, k_), it_kmer_h_end;
+                minHashIterator<RepHash> it_min(str_tmp, curr_len, k_, g_, rep, true);
+
+                for (; it_kmer_h != it_kmer_h_end; ++it_kmer_h) {
+
+                    const std::pair<uint64_t, int> p_ = *it_kmer_h; // <k-mer hash, k-mer position in sequence>
+
+                    it_min += (p_.second - it_min.getKmerPosition());
+
+                    const uint64_t it_min_h = it_min.getHash();
+
+                    if (bf.contains(p_.first, it_min_h)){
+
+                        const Kmer km = Kmer(str_tmp + p_.second);
+
+                        const_UnitigMap<U, G> um = findUnitig(km, str_tmp, p_.second);
 
                         if (um.isEmpty) { // kmer did not map, push into queue for next unitig generation round
 
-                            lck_g.release_reader();
+                            lck_h.acquire_reader();
 
-                            string newseq;
+                            um = dbg_extra.findUnitig(km, str_tmp, p_.second);
 
-                            bool isIsolated = false;
+                            if (um.isEmpty) {
 
-                            const size_t pos_match = findUnitigSequenceBBF(km, newseq, isIsolated, l_ignored_km_tips); //Build unitig from Bloom filter
+                                lck_h.release_reader();
 
-                            if (!reference_mode && isIsolated){ // According to the BF, k-mer is isolated in the graph and is a potential false positive
+                                string approx_unitig;
 
-                                const uint64_t id_lock = bid % nb_locks;
-                                const Kmer km_rep(km.rep());
+                                bool isIsolated = false;
 
-                                tiny_vector<Kmer, 2>& v = fp_candidate[bid];
+                                const size_t pos_match = dbg_extra.findUnitigSequenceBBF(bf, km, approx_unitig, isIsolated, l_ignored_km_tips); //Build unitig from Bloom filter
 
-                                size_t i = 0;
+                                if (!reference_mode && isIsolated){ // According to the BF, k-mer is isolated in the graph and is a potential false positive
 
-                                locks_fp[id_lock].acquire();
+                                    const Kmer km_rep(km.rep());
 
-                                for (; i < v.size(); ++i){ // Search list of fp candidate for k-mer
+                                    bool has_full_cov = false;
 
-                                    if (v[i] == km_rep) break;
-                                }
+                                    lck_kmt_fp_cand.acquire();
 
-                                if (i >= v.size()){
+                                    const pair<KmerHashTable<uint8_t>::const_iterator, bool> p_insert_kmt_fp_cand = kmt_fp_cand.insert(km_rep, 0);
 
-                                    v.push_back(km_rep);
+                                    has_full_cov = !p_insert_kmt_fp_cand.second;
 
-                                    locks_fp[id_lock].release();
+                                    if (has_full_cov) kmt_fp_cand.erase(p_insert_kmt_fp_cand.first);
+                                    
+                                    lck_kmt_fp_cand.release();
+
+                                    if (has_full_cov) {
+
+                                        dbg_extra.addUnitigSequence(km, approx_unitig, pos_match, 1, lck_h, true);
+                                        dbg_extra.addUnitigSequence(km, approx_unitig, pos_match, 1, lck_h, true);
+                                    }
                                 }
                                 else {
 
-                                    v.remove(i);
+                                    const size_t len_match_km = 1 + cstrMatch(str_tmp + p_.second + k_, approx_unitig.c_str() + pos_match + k_);
 
-                                    locks_fp[id_lock].release();
+                                    dbg_extra.addUnitigSequence(km, approx_unitig, pos_match, len_match_km, lck_h, true);
 
-                                    addUnitigSequenceBBF(km, newseq, pos_match, 1, lck_g);
-                                    addUnitigSequenceBBF(km, newseq, pos_match, 1, lck_g);
+                                    it_kmer_h += len_match_km - 1;
                                 }
                             }
                             else {
 
-                                const size_t len_match_km = 1 + cstrMatch(&str_tmp[p_.second + k_], &(newseq.c_str()[pos_match + k_]));
+                                dbg_extra.mapRead(um, lck_h);
 
-                                addUnitigSequenceBBF(km, newseq, pos_match, len_match_km, lck_g);
+                                lck_h.release_reader();
 
-                                it_kmer_h += len_match_km - 1;
+                                it_kmer_h += um.len - 1;
                             }
                         }
-                        else {
+                        else { // kmer did not map, push into queue for next unitig generation round
 
-                            mapRead(um, lck_g);
+                            if (um.isAbundant) mapRead(um, lck_g);
+                            else {
 
-                            lck_g.release_reader();
+                                const size_t pos_unitig = um.pos_unitig + (v_unitigs_sz & (static_cast<size_t>(!um.isShort) - 1));
+                                const size_t pos_div = pos_unitig >> 6;
+                                const size_t mask_mod = 0x1ULL << (pos_unitig & 0x3fULL);
+
+                                if (((unitig_full[pos_div] & mask_mod) == 0) && mapRead(um, lck_g)) unitig_full[pos_div] |= mask_mod;
+                            }
 
                             it_kmer_h += um.len - 1;
                         }
@@ -3155,14 +3132,77 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
             str += len + 1;
         }
 
-        while (lock_ignored_km_tips.test_and_set(std::memory_order_acquire));
+        for (const auto& km_tip : l_ignored_km_tips) {
 
-        for (const auto& km_tip : l_ignored_km_tips) ignored_km_tips.insert(km_tip, false);
+            const string km_str = km_tip.toString();
+            const uint64_t kmh = km_tip.hash();
 
-        lock_ignored_km_tips.clear(std::memory_order_release);
+            const minHashIterator<RepHash> it_min(km_str.c_str(), km_str.length(), k_, g_, rep, true);
+
+            const uint64_t minh = it_min.getHash();
+
+            bf_fp_tips.insert(kmh, minh, multi_threaded);
+        }
     };
 
-    auto reading_function = [&](char* seq_buf, size_t& seq_buf_sz) {
+    auto reading_build_function = [&](FileParser& fp, char* seq_buf, size_t& seq_buf_sz) {
+
+        size_t file_id = 0;
+
+        const size_t sz_buf = thread_seq_buf_sz - k_;
+
+        const char* s_str = s.c_str();
+
+        seq_buf_sz = 0;
+
+        while (seq_buf_sz < sz_buf) {
+
+            const bool new_reading = (pos_read >= len_read);
+
+            if (!new_reading || fp.read(s, file_id)) {
+
+                read_id += static_cast<size_t>(new_reading);
+                pos_read &= static_cast<size_t>(new_reading) - 1;
+
+                len_read = s.length();
+                s_str = s.c_str();
+
+                if (len_read >= k_){
+
+                    while ((its != ite) && (read_id > *its)) ++its;
+
+                    if ((its != ite) && (read_id == *its)) {
+
+                        if ((thread_seq_buf_sz - seq_buf_sz - 1) < (len_read - pos_read)){
+
+                            strncpy(seq_buf + seq_buf_sz, s_str + pos_read, thread_seq_buf_sz - seq_buf_sz - 1);
+
+                            seq_buf[thread_seq_buf_sz - 1] = '\0';
+
+                            pos_read += sz_buf - seq_buf_sz;
+                            seq_buf_sz = thread_seq_buf_sz;
+
+                            break;
+                        }
+                        else {
+
+                            strcpy(seq_buf + seq_buf_sz, s_str + pos_read);
+
+                            seq_buf_sz += (len_read - pos_read) + 1;
+                            pos_read = len_read;
+                        }
+                    }
+                    else pos_read = len_read;
+                }
+                else pos_read = len_read;
+            }
+            else return true;
+        }
+
+        return false;
+    };
+
+    auto reading_map_function = [&](FileParser& fp, char* seq_buf, size_t& seq_buf_sz) {
 
         size_t file_id = 0;
 
@@ -3187,7 +3227,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
 
                     if ((thread_seq_buf_sz - seq_buf_sz - 1) < (len_read - pos_read)){
 
-                        strncpy(&seq_buf[seq_buf_sz], &s_str[pos_read], thread_seq_buf_sz - seq_buf_sz - 1);
+                        strncpy(seq_buf + seq_buf_sz, s_str + pos_read, thread_seq_buf_sz - seq_buf_sz - 1);
 
                         seq_buf[thread_seq_buf_sz - 1] = '\0';
 
@@ -3198,7 +3238,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
                     }
                     else {
 
-                        strcpy(&seq_buf[seq_buf_sz], &s_str[pos_read]);
+                        strcpy(seq_buf + seq_buf_sz, s_str + pos_read);
 
                         seq_buf_sz += (len_read - pos_read) + 1;
                         pos_read = len_read;
@@ -3213,13 +3253,215 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
     };
 
     {
+        char* tmp_dir = nullptr;
+
+        string tmp_dir_path;
+
+        // Create tmp dir
+        {
+            if (opt.prefixTmp.length() != 0) {
+
+                if (!check_dir_writable(opt.prefixTmp) || !check_dir_readable(opt.prefixTmp)) {
+
+                    cerr << "CompactedDBG::construct(): Tmp directory does not exist or is not readable/writable. Abort." << endl;
+
+                    return false;
+                }
+
+                tmp_dir_path = opt.prefixTmp;
+
+                if (opt.prefixTmp.back() != '/') tmp_dir_path += '/';
+
+                tmp_dir_path += "tmp.bifrost.XXXXXX";
+            }
+            else tmp_dir_path = opt.prefixFilenameOut + ".tmp.bifrost.XXXXXX";
+            
+            tmp_dir = new char[tmp_dir_path.length() + 1];
+
+            memcpy(tmp_dir, tmp_dir_path.c_str(), tmp_dir_path.length() + 1);
+
+            if (mkdtemp(tmp_dir) == nullptr) {
+
+                cerr << "CompactedDBG::construct(): Could not create tmp directory. Abort." << endl;
+
+                return false;
+            }
+        }
+
+        const string tmp_graph_fn = string(tmp_dir) + string("/approx_unitigs.fasta");
+
+        {
+            size_t id_unitig_out = 0;
+
+            bool stop = false;
+
+            FileParser fp_in(filename_in);
+
+            ofstream outfile;
+            ostream out(0);
+
+            outfile.open(tmp_graph_fn.c_str());
+            out.rdbuf(outfile.rdbuf());
+
+            mutex mtx_fn_in, mtx_fn_out;
+
+            vector<thread> workers; // need to keep track of threads so we can join them
+
+            if (opt.verbose) cout << "CompactedDBG::construct(): Extract approximate unitigs (1/3)" << endl;
+
+            for (size_t t = 0; t < opt.nb_threads; ++t) {
+
+                workers.emplace_back(
+
+                    [&]{
+
+                        pair<vector<CompressedSequence>, vector<Kmer>> v_unitigs;
+
+                        char* buffer_seq = new char[thread_seq_buf_sz];
+
+                        size_t buffer_seq_sz = 0;
+                        size_t l_count = 0;
+
+                        while (true) {
+
+                            {
+                                unique_lock<mutex> lock(mtx_fn_in);
+
+                                stop = stop || (its == ite);
+
+                                if (stop) {
+
+                                    {
+                                        unique_lock<mutex> lock(mtx_fn_out);
+
+                                        for (const auto& cs : v_unitigs.first) out << ">" << id_unitig_out++ << "\n" << cs.toString() << endl;
+                                        for (const auto& km : v_unitigs.second) out << ">" << id_unitig_out++ << "\n" << km.toString() << endl;
+                                    }
+
+                                    delete[] buffer_seq;
+
+                                    return;
+                                }
+
+                                stop = reading_build_function(fp_in, buffer_seq, buffer_seq_sz);
+                            }
+
+                            pair<vector<CompressedSequence>, vector<Kmer>> p_approx_unitigs = worker_build_function(fp_in, buffer_seq, buffer_seq_sz);
+
+                            v_unitigs.first.insert(v_unitigs.first.end(), p_approx_unitigs.first.begin(), p_approx_unitigs.first.end());
+                            v_unitigs.second.insert(v_unitigs.second.end(), p_approx_unitigs.second.begin(), p_approx_unitigs.second.end());
+
+                            if (l_count < 1000000) {
+
+                                for (const auto& cs : p_approx_unitigs.first) l_count += cs.size() - k_ + 1;
+                                for (const auto& km : p_approx_unitigs.second) ++l_count;
+
+                                p_approx_unitigs.first.clear();
+                                p_approx_unitigs.second.clear();
+
+                                if (l_count >= 1000000) {
+
+                                    {
+                                        unique_lock<mutex> lock(mtx_fn_out);
+
+                                        for (const auto& cs : v_unitigs.first) out << ">" << id_unitig_out++ << "\n" << cs.toString() << endl;
+                                        for (const auto& km : v_unitigs.second) out << ">" << id_unitig_out++ << "\n" << km.toString() << endl;
+                                    }
+
+                                    v_unitigs.first.clear();
+                                    v_unitigs.second.clear();
+
+                                    l_count = 0;
+                                }
+                            }
+                        }
+                    }
+                );
+            }
+
+            for (auto& t : workers) t.join();
+
+            fp_in.close();
+            outfile.close();
+        }
+
+        r.clear();
+        s.clear();
+
+        // Write DBBF[0] to disk, empty DBBF, reloads BF=DBBF[0]
+        {
+            const string tmp_bbf_fn = string(tmp_dir) + string("/km.bbf");
+
+            FILE* fp_bbf = fopen(tmp_bbf_fn.c_str(), "wb");
+
+            if (!dbbf.writeAsBBF(fp_bbf, 0)) {
+
+                cerr << "CompactedDBG::construct(): Could not write temporary Blocked Bloom Filter file. Abort." << endl;
+                exit(1);
+            }
+
+            dbbf.clear();
+
+            fclose(fp_bbf);
+
+            fp_bbf = fopen(tmp_bbf_fn.c_str(), "rb");
+
+            if (!bf.read(fp_bbf)) {
+
+                cerr << "CompactedDBG::construct(): Could not read temporary Blocked Bloom Filter file. Abort." << endl;
+                exit(1);
+            }
+
+            fclose(fp_bbf);
+
+            if (std::remove(tmp_bbf_fn.c_str()) != 0) cerr << "CompactedDBG::construct(): Could not remove temporary Blocked Bloom Filter file." << endl;
+        }
+
+        {
+            const vector<string> v_tmp_file(1, tmp_graph_fn);
+
+            FileParser fp_approx_unitigs(v_tmp_file);
+
+            size_t file_id_approx = 0;
+
+            string approx_unitig;
+
+            hmap_min_unitigs = MinimizerIndex(nb_estimated_min * 1.07); // Index has 95% max occupancy by default
+
+            while (fp_approx_unitigs.read(approx_unitig, file_id_approx)) addUnitigSequence(approx_unitig);
+
+            fp_approx_unitigs.close();
+
+            hmap_min_unitigs.recomputeMaxPSL(opt.nb_threads);
+            h_kmers_ccov.recomputeMaxPSL(opt.nb_threads);
+        }
+
+        if (std::remove(tmp_graph_fn.c_str()) != 0) cerr << "CompactedDBG::construct(): Could not remove temporary file." << endl;
+        if (rmdir(tmp_dir) != 0) cerr << "CompactedDBG::construct(): Could not remove temporary directory." << endl;
+
+        if (tmp_dir != nullptr) delete[] tmp_dir;
+    }
+
+    // Build
+    {
         bool stop = false;
+
+        FileParser fp(filename_in);
 
         vector<thread> workers; // need to keep track of threads so we can join them
 
         mutex mutex_file;
 
-        if (opt.verbose) cout << "CompactedDBG::construct(): Extract approximate unitigs" << endl;
+        len_read = 0;
+        pos_read = 0;
+        read_id = 0;
+
+        if (opt.verbose) cout << "CompactedDBG::construct(): Extract approximate unitigs (2/3)" << endl;
+
+        unitig_full = new uint64_t[(v_unitigs.size() + km_unitigs.size() + 63) / 64](); // Kmers with abundant minimizers cannot be included here
+
+        if ((nb_estimated_min * 1.05) > hmap_min_unitigs.size()) dbg_extra.hmap_min_unitigs = MinimizerIndex((nb_estimated_min * 1.05) - hmap_min_unitigs.size());
+        else if (nb_estimated_min > hmap_min_unitigs.size()) dbg_extra.hmap_min_unitigs = MinimizerIndex(nb_estimated_min - hmap_min_unitigs.size());
 
         for (size_t t = 0; t < opt.nb_threads; ++t){
 
@@ -3242,10 +3484,10 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
                                 return;
                             }
 
-                            stop = reading_function(buffer_seq, buffer_seq_sz);
+                            stop = reading_map_function(fp, buffer_seq, buffer_seq_sz);
                         }
 
-                        worker_function(buffer_seq, buffer_seq_sz);
+                        worker_map_function(fp, buffer_seq, buffer_seq_sz);
                     }
 
                     delete[] buffer_seq;
@@ -3254,15 +3496,111 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
         }
 
         for (auto& t : workers) t.join();
+
+        fp.close();
+
+        kmt_fp_cand.clear();
+
+        if (unitig_full != nullptr) delete[] unitig_full;
     }
 
-    fp.close();
-
     bf.clear();
-    lck_g.clear();
-    locks_fp.clear();
 
-    if (fp_candidate != nullptr) delete[] fp_candidate;
+    lck_g.clear();
+    lck_h.clear();
+
+    {
+        if (opt.verbose) cout << "CompactedDBG::construct(): Extract approximate unitigs (3/3)" << endl;
+
+        {
+            for (typename h_kmers_ccov_t::iterator it = dbg_extra.h_kmers_ccov.begin(); it != dbg_extra.h_kmers_ccov.end(); ++it) {
+
+                if (it->ccov.isFull()){
+
+                    const Kmer km = it.getKey();
+
+                    addUnitigSequence(km.toString());
+
+                    const UnitigMap<U, G> um2 = find(km, true);
+
+                    if (!um2.isEmpty) um2.setFullCoverage();
+                }
+
+                it->ccov.clear();
+            }
+
+            dbg_extra.h_kmers_ccov.clear();
+        }
+
+        {
+            for (size_t i = 0; i < dbg_extra.km_unitigs.size(); ++i) {
+
+                if (dbg_extra.km_unitigs.isFull(i)) {
+
+                     const Kmer km = dbg_extra.km_unitigs.getKmer(i);
+
+                    addUnitigSequence(km.toString());
+
+                    const UnitigMap<U, G> um2 = find(km, true);
+
+                    if (!um2.isEmpty) um2.setFullCoverage();
+                }
+            }
+
+            dbg_extra.km_unitigs.clear();
+        }
+
+        {
+            for (size_t i = 0; i < dbg_extra.v_unitigs.size(); ++i) { // Iterate over unitigs created so far
+
+                Unitig<U>* u = dbg_extra.v_unitigs[i];
+
+                if (!u->getCov().isFull()) { //Coverage not full, unitig must be splitted
+
+                    const vector<pair<int,int>> sp = u->getCov().splittingVector();
+
+                    if (!sp.empty()) {
+
+                        const string unitig = u->getSeq().toString();
+
+                        for (const auto& p : sp) {
+
+                            const string split_unitig = unitig.substr(p.first, (p.second - p.first) + k_ - 1); // Split unitig sequence
+                            const Kmer head_split_unitig = Kmer(split_unitig.c_str());
+
+                            addUnitigSequence(split_unitig);
+
+                            const UnitigMap<U, G> um2 = find(head_split_unitig, true);
+
+                            if (!um2.isEmpty) um2.setFullCoverage();
+                        }
+                    }
+                }
+                else {
+
+                    const string unitig = u->getSeq().toString();
+                    const Kmer head_unitig = Kmer(unitig.c_str());
+
+                    addUnitigSequence(unitig);
+
+                    const UnitigMap<U, G> um2 = find(head_unitig, true);
+
+                    if (!um2.isEmpty) um2.setFullCoverage();
+                }
+
+                delete u;
+
+                u = nullptr;
+            }
+
+            dbg_extra.v_unitigs.clear();
+        }
+
+        hmap_min_unitigs.recomputeMaxPSL(opt.nb_threads);
+        h_kmers_ccov.recomputeMaxPSL(opt.nb_threads);
+
+        dbg_extra.clear();
+    }
 
     if (opt.verbose) cout << "CompactedDBG::construct(): Closed all input files" << endl;
 
@@ -3276,8 +3614,12 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
 
     if (opt.verbose) cout << endl << "CompactedDBG::construct(): Splitting unitigs (2/2)" << endl;
 
-    check_fp_tips(ignored_km_tips);
-    ignored_km_tips.clear_tables();
+    check_fp_tips(bf_fp_tips, opt.nb_threads);
+
+    bf_fp_tips.clear();
+
+    hmap_min_unitigs.recomputeMaxPSL(opt.nb_threads);
+    h_kmers_ccov.recomputeMaxPSL(opt.nb_threads);
 
     const int unitigsAfter2 = size();
 
@@ -3296,31 +3638,20 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, const size_t nb_un
 
     const int unitigsAfter3 = size();
 
+    hmap_min_unitigs.recomputeMaxPSL(opt.nb_threads);
+    h_kmers_ccov.recomputeMaxPSL(opt.nb_threads);
+
     if (opt.verbose) {
 
         cout << "CompactedDBG::construct(): After join: " << unitigsAfter3 << " unitigs" << endl;
         cout << "CompactedDBG::construct(): Joined " << joined << " unitigs" << endl;
     }
 
-    if (opt.useMercyKmers && !reference_mode){
-
-        string filename_mbbf_uniq_km = opt.prefixFilenameOut + "_uniq";
-
-        joinTips(filename_mbbf_uniq_km, opt.nb_threads, opt.verbose);
-
-        if (opt.verbose) cout << "CompactedDBG::construct(): After join tips using mercy k-mers: " << size() << " unitigs" << endl;
-
-        if (std::remove(filename_mbbf_uniq_km.c_str()) != 0) {
-
-            cerr << "CompactedDBG::construct(): Minimizer Blocked Bloom filter file of unique k-mers cannot be removed from disk" << endl;
-        }
-    }
-
     return true;
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::addUnitigSequenceBBF(const Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km, LockGraph& lck_g) {
+void CompactedDBG<U, G>::addUnitigSequence(const Kmer km, const string& seq, const size_t pos_match_km, const size_t len_match_km, LockGraph& lck_g, const bool map_read) {
 
     bool isAbundant = false;
 
@@ -3335,44 +3666,58 @@ bool CompactedDBG<U, G>::addUnitigSequenceBBF(const Kmer km, const string& seq, 
     if (um.isEmpty) isAbundant = addUnitig(seq, id_unitig); // If it wasn't already inserted, does it
 
     lck_g.release_writer();
-    lck_g.acquire_reader();
 
-    um = find(km);
-    um.len = len_match_km; // Prepare read mapping
+    if (map_read) {
 
-    if (!um.isShort && !um.isAbundant && !um.strand) um.dist -= um.len - 1;
+        lck_g.acquire_reader();
 
-    if (um.dist + um.len > um.size - k_){ // This is a self loop
+        um = find(km);
+        um.len = len_match_km; // Prepare read mapping
 
-        KmerIterator it(&(seq.c_str()[pos_match_km]));
+        if (!um.isShort && !um.isAbundant && !um.strand) um.dist -= um.len - 1;
 
-        for (size_t i = 0; i != len_match_km; ++it, ++i){
+        if (um.dist + um.len > um.size - k_){ // This is a self loop
 
-            um = find(it->first);
+            KmerIterator it(seq.c_str() + pos_match_km);
 
-            mapRead(um, lck_g);
+            for (size_t i = 0; i != len_match_km; ++it, ++i){
+
+                um = find(it->first);
+
+                mapRead(um, lck_g);
+            }
         }
+        else mapRead(um, lck_g);
+
+        lck_g.release_reader();
     }
-    else mapRead(um, lck_g);
-
-    lck_g.release_reader();
-
-    return !um.isEmpty;
 }
 
-// use:  cm.findUnitigSequenceBBF(km, s, selfLoop)
-// pre:  km is in the bloom filter
-// post: s is the unitig containing the kmer km
-//       and the first k-mer in s is smaller (wrt. < operator)
-//       than the last kmer
-//       selfLoop is true of the unitig is a loop or hairpin
 template<typename U, typename G>
-size_t CompactedDBG<U, G>::findUnitigSequenceBBF(Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip) {
+void CompactedDBG<U, G>::addUnitigSequence(const string& seq) {
+
+    const Kmer km = Kmer(seq.c_str());
+
+    const size_t id_unitig = (seq.length() == k_) ? km_unitigs.size() : v_unitigs.size();
+
+    UnitigMap<U, G> um = find(km); // Look if unitig was already inserted
+
+    if (um.isEmpty) addUnitig(seq, id_unitig); // If it wasn't already inserted, does it
+}
+
+
+template<typename U, typename G>
+size_t CompactedDBG<U, G>::findUnitigSequenceBBF(const BlockedBloomFilter& bf, const Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip) {
 
     string fw_s, bw_s;
 
     Kmer end(km);
-    Kmer last(end);
+    Kmer last(km);
+
+    char km_str[MAX_KMER_SIZE];
+    char neigh_str[MAX_KMER_SIZE];
+
+    RepHash rep_km(k_), rep_neigh(k_);
 
     const Kmer twin(km.twin());
 
@@ -3383,9 +3728,18 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(Kmer km, string& s, bool& isIso
     bool has_no_neighbor;
     bool self_loop = false;
 
+    km.toString(km_str);
+    km.toString(neigh_str);
+
+    rep_km.init(km_str);
+
+    rep_neigh = rep_km;
+
     isIsolated = false;
 
-    while (fwStepBBF(end, end, c, has_no_neighbor, l_ignored_km_tip)) {
+    pair<int, RepHash> p_neigh = fwStepBBF(bf, end, end, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
+
+    while (p_neigh.first != -1) {
 
         ++j;
 
@@ -3393,26 +3747,47 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(Kmer km, string& s, bool& isIso
 
         if (self_loop || (end == twin) || (end == last.twin())) break;
 
-        fw_s.push_back(c);
+        fw_s.push_back(alpha[p_neigh.first]);
+
+        std::memmove(neigh_str, neigh_str + 1, (k_ - 1) * sizeof(char));
+
         last = end;
+        rep_neigh = p_neigh.second;
+        neigh_str[k_-1] = alpha[p_neigh.first];
+
+        p_neigh = fwStepBBF(bf, end, end, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
+
+        self_loop = (p_neigh.first != -1) && (end == km);
     }
 
     if (!self_loop) {
 
         Kmer front(km);
-        Kmer first(front);
+        Kmer first(km);
+
+        km.toString(neigh_str);
 
         isIsolated = (j == 0) && has_no_neighbor;
         j = 0;
+        rep_neigh = rep_km;
 
-        while (bwStepBBF(front, front, c, has_no_neighbor, l_ignored_km_tip)) {
+        p_neigh = bwStepBBF(bf, front, front, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
+
+        while (p_neigh.first != -1) {
 
             ++j;
 
             if ((front == km) || (front == twin) || (front == first.twin())) break;
 
-            bw_s.push_back(c);
+            bw_s.push_back(alpha[p_neigh.first]);
+
+            std::memmove(neigh_str + 1, neigh_str, (k_ - 1) * sizeof(char));
+
+            neigh_str[0] = alpha[p_neigh.first];
             first = front;
+            rep_neigh = p_neigh.second;
+
+            p_neigh = bwStepBBF(bf, front, front, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
         }
 
         isIsolated = isIsolated && (j == 0) && has_no_neighbor;
@@ -3420,50 +3795,136 @@ size_t CompactedDBG<U, G>::findUnitigSequenceBBF(Kmer km, string& s, bool& isIso
         reverse(bw_s.begin(), bw_s.end());
     }
 
-    char tmp[MAX_KMER_SIZE];
-
-    km.toString(tmp);
-
-    s.reserve(k_ + fw_s.size() + bw_s.size());
+    s.reserve(k_ + fw_s.length() + bw_s.length());
     s.append(bw_s);
-    s.append(tmp);
+    s.append(km_str);
     s.append(fw_s);
 
-    return bw_s.size();
+    return bw_s.length();
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::bwStepBBF(const Kmer km, Kmer& front, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand) const {
+size_t CompactedDBG<U, G>::findUnitigSequenceBBF(const DualBlockedBloomFilter& bf, const Kmer km, string& s, bool& isIsolated, vector<Kmer>& l_ignored_km_tip) {
+
+    string fw_s, bw_s;
+
+    Kmer end(km);
+    Kmer last(km);
+
+    char km_str[MAX_KMER_SIZE];
+    char neigh_str[MAX_KMER_SIZE];
+
+    RepHash rep_km(k_), rep_neigh(k_);
+
+    const Kmer twin(km.twin());
+
+    char c;
+
+    size_t j = 0;
+
+    bool has_no_neighbor;
+    bool self_loop = false;
+
+    km.toString(km_str);
+    km.toString(neigh_str);
+
+    rep_km.init(km_str);
+
+    rep_neigh = rep_km;
+
+    isIsolated = false;
+
+    pair<int, RepHash> p_neigh = fwStepBBF(bf, end, end, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
+
+    while (p_neigh.first != -1) {
+
+        ++j;
+
+        self_loop = (end == km);
+
+        if (self_loop || (end == twin) || (end == last.twin())) break;
+
+        fw_s.push_back(alpha[p_neigh.first]);
+
+        std::memmove(neigh_str, neigh_str + 1, (k_ - 1) * sizeof(char));
+
+        last = end;
+        rep_neigh = p_neigh.second;
+        neigh_str[k_-1] = alpha[p_neigh.first];
+
+        p_neigh = fwStepBBF(bf, end, end, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
+    }
+
+    if (!self_loop) {
+
+        Kmer front(km);
+        Kmer first(km);
+
+        km.toString(neigh_str);
+
+        isIsolated = (j == 0) && has_no_neighbor;
+        j = 0;
+        rep_neigh = rep_km;
+
+        p_neigh = bwStepBBF(bf, front, front, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
+
+        while (p_neigh.first != -1) {
+
+            ++j;
+
+            if ((front == km) || (front == twin) || (front == first.twin())) break;
+
+            bw_s.push_back(alpha[p_neigh.first]);
+
+            std::memmove(neigh_str + 1, neigh_str, (k_ - 1) * sizeof(char));
+
+            neigh_str[0] = alpha[p_neigh.first];
+            first = front;
+            rep_neigh = p_neigh.second;
+
+            p_neigh = bwStepBBF(bf, front, front, rep_neigh, neigh_str, has_no_neighbor, l_ignored_km_tip);
+        }
+
+        isIsolated = isIsolated && (j == 0) && has_no_neighbor;
+
+        reverse(bw_s.begin(), bw_s.end());
+    }
+
+    s.reserve(k_ + fw_s.length() + bw_s.length());
+    s.append(bw_s);
+    s.append(km_str);
+    s.append(fw_s);
+
+    return bw_s.length();
+}
+
+template<typename U, typename G>
+pair<int, RepHash> CompactedDBG<U, G>::bwStepBBF(const BlockedBloomFilter& bf, const Kmer km, Kmer& front, const RepHash& rep_front, const char* front_str, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand) const {
 
     char km_tmp[MAX_KMER_SIZE];
 
-    int found_fp_bw = 0;
-
     bool neigh_bw[4] = {false, false, false, false};
+
+    RepHash rep_bw[4] = {rep_front, rep_front, rep_front, rep_front};
+
     uint64_t hashes_bw[4];
 
-    RepHash rep_h(k_), rep_h_cpy;
+    int found_fp_bw = 0;
 
-    front.toString(km_tmp);
-    rep_h.init(km_tmp);
+    rep_bw[0].updateBW(front_str[k_-1], alpha[0]);
+    rep_bw[1].updateBW(front_str[k_-1], alpha[1]);
+    rep_bw[2].updateBW(front_str[k_-1], alpha[2]);
+    rep_bw[3].updateBW(front_str[k_-1], alpha[3]);
 
-    rep_h_cpy = rep_h;
-    rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[0]);
-    hashes_bw[0] = rep_h_cpy.hash();
+    hashes_bw[0] = rep_bw[0].hash();
+    hashes_bw[1] = rep_bw[1].hash();
+    hashes_bw[2] = rep_bw[2].hash();
+    hashes_bw[3] = rep_bw[3].hash();
 
-    rep_h_cpy = rep_h;
-    rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[1]);
-    hashes_bw[1] = rep_h_cpy.hash();
+    std::memcpy(km_tmp + 1, front_str, (k_ - 1) * sizeof(char));
 
-    rep_h_cpy = rep_h;
-    rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[2]);
-    hashes_bw[2] = rep_h_cpy.hash();
-
-    rep_h_cpy = rep_h;
-    rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[3]);
-    hashes_bw[3] = rep_h_cpy.hash();
-
-    std::memmove(km_tmp + 1, km_tmp, (k_ - 1) * sizeof(char));
+    km_tmp[0] = alpha[0];
+    km_tmp[k_] = '\0';
 
     const uint64_t it_min_h_bw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
 
@@ -3478,14 +3939,15 @@ bool CompactedDBG<U, G>::bwStepBBF(const Kmer km, Kmer& front, char& c, bool& ha
 
             if (neigh_bw[i]){
 
-                char dummy;
                 bool has_no_neighbor_tmp = false;
 
                 Kmer km_fp(front.backwardBase(alpha[i]));
 
-                bwStepBBF(km_fp, km_fp, dummy, has_no_neighbor_tmp, l_ignored_km_tip, false);
+                km_tmp[0] = alpha[i];
 
-                neigh_bw[i] = has_no_neighbor_tmp && fwStepBBF(km_fp, km_fp, dummy, has_no_neighbor_tmp, l_ignored_km_tip, false);
+                bwStepBBF(bf, km_fp, km_fp, rep_bw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false);
+
+                neigh_bw[i] = has_no_neighbor_tmp && (fwStepBBF(bf, km_fp, km_fp, rep_bw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false).first != -1);
                 found_fp_bw += neigh_bw[i];
                 j_tmp += (i - j_tmp) & (static_cast<size_t>(neigh_bw[i]) - 1);
             }
@@ -3505,39 +3967,36 @@ bool CompactedDBG<U, G>::bwStepBBF(const Kmer km, Kmer& front, char& c, bool& ha
     if (nb_neigh != 1) {
 
         has_no_neighbor = (nb_neigh == 0);
-        return false;
+
+        return {-1, RepHash()};
     }
     else has_no_neighbor = false;
 
     if (check_fp_cand){
 
-        int found_fp_fw = 0;
-
-        bool neigh_fw[4] = {false, false, false, false};
-        uint64_t hashes_fw[4];
-
         const Kmer bw(front.backwardBase(alpha[j]));
 
-        bw.toString(km_tmp);
-        rep_h.init(km_tmp);
+        bool neigh_fw[4] = {false, false, false, false};
 
-        rep_h_cpy = rep_h;
-        rep_h_cpy.updateFW(km_tmp[0], alpha[0]);
-        hashes_fw[0] = rep_h_cpy.hash();
+        RepHash rep_fw[4] = {rep_bw[j], rep_bw[j], rep_bw[j], rep_bw[j]};
 
-        rep_h_cpy = rep_h;
-        rep_h_cpy.updateFW(km_tmp[0], alpha[1]);
-        hashes_fw[1] = rep_h_cpy.hash();
+        uint64_t hashes_fw[4];
 
-        rep_h_cpy = rep_h;
-        rep_h_cpy.updateFW(km_tmp[0], alpha[2]);
-        hashes_fw[2] = rep_h_cpy.hash();
+        int found_fp_fw = 0;
 
-        rep_h_cpy = rep_h;
-        rep_h_cpy.updateFW(km_tmp[0], alpha[3]);
-        hashes_fw[3] = rep_h_cpy.hash();
+        rep_fw[0].updateFW(alpha[j], alpha[0]);
+        rep_fw[1].updateFW(alpha[j], alpha[1]);
+        rep_fw[2].updateFW(alpha[j], alpha[2]);
+        rep_fw[3].updateFW(alpha[j], alpha[3]);
+
+        hashes_fw[0] = rep_fw[0].hash();
+        hashes_fw[1] = rep_fw[1].hash();
+        hashes_fw[2] = rep_fw[2].hash();
+        hashes_fw[3] = rep_fw[3].hash();
 
         std::memmove(km_tmp, km_tmp + 1, (k_ - 1) * sizeof(char));
+
+        km_tmp[k_-1] = alpha[0];
 
         const uint64_t it_min_h_fw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
 
@@ -3549,14 +4008,15 @@ bool CompactedDBG<U, G>::bwStepBBF(const Kmer km, Kmer& front, char& c, bool& ha
 
                 if (neigh_fw[i]){
 
-                    char dummy;
                     bool has_no_neighbor_tmp = false;
 
                     Kmer km_fp(bw.forwardBase(alpha[i]));
 
-                    fwStepBBF(km_fp, km_fp, dummy, has_no_neighbor_tmp, l_ignored_km_tip, false);
+                    km_tmp[k_-1] = alpha[i];
 
-                    neigh_fw[i] = has_no_neighbor_tmp && bwStepBBF(km_fp, km_fp, dummy, has_no_neighbor_tmp, l_ignored_km_tip, false);
+                    fwStepBBF(bf, km_fp, km_fp, rep_fw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false);
+
+                    neigh_fw[i] = has_no_neighbor_tmp && (bwStepBBF(bf, km_fp, km_fp, rep_fw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false).first != -1);
 
                     if (neigh_fw[i] && (km_fp == km)){
 
@@ -3574,10 +4034,9 @@ bool CompactedDBG<U, G>::bwStepBBF(const Kmer km, Kmer& front, char& c, bool& ha
             }
         }
 
-        if (nb_neigh != 1) return false;
+        if (nb_neigh != 1) return {-1, RepHash()};
 
         if (bw != km) {
-            // exactly one k-mer in bw, character used is c
 
             for (size_t i = 0; (i < 4) && (found_fp_fw != 0); ++i) {
 
@@ -3600,49 +4059,214 @@ bool CompactedDBG<U, G>::bwStepBBF(const Kmer km, Kmer& front, char& c, bool& ha
             }
 
             front = bw;
-            c = alpha[j];
 
-            return true;
+            return {j, rep_bw[j]};
         }
 
-        return false;
+        return {-1, RepHash()};
     }
 
-    return true;
+    return {j, rep_bw[j]};
 }
 
 template<typename U, typename G>
-bool CompactedDBG<U, G>::fwStepBBF(const Kmer km, Kmer& end, char& c, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand) const {
+pair<int, RepHash> CompactedDBG<U, G>::bwStepBBF(const DualBlockedBloomFilter& bf, const Kmer km, Kmer& front, const RepHash& rep_front, const char* front_str, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand) const {
 
     char km_tmp[MAX_KMER_SIZE];
 
-    int found_fp_fw = 0;
+    bool neigh_bw[4] = {false, false, false, false};
+
+    RepHash rep_bw[4] = {rep_front, rep_front, rep_front, rep_front};
+
+    uint64_t hashes_bw[4];
+
+    int found_fp_bw = 0;
+
+    rep_bw[0].updateBW(front_str[k_-1], alpha[0]);
+    rep_bw[1].updateBW(front_str[k_-1], alpha[1]);
+    rep_bw[2].updateBW(front_str[k_-1], alpha[2]);
+    rep_bw[3].updateBW(front_str[k_-1], alpha[3]);
+
+    hashes_bw[0] = rep_bw[0].hash();
+    hashes_bw[1] = rep_bw[1].hash();
+    hashes_bw[2] = rep_bw[2].hash();
+    hashes_bw[3] = rep_bw[3].hash();
+
+    std::memcpy(km_tmp + 1, front_str, (k_ - 1) * sizeof(char));
+
+    km_tmp[0] = alpha[0];
+    km_tmp[k_] = '\0';
+
+    const uint64_t it_min_h_bw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
+
+    size_t nb_neigh = bf.contains(hashes_bw, it_min_h_bw, neigh_bw, 2 * (static_cast<size_t>(check_fp_cand) + 1), 0);
+    size_t j = static_cast<size_t>(neigh_bw[1]) + (2ULL & (static_cast<size_t>(!neigh_bw[2]) - 1)) + (3ULL & (static_cast<size_t>(!neigh_bw[3]) - 1));
+
+    if (check_fp_cand && (nb_neigh >= 2)){
+
+        size_t j_tmp = 0;
+
+        for (size_t i = 0; i < 4; ++i) {
+
+            if (neigh_bw[i]){
+
+                bool has_no_neighbor_tmp = false;
+
+                Kmer km_fp(front.backwardBase(alpha[i]));
+
+                km_tmp[0] = alpha[i];
+
+                bwStepBBF(bf, km_fp, km_fp, rep_bw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false);
+
+                neigh_bw[i] = has_no_neighbor_tmp && (fwStepBBF(bf, km_fp, km_fp, rep_bw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false).first != -1);
+                found_fp_bw += neigh_bw[i];
+                j_tmp += (i - j_tmp) & (static_cast<size_t>(neigh_bw[i]) - 1);
+            }
+        }
+
+        if (found_fp_bw != 0){
+
+            if ((nb_neigh - found_fp_bw) != 0){
+
+                j = j_tmp;
+                nb_neigh -= found_fp_bw;
+            }
+            else found_fp_bw = 0;
+        }
+    }
+
+    if (nb_neigh != 1) {
+
+        has_no_neighbor = (nb_neigh == 0);
+
+        return {-1, RepHash()};
+    }
+    else has_no_neighbor = false;
+
+    if (check_fp_cand){
+
+        const Kmer bw(front.backwardBase(alpha[j]));
+
+        bool neigh_fw[4] = {false, false, false, false};
+
+        RepHash rep_fw[4] = {rep_bw[j], rep_bw[j], rep_bw[j], rep_bw[j]};
+
+        uint64_t hashes_fw[4];
+
+        int found_fp_fw = 0;
+
+        rep_fw[0].updateFW(alpha[j], alpha[0]);
+        rep_fw[1].updateFW(alpha[j], alpha[1]);
+        rep_fw[2].updateFW(alpha[j], alpha[2]);
+        rep_fw[3].updateFW(alpha[j], alpha[3]);
+
+        hashes_fw[0] = rep_fw[0].hash();
+        hashes_fw[1] = rep_fw[1].hash();
+        hashes_fw[2] = rep_fw[2].hash();
+        hashes_fw[3] = rep_fw[3].hash();
+
+        std::memmove(km_tmp, km_tmp + 1, (k_ - 1) * sizeof(char));
+
+        km_tmp[k_-1] = alpha[0];
+
+        const uint64_t it_min_h_fw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
+
+        nb_neigh = bf.contains(hashes_fw, it_min_h_fw, neigh_fw, 4, 0);
+
+        if (nb_neigh >= 2){
+
+            for (size_t i = 0; i < 4; ++i) {
+
+                if (neigh_fw[i]){
+
+                    bool has_no_neighbor_tmp = false;
+
+                    Kmer km_fp(bw.forwardBase(alpha[i]));
+
+                    km_tmp[k_-1] = alpha[i];
+
+                    fwStepBBF(bf, km_fp, km_fp, rep_fw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false);
+
+                    neigh_fw[i] = has_no_neighbor_tmp && (bwStepBBF(bf, km_fp, km_fp, rep_fw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false).first != -1);
+
+                    if (neigh_fw[i] && (km_fp == km)){
+
+                        found_fp_fw = 0;
+                        break;
+                    }
+                    else found_fp_fw += (neigh_fw[i] && (km_fp != km));
+                }
+            }
+
+            if (found_fp_fw){
+
+                if (nb_neigh - found_fp_fw) nb_neigh -= found_fp_fw;
+                else found_fp_fw = 0;
+            }
+        }
+
+        if (nb_neigh != 1) return {-1, RepHash()};
+
+        if (bw != km) {
+
+            for (size_t i = 0; (i < 4) && (found_fp_fw != 0); ++i) {
+
+                if (neigh_fw[i]){
+
+                    l_ignored_km_tip.push_back(bw.forwardBase(alpha[i]).rep());
+
+                    --found_fp_fw;
+                }
+            }
+
+             for (size_t i = 0; (i < 4) && (found_fp_bw != 0); ++i) {
+
+                if (neigh_bw[i]){
+
+                    l_ignored_km_tip.push_back(front.backwardBase(alpha[i]).rep());
+
+                    --found_fp_bw;
+                }
+            }
+
+            front = bw;
+
+            return {j, rep_bw[j]};
+        }
+
+        return {-1, RepHash()};
+    }
+
+    return {j, rep_bw[j]};
+}
+
+template<typename U, typename G>
+pair<int, RepHash> CompactedDBG<U, G>::fwStepBBF(const BlockedBloomFilter& bf, const Kmer km, Kmer& end, const RepHash& rep_end, const char* end_str, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand) const {
+
+    char km_tmp[MAX_KMER_SIZE];
 
     bool neigh_fw[4] = {false, false, false, false};
+
+    RepHash rep_fw[4] = {rep_end, rep_end, rep_end, rep_end};
+
     uint64_t hashes_fw[4];
 
-    RepHash rep_h(k_), rep_h_cpy;
+    int found_fp_fw = 0;
 
-    end.toString(km_tmp);
-    rep_h.init(km_tmp);
+    rep_fw[0].updateFW(end_str[0], alpha[0]);
+    rep_fw[1].updateFW(end_str[0], alpha[1]);
+    rep_fw[2].updateFW(end_str[0], alpha[2]);
+    rep_fw[3].updateFW(end_str[0], alpha[3]);
 
-    rep_h_cpy = rep_h;
-    rep_h_cpy.updateFW(km_tmp[0], alpha[0]);
-    hashes_fw[0] = rep_h_cpy.hash();
+    hashes_fw[0] = rep_fw[0].hash();
+    hashes_fw[1] = rep_fw[1].hash();
+    hashes_fw[2] = rep_fw[2].hash();
+    hashes_fw[3] = rep_fw[3].hash();
 
-    rep_h_cpy = rep_h;
-    rep_h_cpy.updateFW(km_tmp[0], alpha[1]);
-    hashes_fw[1] = rep_h_cpy.hash();
+    std::memcpy(km_tmp, end_str + 1, (k_ - 1) * sizeof(char));
 
-    rep_h_cpy = rep_h;
-    rep_h_cpy.updateFW(km_tmp[0], alpha[2]);
-    hashes_fw[2] = rep_h_cpy.hash();
-
-    rep_h_cpy = rep_h;
-    rep_h_cpy.updateFW(km_tmp[0], alpha[3]);
-    hashes_fw[3] = rep_h_cpy.hash();
-
-    std::memmove(km_tmp, km_tmp + 1, (k_ - 1) * sizeof(char));
+    km_tmp[k_-1] = alpha[0];
+    km_tmp[k_] = '\0';
 
     const uint64_t it_min_h_fw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
 
@@ -3657,14 +4281,15 @@ bool CompactedDBG<U, G>::fwStepBBF(const Kmer km, Kmer& end, char& c, bool& has_
 
             if (neigh_fw[i]){
 
-                char dummy;
                 bool has_no_neighbor_tmp = false;
 
                 Kmer km_fp(end.forwardBase(alpha[i]));
 
-                fwStepBBF(km_fp, km_fp, dummy, has_no_neighbor_tmp, l_ignored_km_tip, false);
+                km_tmp[k_-1] = alpha[i];
 
-                neigh_fw[i] = has_no_neighbor_tmp && bwStepBBF(km_fp, km_fp, dummy, has_no_neighbor_tmp, l_ignored_km_tip, false);
+                fwStepBBF(bf, km_fp, km_fp, rep_fw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false);
+
+                neigh_fw[i] = has_no_neighbor_tmp && (bwStepBBF(bf, km_fp, km_fp, rep_fw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false).first != -1);
 
                 found_fp_fw += neigh_fw[i];
                 j_tmp += (i - j_tmp) & (static_cast<size_t>(neigh_fw[i]) - 1);
@@ -3685,39 +4310,36 @@ bool CompactedDBG<U, G>::fwStepBBF(const Kmer km, Kmer& end, char& c, bool& has_
     if (nb_neigh != 1) {
 
         has_no_neighbor = (nb_neigh == 0);
-        return false;
+        
+        return {-1, RepHash()};
     }
     else has_no_neighbor = false;
 
     if (check_fp_cand){
 
-        int found_fp_bw = 0;
-
-        bool neigh_bw[4] = {false, false, false, false};
-        uint64_t hashes_bw[4];
-
         const Kmer fw(end.forwardBase(alpha[j]));
 
-        fw.toString(km_tmp);
-        rep_h.init(km_tmp);
+        bool neigh_bw[4] = {false, false, false, false};
 
-        rep_h_cpy = rep_h;
-        rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[0]);
-        hashes_bw[0] = rep_h_cpy.hash();
+        RepHash rep_bw[4] = {rep_fw[j], rep_fw[j], rep_fw[j], rep_fw[j]};
 
-        rep_h_cpy = rep_h;
-        rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[1]);
-        hashes_bw[1] = rep_h_cpy.hash();
+        uint64_t hashes_bw[4];
 
-        rep_h_cpy = rep_h;
-        rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[2]);
-        hashes_bw[2] = rep_h_cpy.hash();
+        int found_fp_bw = 0;
 
-        rep_h_cpy = rep_h;
-        rep_h_cpy.updateBW(km_tmp[k_ - 1], alpha[3]);
-        hashes_bw[3] = rep_h_cpy.hash();
+        rep_bw[0].updateBW(alpha[j], alpha[0]);
+        rep_bw[1].updateBW(alpha[j], alpha[1]);
+        rep_bw[2].updateBW(alpha[j], alpha[2]);
+        rep_bw[3].updateBW(alpha[j], alpha[3]);
+
+        hashes_bw[0] = rep_bw[0].hash();
+        hashes_bw[1] = rep_bw[1].hash();
+        hashes_bw[2] = rep_bw[2].hash();
+        hashes_bw[3] = rep_bw[3].hash();
 
         std::memmove(km_tmp + 1, km_tmp, (k_ - 1) * sizeof(char));
+
+        km_tmp[0] = alpha[0];
 
         const uint64_t it_min_h_bw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
 
@@ -3729,14 +4351,15 @@ bool CompactedDBG<U, G>::fwStepBBF(const Kmer km, Kmer& end, char& c, bool& has_
 
                 if (neigh_bw[i]){
 
-                    char dummy;
                     bool has_no_neighbor_tmp = false;
 
                     Kmer km_fp(fw.backwardBase(alpha[i]));
 
-                    bwStepBBF(km_fp, km_fp, dummy, has_no_neighbor_tmp, l_ignored_km_tip, false);
+                    km_tmp[0] = alpha[i];
 
-                    neigh_bw[i] = has_no_neighbor_tmp && fwStepBBF(km_fp, km_fp, dummy, has_no_neighbor_tmp, l_ignored_km_tip, false);
+                    bwStepBBF(bf, km_fp, km_fp, rep_bw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false);
+
+                    neigh_bw[i] = has_no_neighbor_tmp && (fwStepBBF(bf, km_fp, km_fp, rep_bw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false).first != -1);
 
                     if (neigh_bw[i] && (km_fp == km)){
 
@@ -3754,7 +4377,7 @@ bool CompactedDBG<U, G>::fwStepBBF(const Kmer km, Kmer& end, char& c, bool& has_
             }
         }
 
-        if (nb_neigh != 1) return false;
+        if (nb_neigh != 1) return {-1, RepHash()};
 
         if (fw != km) {
 
@@ -3779,15 +4402,186 @@ bool CompactedDBG<U, G>::fwStepBBF(const Kmer km, Kmer& end, char& c, bool& has_
             }
 
             end = fw;
-            c = alpha[j];
 
-            return true;
+            return {j, rep_fw[j]};
         }
 
-        return false;
+        return {-1, RepHash()};
     }
 
-    return true;
+    return {j, rep_fw[j]};
+}
+
+template<typename U, typename G>
+pair<int, RepHash> CompactedDBG<U, G>::fwStepBBF(const DualBlockedBloomFilter& bf, const Kmer km, Kmer& end, const RepHash& rep_end, const char* end_str, bool& has_no_neighbor, vector<Kmer>& l_ignored_km_tip, const bool check_fp_cand) const {
+
+    char km_tmp[MAX_KMER_SIZE];
+
+    bool neigh_fw[4] = {false, false, false, false};
+
+    RepHash rep_fw[4] = {rep_end, rep_end, rep_end, rep_end};
+
+    uint64_t hashes_fw[4];
+
+    int found_fp_fw = 0;
+
+    rep_fw[0].updateFW(end_str[0], alpha[0]);
+    rep_fw[1].updateFW(end_str[0], alpha[1]);
+    rep_fw[2].updateFW(end_str[0], alpha[2]);
+    rep_fw[3].updateFW(end_str[0], alpha[3]);
+
+    hashes_fw[0] = rep_fw[0].hash();
+    hashes_fw[1] = rep_fw[1].hash();
+    hashes_fw[2] = rep_fw[2].hash();
+    hashes_fw[3] = rep_fw[3].hash();
+
+    std::memcpy(km_tmp, end_str + 1, (k_ - 1) * sizeof(char));
+
+    km_tmp[k_-1] = alpha[0];
+    km_tmp[k_] = '\0';
+
+    const uint64_t it_min_h_fw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
+
+    size_t nb_neigh = bf.contains(hashes_fw, it_min_h_fw, neigh_fw, 2 * (static_cast<size_t>(check_fp_cand) + 1), 0);
+    size_t j = static_cast<size_t>(neigh_fw[1]) + (2ULL & (static_cast<size_t>(!neigh_fw[2]) - 1)) + (3ULL & (static_cast<size_t>(!neigh_fw[3]) - 1));
+
+    if (check_fp_cand && (nb_neigh >= 2)){
+
+        size_t j_tmp = 0;
+
+        for (size_t i = 0; i < 4; ++i) {
+
+            if (neigh_fw[i]){
+
+                bool has_no_neighbor_tmp = false;
+
+                Kmer km_fp(end.forwardBase(alpha[i]));
+
+                km_tmp[k_-1] = alpha[i];
+
+                fwStepBBF(bf, km_fp, km_fp, rep_fw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false);
+
+                neigh_fw[i] = has_no_neighbor_tmp && (bwStepBBF(bf, km_fp, km_fp, rep_fw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false).first != -1);
+
+                found_fp_fw += neigh_fw[i];
+                j_tmp += (i - j_tmp) & (static_cast<size_t>(neigh_fw[i]) - 1);
+            }
+        }
+
+        if (found_fp_fw){
+
+            if (nb_neigh - found_fp_fw){
+
+                j = j_tmp;
+                nb_neigh -= found_fp_fw;
+            }
+            else found_fp_fw = 0;
+        }
+    }
+
+    if (nb_neigh != 1) {
+
+        has_no_neighbor = (nb_neigh == 0);
+        
+        return {-1, RepHash()};
+    }
+    else has_no_neighbor = false;
+
+    if (check_fp_cand){
+
+        const Kmer fw(end.forwardBase(alpha[j]));
+
+        bool neigh_bw[4] = {false, false, false, false};
+
+        RepHash rep_bw[4] = {rep_fw[j], rep_fw[j], rep_fw[j], rep_fw[j]};
+
+        uint64_t hashes_bw[4];
+
+        int found_fp_bw = 0;
+
+        rep_bw[0].updateBW(alpha[j], alpha[0]);
+        rep_bw[1].updateBW(alpha[j], alpha[1]);
+        rep_bw[2].updateBW(alpha[j], alpha[2]);
+        rep_bw[3].updateBW(alpha[j], alpha[3]);
+
+        hashes_bw[0] = rep_bw[0].hash();
+        hashes_bw[1] = rep_bw[1].hash();
+        hashes_bw[2] = rep_bw[2].hash();
+        hashes_bw[3] = rep_bw[3].hash();
+
+        std::memmove(km_tmp + 1, km_tmp, (k_ - 1) * sizeof(char));
+
+        km_tmp[0] = alpha[0];
+
+        const uint64_t it_min_h_bw = minHashKmer<RepHash>(km_tmp, k_, g_, RepHash(), true).getHash();
+
+        nb_neigh = bf.contains(hashes_bw, it_min_h_bw, neigh_bw, 4, 0);
+
+        if (nb_neigh >= 2){
+
+            for (size_t i = 0; i < 4; ++i) {
+
+                if (neigh_bw[i]){
+
+                    bool has_no_neighbor_tmp = false;
+
+                    Kmer km_fp(fw.backwardBase(alpha[i]));
+
+                    km_tmp[0] = alpha[i];
+
+                    bwStepBBF(bf, km_fp, km_fp, rep_bw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false);
+
+                    neigh_bw[i] = has_no_neighbor_tmp && (fwStepBBF(bf, km_fp, km_fp, rep_bw[i], km_tmp, has_no_neighbor_tmp, l_ignored_km_tip, false).first != -1);
+
+                    if (neigh_bw[i] && (km_fp == km)){
+
+                        found_fp_bw = 0;
+                        break;
+                    }
+                    else found_fp_bw += (neigh_bw[i] && (km_fp != km));
+                }
+            }
+
+            if (found_fp_bw){
+
+                if (nb_neigh - found_fp_bw) nb_neigh -= found_fp_bw;
+                else found_fp_bw = 0;
+            }
+        }
+
+        if (nb_neigh != 1) return {-1, RepHash()};
+
+        if (fw != km) {
+
+            for (size_t i = 0; (i < 4) && (found_fp_bw != 0); ++i) {
+
+                if (neigh_bw[i]){
+
+                    l_ignored_km_tip.push_back(fw.backwardBase(alpha[i]).rep());
+
+                    --found_fp_bw;
+                }
+            }
+
+            for (size_t i = 0; (i < 4) && (found_fp_fw != 0); ++i) {
+
+                if (neigh_fw[i]){
+
+                    l_ignored_km_tip.push_back(end.forwardBase(alpha[i]).rep());
+
+                    --found_fp_fw;
+                }
+            }
+
+            end = fw;
+
+            return {j, rep_fw[j]};
+        }
+
+        return {-1, RepHash()};
+    }
+
+    return {j, rep_fw[j]};
 }
 
 // use:  cc = cm.findUnitig(km,s,pos)
@@ -3927,8 +4721,6 @@ UnitigMap<U, G> CompactedDBG<U, G>::findUnitig(const Kmer& km, const char* s, co
 template<typename U, typename G>
 bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_unitig){
 
-    int pos;
-
     const size_t len = str_unitig.size();
     size_t pos_id_unitig = id_unitig << 32;
 
@@ -3969,12 +4761,12 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
                 const minHashResult& min_h_res = *it_it_min;
                 Minimizer minz_rep = Minimizer(c_str + min_h_res.pos).rep(); //Get the minimizer to insert
                 std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
+
                 packed_tiny_vector* pck_tinyv = &(p.first.getVector());
                 size_t flag = p.first.getVectorSize();
                 size_t v_sz = pck_tinyv->size(flag);
 
-                pos = min_h_res.pos;
-                pos_id_unitig = (pos_id_unitig & mask) | ((size_t) pos);
+                pos_id_unitig = (pos_id_unitig & mask) | ((size_t) min_h_res.pos);
 
                 if (!isShort){
 
@@ -3991,13 +4783,18 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 
                                 // If minimizer bin already contains abundant k-mer, just set flag for unitig overcrowding
                                 if (((*pck_tinyv)(v_sz-1, flag) & MASK_CONTIG_ID) == MASK_CONTIG_ID) (*pck_tinyv)(v_sz-1, flag) |= MASK_CONTIG_TYPE;
-                                else p.first.getVectorSize() = (flag = pck_tinyv->push_back(mask, flag));
+                                else {
+
+                                    flag = pck_tinyv->push_back(mask, flag);
+                                    p.first.getVectorSize() = flag;
+                                }
                             }
 
                             mhr = mhr_tmp;
-                            minz_rep = Minimizer(c_str + mhr.pos).rep();
 
+                            minz_rep = Minimizer(c_str + mhr.pos).rep();
                             p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
+
                             pck_tinyv = &(p.first.getVector());
                             flag = p.first.getVectorSize();
                             v_sz = pck_tinyv->size(flag);
@@ -4019,11 +4816,18 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 
                     break;
                 }
-                else if ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID){ //If minimizer is abundant or crowded
+                else {
 
-                    if ((v_sz == 1) || (v(v_sz-2, flag_v) != pos_id_unitig)) flag_v = v.insert(pos_id_unitig, v_sz-1, flag_v);
+                    bool duplicate = false;
+
+                    for (size_t i = 0; (i < v_sz) && !duplicate; ++i) duplicate = (v(i, flag_v) == pos_id_unitig);
+
+                    if (!duplicate) {
+
+                        if ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID) flag_v = v.insert(pos_id_unitig, v_sz-1, flag_v);
+                        else flag_v = v.push_back(pos_id_unitig, flag_v);
+                    }
                 }
-                else if (v(v_sz-1, flag_v) != pos_id_unitig) flag_v = v.push_back(pos_id_unitig, flag_v);
 
                 last_pos_min = min_h_res.pos;
                 ++it_it_min;
@@ -4057,7 +4861,7 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
                     uint8_t& flag_v = p.first.getVectorSize();
                     const size_t v_sz = v.size(flag_v);
 
-                    if ((v_sz > 0) && ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID)) v(v_sz-1, flag_v)++;
+                    if ((v_sz > 0) && ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID)) v(v_sz-1, flag_v) += 1;
                     else flag_v = v.push_back(MASK_CONTIG_ID + 1, flag_v);
 
                     last_pos_min = min_h_res.pos;
@@ -4085,13 +4889,13 @@ void CompactedDBG<U, G>::moveToAbundant() {
     MinimizerIndex::iterator it = hmap_min_unitigs.begin();
     MinimizerIndex::iterator it_end = hmap_min_unitigs.end();
 
-    vector<pair<size_t, string>> to_move;
+    vector<size_t> v_km_rm;
 
     char km_tmp[MAX_KMER_SIZE];
 
     Kmer km_rep;
 
-    to_move.reserve(16);
+    v_km_rm.reserve(16);
 
     while (it != it_end){
 
@@ -4103,71 +4907,77 @@ void CompactedDBG<U, G>::moveToAbundant() {
 
             for (size_t i = 0; i < v_sz; ++i){
 
-                if (static_cast<bool>((*pck_tinyv)(i, flag) | MASK_CONTIG_TYPE)){
+                const size_t unitig_id_pos = (*pck_tinyv)(i, flag);
 
-                    size_t unitig_id = (*pck_tinyv)(i, flag) >> 32;
-                    string unitig_str = km_unitigs.getKmer(unitig_id).toString();
-
-                    to_move.push_back({std::move(unitig_id), std::move(unitig_str)});
-                }
+                if (static_cast<bool>(unitig_id_pos & MASK_CONTIG_TYPE) && ((unitig_id_pos >> 32) != RESERVED_ID)) v_km_rm.push_back(unitig_id_pos >> 32);
             }
 
-            if (min_abundance_lim > (v_sz - to_move.size())){
+            if (min_abundance_lim > (v_sz - v_km_rm.size())){
 
-                for (const auto& p : to_move) deleteUnitig_(true, false, p.first, p.second);
+                sort(v_km_rm.rbegin(), v_km_rm.rend());
 
-                for (const auto& p : to_move){
+                for (auto unitig_id : v_km_rm) {
 
-                    const char* c_str = p.second.c_str();
-                    const size_t len = p.second.length();
+                    const string unitig_str = km_unitigs.getKmer(unitig_id).toString();
 
-                    km_rep = Kmer(c_str).rep();
-                    c_str = km_tmp;
+                    {
+                        size_t id_swap = km_unitigs.size() - 1;
 
-                    km_rep.toString(km_tmp);
+                        if (unitig_id != id_swap) swapUnitigs(true, unitig_id, id_swap);
 
-                    minHashIterator<RepHash> it_min = minHashIterator<RepHash>(c_str, len, k_, g_, RepHash(), true), it_min_end;
+                        deleteUnitig_(true, false, id_swap, unitig_str);
 
-                    for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){
-
-                        if (last_pos_min < it_min.getPosition()){ //If current minimizer was not seen before
-
-                            minHashResultIterator<RepHash> it_it_min = *it_min, it_it_min_end;
-
-                            while (it_it_min != it_it_min_end){
-
-                                const minHashResult& min_h_res = *it_it_min;
-                                Minimizer minz_rep = Minimizer(c_str + min_h_res.pos).rep(); //Get the minimizer to insert
-
-                                std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
-                                packed_tiny_vector& v = p.first.getVector();
-                                uint8_t& flag_v = p.first.getVectorSize();
-                                const size_t v_sz = v.size(flag_v);
-
-                                if ((v_sz > 0) && ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID)) v(v_sz-1, flag_v)++;
-                                else flag_v = v.push_back(MASK_CONTIG_ID + 1, flag_v);
-
-                                last_pos_min = min_h_res.pos;
-                                ++it_it_min;
-                            }
-                        }
+                        km_unitigs.remove(id_swap);
+                        km_unitigs.resize(id_swap);
                     }
 
-                    h_kmers_ccov.insert(km_rep, CompressedCoverage_t<U>(1));
+                    {
+                        km_rep = Kmer(unitig_str.c_str()).rep();
+
+                        km_rep.toString(km_tmp);
+
+                        minHashIterator<RepHash> it_min = minHashIterator<RepHash>(km_tmp, unitig_str.length(), k_, g_, RepHash(), true), it_min_end;
+
+                        for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){
+
+                            if (last_pos_min < it_min.getPosition()){ //If current minimizer was not seen before
+
+                                minHashResultIterator<RepHash> it_it_min = *it_min, it_it_min_end;
+
+                                while (it_it_min != it_it_min_end){
+
+                                    const minHashResult& min_h_res = *it_it_min;
+                                    Minimizer minz_rep = Minimizer(km_tmp + min_h_res.pos).rep(); //Get the minimizer to insert
+
+                                    std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
+
+                                    packed_tiny_vector& v = p.first.getVector();
+                                    uint8_t& flag_v = p.first.getVectorSize();
+                                    const size_t v_sz = v.size(flag_v);
+
+                                    if ((v_sz > 0) && ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID)) v(v_sz-1, flag_v) += 1;
+                                    else flag_v = v.push_back(MASK_CONTIG_ID + 1, flag_v);
+
+                                    last_pos_min = min_h_res.pos;
+                                    ++it_it_min;
+                                }
+                            }
+                        }
+
+                        h_kmers_ccov.insert(km_rep, CompressedCoverage_t<U>(1));
+                    }
                 }
             }
 
-            to_move.clear();
+            v_km_rm.clear();
         }
 
         ++it;
     }
 }
 
-template<typename U, typename G>
+/*template<typename U, typename G>
 bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_unitig, SpinLock& lck_unitig, SpinLock& lck_kmer){
-
-    int pos;
 
     const size_t len = str_unitig.size();
     size_t pos_id_unitig = id_unitig << 32;
@@ -4184,13 +4994,13 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 
     if (len == k_){ // Unitig to add is short, maybe abundant as well
 
-        isShort = true;
-
-        pos_id_unitig |= MASK_CONTIG_TYPE;
-
         km_rep = Kmer(c_str).rep();
         km_rep.toString(km_tmp);
+
+        isShort = true;
         c_str = km_tmp;
+
+        pos_id_unitig |= MASK_CONTIG_TYPE;
     }
 
     minHashIterator<RepHash> it_min(c_str, len, k_, g_, RepHash(), true), it_min_end;
@@ -4209,13 +5019,13 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
                 const minHashResult& min_h_res = *it_it_min;
                 Minimizer minz_rep = Minimizer(c_str + min_h_res.pos).rep(); //Get the minimizer to insert
 
-                pos = min_h_res.pos;
-                pos_id_unitig = (pos_id_unitig & mask) | ((size_t) pos);
-
                 std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert_p(minz_rep, packed_tiny_vector(), 0);
+
                 packed_tiny_vector* pck_tinyv = &(p.first.getVector());
                 size_t flag = p.first.getVectorSize();
                 size_t v_sz = pck_tinyv->size(flag);
+
+                pos_id_unitig = (pos_id_unitig & mask) | ((size_t) min_h_res.pos);
 
                 if (!isShort){
 
@@ -4232,7 +5042,11 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 
                                 // If minimizer bin already contains abundant k-mer, just set flag for unitig overcrowding
                                 if (((*pck_tinyv)(v_sz-1, flag) & MASK_CONTIG_ID) == MASK_CONTIG_ID) (*pck_tinyv)(v_sz-1, flag) |= MASK_CONTIG_TYPE;
-                                else p.first.getVectorSize() = (flag = pck_tinyv->push_back(mask, flag));
+                                else {
+
+                                    flag = pck_tinyv->push_back(mask, flag);
+                                    p.first.getVectorSize() = flag;
+                                }
                             }
 
                             hmap_min_unitigs.release_p(p.first);
@@ -4241,6 +5055,7 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
                             minz_rep = Minimizer(c_str + mhr.pos).rep();
 
                             p = hmap_min_unitigs.insert_p(minz_rep, packed_tiny_vector(), 0);
+
                             pck_tinyv = &(p.first.getVector());
                             flag = p.first.getVectorSize();
                             v_sz = pck_tinyv->size(flag);
@@ -4253,11 +5068,18 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
                 uint8_t& flag_v = p.first.getVectorSize();
 
                 if (v_sz == 0) flag_v = v.push_back(pos_id_unitig, flag_v); //Newly created vector, just push unitig ID
-                else if ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID){ //If minimizer is abundant or crowded
+                else {
 
-                    if ((v_sz == 1) || (v(v_sz-2, flag_v) != pos_id_unitig)) flag_v = v.insert(pos_id_unitig, v_sz-1, flag_v);
+                    bool duplicate = false;
+
+                    for (size_t i = 0; (i < v_sz) && !duplicate; ++i) duplicate = (v(i, flag_v) == pos_id_unitig);
+
+                    if (!duplicate) {
+
+                        if ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID) flag_v = v.insert(pos_id_unitig, v_sz-1, flag_v);
+                        else flag_v = v.push_back(pos_id_unitig, flag_v);
+                    }
                 }
-                else if (v(v_sz-1, flag_v) != pos_id_unitig) flag_v = v.push_back(pos_id_unitig, flag_v);
 
                 hmap_min_unitigs.release_p(p.first);
 
@@ -4289,14 +5111,12 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
     }
 
     return isAbundant;
-}
+}*/
 
 template<typename U, typename G>
 bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_unitig, const size_t id_unitig_r, const size_t is_short_r){
 
-    int pos;
-
-    const size_t pos_id_unitig_r = (id_unitig_r << 32) | (is_short_r ? MASK_CONTIG_TYPE : 0);
+    const size_t pos_id_unitig_r = (id_unitig_r << 32) | ((static_cast<size_t>(!is_short_r) - 1) & MASK_CONTIG_TYPE);
 
     const size_t len = str_unitig.size();
     const size_t mask = MASK_CONTIG_ID | MASK_CONTIG_TYPE;
@@ -4338,13 +5158,14 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 
                 const minHashResult& min_h_res = *it_it_min;
                 Minimizer minz_rep = Minimizer(c_str + min_h_res.pos).rep(); //Get the minimizer to insert
+
                 std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
+
                 packed_tiny_vector* pck_tinyv = &(p.first.getVector());
                 size_t flag = p.first.getVectorSize();
                 size_t v_sz = pck_tinyv->size(flag);
 
-                pos = min_h_res.pos;
-                pos_id_unitig = (pos_id_unitig & mask) | ((size_t) pos);
+                pos_id_unitig = (pos_id_unitig & mask) | ((size_t) min_h_res.pos);
 
                 for (i = 0; i < v_sz; ++i){
 
@@ -4370,13 +5191,18 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 
                                 // If minimizer bin already contains abundant k-mer, just set flag for unitig overcrowding
                                 if (((*pck_tinyv)(v_sz-1, flag) & MASK_CONTIG_ID) == MASK_CONTIG_ID) (*pck_tinyv)(v_sz-1, flag) |= MASK_CONTIG_TYPE;
-                                else p.first.getVectorSize() = (flag = pck_tinyv->push_back(mask, flag));
+                                else {
+
+                                    flag = pck_tinyv->push_back(mask, flag);
+                                    p.first.getVectorSize() = flag;
+                                }
                             }
 
                             mhr = mhr_tmp;
                             minz_rep = Minimizer(c_str + mhr.pos).rep();
 
                             p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
+
                             pck_tinyv = &(p.first.getVector());
                             flag = p.first.getVectorSize();
                             v_sz = pck_tinyv->size(flag);
@@ -4413,11 +5239,18 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 
                         break;
                     }
-                    else if ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID){ //If minimizer is abundant or crowded
+                    else {
 
-                        if ((v_sz == 1) || (v(v_sz-2, flag_v) != pos_id_unitig)) flag_v = v.insert(pos_id_unitig, v_sz-1, flag_v);
+                        bool duplicate = false;
+
+                        for (size_t i = 0; (i < v_sz) && !duplicate; ++i) duplicate = (v(i, flag_v) == pos_id_unitig);
+
+                        if (!duplicate) {
+
+                            if ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID) flag_v = v.insert(pos_id_unitig, v_sz-1, flag_v);
+                            else flag_v = v.push_back(pos_id_unitig, flag_v);
+                        }
                     }
-                    else if (v(v_sz-1, flag_v) != pos_id_unitig) flag_v = v.push_back(pos_id_unitig, flag_v);
                 }
 
                 last_pos_min = min_h_res.pos;
@@ -4447,12 +5280,14 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 
                     const minHashResult& min_h_res = *it_it_min;
                     Minimizer minz_rep = Minimizer(c_str + min_h_res.pos).rep(); //Get the minimizer to insert
+
                     std::pair<MinimizerIndex::iterator, bool> p = hmap_min_unitigs.insert(minz_rep, packed_tiny_vector(), 0);
+
                     packed_tiny_vector& v = p.first.getVector();
                     uint8_t& flag_v = p.first.getVectorSize();
                     const size_t v_sz = v.size(flag_v);
 
-                    if ((v_sz > 0) && ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID)) v(v_sz-1, flag_v)++;
+                    if ((v_sz > 0) && ((v(v_sz-1, flag_v) & MASK_CONTIG_ID) == MASK_CONTIG_ID)) v(v_sz-1, flag_v) += 1;
                     else flag_v = v.push_back(MASK_CONTIG_ID + 1, flag_v);
 
                     last_pos_min = min_h_res.pos;
@@ -4477,217 +5312,97 @@ bool CompactedDBG<U, G>::addUnitig(const string& str_unitig, const size_t id_uni
 template<typename U, typename G>
 void CompactedDBG<U, G>::swapUnitigs(const bool isShort, const size_t id_a, const size_t id_b){
 
+    const size_t mask = MASK_CONTIG_ID | MASK_CONTIG_TYPE;
+
     size_t shift_id_unitig_a = id_a << 32;
     size_t shift_id_unitig_b = id_b << 32;
 
-    const size_t mask = MASK_CONTIG_ID | MASK_CONTIG_TYPE;
+    unordered_set<Minimizer, MinimizerHash> us_minz;
 
-    string str;
+    if (isShort){
 
-    size_t h_sz = 0;
+        shift_id_unitig_a |= MASK_CONTIG_TYPE;
+        shift_id_unitig_b |= MASK_CONTIG_TYPE;
+    }
+
+    auto swapUnitig = [&](const string str){
+
+        bool isForbidden = false;
+
+        const char* s = str.c_str();
+        const size_t len = str.size();
+
+        minHashIterator<RepHash> it_min(s, len, k_, g_, RepHash(), true), it_min_end;
+        minHashResult mhr, mhr_tmp;
+
+        for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){ // Iterate over minimizers of unitig
+
+            if ((last_pos_min < it_min.getPosition()) || isForbidden){ // If a new minimizer is found in unitig
+
+                minHashResultIterator<RepHash> it_it_min(*it_min), it_it_min_end;
+                isForbidden = false;
+
+                while (it_it_min != it_it_min_end){ // Iterate over minimizers of current k-mer in unitig
+
+                    const minHashResult& min_h_res = *it_it_min;
+                    Minimizer minz_rep = Minimizer(s + min_h_res.pos).rep();
+                    MinimizerIndex::iterator it_h = hmap_min_unitigs.find(minz_rep);
+
+                    mhr = min_h_res;
+
+                    while (it_h != hmap_min_unitigs.end()){
+
+                        packed_tiny_vector* v = &(it_h.getVector());
+                        uint8_t flag_v = it_h.getVectorSize();
+                        size_t v_sz = v->size(flag_v);
+
+                        it_h = hmap_min_unitigs.end();
+
+                        if (us_minz.insert(minz_rep).second) {
+
+                            for (size_t i = 0; i < v_sz; ++i){
+
+                                 // Swap the unitig ids but do not change positions;
+                                if (((*v)(i, flag_v) & mask) == shift_id_unitig_b) (*v)(i, flag_v) = shift_id_unitig_a | ((*v)(i, flag_v) & MASK_CONTIG_POS);
+                                else if (((*v)(i, flag_v) & mask) == shift_id_unitig_a) (*v)(i, flag_v) = shift_id_unitig_b | ((*v)(i, flag_v) & MASK_CONTIG_POS);
+                            }
+                        }
+
+                        if (((*v)(v_sz-1, flag_v) & mask) == mask) {
+
+                            mhr_tmp = it_min.getNewMin(mhr); //Recompute a new (different) minimizer for current k-mer
+                            isForbidden = true;
+
+                            if (mhr_tmp.hash != mhr.hash){
+
+                                mhr = mhr_tmp;
+                                minz_rep = Minimizer(s + mhr.pos).rep();
+                                it_h = hmap_min_unitigs.find(minz_rep);
+                            }
+                        }
+                    }
+
+                    last_pos_min = min_h_res.pos;
+                    ++it_it_min;
+                }
+            }
+        }
+    };
 
     // Swap the unitig pointers in v_unitigs
     if (isShort){
 
         km_unitigs.swap(id_a, id_b);
 
-        shift_id_unitig_a |= MASK_CONTIG_TYPE;
-        shift_id_unitig_b |= MASK_CONTIG_TYPE;
-
-        str = km_unitigs.getKmer(id_a).toString();
-        h_sz = 4;
+        swapUnitig(km_unitigs.getKmer(id_a).toString());
+        swapUnitig(km_unitigs.getKmer(id_b).toString());
     }
     else {
 
         std::swap(v_unitigs[id_a], v_unitigs[id_b]);
 
-        str = v_unitigs[id_a]->getSeq().toString();
-        h_sz = (v_unitigs[id_a]->length() / 4) + (v_unitigs[id_b]->length() / 4);
-    }
-
-    MinimizerHashTable<uint8_t> minimizers(h_sz);
-
-    bool isForbidden = false;
-
-    // Swap the unitig IDs in the minimizer hash table
-    const char* s = str.c_str();
-
-    size_t len = str.size();
-
-    minHashIterator<RepHash> it_min(s, len, k_, g_, RepHash(), true), it_min_end;
-    minHashResult mhr, mhr_tmp;
-
-    for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){ // Iterate over minimizers of unitig
-
-        if ((last_pos_min < it_min.getPosition()) || isForbidden){ // If a new minimizer is found in unitig
-
-            minHashResultIterator<RepHash> it_it_min(*it_min), it_it_min_end;
-            isForbidden = false;
-
-            while (it_it_min != it_it_min_end){ // Iterate over minimizers of current k-mer in unitig
-
-                const minHashResult& min_h_res = *it_it_min;
-                Minimizer minz_rep = Minimizer(s + min_h_res.pos).rep();
-                MinimizerIndex::iterator it_h = hmap_min_unitigs.find(minz_rep);
-
-                if (it_h != hmap_min_unitigs.end()){
-
-                    if (minimizers.find(minz_rep) == minimizers.end()){
-
-                        minimizers.insert(minz_rep, 0);
-
-                        packed_tiny_vector& v = it_h.getVector();
-                        const uint8_t flag_v = it_h.getVectorSize();
-                        const size_t v_sz = v.size(flag_v);
-
-                        for (size_t i = 0; i < v_sz; ++i){
-
-                             // Swap the unitig ids but do not change positions;
-                            if ((v(i, flag_v) & mask) == shift_id_unitig_b) v(i, flag_v) = shift_id_unitig_a | (v(i, flag_v) & MASK_CONTIG_POS);
-                            else if ((v(i, flag_v) & mask) == shift_id_unitig_a) v(i, flag_v) = shift_id_unitig_b | (v(i, flag_v) & MASK_CONTIG_POS);
-                        }
-                    }
-
-                    packed_tiny_vector* v = &(it_h.getVector());
-                    uint8_t flag_v = it_h.getVectorSize();
-                    size_t v_sz = v->size(flag_v);
-
-                    mhr = min_h_res;
-
-                    while (((*v)(v_sz-1, flag_v) & mask) == mask){
-
-                        mhr_tmp = it_min.getNewMin(mhr); //Recompute a new (different) minimizer for current k-mer
-                        isForbidden = true;
-
-                        if (mhr_tmp.hash != mhr.hash){
-
-                            minz_rep = Minimizer(s + mhr_tmp.pos).rep();
-                            it_h = hmap_min_unitigs.find(minz_rep);
-
-                            if (it_h == hmap_min_unitigs.end()) break;
-
-                            if (minimizers.find(minz_rep) == minimizers.end()){
-
-                                minimizers.insert(minz_rep, 0);
-
-                                packed_tiny_vector& v_tmp = it_h.getVector();
-                                const uint8_t flag_v_tmp = it_h.getVectorSize();
-                                const size_t v_sz_tmp = v_tmp.size(flag_v_tmp);
-
-                                for (size_t i = 0; i < v_sz_tmp; ++i){
-
-                                     // Swap the unitig ids but do not change positions;
-                                    if ((v_tmp(i, flag_v_tmp) & mask) == shift_id_unitig_b){
-
-                                        v_tmp(i, flag_v_tmp) = shift_id_unitig_a | (v_tmp(i, flag_v_tmp) & MASK_CONTIG_POS);
-                                    }
-                                    else if ((v_tmp(i, flag_v_tmp) & mask) == shift_id_unitig_a){
-
-                                        v_tmp(i, flag_v_tmp) = shift_id_unitig_b | (v_tmp(i, flag_v_tmp) & MASK_CONTIG_POS);
-                                    }
-                                }
-                            }
-
-                            mhr = mhr_tmp;
-                            v = &(it_h.getVector());
-                            flag_v = it_h.getVectorSize();
-                            v_sz = v->size(flag_v);
-                        }
-                        else break;
-                    }
-                }
-
-                last_pos_min = min_h_res.pos;
-                ++it_it_min;
-            }
-        }
-    }
-
-    str = isShort ? km_unitigs.getKmer(id_b).toString() : v_unitigs[id_b]->getSeq().toString();
-    s = str.c_str();
-    len = str.size();
-
-    isForbidden = false;
-
-    minHashIterator<RepHash> it_min2(s, len, k_, g_, RepHash(), true);
-
-    for (int64_t last_pos_min = -1; it_min2 != it_min_end; ++it_min2){ // Iterate over minimizers of unitig
-
-        if ((last_pos_min < it_min2.getPosition()) || isForbidden){ // If a new minimizer is found in unitig
-
-            minHashResultIterator<RepHash> it_it_min(*it_min2), it_it_min_end;
-            isForbidden = false;
-
-            while (it_it_min != it_it_min_end){ // Iterate over minimizers of current k-mer in unitig
-
-                const minHashResult& min_h_res = *it_it_min;
-                Minimizer minz_rep = Minimizer(s + min_h_res.pos).rep();
-                MinimizerIndex::iterator it_h = hmap_min_unitigs.find(minz_rep);
-
-                if (it_h != hmap_min_unitigs.end()){
-
-                    if (minimizers.find(minz_rep) == minimizers.end()){
-
-                        minimizers.insert(minz_rep, 0);
-
-                        packed_tiny_vector& v = it_h.getVector();
-                        const uint8_t flag_v = it_h.getVectorSize();
-                        const size_t v_sz = v.size(flag_v);
-
-                        for (size_t i = 0; i < v_sz; ++i){
-
-                            if ((v(i, flag_v) & mask) == shift_id_unitig_a) v(i, flag_v) = shift_id_unitig_b | (v(i, flag_v) & MASK_CONTIG_POS);
-                        }
-                    }
-
-                    packed_tiny_vector* v = &(it_h.getVector());
-                    uint8_t flag_v = it_h.getVectorSize();
-                    size_t v_sz = v->size(flag_v);
-
-                    mhr = min_h_res;
-
-                    while (((*v)(v_sz-1, flag_v) & mask) == mask){
-
-                        mhr_tmp = it_min2.getNewMin(mhr); //Recompute a new (different) minimizer for current k-mer
-                        isForbidden = true;
-
-                        if (mhr_tmp.hash != mhr.hash){
-
-                            minz_rep = Minimizer(s + mhr_tmp.pos).rep();
-                            it_h = hmap_min_unitigs.find(minz_rep);
-
-                            if (it_h == hmap_min_unitigs.end()) break;
-
-                            if (minimizers.find(minz_rep) == minimizers.end()){
-
-                                minimizers.insert(minz_rep, 0);
-
-                                packed_tiny_vector& v_tmp = it_h.getVector();
-                                const uint8_t flag_v_tmp = it_h.getVectorSize();
-                                const size_t v_sz_tmp = v_tmp.size(flag_v_tmp);
-
-                                for (size_t i = 0; i < v_sz_tmp; ++i){
-
-                                    if ((v_tmp(i, flag_v_tmp) & mask) == shift_id_unitig_a) {
-
-                                        v_tmp(i, flag_v_tmp) = shift_id_unitig_b | (v_tmp(i, flag_v_tmp) & MASK_CONTIG_POS);
-                                    }
-                                }
-                            }
-
-                            mhr = mhr_tmp;
-                            v = &(it_h.getVector());
-                            flag_v = it_h.getVectorSize();
-                            v_sz = v->size(flag_v);
-                        }
-                        else break;
-                    }
-                }
-
-                last_pos_min = min_h_res.pos;
-                ++it_it_min;
-            }
-        }
+        swapUnitig(v_unitigs[id_a]->getSeq().toString());
+        swapUnitig(v_unitigs[id_b]->getSeq().toString());
     }
 }
 
@@ -5241,18 +5956,18 @@ typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::deleteUnitig_(
 
         char km_str[MAX_KMER_SIZE];
 
-        typename h_kmers_ccov_t::iterator it_h = h_kmers_ccov.find(id_unitig);
+        typename h_kmers_ccov_t::iterator it_h_km = h_kmers_ccov.find(id_unitig);
 
-        const Kmer km = it_h.getKey();
+        const Kmer km = it_h_km.getKey();
 
         km.toString(km_str);
 
         minHashIterator<RepHash> it_min(km_str, k_, k_, g_, RepHash(), true), it_min_end;
 
-        if (delete_data) it_h->getData()->clear(UnitigMap<U, G>(id_unitig, 0, 1, k_, isShort, isAbundant, true, this));
+        if (delete_data) it_h_km->getData()->clear(UnitigMap<U, G>(id_unitig, 0, 1, k_, isShort, isAbundant, true, this));
 
-        it_h->ccov.clear();
-        h_kmers_ccov.erase(it_h);
+        it_h_km->ccov.clear();
+        h_kmers_ccov.erase(it_h_km);
 
         for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){ // Iterate over minimizers of unitig to delete
 
@@ -5264,12 +5979,12 @@ typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::deleteUnitig_(
 
                     const minHashResult& min_h_res = *it_it_min;
                     Minimizer minz_rep = Minimizer(km_str + min_h_res.pos).rep(); // Get canonical minimizer
-                    MinimizerIndex::iterator it_h = hmap_min_unitigs.find(minz_rep);
+                    MinimizerIndex::iterator it_h_min = hmap_min_unitigs.find(minz_rep);
 
-                    if (it_h != hmap_min_unitigs.end()){ // If the minimizer is found
+                    if (it_h_min != hmap_min_unitigs.end()){ // If the minimizer is found
 
-                        packed_tiny_vector& v = it_h.getVector();
-                        uint8_t& flag_v = it_h.getVectorSize();
+                        packed_tiny_vector& v = it_h_min.getVector();
+                        uint8_t& flag_v = it_h_min.getVectorSize();
 
                         const size_t last_pos_v = v.size(flag_v) - 1;
 
@@ -5277,8 +5992,8 @@ typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::deleteUnitig_(
 
                         if (((v(last_pos_v, flag_v) & RESERVED_ID) == 0) && ((v(last_pos_v, flag_v) & MASK_CONTIG_TYPE) != MASK_CONTIG_TYPE)){
 
-                            if (last_pos_v == 0) hmap_min_unitigs.erase(minz_rep);
-                            else flag_v = v.remove(v.size(flag_v) - 1, flag_v);
+                            if (last_pos_v == 0) hmap_min_unitigs.erase(it_h_min);
+                            else flag_v = v.remove(last_pos_v, flag_v);
                         }
                     }
 
@@ -5342,14 +6057,14 @@ typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::deleteUnitig_(
 
                     const minHashResult& min_h_res = *it_it_min;
                     Minimizer minz_rep = Minimizer(s + min_h_res.pos).rep(); // Get canonical minimizer
-                    MinimizerIndex::iterator it_h = hmap_min_unitigs.find(minz_rep);
+                    MinimizerIndex::iterator it_h_min = hmap_min_unitigs.find(minz_rep);
 
                     mhr = min_h_res;
 
-                    while (it_h != hmap_min_unitigs.end()){ // If the minimizer is found
+                    while (it_h_min != hmap_min_unitigs.end()){ // If the minimizer is found
 
-                        packed_tiny_vector& v = it_h.getVector();
-                        uint8_t& flag_v = it_h.getVectorSize();
+                        packed_tiny_vector& v = it_h_min.getVector();
+                        uint8_t& flag_v = it_h_min.getVectorSize();
                         size_t i = 0, v_sz = v.size(flag_v);
 
                         while (i < v_sz){
@@ -5362,22 +6077,27 @@ typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::deleteUnitig_(
                             else ++i;
                         }
 
-                        it_h = hmap_min_unitigs.end();
+                        if (v.size(flag_v) == 0) {
 
-                        if (v.size(flag_v) == 0) hmap_min_unitigs.erase(minz_rep);
-                        else if (!isShort && ((v(v_sz-1, flag_v) & mask) == mask)){ //Minimizer bin is overcrowded
+                            hmap_min_unitigs.erase(it_h_min);
+                            it_h_min = hmap_min_unitigs.end();
+                        }
+                        else {
 
+                            it_h_min = hmap_min_unitigs.end();
 
-                            mhr_tmp = it_min.getNewMin(mhr); //Recompute a new (different) minimizer for current k-mer
-                            isForbidden = true;
+                            if (!isShort && ((v(v_sz-1, flag_v) & mask) == mask)){ //Minimizer bin is overcrowded
 
-                            if (mhr_tmp.hash != mhr.hash){
+                                mhr_tmp = it_min.getNewMin(mhr); //Recompute a new (different) minimizer for current k-mer
+                                isForbidden = true;
 
-                                mhr = mhr_tmp;
-                                minz_rep = Minimizer(s + mhr.pos).rep();
-                                it_h = hmap_min_unitigs.find(minz_rep);
+                                if (mhr_tmp.hash != mhr.hash){
+
+                                    mhr = mhr_tmp;
+                                    minz_rep = Minimizer(s + mhr.pos).rep();
+                                    it_h_min = hmap_min_unitigs.find(minz_rep);
+                                }
                             }
-                            else break;
                         }
                     }
 
@@ -5398,16 +6118,16 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::deleteUnitig_( 
 
         char km_str[MAX_KMER_SIZE];
 
-        typename h_kmers_ccov_t::iterator it_h = h_kmers_ccov.find(id_unitig);
+        typename h_kmers_ccov_t::iterator it_h_km = h_kmers_ccov.find(id_unitig);
 
-        const Kmer km = it_h.getKey();
+        const Kmer km = it_h_km.getKey();
 
         km.toString(km_str);
 
-        minHashIterator<RepHash> it_min(km_str, k_, k_, g_, RepHash(), true), it_min_end;
+        it_h_km->ccov.clear();
+        h_kmers_ccov.erase(it_h_km);
 
-        it_h->ccov.clear();
-        h_kmers_ccov.erase(it_h);
+        minHashIterator<RepHash> it_min(km_str, k_, k_, g_, RepHash(), true), it_min_end;
 
         for (int64_t last_pos_min = -1; it_min != it_min_end; ++it_min){ // Iterate over minimizers of unitig to delete
 
@@ -5419,12 +6139,12 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::deleteUnitig_( 
 
                     const minHashResult& min_h_res = *it_it_min;
                     Minimizer minz_rep = Minimizer(km_str + min_h_res.pos).rep(); // Get canonical minimizer
-                    MinimizerIndex::iterator it_h = hmap_min_unitigs.find(minz_rep);
+                    MinimizerIndex::iterator it_h_min = hmap_min_unitigs.find(minz_rep);
 
-                    if (it_h != hmap_min_unitigs.end()){ // If the minimizer is found
+                    if (it_h_min != hmap_min_unitigs.end()){ // If the minimizer is found
 
-                        packed_tiny_vector& v = it_h.getVector();
-                        uint8_t& flag_v = it_h.getVectorSize();
+                        packed_tiny_vector& v = it_h_min.getVector();
+                        uint8_t& flag_v = it_h_min.getVectorSize();
 
                         const size_t last_pos_v = v.size(flag_v) - 1;
 
@@ -5432,8 +6152,8 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::deleteUnitig_( 
 
                         if (((v(last_pos_v, flag_v) & RESERVED_ID) == 0) && ((v(last_pos_v, flag_v) & MASK_CONTIG_TYPE) != MASK_CONTIG_TYPE)){
 
-                            if (last_pos_v == 0) hmap_min_unitigs.erase(minz_rep);
-                            else flag_v = v.remove(v.size(flag_v) - 1, flag_v);
+                            if (last_pos_v == 0) hmap_min_unitigs.erase(it_h_min);
+                            else flag_v = v.remove(last_pos_v, flag_v);
                         }
                     }
 
@@ -5492,14 +6212,14 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::deleteUnitig_( 
 
                     const minHashResult& min_h_res = *it_it_min;
                     Minimizer minz_rep = Minimizer(s + min_h_res.pos).rep(); // Get canonical minimizer
-                    MinimizerIndex::iterator it_h = hmap_min_unitigs.find(minz_rep);
+                    MinimizerIndex::iterator it_h_min = hmap_min_unitigs.find(minz_rep);
 
                     mhr = min_h_res;
 
-                    while (it_h != hmap_min_unitigs.end()){ // If the minimizer is found
+                    while (it_h_min != hmap_min_unitigs.end()){ // If the minimizer is found
 
-                        packed_tiny_vector& v = it_h.getVector();
-                        uint8_t& flag_v = it_h.getVectorSize();
+                        packed_tiny_vector& v = it_h_min.getVector();
+                        uint8_t& flag_v = it_h_min.getVectorSize();
                         size_t i = 0, v_sz = v.size(flag_v);
 
                         while (i < v_sz){
@@ -5512,22 +6232,27 @@ typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::deleteUnitig_( 
                             else ++i;
                         }
 
-                        it_h = hmap_min_unitigs.end();
+                        if (v.size(flag_v) == 0) {
 
-                        if (v.size(flag_v) == 0) hmap_min_unitigs.erase(minz_rep);
-                        else if (!isShort && ((v(v_sz-1, flag_v) & mask) == mask)){ //Minimizer bin is overcrowded
+                            hmap_min_unitigs.erase(it_h_min);
+                            it_h_min = hmap_min_unitigs.end();
+                        }
+                        else {
 
+                            it_h_min = hmap_min_unitigs.end();
 
-                            mhr_tmp = it_min.getNewMin(mhr); //Recompute a new (different) minimizer for current k-mer
-                            isForbidden = true;
+                            if (!isShort && ((v(v_sz-1, flag_v) & mask) == mask)){ //Minimizer bin is overcrowded
 
-                            if (mhr_tmp.hash != mhr.hash){
+                                mhr_tmp = it_min.getNewMin(mhr); //Recompute a new (different) minimizer for current k-mer
+                                isForbidden = true;
 
-                                mhr = mhr_tmp;
-                                minz_rep = Minimizer(s + mhr.pos).rep();
-                                it_h = hmap_min_unitigs.find(minz_rep);
+                                if (mhr_tmp.hash != mhr.hash){
+
+                                    mhr = mhr_tmp;
+                                    minz_rep = Minimizer(s + mhr.pos).rep();
+                                    it_h_min = hmap_min_unitigs.find(minz_rep);
+                                }
                             }
-                            else break;
                         }
                     }
 
@@ -5559,12 +6284,12 @@ void CompactedDBG<U, G>::deleteUnitig_(const bool isShort, const bool isAbundant
 
                     const minHashResult& min_h_res = *it_it_min;
                     Minimizer minz_rep = Minimizer(s + min_h_res.pos).rep(); // Get canonical minimizer
-                    MinimizerIndex::iterator it_h = hmap_min_unitigs.find(minz_rep);
+                    MinimizerIndex::iterator it_h_min = hmap_min_unitigs.find(minz_rep);
 
-                    if (it_h != hmap_min_unitigs.end()){ // If the minimizer is found
+                    if (it_h_min != hmap_min_unitigs.end()){ // If the minimizer is found
 
-                        packed_tiny_vector& v = it_h.getVector();
-                        uint8_t& flag_v = it_h.getVectorSize();
+                        packed_tiny_vector& v = it_h_min.getVector();
+                        uint8_t& flag_v = it_h_min.getVectorSize();
 
                         const size_t last_pos_v = v.size(flag_v) - 1;
 
@@ -5572,8 +6297,8 @@ void CompactedDBG<U, G>::deleteUnitig_(const bool isShort, const bool isAbundant
 
                         if (((v(last_pos_v, flag_v) & RESERVED_ID) == 0) && ((v(last_pos_v, flag_v) & MASK_CONTIG_TYPE) != MASK_CONTIG_TYPE)){
 
-                            if (last_pos_v == 0) hmap_min_unitigs.erase(it_h);
-                            else flag_v = v.remove(v.size(flag_v) - 1, flag_v);
+                            if (last_pos_v == 0) hmap_min_unitigs.erase(it_h_min);
+                            else flag_v = v.remove(last_pos_v, flag_v);
                         }
                     }
 
@@ -5606,14 +6331,14 @@ void CompactedDBG<U, G>::deleteUnitig_(const bool isShort, const bool isAbundant
 
                     const minHashResult& min_h_res = *it_it_min;
                     Minimizer minz_rep = Minimizer(s + min_h_res.pos).rep(); // Get canonical minimizer
-                    MinimizerIndex::iterator it_h = hmap_min_unitigs.find(minz_rep);
+                    MinimizerIndex::iterator it_h_min = hmap_min_unitigs.find(minz_rep);
 
                     mhr = min_h_res;
 
-                    while (it_h != hmap_min_unitigs.end()){ // If the minimizer is found
+                    while (it_h_min != hmap_min_unitigs.end()){ // If the minimizer is found
 
-                        packed_tiny_vector& v = it_h.getVector();
-                        uint8_t& flag_v = it_h.getVectorSize();
+                        packed_tiny_vector& v = it_h_min.getVector();
+                        uint8_t& flag_v = it_h_min.getVectorSize();
                         size_t i = 0, v_sz = v.size(flag_v);
 
                         while (i < v_sz){
@@ -5626,25 +6351,28 @@ void CompactedDBG<U, G>::deleteUnitig_(const bool isShort, const bool isAbundant
                             else ++i;
                         }
 
-                        if (v.size(flag_v) == 0) it_h = hmap_min_unitigs.end();
-                        else if (!isShort && ((v(v_sz-1, flag_v) & mask) == mask)){ //Minimizer bin is overcrowded
+                        if (v.size(flag_v) == 0) {
 
-                            mhr_tmp = it_min.getNewMin(mhr); //Recompute a new (different) minimizer for current k-mer
-                            isForbidden = true;
+                            hmap_min_unitigs.erase(it_h_min);
+                            it_h_min = hmap_min_unitigs.end();
+                        }
+                        else {
 
-                            if (mhr_tmp.hash != mhr.hash){
+                            it_h_min = hmap_min_unitigs.end();
 
-                                mhr = mhr_tmp;
-                                minz_rep = Minimizer(s + mhr.pos).rep();
-                                it_h = hmap_min_unitigs.find(minz_rep);
-                            }
-                            else {
+                            if (!isShort && ((v(v_sz-1, flag_v) & mask) == mask)){ //Minimizer bin is overcrowded
 
-                                it_h = hmap_min_unitigs.end();
-                                break;
+                                mhr_tmp = it_min.getNewMin(mhr); //Recompute a new (different) minimizer for current k-mer
+                                isForbidden = true;
+
+                                if (mhr_tmp.hash != mhr.hash){
+
+                                    mhr = mhr_tmp;
+                                    minz_rep = Minimizer(s + mhr.pos).rep();
+                                    it_h_min = hmap_min_unitigs.find(minz_rep);
+                                }
                             }
                         }
-                        else it_h = hmap_min_unitigs.end();
                     }
 
                     last_pos_min = min_h_res.pos;
@@ -5834,7 +6562,7 @@ UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const preAllocMinHashIt
 
     bool isShort;
 
-    size_t unitig_id, unitig_id_pos_tmp, len;
+    size_t unitig_id, unitig_pos, len;
 
     int64_t pos_match;
 
@@ -5892,27 +6620,27 @@ UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const preAllocMinHashIt
                 else {
 
                     isShort = (v(i, flag_v) & MASK_CONTIG_TYPE) != 0;
-                    unitig_id_pos_tmp = v(i, flag_v) & MASK_CONTIG_POS;
+                    unitig_pos = v(i, flag_v) & MASK_CONTIG_POS;
 
                     if (isShort){
 
                         const Kmer km_unitig = km_unitigs.getKmer(unitig_id);
 
-                        if (min_h_res.pos == unitig_id_pos_tmp){
+                        if (min_h_res.pos == unitig_pos){
 
                             if (km_unitig == km_rep){
 
                                 return UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, true, this);
                             }
                         }
-                        else if ((min_h_res.pos == diff - unitig_id_pos_tmp) && (km_unitig == km_rep)){
+                        else if ((min_h_res.pos == diff - unitig_pos) && (km_unitig == km_rep)){
 
                             return UnitigMap<U, G>(unitig_id, 0, 1, k_, true, false, false, this);
                         }
                     }
                     else {
 
-                        pos_match = unitig_id_pos_tmp - min_h_res.pos;
+                        pos_match = unitig_pos - min_h_res.pos;
                         len = v_unitigs[unitig_id]->length() - k_;
 
                         if ((pos_match >= 0) && (pos_match <= len) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match, k_, km)){
@@ -5920,7 +6648,7 @@ UnitigMap<U, G> CompactedDBG<U, G>::find(const Kmer& km, const preAllocMinHashIt
                             return UnitigMap<U, G>(unitig_id, pos_match, 1, len + k_, false, false, true, this);
                         }
 
-                        pos_match = unitig_id_pos_tmp - diff + min_h_res.pos;
+                        pos_match = unitig_pos - diff + min_h_res.pos;
 
                         if ((pos_match >= 0) && (pos_match <= len) && v_unitigs[unitig_id]->getSeq().compareKmer(pos_match, k_, km_twin)){
 
@@ -5949,8 +6677,6 @@ pair<size_t, size_t> CompactedDBG<U, G>::extractAllUnitigs() {
     size_t v_kmers_sz = km_unitigs.size();
     size_t v_unitigs_sz = v_unitigs.size();
     size_t nxt_pos_insert = v_unitigs.size();
-
-	size_t delete1 = 0, delete2 = 0, delete3 = 0;
 
     for (typename h_kmers_ccov_t::iterator it(h_kmers_ccov.begin()); it != h_kmers_ccov.end(); ++it) {
 
@@ -6094,7 +6820,7 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<Kmer>
 
         if (nb_threads == 1){
 
-            for (typename h_kmers_ccov_t::const_iterator it_ccov(h_kmers_ccov.begin()); it_ccov != h_kmers_ccov.end(); ++it_ccov) {
+            for (typename h_kmers_ccov_t::const_iterator it_ccov = h_kmers_ccov.begin(); it_ccov != h_kmers_ccov.end(); ++it_ccov) {
 
                 const Kmer tail(it_ccov.getKey());
                 const Kmer head_twin(tail.twin());
@@ -6414,7 +7140,7 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<char>
 
         if (nb_threads == 1){
 
-            for (typename h_kmers_ccov_t::const_iterator it_ccov(h_kmers_ccov.begin()); it_ccov != h_kmers_ccov.end(); ++it_ccov) {
+            for (typename h_kmers_ccov_t::const_iterator it_ccov = h_kmers_ccov.begin(); it_ccov != h_kmers_ccov.end(); ++it_ccov) {
 
                 const Kmer tail(it_ccov.getKey());
                 const Kmer head_twin(tail.twin());
@@ -6457,7 +7183,6 @@ void CompactedDBG<U, G>::createJoinHT(vector<Kmer>* v_joins, KmerHashTable<char>
         }
         else {
 
-            //Hybrid_SpinLockRW_MCS<> lck(nb_threads);
             SpinLockRW lck;
 
             auto worker_v_abundant = [chunk, &joins, &lck, this](typename h_kmers_ccov_t::const_iterator* l_it_ccov){
@@ -6735,30 +7460,16 @@ typename std::enable_if<!is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_
     size_t v_unitigs_size = v_unitigs.size();
     size_t v_kmers_size = km_unitigs.size();
 
-    // a and b are candidates for joining
-    /*KmerHashTable<Kmer> joins;
-
-    createJoinHT(v_joins, joins, nb_threads);
-
-    if (v_joins != nullptr) v_joins->clear();
-
-    for (KmerHashTable<Kmer>::iterator it(joins.begin()); it != joins.end(); ++it) {
-
-        const Kmer head(*it);
-        const Kmer tail(it.getKey().twin());*/
-
-    //-------------------------------------------------------------------------------
     KmerHashTable<char> joins;
 
     createJoinHT(v_joins, joins, nb_threads);
 
     if (v_joins != nullptr) v_joins->clear();
 
-    for (KmerHashTable<char>::iterator it(joins.begin()); it != joins.end(); ++it) {
+    for (KmerHashTable<char>::iterator it = joins.begin(); it != joins.end(); ++it) {
 
         const Kmer tail(it.getKey().twin());
         const Kmer head(tail.backwardBase(*it));
-    //-------------------------------------------------------------------------------
 
         UnitigMap<U, G> cmHead(find(head, true));
         UnitigMap<U, G> cmTail(find(tail, true));
@@ -6807,23 +7518,6 @@ typename std::enable_if<!is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_
 
                 if (tailDir) joinSeq.append(len_k_tail ? cmTail_head.toString() : v_unitigs[cmTail.pos_unitig]->getSeq().toString(), k_ - 1, string::npos);
                 else joinSeq.append(len_k_tail ? cmTail_head.twin().toString() : v_unitigs[cmTail.pos_unitig]->getSeq().rev().toString(), k_ - 1, string::npos);
-
-                //Compute new coverage
-                /*uint64_t covsum;
-
-                if (len_k_head){
-
-                    CompressedCoverage& ccov = cmHead.isShort ? v_kmers[cmHead.pos_unitig].second.ccov : h_kmers_ccov.find(cmHead.pos_unitig)->ccov;
-                    covsum = ccov.covAt(0);
-                }
-                else covsum = v_unitigs[cmHead.pos_unitig]->coveragesum;
-
-                if (len_k_tail){
-
-                    CompressedCoverage& ccov = cmTail.isShort ? v_kmers[cmTail.pos_unitig].second.ccov : h_kmers_ccov.find(cmTail.pos_unitig)->ccov;
-                    covsum += ccov.covAt(0);
-                }
-                else covsum += v_unitigs[cmTail.pos_unitig]->coveragesum;*/
 
                 Unitig<U> data_tmp; //Store temporarily the new merged data
                 Unitig<U>* unitig; //New unitig
@@ -6911,8 +7605,6 @@ typename std::enable_if<!is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_
                     unitig = v_unitigs[cmHead.pos_unitig];
                 }
 
-                //unitig->coveragesum = covsum;
-                //if (covsum >= cov_full * unitig->numKmers()) unitig->ccov.setFull();
                 unitig->getCov().setFull();
 
                 *(unitig->getData()) = std::move(*(data_tmp.getData()));
@@ -6937,30 +7629,16 @@ typename std::enable_if<is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_(
     size_t v_unitigs_size = v_unitigs.size();
     size_t v_kmers_size = km_unitigs.size();
 
-    // a and b are candidates for joining
-    /*KmerHashTable<Kmer> joins;
-
-    createJoinHT(v_joins, joins, nb_threads);
-
-    if (v_joins != nullptr) v_joins->clear();
-
-    for (KmerHashTable<Kmer>::iterator it = joins.begin(); it != joins.end(); ++it) {
-
-        const Kmer head = *it;
-        const Kmer tail = it.getKey().twin();*/
-
-    //-------------------------------------------------------------------------------
     KmerHashTable<char> joins;
 
     createJoinHT(v_joins, joins, nb_threads);
 
     if (v_joins != nullptr) v_joins->clear();
 
-    for (KmerHashTable<char>::iterator it(joins.begin()); it != joins.end(); ++it) {
+    for (KmerHashTable<char>::iterator it = joins.begin(); it != joins.end(); ++it) {
 
         const Kmer tail(it.getKey().twin());
         const Kmer head(tail.backwardBase(*it));
-    //-------------------------------------------------------------------------------
 
         UnitigMap<U, G> cmHead = find(head, true);
         UnitigMap<U, G> cmTail = find(tail, true);
@@ -7009,23 +7687,6 @@ typename std::enable_if<is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_(
 
                 if (tailDir) joinSeq.append(len_k_tail ? cmTail_head.toString() : v_unitigs[cmTail.pos_unitig]->getSeq().toString(), k_ - 1, string::npos);
                 else joinSeq.append(len_k_tail ? cmTail_head.twin().toString() : v_unitigs[cmTail.pos_unitig]->getSeq().rev().toString(), k_ - 1, string::npos);
-
-                //Compute new coverage
-                /*uint64_t covsum;
-
-                if (len_k_head){
-
-                    CompressedCoverage& ccov = cmHead.isShort ? v_kmers[cmHead.pos_unitig].second.ccov : h_kmers_ccov.find(cmHead.pos_unitig)->ccov;
-                    covsum = ccov.covAt(0);
-                }
-                else covsum = v_unitigs[cmHead.pos_unitig]->coveragesum;
-
-                if (len_k_tail){
-
-                    CompressedCoverage& ccov = cmTail.isShort ? v_kmers[cmTail.pos_unitig].second.ccov : h_kmers_ccov.find(cmTail.pos_unitig)->ccov;
-                    covsum += ccov.covAt(0);
-                }
-                else covsum += v_unitigs[cmTail.pos_unitig]->coveragesum;*/
 
                 Unitig<U>* unitig; //New unitig
 
@@ -7102,8 +7763,6 @@ typename std::enable_if<is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_(
                     unitig = v_unitigs[cmHead.pos_unitig];
                 }
 
-                //unitig->coveragesum = covsum;
-                //if (covsum >= cov_full * unitig->numKmers()) unitig->ccov.setFull();
                 unitig->getCov().setFull();
 
                 ++joined;
@@ -7167,9 +7826,7 @@ bool CompactedDBG<U, G>::checkJoin(const Kmer& a, const const_UnitigMap<U, G>& c
 }
 
 template<typename U, typename G>
-void CompactedDBG<U, G>::check_fp_tips(KmerHashTable<bool>& ignored_km_tips){
-
-    uint64_t nb_real_short_tips = 0;
+void CompactedDBG<U, G>::check_fp_tips(BlockedBloomFilter& bf, const size_t nb_threads){
 
     size_t nxt_pos_insert_v_unitigs = v_unitigs.size();
     size_t v_unitigs_sz = v_unitigs.size();
@@ -7177,64 +7834,204 @@ void CompactedDBG<U, G>::check_fp_tips(KmerHashTable<bool>& ignored_km_tips){
 
     vector<pair<int,int>> sp;
 
-    for (KmerHashTable<bool>::iterator it(ignored_km_tips.begin()); it != ignored_km_tips.end(); ++it) {
+    vector<vector<Kmer>> vv_km(nb_threads);
+    vector<vector<uint16_t>> vv_pres_neigh(nb_threads);
 
-        Kmer km(it.getKey());
+    {
+        const size_t nb_short_per_thread = (v_kmers_sz + nb_threads - 1) / nb_threads;
+        const size_t nb_abundant_per_thread = (h_kmers_ccov.size() + nb_threads - 1) / nb_threads;
 
-        UnitigMap<U, G> cm(find(km, true)); // Check if the (short) tip actually exists
+        typename h_kmers_ccov_t::iterator its = h_kmers_ccov.begin();
+        typename h_kmers_ccov_t::iterator ite = h_kmers_ccov.end();
 
-        if (!cm.isEmpty){ // IF the tip exists
+        vector<thread> workers; // need to keep track of threads so we can join them
 
-            ++nb_real_short_tips;
+        mutex mutex_it;
 
-            bool not_found = true;
+        for (size_t t = 0; t < nb_threads; ++t){
 
-            for (size_t i = 0; (i < 4) && not_found; ++i) {
+            workers.emplace_back(
 
-                UnitigMap<U, G> cm_bw(find(km.backwardBase(alpha[i])));
+                [&, t] {
 
-                if (!cm_bw.isEmpty && !cm_bw.isAbundant && !cm_bw.isShort){
+                    typename h_kmers_ccov_t::iterator lits, lite;
 
-                    //if (cm_bw.strand) ++cm_bw.dist;
-                    cm_bw.dist += cm_bw.strand;
+                    const size_t pos_s = t * nb_short_per_thread;
+                    const size_t pos_e = min(v_kmers_sz, (t+1) * nb_short_per_thread);
 
-                    if ((cm_bw.dist != 0) && (cm_bw.dist != cm_bw.size - k_ + 1)){
+                    vector<Kmer>& v_km = vv_km[t];
+                    vector<uint16_t>& v_pres_neigh = vv_pres_neigh[t];
 
-                        sp.push_back(make_pair(0, cm_bw.dist));
-                        sp.push_back(make_pair(cm_bw.dist, cm_bw.size - k_ + 1));
+                    {
+                        unique_lock<mutex> lock(mutex_it);
 
-                        extractUnitig_<is_void<U>::value>(cm_bw.pos_unitig, nxt_pos_insert_v_unitigs, v_unitigs_sz, v_kmers_sz, sp);
+                        lits = its;
 
-                        sp.clear();
+                        for (size_t i = 0; (i < nb_abundant_per_thread) && (its != ite); ++i) ++its;
+
+                        lite = its;
                     }
 
-                    not_found = false;
+                    while (lits != lite) {
+
+                        const Kmer& km = lits.getKey();
+                        const string km_str = km.toString();
+                        const uint64_t km_h = km.hash();
+
+                        minHashIterator<RepHash> it_min(km_str.c_str(), km_str.length(), k_, g_, RepHash(), true);
+
+                        const uint64_t min_h = it_min.getHash();
+
+                        if (bf.contains(km_h, min_h)) {
+
+                            if (nb_threads != 1) {
+
+                                uint16_t pres_neigh = 0;
+
+                                for (size_t i = 0; (i < 4) && (pres_neigh == 0); ++i) {
+
+                                    const const_UnitigMap<U, G> cm_bw = find(km.backwardBase(alpha[i]));
+
+                                    if (!cm_bw.isEmpty && !cm_bw.isAbundant && !cm_bw.isShort) pres_neigh |= (0x1 << (i+4));
+                                }
+
+                                for (size_t i = 0; (i < 4) && (pres_neigh == 0); ++i) {
+
+                                    const const_UnitigMap<U, G> cm_fw = find(km.forwardBase(alpha[i]));
+
+                                    if (!cm_fw.isEmpty && !cm_fw.isAbundant && !cm_fw.isShort) pres_neigh |= (0x1 << i);
+                                }
+
+                                if (pres_neigh != 0){
+
+                                    v_km.push_back(km);
+                                    v_pres_neigh.push_back(pres_neigh);
+                                }
+                            }
+                            else v_km.push_back(km);
+                        }
+
+                        ++lits;
+                    }
+
+                    for (size_t pos = pos_s; pos < pos_e; ++pos) {
+
+                        const Kmer& km = km_unitigs.getKmer(pos);
+                        const string km_str = km.toString();
+                        const uint64_t km_h = km.hash();
+
+                        minHashIterator<RepHash> it_min(km_str.c_str(), km_str.length(), k_, g_, RepHash(), true);
+
+                        const uint64_t min_h = it_min.getHash();
+
+                        if (bf.contains(km_h, min_h)) {
+
+                            if (nb_threads != 1) {
+
+                                uint16_t pres_neigh = 0;
+
+                                for (size_t i = 0; (i < 4) && (pres_neigh == 0); ++i) {
+
+                                    const const_UnitigMap<U, G> cm_bw = find(km.backwardBase(alpha[i]));
+
+                                    if (!cm_bw.isEmpty && !cm_bw.isAbundant && !cm_bw.isShort) pres_neigh |= (0x1 << (i+4));
+                                }
+
+                                for (size_t i = 0; (i < 4) && (pres_neigh == 0); ++i) {
+
+                                    const const_UnitigMap<U, G> cm_fw = find(km.forwardBase(alpha[i]));
+
+                                    if (!cm_fw.isEmpty && !cm_fw.isAbundant && !cm_fw.isShort) pres_neigh |= (0x1 << i);
+                                }
+
+                                if (pres_neigh != 0){
+
+                                    v_km.push_back(km);
+                                    v_pres_neigh.push_back(pres_neigh);
+                                }
+                            }
+                            else v_km.push_back(km);
+                        }
+                    }
                 }
-            }
+            );
+        }
 
-            for (size_t i = 0; (i < 4) && not_found; ++i) {
+        for (auto& t : workers) t.join();
+    }
 
-                UnitigMap<U, G> cm_fw(find(km.forwardBase(alpha[i])));
+    bf.clear();
 
-                if (!cm_fw.isEmpty && !cm_fw.isAbundant && !cm_fw.isShort){
+    for (size_t t = 0; t < nb_threads; ++t){
 
-                    //if (!cm_fw.strand) ++cm_fw.dist;
-                    cm_fw.dist += !cm_fw.strand;
+        vector<Kmer>& v_km = vv_km[t];
+        vector<uint16_t>& v_pres_neigh = vv_pres_neigh[t];
 
-                    if ((cm_fw.dist != 0) && (cm_fw.dist != cm_fw.size - k_ + 1)){
+        for (size_t i = 0; i < v_km.size(); ++i) {
 
-                        sp.push_back(make_pair(0, cm_fw.dist));
-                        sp.push_back(make_pair(cm_fw.dist, cm_fw.size - k_ + 1));
+            const Kmer& km = v_km[i];
+            const const_UnitigMap<U, G> cm = find(km, true); // Check if the (short) tip actually exists
 
-                        extractUnitig_<is_void<U>::value>(cm_fw.pos_unitig, nxt_pos_insert_v_unitigs, v_unitigs_sz, v_kmers_sz, sp);
+            if (!cm.isEmpty){ // IF the tip exists
 
-                        sp.clear();
+                const uint16_t pres_neigh = v_pres_neigh.empty() ? 0xffff : v_pres_neigh[i];
+
+                bool not_found = true;
+
+                for (size_t i = 0; (i < 4) && not_found; ++i) {
+
+                    if (static_cast<bool>((pres_neigh >> (i+4)) & 0x1)) {
+
+                        const_UnitigMap<U, G> cm_bw(find(km.backwardBase(alpha[i])));
+
+                        if (!cm_bw.isEmpty && !cm_bw.isAbundant && !cm_bw.isShort){
+
+                            cm_bw.dist += cm_bw.strand;
+
+                            if ((cm_bw.dist != 0) && (cm_bw.dist != cm_bw.size - k_ + 1)){
+
+                                sp.push_back(make_pair(0, cm_bw.dist));
+                                sp.push_back(make_pair(cm_bw.dist, cm_bw.size - k_ + 1));
+
+                                extractUnitig_<is_void<U>::value>(cm_bw.pos_unitig, nxt_pos_insert_v_unitigs, v_unitigs_sz, v_kmers_sz, sp);
+
+                                sp.clear();
+                            }
+
+                            not_found = false;
+                        }
                     }
+                }
 
-                    not_found = false;
+                for (size_t i = 0; (i < 4) && not_found; ++i) {
+
+                    if (static_cast<bool>((pres_neigh >> i) & 0x1)) {
+
+                        const_UnitigMap<U, G> cm_fw(find(km.forwardBase(alpha[i])));
+
+                        if (!cm_fw.isEmpty && !cm_fw.isAbundant && !cm_fw.isShort){
+
+                            cm_fw.dist += !cm_fw.strand;
+
+                            if ((cm_fw.dist != 0) && (cm_fw.dist != cm_fw.size - k_ + 1)){
+
+                                sp.push_back(make_pair(0, cm_fw.dist));
+                                sp.push_back(make_pair(cm_fw.dist, cm_fw.size - k_ + 1));
+
+                                extractUnitig_<is_void<U>::value>(cm_fw.pos_unitig, nxt_pos_insert_v_unitigs, v_unitigs_sz, v_kmers_sz, sp);
+
+                                sp.clear();
+                            }
+
+                            not_found = false;
+                        }
+                    }
                 }
             }
         }
+
+        v_km.clear();
+        v_pres_neigh.clear();
     }
 
     if (nxt_pos_insert_v_unitigs < v_unitigs.size()) v_unitigs.resize(nxt_pos_insert_v_unitigs);
@@ -7411,662 +8208,63 @@ size_t CompactedDBG<U, G>::removeUnitigs(bool rmIsolated, bool clipTips, vector<
     return removed;
 }
 
+// This function computes a basic graph checksum BUT:
+// 1 - It is naive, many use cases are not taken into account. Yet it would cover most use cases gone wrong.
+// 2 - It is graph strand specific. Same graph with same unitigs but different base unitig strand would return different checksum
+// 3 - Checksum depends in the order of abundant kmers in hashtable. Same abundant kmers stored in different order would give different checksum.
 template<typename U, typename G>
-void CompactedDBG<U, G>::writeFASTA(const string& graphfilename) const {
+uint64_t CompactedDBG<U, G>::checksum() const {
 
-    const size_t v_unitigs_sz = v_unitigs.size();
-    const size_t v_kmers_sz = km_unitigs.size();
+    uint64_t graph_checksum = 0;
 
-    size_t i = 0;
+    if (!invalid) {
 
-    ofstream graphfile;
-    ostream graph(0);
+        const size_t k = static_cast<size_t>(k_);
+        const size_t g = static_cast<size_t>(g_);
 
-    graphfile.open(graphfilename.c_str());
-    graph.rdbuf(graphfile.rdbuf());
-    //graph.sync_with_stdio(false);
+        graph_checksum = wyhash(&k, sizeof(size_t), 0, _wyp);
+        graph_checksum = wyhash(&g, sizeof(size_t), graph_checksum, _wyp);
 
-    assert(!graphfile.fail());
-
-    for (size_t j = 0; j < v_unitigs_sz; ++j, ++i) graph << ">" << i << "\n" << v_unitigs[j]->getSeq().toString() << "\n";
-    for (size_t j = 0; j < v_kmers_sz; ++j, ++i) graph << ">" << i << "\n" << km_unitigs.getKmer(j).toString() << "\n";
-
-    for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(); it != h_kmers_ccov.end(); ++it, ++i) {
-
-        graph << ">" << i << "\n" << it.getKey().toString() << "\n";
+        for (const auto& unitig : v_unitigs) graph_checksum = unitig->getSeq().hash(graph_checksum);
+        for (size_t i = 0; i < km_unitigs.size(); ++i) graph_checksum = km_unitigs.getKmer(i).hash(graph_checksum);
+        for (typename h_kmers_ccov_t::const_iterator it = h_kmers_ccov.begin(), ite = h_kmers_ccov.end(); it != ite; ++it) graph_checksum = it.getKey().hash(graph_checksum);
     }
 
-    graphfile.close();
+    return graph_checksum;
 }
 
 template<typename U, typename G>
-template<bool is_void>
-typename std::enable_if<!is_void, void>::type CompactedDBG<U, G>::writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const {
+bool CompactedDBG<U, G>::mapRead(const const_UnitigMap<U, G>& um) {
 
-    size_t labelA = 1;
+    if (um.isEmpty) return false; // nothing maps, move on
+    if (um.isShort) return km_unitigs.cover(um.pos_unitig);
+    if (um.isAbundant) return h_kmers_ccov.find(um.pos_unitig)->ccov.cover(um.dist, um.dist + um.len - 1);
 
-    for (const auto& unitig : *this){
-
-        const string seq(unitig.referenceUnitigToString());
-
-        graph.write_sequence(std::to_string(labelA), seq.size(), seq, unitig.getData()->serialize(unitig));
-
-        if (unitig.isAbundant) idmap.insert(Kmer(unitig.referenceUnitigToString().c_str()), labelA);
-
-        ++labelA;
-    }
+    return v_unitigs[um.pos_unitig]->getCov().cover(um.dist, um.dist + um.len - 1);
 }
 
 template<typename U, typename G>
-template<bool is_void>
-typename std::enable_if<is_void, void>::type CompactedDBG<U, G>::writeGFA_sequence_(GFA_Parser& graph, KmerHashTable<size_t>& idmap) const {
-
-    size_t labelA = 1;
-
-    for (const auto& unitig : *this){
-
-        const string seq(unitig.referenceUnitigToString());
-
-        graph.write_sequence(std::to_string(labelA), seq.size(), seq, "");
-
-        if (unitig.isAbundant) idmap.insert(Kmer(unitig.referenceUnitigToString().c_str()), labelA);
-
-        ++labelA;
-    }
-}
-
-template<typename U, typename G>
-void CompactedDBG<U, G>::writeGFA(const string& graphfilename, const size_t nb_threads) const {
-
-    const size_t v_unitigs_sz = v_unitigs.size();
-    const size_t v_kmers_sz = km_unitigs.size();
-
-    size_t labelA, labelB, id = v_unitigs_sz + v_kmers_sz + 1;
-
-    const string header_tag("BV:Z:" + string(BFG_VERSION) + "\t" + "KL:Z:" + to_string(k_) + "\t" + "ML:Z:" + to_string(g_));
-
-    KmerHashTable<size_t> idmap(h_kmers_ccov.size());
-
-    GFA_Parser graph(graphfilename);
-
-    graph.open_write(1, header_tag);
-
-    writeGFA_sequence_<is_void<U>::value>(graph, idmap);
-
-    if (nb_threads == 1){
-
-        for (labelA = 1; labelA <= v_unitigs_sz; labelA++) {
-
-            const Unitig<U>* unitig = v_unitigs[labelA - 1];
-            const Kmer head = unitig->getSeq().getKmer(0);
-            const Kmer tail = unitig->getSeq().getKmer(unitig->length() - k_);
-
-            const vector<const_UnitigMap<U, G>> pred = findPredecessors(head, true);
-            const vector<const_UnitigMap<U, G>> succ = findSuccessors(tail, 4, true);
-
-            for (const auto& unitig : pred){
-
-                if (!unitig.isEmpty){
-
-                    if (unitig.isAbundant) labelB = *(idmap.find(unitig.getUnitigHead().rep()));
-                    else labelB = unitig.pos_unitig + 1 + ((static_cast<size_t>(!unitig.isShort) - 1) & v_unitigs_sz);
-
-                    const string slabelA = std::to_string(labelA);
-                    const string slabelB = std::to_string(labelB);
-
-                    const size_t pos = (static_cast<size_t>(unitig.strand) - 1) & (unitig.size - k_ + 1);
-
-                    graph.write_edge(slabelA, 0, k_-1, false, slabelB, pos, pos + k_ - 1, !unitig.strand);
-                }
-            }
-
-            for (const auto& unitig : succ){
-
-                if (!unitig.isEmpty){
-
-                    if (unitig.isAbundant) labelB = *(idmap.find(unitig.getUnitigHead().rep()));
-                    else labelB = unitig.pos_unitig + 1 + ((static_cast<size_t>(!unitig.isShort) - 1) & v_unitigs_sz);
-
-                    const string slabelA = std::to_string(labelA);
-                    const string slabelB = std::to_string(labelB);
-
-                    const size_t pos = (static_cast<size_t>(unitig.strand) - 1) & (unitig.size - k_ + 1);
-
-                    graph.write_edge(slabelA, unitig.size - k_ + 1, unitig.size, true, slabelB, pos, pos + k_ - 1, unitig.strand);
-                }
-            }
-        }
-
-        for (labelA = v_unitigs_sz + 1; labelA <= v_kmers_sz + v_unitigs_sz; labelA++) {
-
-            const Kmer km_unitig = km_unitigs.getKmer(labelA - v_unitigs_sz - 1);
-
-            const vector<const_UnitigMap<U, G>> pred = findPredecessors(km_unitig, true);
-            const vector<const_UnitigMap<U, G>> succ = findSuccessors(km_unitig, 4, true);
-
-            for (const auto& unitig : pred){
-
-                if (!unitig.isEmpty){
-
-                    if (unitig.isAbundant) labelB = *(idmap.find(unitig.getUnitigHead().rep()));
-                    else labelB = unitig.pos_unitig + 1 + ((static_cast<size_t>(!unitig.isShort) - 1) & v_unitigs_sz);
-
-                    const string slabelA = std::to_string(labelA);
-                    const string slabelB = std::to_string(labelB);
-
-                    const size_t pos = (static_cast<size_t>(unitig.strand) - 1) & (unitig.size - k_ + 1);
-
-                    graph.write_edge(slabelA, 0, k_-1, false, slabelB, pos, pos + k_ - 1, !unitig.strand);
-                }
-            }
-
-            for (const auto& unitig : succ){
-
-                if (!unitig.isEmpty){
-
-                    if (unitig.isAbundant) labelB = *(idmap.find(unitig.getUnitigHead().rep()));
-                    else labelB = unitig.pos_unitig + 1 + ((static_cast<size_t>(!unitig.isShort) - 1) & v_unitigs_sz);
-
-                    const string slabelA = std::to_string(labelA);
-                    const string slabelB = std::to_string(labelB);
-
-                    const size_t pos = (static_cast<size_t>(unitig.strand) - 1) & (unitig.size - k_ + 1);
-
-                    graph.write_edge(slabelA, unitig.size - k_ + 1, unitig.size, true, slabelB, pos, pos + k_ - 1, unitig.strand);
-                }
-            }
-        }
-
-        for (KmerHashTable<size_t>::iterator it = idmap.begin(); it != idmap.end(); it++) {
-
-            labelA = *it;
-
-            const vector<const_UnitigMap<U, G>> pred = findPredecessors(it.getKey(), true);
-            const vector<const_UnitigMap<U, G>> succ = findSuccessors(it.getKey(), 4, true);
-
-            for (const auto& unitig : pred){
-
-                if (!unitig.isEmpty){
-
-                    if (unitig.isAbundant) labelB = *(idmap.find(unitig.getUnitigHead().rep()));
-                    else labelB = unitig.pos_unitig + 1 + ((static_cast<size_t>(!unitig.isShort) - 1) & v_unitigs_sz);
-
-                    const string slabelA = std::to_string(labelA);
-                    const string slabelB = std::to_string(labelB);
-
-                    const size_t pos = (static_cast<size_t>(unitig.strand) - 1) & (unitig.size - k_ + 1);
-
-                    graph.write_edge(slabelA, 0, k_-1, false, slabelB, pos, pos + k_ - 1, !unitig.strand);
-                }
-            }
-
-            for (const auto& unitig : succ){
-
-                if (!unitig.isEmpty){
-
-                    if (unitig.isAbundant) labelB = *(idmap.find(unitig.getUnitigHead().rep()));
-                    else labelB = unitig.pos_unitig + 1 + ((static_cast<size_t>(!unitig.isShort) - 1) & v_unitigs_sz);
-
-                    const string slabelA = std::to_string(labelA);
-                    const string slabelB = std::to_string(labelB);
-
-                    const size_t pos = (static_cast<size_t>(unitig.strand) - 1) & (unitig.size - k_ + 1);
-
-                    graph.write_edge(slabelA, unitig.size - k_ + 1, unitig.size, true, slabelB, pos, pos + k_ - 1, unitig.strand);
-                }
-            }
-        }
-    }
-    else {
-
-        const size_t chunk_size = 1024;
-
-        auto worker_v_unitigs = [v_unitigs_sz, &idmap, this](const size_t labelA_start, const size_t labelA_end,
-                                                             vector<pair<pair<size_t, bool>, pair<size_t, bool>>>* v_out){
-
-            // We need to deal with the tail of long unitigs
-            for (size_t labelA = labelA_start; labelA < labelA_end; ++labelA) {
-
-                const Unitig<U>* unitig = v_unitigs[labelA - 1];
-
-                const Kmer head = unitig->getSeq().getKmer(0);
-                const Kmer tail = unitig->getSeq().getKmer(unitig->length() - k_);
-
-                const vector<const_UnitigMap<U, G>> pred = this->findPredecessors(head, true);
-                const vector<const_UnitigMap<U, G>> succ = this->findSuccessors(tail, 4, true);
-
-                for (const auto& um : pred) {
-
-                    if (!um.isEmpty){
-
-                        const size_t labelB = (um.isAbundant ?  *(idmap.find(um.getUnitigHead().rep())) :
-                                                                um.pos_unitig + 1 + ((static_cast<size_t>(!um.isShort) - 1) & v_unitigs_sz));
-
-                        v_out->push_back(make_pair(make_pair(labelA, false), make_pair(labelB, !um.strand)));
-                    }
-                }
-
-                for (const auto& um : succ) {
-
-                    if (!um.isEmpty){
-
-                        const size_t labelB = (um.isAbundant ?  *(idmap.find(um.getUnitigHead().rep())) :
-                                                                um.pos_unitig + 1 + ((static_cast<size_t>(!um.isShort) - 1) & v_unitigs_sz));
-
-                        v_out->push_back(make_pair(make_pair(labelA, true), make_pair(labelB, um.strand)));
-                    }
-                }
-            }
-        };
-
-        auto worker_v_kmers = [v_unitigs_sz, &idmap, this](const size_t labelA_start, const size_t labelA_end,
-                                                             vector<pair<pair<size_t, bool>, pair<size_t, bool>>>* v_out){
-
-            // We need to deal with the tail of long unitigs
-            for (size_t labelA = labelA_start; labelA < labelA_end; ++labelA) {
-
-                const Kmer km_unitig = km_unitigs.getKmer(labelA - v_unitigs_sz - 1);
-
-                const vector<const_UnitigMap<U, G>> pred = this->findPredecessors(km_unitig, true);
-                const vector<const_UnitigMap<U, G>> succ = this->findSuccessors(km_unitig, 4, true);
-
-                for (const auto& um : pred) {
-
-                    if (!um.isEmpty){
-
-                        const size_t labelB = (um.isAbundant ?  *(idmap.find(um.getUnitigHead().rep())) :
-                                                                um.pos_unitig + 1 + ((static_cast<size_t>(!um.isShort) - 1) & v_unitigs_sz));
-
-                        v_out->push_back(make_pair(make_pair(labelA, false), make_pair(labelB, !um.strand)));
-                    }
-                }
-
-                for (const auto& um : succ) {
-
-                    if (!um.isEmpty){
-
-                        const size_t labelB = (um.isAbundant ?  *(idmap.find(um.getUnitigHead().rep())) :
-                                                                um.pos_unitig + 1 + ((static_cast<size_t>(!um.isShort) - 1) & v_unitigs_sz));
-
-                        v_out->push_back(make_pair(make_pair(labelA, true), make_pair(labelB, um.strand)));
-                    }
-                }
-            }
-        };
-
-        auto worker_v_abundant = [v_unitigs_sz, chunk_size, &idmap, this](  KmerHashTable<size_t>::iterator* l_it,
-                                                                            vector<pair<pair<size_t, bool>, pair<size_t, bool>>>* v_out){
-
-            KmerHashTable<size_t>::iterator& it = *l_it;
-
-            // We need to deal with the tail of long unitigs
-            for (size_t i = 0; (it != idmap.end()) && (i < chunk_size); ++i, ++it) {
-
-                const vector<const_UnitigMap<U, G>> pred = this->findPredecessors(it.getKey(), true);
-                const vector<const_UnitigMap<U, G>> succ = this->findSuccessors(it.getKey(), 4, true);
-
-                for (const auto& um : pred) {
-
-                    if (!um.isEmpty){
-
-                        const size_t labelB = (um.isAbundant ?  *(idmap.find(um.getUnitigHead().rep())) :
-                                                                um.pos_unitig + 1 + ((static_cast<size_t>(!um.isShort) - 1) & v_unitigs_sz));
-
-                        v_out->push_back(make_pair(make_pair(*it, false), make_pair(labelB, !um.strand)));
-                    }
-                }
-
-                for (const auto& um : succ) {
-
-                    if (!um.isEmpty){
-
-                        const size_t labelB = (um.isAbundant ?  *(idmap.find(um.getUnitigHead().rep())) :
-                                                                um.pos_unitig + 1 + ((static_cast<size_t>(!um.isShort) - 1) & v_unitigs_sz));
-
-                        v_out->push_back(make_pair(make_pair(*it, true), make_pair(labelB, um.strand)));
-                    }
-                }
-            }
-        };
-
-        {
-            atomic<size_t> label(1);
-
-            vector<vector<pair<pair<size_t, bool>, pair<size_t, bool>>>> v_out(nb_threads);
-            vector<thread> workers; // need to keep track of threads so we can join them
-
-            mutex mutex_file;
-
-            for (size_t t = 0; t < nb_threads; ++t){
-
-                workers.emplace_back(
-
-                    [&, t]{
-
-                        while (true) {
-
-                            const size_t old_labelA = label.fetch_add(chunk_size);
-
-                            if (old_labelA <= v_unitigs_sz){
-
-                                if (old_labelA + chunk_size <= v_unitigs_sz) worker_v_unitigs(old_labelA, old_labelA + chunk_size, &v_out[t]);
-                                else worker_v_unitigs(old_labelA, v_unitigs_sz + 1, &v_out[t]);
-
-                                {
-                                    unique_lock<mutex> lock(mutex_file);
-
-                                    for (const auto& p : v_out[t]){
-
-                                        const string slabelA = std::to_string(p.first.first);
-                                        const string slabelB = std::to_string(p.second.first);
-
-                                        graph.write_edge(slabelA, 0, k_-1, p.first.second, slabelB, 0, k_-1, p.second.second);
-                                    }
-                                }
-
-                                v_out[t].clear();
-                            }
-                            else return;
-                        }
-                    }
-                );
-            }
-
-            for (auto& t : workers) t.join();
-        }
-
-        {
-            const size_t v_kmers_unitigs_sz = v_kmers_sz + v_unitigs_sz;
-
-            atomic<size_t> label(v_unitigs_sz + 1);
-
-            vector<vector<pair<pair<size_t, bool>, pair<size_t, bool>>>> v_out(nb_threads);
-            vector<thread> workers; // need to keep track of threads so we can join them
-
-            mutex mutex_file;
-
-            for (size_t t = 0; t < nb_threads; ++t){
-
-                workers.emplace_back(
-
-                    [&, t]{
-
-                        while (true) {
-
-                            const size_t old_labelA = label.fetch_add(chunk_size);
-
-                            if (old_labelA <= v_kmers_unitigs_sz){
-
-                                if (old_labelA + chunk_size <= v_kmers_unitigs_sz) worker_v_kmers(old_labelA, old_labelA + chunk_size, &v_out[t]);
-                                else worker_v_kmers(old_labelA, v_kmers_unitigs_sz + 1, &v_out[t]);
-
-                                {
-                                    unique_lock<mutex> lock(mutex_file);
-
-                                    for (const auto& p : v_out[t]){
-
-                                        const string slabelA = std::to_string(p.first.first);
-                                        const string slabelB = std::to_string(p.second.first);
-
-                                        graph.write_edge(slabelA, 0, k_-1, p.first.second, slabelB, 0, k_-1, p.second.second);
-                                    }
-                                }
-
-                                v_out[t].clear();
-                            }
-                            else return;
-                        }
-                    }
-                );
-            }
-
-            for (auto& t : workers) t.join();
-        }
-
-        {
-            KmerHashTable<size_t>::iterator it = idmap.begin(), it_end = idmap.end();
-
-            vector<vector<pair<pair<size_t, bool>, pair<size_t, bool>>>> v_out(nb_threads);
-            vector<thread> workers; // need to keep track of threads so we can join them
-
-            mutex mutex_file, mutex_it;
-
-            for (size_t t = 0; t < nb_threads; ++t){
-
-                workers.emplace_back(
-
-                    [&, t]{
-
-                        KmerHashTable<size_t>::iterator l_it;
-
-                        bool stop;
-
-                        while (true) {
-
-                            {
-                                unique_lock<mutex> lock(mutex_it);
-
-                                l_it = it;
-
-                                for (size_t i = 0; (it != it_end) && (i < chunk_size); ++i, ++it){}
-
-                                stop = (l_it == it_end) && (it == it_end);
-                            }
-
-                            if (!stop){
-
-                                worker_v_abundant(&l_it, &v_out[t]);
-
-                                {
-                                    unique_lock<mutex> lock(mutex_file);
-
-                                    for (const auto& p : v_out[t]){
-
-                                        const string slabelA = std::to_string(p.first.first);
-                                        const string slabelB = std::to_string(p.second.first);
-
-                                        graph.write_edge(slabelA, 0, k_-1, p.first.second, slabelB, 0, k_-1, p.second.second);
-                                    }
-                                }
-
-                                v_out[t].clear();
-                            }
-                            else return;
-                        }
-                    }
-                );
-            }
-
-            for (auto& t : workers) t.join();
-        }
-    }
-
-    graph.close();
-}
-
-template<typename U, typename G>
-void CompactedDBG<U, G>::readGFA(const string& graphfilename, const size_t nb_threads) {
-
-    size_t graph_file_id = 0;
-
-    bool new_file_opened = false;
-
-    GFA_Parser graph(graphfilename);
-
-    graph.open_read();
-
-    GFA_Parser::GFA_line r = graph.read(graph_file_id, new_file_opened, true);
-
-    if (nb_threads == 1){
-
-        while ((r.first != nullptr) || (r.second != nullptr)){
-
-            if (r.first != nullptr) addUnitig(r.first->seq, (r.first->seq.length() == k_) ? km_unitigs.size() : v_unitigs.size());
-
-            r = graph.read(graph_file_id, new_file_opened, true);
-        }
-    }
-    else {
-
-        const size_t block_sz = 1024;
-
-        std::atomic<size_t> v_kmers_sz;
-        std::atomic<size_t> v_unitigs_sz;
-
-        bool is_first = true;
-        bool stop = false;
-
-        SpinLock lck_unitig, lck_kmer;
-
-        vector<thread> workers; // need to keep track of threads so we can join them
-
-        mutex mutex_file;
-
-        v_kmers_sz = 0;
-        v_unitigs_sz = 0;
-
-        hmap_min_unitigs.init_threads();
-
-        for (size_t t = 0; t < nb_threads; ++t){
-
-            workers.emplace_back(
-
-                [&]{
-
-                    vector<string> seq;
-
-                    while (true) {
-
-                        {
-                            unique_lock<mutex> lock(mutex_file);
-
-                            if (stop) return;
-
-                            seq.clear();
-
-                            for (size_t i = 0; (i < block_sz) && !stop; ++i){
-
-                                if (!is_first) r = graph.read(graph_file_id, new_file_opened, true);
-                                if (r.first != nullptr) seq.push_back(r.first->seq);
-
-                                stop = ((r.first == nullptr) && (r.second == nullptr));
-                                is_first = false;
-                            }
-                        }
-
-                        for (const auto& s : seq) addUnitig(s, (s.length() == k_) ? v_kmers_sz++ : v_unitigs_sz++, lck_unitig, lck_kmer);
-                    }
-                }
-            );
-        }
-
-        for (auto& t : workers) t.join();
-
-        hmap_min_unitigs.release_threads();
-        moveToAbundant();
-    }
-}
-
-template<typename U, typename G>
-void CompactedDBG<U, G>::readFASTA(const string& graphfilename, const size_t nb_threads) {
-
-    size_t graph_file_id = 0;
-
-    FastqFile ff(vector<string>(1, graphfilename));
-
-    string seq;
-
-    if (nb_threads == 1){
-
-        while (ff.read_next(seq, graph_file_id) != -1) addUnitig(seq, (seq.length() == k_) ? km_unitigs.size() : v_unitigs.size());
-    }
-    else {
-
-        const size_t block_sz = 1024;
-
-        bool stop = false;
-
-        std::atomic<size_t> v_kmers_sz;
-        std::atomic<size_t> v_unitigs_sz;
-
-        SpinLock lck_unitig, lck_kmer;
-
-        vector<thread> workers; // need to keep track of threads so we can join them
-
-        mutex mutex_file;
-
-        v_kmers_sz = 0;
-        v_unitigs_sz = 0;
-
-        hmap_min_unitigs.init_threads();
-
-        for (size_t t = 0; t < nb_threads; ++t){
-
-            workers.emplace_back(
-
-                [&]{
-
-                    vector<string> v_seq;
-
-                    while (true) {
-
-                        {
-                            unique_lock<mutex> lock(mutex_file);
-
-                            if (stop) return;
-
-                            v_seq.clear();
-
-                            for (size_t i = 0; (i < block_sz) && !stop; ++i){
-
-                                stop = (ff.read_next(seq, graph_file_id) == -1);
-
-                                if (!stop && !seq.empty()) v_seq.push_back(seq);
-                            }
-                        }
-
-                        for (const auto& s : v_seq) addUnitig(s, (s.length() == k_) ? v_kmers_sz++ : v_unitigs_sz++, lck_unitig, lck_kmer);
-                    }
-                }
-            );
-        }
-
-        for (auto& t : workers) t.join();
-
-        hmap_min_unitigs.release_threads();
-        moveToAbundant();
-    }
-}
-
-template<typename U, typename G>
-void CompactedDBG<U, G>::mapRead(const const_UnitigMap<U, G>& um) {
-
-    if (um.isEmpty) return; // nothing maps, move on
-
-    if (um.isShort) km_unitigs.cover(um.pos_unitig);
-    else if (um.isAbundant) h_kmers_ccov.find(um.pos_unitig)->ccov.cover(um.dist, um.dist + um.len - 1);
-    else v_unitigs[um.pos_unitig]->getCov().cover(um.dist, um.dist + um.len - 1);
-}
-
-template<typename U, typename G>
-void CompactedDBG<U, G>::mapRead(const const_UnitigMap<U, G>& um, LockGraph& lck_g) {
-
-    if (um.isEmpty) return; // nothing maps, move on
-
-    if (um.isShort) km_unitigs.cover_thread_safe(um.pos_unitig);
-    else {
-
+bool CompactedDBG<U, G>::mapRead(const const_UnitigMap<U, G>& um, LockGraph& lck_g) {
+
+    if (um.isEmpty) return false; // nothing maps, move on
+    if (um.isShort) return km_unitigs.cover_thread_safe(um.pos_unitig);
+    
+    {
         size_t lock_unitig_id = um.pos_unitig;
+
+        bool isFull = false;
 
         lock_unitig_id += v_unitigs.size() & (static_cast<size_t>(!um.isShort) - 1);
         lock_unitig_id += (v_unitigs.size() + km_unitigs.size()) & (static_cast<size_t>(!um.isAbundant) - 1);
 
         lck_g.lock_unitig(lock_unitig_id);
 
-        if (um.isAbundant) h_kmers_ccov.find(um.pos_unitig)->ccov.cover(um.dist, um.dist + um.len - 1);
-        else v_unitigs[um.pos_unitig]->getCov().cover(um.dist, um.dist + um.len - 1);
+        if (um.isAbundant) isFull = h_kmers_ccov.find(um.pos_unitig)->ccov.cover(um.dist, um.dist + um.len - 1);
+        else isFull = v_unitigs[um.pos_unitig]->getCov().cover(um.dist, um.dist + um.len - 1);
 
         lck_g.unlock_unitig(lock_unitig_id);
+
+        return isFull;
     }
 }
 
@@ -8103,7 +8301,7 @@ void CompactedDBG<U, G>::unmapRead(const const_UnitigMap<U, G>& um, LockGraph& l
 }
 
 template<typename U, typename G>
-vector<Kmer> CompactedDBG<U, G>::extractMercyKmers(BlockedBloomFilter& bf_uniq_km, const size_t nb_threads, const bool verbose) {
+vector<Kmer> CompactedDBG<U, G>::extractMercyKmers(const BlockedBloomFilter& bf_uniq_km, const size_t nb_threads, const bool verbose) {
 
     const size_t v_unitigs_sz = v_unitigs.size();
     const size_t v_kmers_sz = km_unitigs.size();
@@ -8337,7 +8535,8 @@ size_t CompactedDBG<U, G>::joinTips(string filename_MBBF_uniq_kmers, const size_
         return 0;
     }
 
-    mbbf.ReadBloomFilter(f_mbbf);
+    mbbf.read(f_mbbf);
+
     fclose(f_mbbf);
 
     vector<Kmer> v_mercy_km = extractMercyKmers(mbbf, nb_threads, verbose);
@@ -8391,8 +8590,11 @@ void CompactedDBG<U, G>::setKmerGmerLength(const int kmer_length, const int mini
         k_ = kmer_length;
 
         if (minimizer_length >= 0) g_ = minimizer_length;
-        else if (kmer_length >= 15) g_ = k_ - DEFAULT_G_DEC1;
-        else if (kmer_length >= 7) g_ = k_ - DEFAULT_G_DEC2;
+        else if (kmer_length >= 27) g_ = k_ - 8;
+        else if (kmer_length >= 25) g_ = k_ - 7;
+        else if (kmer_length >= 23) g_ = k_ - 6;
+        else if (kmer_length >= 21) g_ = k_ - 5;
+        else if (kmer_length >= 19) g_ = k_ - 4;
         else g_ = k_ - 2;
 
         Kmer::set_k(k_);

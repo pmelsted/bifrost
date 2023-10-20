@@ -16,9 +16,14 @@
 #include <atomic>
 
 #include "minHashIterator.hpp"
+#include "wyhash.h"
+
 #include "File_Parser.hpp"
+#include "Lock.hpp"
 #include "RepHash.hpp"
 #include "StreamCounter.hpp"
+
+#define NB_STREAMCOUNTER_PER_READHASHER 1
 
 using namespace std;
 
@@ -40,7 +45,460 @@ struct KmerStream_Build_opt {
     KmerStream_Build_opt() : q_base(33), q(0), k(31), g(23), verbose(false), e(0.01), threads(1), chunksize(64) {}
 };
 
-class ReadQualityHasherMinimizer;
+class ReadHasherMinimizer;
+
+class ReadQualityHasherMinimizer {
+
+    friend class ReadHasherMinimizer;
+
+    public:
+
+        ReadQualityHasherMinimizer() :    k(0), g(0), q_cutoff(0), q_base(0) {}
+
+        /*ReadQualityHasherMinimizer(const double e_, const size_t q_base_) :    k(0), g(0), q_cutoff(0), q_base(q_base_), sc_min(e_) {
+
+            for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i].initialize(e_);
+        }
+
+        ReadQualityHasherMinimizer(const ReadQualityHasherMinimizer& o) :   k(o.k), g(o.g), q_cutoff(o.q_cutoff), q_base(o.q_base), sc_min(o.sc_min) {
+
+            for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i] = o.sc_km[i];
+        }*/
+
+        ReadQualityHasherMinimizer(const double e_, const size_t q_base_) :    k(0), g(0), q_cutoff(0), q_base(q_base_), sc_min(e_), sc_km(e_) {}
+        ReadQualityHasherMinimizer(const ReadQualityHasherMinimizer& o) :   k(o.k), g(o.g), q_cutoff(o.q_cutoff), q_base(o.q_base), sc_min(o.sc_min), sc_km(o.sc_km) {}
+
+        BFG_INLINE void setK(const size_t _k) {
+
+            k = _k;
+        }
+
+        BFG_INLINE void setG(const size_t _g) {
+
+            g = _g;
+        }
+
+        BFG_INLINE void setQualityCutoff(const size_t q) {
+
+            q_cutoff = q;
+        }
+
+        void clear() {
+
+            k = 0;
+            g = 0;
+            q_cutoff = 0;
+            q_base = 0;
+
+            sc_min.clear();
+
+            /*for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i)*/ sc_km/*[i]*/.clear();
+        }
+
+        void initialize(const double e_, const size_t q_cutoff_, const size_t q_base_, const size_t _k, const size_t _g) {
+
+            clear();
+
+            k = _k;
+            g = _g;
+
+            q_cutoff = q_cutoff_;
+            q_base = q_base_;
+
+            sc_min.initialize(e_);
+
+            /*for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i)*/ sc_km/*[i]*/.initialize(e_);
+        }
+
+        // create hashes for all k-mers
+        // operate on hashes
+        pair<size_t, size_t> update(const char* s, const size_t l, const char* q, const size_t ql) {
+
+            if (l < k) return {0, 0};
+
+            size_t i = 0, j = 0, prev_pos_min = 0xffffffffffffffffULL;
+            size_t l_sumCount_min_F1 = 0;
+            size_t l_sumCount_km_F1 = 0;
+
+            bool last_valid = false;
+
+            const char q_base_cut = static_cast<char>(q_base + q_cutoff);
+
+            minHashIterator<RepHash> min_it = minHashIterator<RepHash>(s, l, k, g, RepHash(), true);
+
+            RepHash hf;
+
+            hf.setK(k);
+
+            while (j < l) {
+                // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
+                if (isDNA(s[j]) && (q[j] >= q_base_cut)) {
+
+                    if (last_valid) { // s[i..j-1] was a valid k-mer k-mer, update
+
+                        hf.update(s[i],s[j]);
+
+                        ++i;
+                        ++min_it;
+                    }
+                    else if (i + k - 1 == j) {
+
+                        hf.init(s+i); // start the k-mer at position i
+
+                        last_valid = true;
+                        min_it += i - min_it.getKmerPosition();
+                    }
+
+                    ++j;
+                }
+                else { // invalid character, restart
+
+                    ++j;
+
+                    i = j;
+                    last_valid = false;
+                }
+
+                if (last_valid){
+
+                    const size_t min_pos = min_it.getPosition();
+
+                    sc_km/*[0]*/.update(hf.hash());
+
+                    ++l_sumCount_km_F1;
+
+                    if (min_pos != prev_pos_min){
+
+                        sc_min.update(min_it.getHash());
+
+                        ++l_sumCount_min_F1;
+
+                        prev_pos_min = min_pos;
+                    }
+                }
+            }
+
+            return {l_sumCount_min_F1, l_sumCount_km_F1};
+        }
+
+        pair<size_t, size_t> update(const char* seq_buf, const char* qual_buf, const size_t buf_sz) {
+
+            const char q_base_cut = static_cast<char>(q_base + q_cutoff);
+
+            const char* str = seq_buf;
+            const char* str_end = seq_buf + buf_sz;
+            const char* q_str = qual_buf;
+
+            size_t l_sumCount_min_F1 = 0;
+            size_t l_sumCount_km_F1 = 0;
+
+            while (str < str_end) { // for each input
+
+                const int sl = strlen(str);
+
+                if (sl >= k){
+
+                    size_t i = 0, j = 0, prev_pos_min = 0xffffffffffffffffULL;
+
+                    bool last_valid = false;
+
+                    minHashIterator<RepHash> min_it = minHashIterator<RepHash>(str, sl, k, g, RepHash(), true);
+
+                    RepHash hf;
+
+                    hf.setK(k);
+
+                    while (j < sl) {
+                        // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
+                        if (isDNA(str[j]) && (q_str[j] >= q_base_cut)) {
+
+                            if (last_valid) {
+                                // s[i..j-1] was a valid k-mer k-mer, update
+                                hf.update(str[i], str[j]);
+
+                                ++i;
+                                ++min_it;
+                            }
+                            else if (i + k - 1 == j) {
+
+                                hf.init(str + i); // start the k-mer at position i
+
+                                last_valid = true;
+                                min_it += i - min_it.getKmerPosition();
+                            }
+
+                            ++j;
+                        }
+                        else { // invalid character, restart
+
+                            ++j;
+                            i = j;
+                            last_valid = false;
+                        }
+
+                        if (last_valid){
+
+                            const size_t min_pos = min_it.getPosition();
+
+                            sc_km/*[0]*/.update(hf.hash());
+
+                            ++l_sumCount_km_F1;
+
+                            if (min_pos != prev_pos_min){
+
+                                sc_min.update(min_it.getHash());
+
+                                ++l_sumCount_min_F1;
+
+                                prev_pos_min = min_pos;
+                            }
+                        }
+                    }
+                }
+
+                str += sl + 1;
+                q_str += sl + 1;
+            }
+
+            return {l_sumCount_min_F1, l_sumCount_km_F1};
+        }
+
+        pair<size_t, size_t> update_p(const char* s, const size_t l, const char* q, const size_t ql) {
+
+            if (l < k) return {0,0};
+
+            size_t i = 0, j = 0, prev_pos_min = 0xffffffffffffffffULL;
+            size_t min_idx = 0;
+            size_t l_sumCount_min_F1 = 0;
+            size_t l_sumCount_km_F1 = 0;
+
+            bool last_valid = false;
+
+            const char q_base_cut = static_cast<char>(q_base + q_cutoff);
+
+            minHashIterator<RepHash> min_it = minHashIterator<RepHash>(s, l, k, g, RepHash(), true);
+
+            RepHash hf;
+
+            hf.setK(k);
+
+            while (j < l) {
+                // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
+                if (isDNA(s[j]) && (q[j] >= q_base_cut)) {
+
+                    if (last_valid) { // s[i..j-1] was a valid k-mer k-mer, update
+
+                        hf.update(s[i],s[j]);
+
+                        ++i;
+                        ++min_it;
+                    }
+                    else if (i + k - 1 == j) {
+
+                        hf.init(s+i); // start the k-mer at position i
+
+                        last_valid = true;
+                        min_it += i - min_it.getKmerPosition();
+                    }
+
+                    ++j;
+                }
+                else { // invalid character, restart
+
+                    ++j;
+                    i = j;
+                    last_valid = false;
+                }
+
+                if (last_valid) {
+
+                    const size_t min_pos = min_it.getPosition();
+
+                    /*if (min_pos != prev_pos_min){
+
+                        const size_t min_h = min_it.getHash();
+
+                        prev_pos_min = min_pos;
+                        min_idx = min_h % NB_STREAMCOUNTER_PER_READHASHER;
+
+                        sc_min.update_p(min_h);
+
+                        ++l_sumCount_min_F1;
+                    }
+                    
+                    sc_km[min_idx].update_p(hf.hash());*/
+
+                    sc_km.update_p(hf.hash());
+
+                    if (min_pos != prev_pos_min){
+
+                        sc_min.update_p(min_it.getHash());
+
+                        prev_pos_min = min_pos;
+
+                        ++l_sumCount_min_F1;
+                    }
+
+                    ++l_sumCount_km_F1;
+                }
+            }
+
+            return {l_sumCount_min_F1, l_sumCount_km_F1};
+        }
+
+        pair<size_t, size_t> update_p(const char* seq_buf, const char* qual_buf, const size_t buf_sz) {
+
+            const char q_base_cut = static_cast<char>(q_base + q_cutoff);
+
+            const char* str = seq_buf;
+            const char* str_end = &seq_buf[buf_sz];
+            const char* q_str = qual_buf;
+
+            size_t l_sumCount_min_F1 = 0;
+            size_t l_sumCount_km_F1 = 0;
+
+            while (str < str_end) { // for each input
+
+                const int sl = strlen(str);
+
+                if (sl >= k){
+
+                    size_t i = 0, j = 0, prev_pos_min = 0xffffffffffffffffULL;
+                    size_t min_idx = 0;
+
+                    bool last_valid = false;
+
+                    minHashIterator<RepHash> min_it = minHashIterator<RepHash>(str, sl, k, g, RepHash(), true);
+
+                    RepHash hf;
+
+                    hf.setK(k);
+
+                    while (j < sl) {
+                        // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
+                        if (isDNA(str[j]) && (q_str[j] >= q_base_cut)) {
+
+                            if (last_valid) {
+                                // s[i..j-1] was a valid k-mer k-mer, update
+                                hf.update(str[i], str[j]);
+
+                                ++i;
+                                ++min_it;
+                            }
+                            else if (i + k - 1 == j) {
+
+                                hf.init(str + i); // start the k-mer at position i
+
+                                last_valid = true;
+                                min_it += i - min_it.getKmerPosition();
+                            }
+
+                            ++j;
+                        }
+                        else { // invalid character, restart
+
+                            ++j;
+                            i = j;
+                            last_valid = false;
+                        }
+
+                        if (last_valid) {
+
+                            const size_t min_pos = min_it.getPosition();
+
+                            /*if (min_pos != prev_pos_min){
+
+                                const size_t min_h = min_it.getHash();
+
+                                prev_pos_min = min_pos;
+                                min_idx = min_h % NB_STREAMCOUNTER_PER_READHASHER;
+
+                                sc_min.update_p(min_h);
+
+                                ++l_sumCount_min_F1;
+                            }
+                            
+                            sc_km[min_idx].update_p(hf.hash());*/
+
+                            sc_km.update_p(hf.hash());
+
+                            if (min_pos != prev_pos_min){
+
+                                sc_min.update_p(min_it.getHash());
+
+                                prev_pos_min = min_pos;
+
+                                ++l_sumCount_min_F1;
+                            }
+
+
+
+                            ++l_sumCount_km_F1;
+                        }
+                    }
+                }
+
+                str += sl + 1;
+                q_str += sl + 1;
+            }
+
+            return {l_sumCount_min_F1, l_sumCount_km_F1};
+        }
+
+        BFG_INLINE bool join(const ReadQualityHasherMinimizer& o) {
+
+            bool join_rhm = sc_min.join(o.sc_min);
+
+            /*for (size_t i = 0; join_rhm && (i < NB_STREAMCOUNTER_PER_READHASHER); ++i)*/ join_rhm = join_rhm && (sc_km/*[i]*/.join(o.sc_km/*[i]*/));
+
+            return join_rhm;
+        }
+
+        BFG_INLINE bool join(const ReadHasherMinimizer& o);
+
+        /*BFG_INLINE size_t KmerF0() const {
+
+            StreamCounter sc(sc_km[0]);
+
+            for (size_t i = 1; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc.join(sc_km[i]);
+
+            return sc.F0();
+        }
+
+        BFG_INLINE size_t Kmerf1() const {
+
+            StreamCounter sc(sc_km[0]);
+
+            for (size_t i = 1; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc.join(sc_km[i]);
+
+            return sc.f1();
+        }*/
+
+        BFG_INLINE size_t KmerF0() const { return sc_km.F0(); }
+
+        BFG_INLINE size_t Kmerf1() const { return sc_km.f1(); }
+
+        BFG_INLINE size_t MinimizerF0() const {
+
+            return sc_min.F0();
+        }
+
+        BFG_INLINE size_t Minimizerf1() const {
+
+            return sc_min.f1();
+        }
+
+    private:
+
+        size_t q_cutoff;
+        size_t q_base;
+
+        size_t k;
+        size_t g;
+
+        StreamCounter sc_min;
+        StreamCounter sc_km/*[NB_STREAMCOUNTER_PER_READHASHER]*/;
+};
 
 class ReadHasherMinimizer {
 
@@ -48,9 +506,57 @@ class ReadHasherMinimizer {
 
     public:
 
-        ReadHasherMinimizer(const double e) : k(0), g(0), sc_km(e), sc_min(e) {}
+        ReadHasherMinimizer() :  k(0), g(0) {}
 
-        ReadHasherMinimizer(const ReadHasherMinimizer& o) : k(o.k), g(o.g), sc_km(o.sc_km), sc_min(o.sc_min) {}
+        /*ReadHasherMinimizer(const double e) : k(0), g(0), sc_min(e) {
+
+            for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i].initialize(e);
+        }
+
+        ReadHasherMinimizer(const ReadHasherMinimizer& o) : k(o.k), g(o.g), sc_min(o.sc_min) {
+
+            for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i] = o.sc_km[i];
+        }
+
+        ReadHasherMinimizer(ReadQualityHasherMinimizer&& o) : k(o.k), g(o.g), sc_min(move(o.sc_min)) {
+
+            for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i] = move(o.sc_km[i]);
+        }
+
+        ReadHasherMinimizer(const ReadQualityHasherMinimizer& o) : k(o.k), g(o.g), sc_min(o.sc_min) {
+
+            for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc_km[i] = o.sc_km[i];
+        }*/
+
+        ReadHasherMinimizer(const double e) : k(0), g(0), sc_min(e), sc_km(e) {}
+
+        ReadHasherMinimizer(const ReadHasherMinimizer& o) : k(o.k), g(o.g), sc_min(o.sc_min), sc_km(o.sc_km) {}
+
+        ReadHasherMinimizer(ReadQualityHasherMinimizer&& o) : k(o.k), g(o.g), sc_min(move(o.sc_min)), sc_km(move(o.sc_km)) {}
+
+        ReadHasherMinimizer(const ReadQualityHasherMinimizer& o) : k(o.k), g(o.g), sc_min(o.sc_min), sc_km(o.sc_km) {}
+
+        void clear() {
+
+            k = 0;
+            g = 0;
+
+            sc_min.clear();
+
+            /*for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i)*/ sc_km/*[i]*/.clear();
+        }
+
+        void initialize(const double e_, const size_t _k, const size_t _g) {
+
+            clear();
+
+            k = _k;
+            g = _g;
+
+            sc_min.initialize(e_);
+
+            /*for (size_t i = 0; i < NB_STREAMCOUNTER_PER_READHASHER; ++i)*/ sc_km/*[i]*/.initialize(e_);
+        }
 
         BFG_INLINE void setK(const size_t _k) {
 
@@ -64,11 +570,14 @@ class ReadHasherMinimizer {
 
         // create hashes for all k-mers
         // operate on hashes
-        void update(const char *s, const size_t l, const char *q, const size_t ql) {
+        pair<size_t, size_t> update(const char *s, const size_t l, const char *q, const size_t ql) {
 
-            if (l < k) return;
+            if (l < k) return {0,0};
 
             size_t i = 0, j = 0, prev_pos_min = 0xffffffffffffffffULL;
+            size_t l_sumCount_min_F1 = 0;
+            size_t l_sumCount_km_F1 = 0;
+
             bool last_valid = false;
 
             minHashIterator<RepHash> min_it = minHashIterator<RepHash>(s, l, k, g, RepHash(), true);
@@ -110,23 +619,31 @@ class ReadHasherMinimizer {
 
                     const size_t min_pos = min_it.getPosition();
 
-                    sc_km.update(hf.hash());
+                    sc_km/*[0]*/.update(hf.hash());
+
+                    ++l_sumCount_km_F1;
 
                     if (min_pos != prev_pos_min){
 
-                        //sc_min.update(Minimizer(s + min_pos).rep().hash());
                         sc_min.update(min_it.getHash());
+
+                        ++l_sumCount_min_F1;
 
                         prev_pos_min = min_pos;
                     }
                 }
             }
+
+            return {l_sumCount_min_F1, l_sumCount_km_F1};
         }
 
-        void update(const char* seq_buf, const size_t seq_buf_sz) {
+        pair<size_t, size_t> update(const char* seq_buf, const size_t seq_buf_sz) {
 
             const char* str = seq_buf;
             const char* str_end = seq_buf + seq_buf_sz;
+
+            size_t l_sumCount_min_F1 = 0;
+            size_t l_sumCount_km_F1 = 0;
 
             while (str < str_end) { // for each input
 
@@ -176,12 +693,15 @@ class ReadHasherMinimizer {
 
                             const size_t min_pos = min_it.getPosition();
 
-                            sc_km.update(hf.hash());
+                            sc_km/*[0]*/.update(hf.hash());
+
+                            ++l_sumCount_km_F1;
 
                             if (min_pos != prev_pos_min){
 
-                                //sc_min.update(Minimizer(str + min_pos).rep().hash());
                                 sc_min.update(min_it.getHash());
+
+                                ++l_sumCount_min_F1;
 
                                 prev_pos_min = min_pos;
                             }
@@ -191,13 +711,20 @@ class ReadHasherMinimizer {
 
                 str += sl + 1;
             }
+
+            return {l_sumCount_min_F1, l_sumCount_km_F1};
         }
 
-        void update_p(const char *s, const size_t l, const char *q, const size_t ql) {
+        pair<size_t, size_t> update_p(const char *s, const size_t l, const char *q, const size_t ql) {
 
-            if (l < k) return;
+            if (l < k) return {0,0};
 
             size_t i = 0, j = 0, prev_pos_min = 0xffffffffffffffffULL;
+            size_t min_idx = 0;
+
+            size_t l_sumCount_min_F1 = 0;
+            size_t l_sumCount_km_F1 = 0;
+
             bool last_valid = false;
 
             minHashIterator<RepHash> min_it = minHashIterator<RepHash>(s, l, k, g, RepHash(), true);
@@ -235,27 +762,51 @@ class ReadHasherMinimizer {
                     last_valid = false;
                 }
 
-                if (last_valid){
+                if (last_valid) {
 
-                    const size_t min_pos = min_it.getPosition();
+                    /*const size_t min_pos = min_it.getPosition();
+
+                    if (min_pos != prev_pos_min){
+
+                        const size_t min_h = min_it.getHash();
+
+                        prev_pos_min = min_pos;
+                        min_idx = min_h % NB_STREAMCOUNTER_PER_READHASHER;
+
+                        ++l_sumCount_min_F1;
+
+                        sc_min.update_p(min_h);
+                    }
+
+                    ++l_sumCount_km_F1;
+                    
+                    sc_km[min_idx].update_p(hf.hash());*/
 
                     sc_km.update_p(hf.hash());
 
-                    if (min_pos != prev_pos_min){
+                    ++l_sumCount_km_F1;
 
-                        //sc_min.update_p(Minimizer(s + min_pos).rep().hash());
+                    if (min_it.getPosition() != prev_pos_min){
+
                         sc_min.update_p(min_it.getHash());
 
-                        prev_pos_min = min_pos;
+                        prev_pos_min = min_it.getPosition();
+
+                        ++l_sumCount_min_F1;
                     }
                 }
             }
+
+            return {l_sumCount_min_F1, l_sumCount_km_F1};
         }
 
-        void update_p(const char* seq_buf, const size_t seq_buf_sz) {
+        pair<size_t, size_t> update_p(const char* seq_buf, const size_t seq_buf_sz) {
 
             const char* str = seq_buf;
             const char* str_end = seq_buf + seq_buf_sz;
+
+            size_t l_sumCount_min_F1 = 0;
+            size_t l_sumCount_km_F1 = 0;
 
             while (str < str_end) { // for each input
 
@@ -264,6 +815,7 @@ class ReadHasherMinimizer {
                 if (sl >= k){
 
                     size_t i = 0, j = 0, prev_pos_min = 0xffffffffffffffffULL;
+                    size_t min_pos = 0, min_h = 0, min_idx = 0;
 
                     bool last_valid = false;
 
@@ -302,18 +854,37 @@ class ReadHasherMinimizer {
                             last_valid = false;
                         }
 
-                        if (last_valid){
+                        if (last_valid) {
 
-                            const size_t min_pos = min_it.getPosition();
-
-                            sc_km.update_p(hf.hash());
+                            /*const size_t min_pos = min_it.getPosition();
 
                             if (min_pos != prev_pos_min){
 
-                                //sc_min.update_p(Minimizer(str + min_pos).rep().hash());
-                                sc_min.update_p(min_it.getHash());
+                                const size_t min_h = min_it.getHash();
 
                                 prev_pos_min = min_pos;
+                                min_idx = min_h % NB_STREAMCOUNTER_PER_READHASHER;
+
+                                ++l_sumCount_min_F1;
+
+                                sc_min.update_p(min_h);
+                            }
+
+                            ++l_sumCount_km_F1;
+                            
+                            sc_km[min_idx].update_p(hf.hash());*/
+
+                            sc_km.update_p(hf.hash());
+
+                            ++l_sumCount_km_F1;
+
+                            if (min_it.getPosition() != prev_pos_min){
+
+                                sc_min.update_p(min_it.getHash());
+
+                                prev_pos_min = min_it.getPosition();
+
+                                ++l_sumCount_min_F1;
                             }
                         }
                     }
@@ -321,22 +892,20 @@ class ReadHasherMinimizer {
 
                 str += sl + 1;
             }
-        }
 
-        BFG_INLINE void init_threads() {
-
-            sc_km.init_threads();
-            sc_min.init_threads();
-        }
-
-        BFG_INLINE void release_threads() {
-
-            sc_km.release_threads();
-            sc_min.release_threads();
+            return {l_sumCount_min_F1, l_sumCount_km_F1};
         }
 
         BFG_INLINE void setQualityCutoff(const size_t q) {}
 
+        /*BFG_INLINE bool join(const ReadHasherMinimizer& o) {
+
+            bool join_rhm = sc_min.join(o.sc_min);
+
+            for (size_t i = 0; join_rhm && (i < NB_STREAMCOUNTER_PER_READHASHER); ++i) join_rhm = join_rhm && (sc_km[i].join(o.sc_km[i]));
+
+            return join_rhm;
+        }*/
         BFG_INLINE bool join(const ReadHasherMinimizer& o) {
 
             const bool join_km = sc_km.join(o.sc_km);
@@ -347,363 +916,63 @@ class ReadHasherMinimizer {
 
         BFG_INLINE bool join(const ReadQualityHasherMinimizer& o);
 
+        /*BFG_INLINE size_t KmerF0() const {
+
+            StreamCounter sc(sc_km[0]);
+
+            for (size_t i = 1; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc.join(sc_km[i]);
+
+            return sc.F0();
+        }
+
+        BFG_INLINE size_t Kmerf1() const {
+
+            StreamCounter sc(sc_km[0]);
+
+            for (size_t i = 1; i < NB_STREAMCOUNTER_PER_READHASHER; ++i) sc.join(sc_km[i]);
+
+            return sc.f1();
+        }*/
         BFG_INLINE size_t KmerF0() const { return sc_km.F0(); }
-
-        BFG_INLINE size_t KmerF1() const { return sc_km.F1(); }
-
         BFG_INLINE size_t Kmerf1() const { return sc_km.f1(); }
 
-        BFG_INLINE size_t MinimizerF0() const { return sc_min.F0(); }
+        BFG_INLINE size_t MinimizerF0() const {
 
-        BFG_INLINE size_t MinimizerF1() const { return sc_min.F1(); }
+            return sc_min.F0();
+        }
 
-        BFG_INLINE size_t Minimizerf1() const { return sc_min.f1(); }
+        BFG_INLINE size_t Minimizerf1() const {
+
+            return sc_min.f1();
+        }
 
     private:
 
         size_t k;
         size_t g;
 
-        StreamCounter sc_km;
         StreamCounter sc_min;
+        StreamCounter sc_km/*[NB_STREAMCOUNTER_PER_READHASHER]*/;
 };
 
-class ReadQualityHasherMinimizer {
+/*inline bool ReadQualityHasherMinimizer::join(const ReadHasherMinimizer& o) {
 
-    friend class ReadHasherMinimizer;
+    bool join_rhm = sc_min.join(o.sc_min);
 
-    public:
+    for (size_t i = 0; join_rhm && (i < NB_STREAMCOUNTER_PER_READHASHER); ++i) join_rhm = join_rhm && (sc_km[i].join(o.sc_km[i]));
 
-        ReadQualityHasherMinimizer(const double e_, const size_t q_base_) : k(0), g(0), q_cutoff(0), q_base(q_base_), sc_km(e_), sc_min(e_) {}
+    return join_rhm;
+}
 
-        ReadQualityHasherMinimizer(const ReadQualityHasherMinimizer& o) :   k(o.k), g(o.g), q_cutoff(o.q_cutoff), q_base(o.q_base),
-                                                                            sc_km(o.sc_km), sc_min(o.sc_min) {}
+inline bool ReadHasherMinimizer::join(const ReadQualityHasherMinimizer& o) {
 
-        BFG_INLINE void setK(size_t _k) {
+    bool join_rhm = sc_min.join(o.sc_min);
 
-            k = _k;
-        }
+    for (size_t i = 0; join_rhm && (i < NB_STREAMCOUNTER_PER_READHASHER); ++i) join_rhm = join_rhm && (sc_km[i].join(o.sc_km[i]));
 
-        BFG_INLINE void setG(size_t _g) {
-
-            g = _g;
-        }
-
-        // create hashes for all k-mers
-        // operate on hashes
-        void update(const char* s, const size_t l, const char* q, const size_t ql) {
-
-            if (l < k) return;
-
-            size_t i = 0, j = 0, prev_pos_min = 0xffffffffffffffffULL;
-            bool last_valid = false;
-
-            const char q_base_cut = (char) (q_base + q_cutoff);
-
-            minHashIterator<RepHash> min_it = minHashIterator<RepHash>(s, l, k, g, RepHash(), true);
-
-            RepHash hf;
-
-            hf.setK(k);
-
-            while (j < l) {
-                // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
-                if (isDNA(s[j]) && (q[j] >= q_base_cut)) {
-
-                    if (last_valid) { // s[i..j-1] was a valid k-mer k-mer, update
-
-                        hf.update(s[i],s[j]);
-
-                        ++i;
-                        ++min_it;
-                    }
-                    else if (i + k - 1 == j) {
-
-                        hf.init(s+i); // start the k-mer at position i
-
-                        last_valid = true;
-                        min_it += i - min_it.getKmerPosition();
-                    }
-
-                    ++j;
-                }
-                else { // invalid character, restart
-
-                    ++j;
-
-                    i = j;
-                    last_valid = false;
-                }
-
-                if (last_valid){
-
-                    sc_km.update(hf.hash());
-
-                    if (min_it.getPosition() != prev_pos_min){
-
-                        //sc_min.update(Minimizer(s + min_it.getPosition()).rep().hash());
-                        sc_min.update(min_it.getHash());
-
-                        prev_pos_min = min_it.getPosition();
-                    }
-                }
-            }
-        }
-
-        void update(const char* seq_buf, const char* qual_buf, const size_t buf_sz) {
-
-            const char q_base_cut = (char) (q_base + q_cutoff);
-
-            const char* str = seq_buf;
-            const char* str_end = &seq_buf[buf_sz];
-            const char* q_str = qual_buf;
-
-            while (str < str_end) { // for each input
-
-                const int sl = strlen(str);
-
-                if (sl >= k){
-
-                    size_t i = 0, j = 0, prev_pos_min = 0xffffffffffffffffULL;
-
-                    bool last_valid = false;
-
-                    minHashIterator<RepHash> min_it = minHashIterator<RepHash>(str, sl, k, g, RepHash(), true);
-
-                    RepHash hf;
-
-                    hf.setK(k);
-
-                    while (j < sl) {
-                        // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
-                        if (isDNA(str[j]) && (q_str[j] >= q_base_cut)) {
-
-                            if (last_valid) {
-                                // s[i..j-1] was a valid k-mer k-mer, update
-                                hf.update(str[i], str[j]);
-
-                                ++i;
-                                ++min_it;
-                            }
-                            else if (i + k - 1 == j) {
-
-                                hf.init(str + i); // start the k-mer at position i
-
-                                last_valid = true;
-                                min_it += i - min_it.getKmerPosition();
-                            }
-
-                            ++j;
-                        }
-                        else { // invalid character, restart
-
-                            ++j;
-                            i = j;
-                            last_valid = false;
-                        }
-
-                        if (last_valid){
-
-                            sc_km.update(hf.hash());
-
-                            if (min_it.getPosition() != prev_pos_min){
-
-                                //sc_min.update(Minimizer(str + min_it.getPosition()).rep().hash());
-                                sc_min.update(min_it.getHash());
-
-                                prev_pos_min = min_it.getPosition();
-                            }
-                        }
-                    }
-                }
-
-                str += sl + 1;
-                q_str += sl + 1;
-            }
-        }
-
-        void update_p(const char* s, const size_t l, const char* q, const size_t ql) {
-
-            if (l < k) return;
-
-            size_t i = 0, j = 0, prev_pos_min = 0xffffffffffffffffULL;
-            bool last_valid = false;
-
-            const char q_base_cut = (char) (q_base + q_cutoff);
-
-            minHashIterator<RepHash> min_it = minHashIterator<RepHash>(s, l, k, g, RepHash(), true);
-
-            RepHash hf;
-
-            hf.setK(k);
-
-            while (j < l) {
-                // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
-                if (isDNA(s[j]) && (q[j] >= q_base_cut)) {
-
-                    if (last_valid) { // s[i..j-1] was a valid k-mer k-mer, update
-
-                        hf.update(s[i],s[j]);
-
-                        ++i;
-                        ++min_it;
-                    }
-                    else if (i + k - 1 == j) {
-
-                        hf.init(s+i); // start the k-mer at position i
-
-                        last_valid = true;
-                        min_it += i - min_it.getKmerPosition();
-                    }
-
-                    ++j;
-                }
-                else { // invalid character, restart
-
-                    ++j;
-                    i = j;
-                    last_valid = false;
-                }
-
-                if (last_valid){
-
-                    sc_km.update_p(hf.hash());
-
-                    if (min_it.getPosition() != prev_pos_min){
-
-                        //sc_min.update_p(Minimizer(s + min_it.getPosition()).rep().hash());
-                        sc_min.update_p(min_it.getHash());
-
-                        prev_pos_min = min_it.getPosition();
-                    }
-                }
-            }
-        }
-
-        void update_p(const char* seq_buf, const char* qual_buf, const size_t buf_sz) {
-
-            const char q_base_cut = (char) (q_base + q_cutoff);
-
-            const char* str = seq_buf;
-            const char* str_end = &seq_buf[buf_sz];
-            const char* q_str = qual_buf;
-
-            while (str < str_end) { // for each input
-
-                const int sl = strlen(str);
-
-                if (sl >= k){
-
-                    size_t i = 0, j = 0, prev_pos_min = 0xffffffffffffffffULL;
-
-                    bool last_valid = false;
-
-                    minHashIterator<RepHash> min_it = minHashIterator<RepHash>(str, sl, k, g, RepHash(), true);
-
-                    RepHash hf;
-
-                    hf.setK(k);
-
-                    while (j < sl) {
-                        // s[i...j-1] is a valid string, all k-mers in s[..j-1] have been processed
-                        if (isDNA(str[j]) && (q_str[j] >= q_base_cut)) {
-
-                            if (last_valid) {
-                                // s[i..j-1] was a valid k-mer k-mer, update
-                                hf.update(str[i], str[j]);
-
-                                ++i;
-                                ++min_it;
-                            }
-                            else if (i + k - 1 == j) {
-
-                                hf.init(str + i); // start the k-mer at position i
-
-                                last_valid = true;
-                                min_it += i - min_it.getKmerPosition();
-                            }
-
-                            ++j;
-                        }
-                        else { // invalid character, restart
-
-                            ++j;
-                            i = j;
-                            last_valid = false;
-                        }
-
-                        if (last_valid){
-
-                            sc_km.update_p(hf.hash());
-
-                            if (min_it.getPosition() != prev_pos_min){
-
-                                //sc_min.update_p(Minimizer(str + min_it.getPosition()).rep().hash());
-                                sc_min.update_p(min_it.getHash());
-
-                                prev_pos_min = min_it.getPosition();
-                            }
-                        }
-                    }
-                }
-
-                str += sl + 1;
-                q_str += sl + 1;
-            }
-        }
-
-        BFG_INLINE void init_threads() {
-
-            sc_km.init_threads();
-            sc_min.init_threads();
-        }
-
-        BFG_INLINE void release_threads() {
-
-            sc_km.release_threads();
-            sc_min.release_threads();
-        }
-
-        BFG_INLINE void setQualityCutoff(const size_t q) {
-
-            q_cutoff = q;
-        }
-
-        BFG_INLINE bool join(const ReadQualityHasherMinimizer& o) {
-
-            const bool join_km = sc_km.join(o.sc_km);
-            const bool join_min = sc_min.join(o.sc_min);
-
-            return (join_km && join_min);
-        }
-
-        BFG_INLINE bool join(const ReadHasherMinimizer& o);
-
-        BFG_INLINE size_t KmerF0() const { return sc_km.F0(); }
-
-        BFG_INLINE size_t KmerF1() const { return sc_km.F1(); }
-
-        BFG_INLINE size_t Kmerf1() const { return sc_km.f1(); }
-
-        BFG_INLINE size_t MinimizerF0() const { return sc_min.F0(); }
-
-        BFG_INLINE size_t MinimizerF1() const { return sc_min.F1(); }
-
-        BFG_INLINE size_t Minimizerf1() const { return sc_min.f1(); }
-
-    private:
-
-        size_t q_cutoff;
-        size_t q_base;
-
-        size_t k;
-        size_t g;
-
-        StreamCounter sc_km;
-        StreamCounter sc_min;
-};
-
-inline bool ReadQualityHasherMinimizer::join(const ReadHasherMinimizer& o) {
+    return join_rhm;
+}*/
+BFG_INLINE bool ReadQualityHasherMinimizer::join(const ReadHasherMinimizer& o) {
 
     const bool join_km = sc_km.join(o.sc_km);
     const bool join_min = sc_min.join(o.sc_min);
@@ -711,7 +980,7 @@ inline bool ReadQualityHasherMinimizer::join(const ReadHasherMinimizer& o) {
     return (join_km && join_min);
 }
 
-inline bool ReadHasherMinimizer::join(const ReadQualityHasherMinimizer& o) {
+BFG_INLINE bool ReadHasherMinimizer::join(const ReadQualityHasherMinimizer& o) {
 
     const bool join_km = sc_km.join(o.sc_km);
     const bool join_min = sc_min.join(o.sc_min);
@@ -723,7 +992,7 @@ class KmerStream {
 
     public:
 
-        KmerStream(const KmerStream_Build_opt& opt) :   k(opt.k), g(opt.g), q(opt.q), q_base(opt.q_base), e(opt.e), rqh(e, q_base), rsh(e),
+        KmerStream(const KmerStream_Build_opt& opt) :   k(opt.k), g(opt.g), q(opt.q), q_base(opt.q_base), e(opt.e), km_F1(0), min_F1(0),
                                                         nb_threads(opt.threads), chunksize(opt.chunksize), invalid(false), verbose(opt.verbose) {
 
             const size_t max_threads = std::thread::hardware_concurrency();
@@ -808,31 +1077,34 @@ class KmerStream {
 
             if (invalid) exit(1);
 
-            rqh.setQualityCutoff(q);
+            {
+                if (verbose) cout << "KmerStream::KmerStream(): Start computing k-mer cardinality estimations (1/2)" << endl;
 
-            rqh.setK(k);
-            rsh.setK(k);
+                rqh.initialize(e, q, q_base, k, g);
 
-            rqh.setG(g);
-            rsh.setG(g);
+                if (files_with_quality.size() != 0) nb_threads > 1 ? RunThreadedQualityStream() : RunQualityStream();
 
-            if (verbose) cout << "KmerStream::KmerStream(): Start computing k-mer cardinality estimations" << endl;
+                rsh = move(rqh);
 
-            if (files_with_quality.size() != 0) nb_threads > 1 ? RunThreadedQualityStream() : RunQualityStream();
-            if (files_no_quality.size() != 0) nb_threads > 1 ? RunThreadedSequenceStream() : RunSequenceStream();
+                if (verbose) cout << "KmerStream::KmerStream(): Start computing k-mer cardinality estimations (1/2)" << endl;
 
-            rsh.join(rqh);
+                if (files_no_quality.size() != 0) nb_threads > 1 ? RunThreadedSequenceStream() : RunSequenceStream();
+
+                if (verbose) cout << "KmerStream::KmerStream(): Finished" << endl;
+
+                //rsh.join(rqh);
+            }
         }
 
         BFG_INLINE size_t KmerF0() const { return rsh.KmerF0(); }
 
-        BFG_INLINE size_t KmerF1() const { return rsh.KmerF1(); }
+        BFG_INLINE size_t KmerF1() const { return km_F1; }
 
         BFG_INLINE size_t Kmerf1() const { return rsh.Kmerf1(); }
 
         BFG_INLINE size_t MinimizerF0() const { return rsh.MinimizerF0(); }
 
-        BFG_INLINE size_t MinimizerF1() const { return rsh.MinimizerF1(); }
+        BFG_INLINE size_t MinimizerF1() const { return min_F1; }
 
         BFG_INLINE size_t Minimizerf1() const { return rsh.Minimizerf1(); }
 
@@ -851,7 +1123,11 @@ class KmerStream {
                 const char* qss = fp.getQualityScoreString();
 
                 std::transform(seq.begin(), seq.end(), seq.begin(), ::toupper);
-                rqh.update(seq.c_str(), seq.length(), qss, strlen(qss));
+
+                const pair<size_t, size_t> F1 = rqh.update(seq.c_str(), seq.length(), qss, strlen(qss));
+
+                min_F1 += F1.first;
+                km_F1 += F1.second; 
             }
 
             fp.close();
@@ -862,8 +1138,6 @@ class KmerStream {
             size_t pos_read = 0;
             size_t len_read = 0;
 
-            //const size_t max_len_seq = 1024;
-            //const size_t thread_seq_buf_sz = chunksize * max_len_seq;
             const size_t max_len_seq = rndup(static_cast<size_t>(1024 + k - 1));
             const size_t thread_seq_buf_sz = BUFFER_SIZE;
 
@@ -934,8 +1208,6 @@ class KmerStream {
 
                 mutex mutex_file;
 
-                rqh.init_threads();
-
                 for (size_t t = 0; t < nb_threads; ++t){
 
                     workers.emplace_back(
@@ -946,6 +1218,9 @@ class KmerStream {
                             char* buffer_qual = new char[thread_seq_buf_sz];
 
                             size_t buffer_sz = 0;
+                            
+                            size_t l_min_F1 = 0;
+                            size_t l_km_F1 = 0;
 
                             while (true) {
 
@@ -954,8 +1229,12 @@ class KmerStream {
 
                                     if (stop){
 
+                                        min_F1 += l_min_F1;
+                                        km_F1 += l_km_F1;
+
                                         delete[] buffer_seq;
                                         delete[] buffer_qual;
+
                                         return;
                                     }
 
@@ -964,7 +1243,10 @@ class KmerStream {
 
                                 for (char* s = buffer_seq; s != (buffer_seq + thread_seq_buf_sz); ++s) *s &= 0xDF;
 
-                                rqh.update_p(buffer_seq, buffer_qual, buffer_sz);
+                                const pair<size_t, size_t> F1 = rqh.update_p(buffer_seq, buffer_qual, buffer_sz);
+
+                                l_min_F1 += F1.first;
+                                l_km_F1 += F1.second;
                             }
 
                             delete[] buffer_seq;
@@ -974,8 +1256,6 @@ class KmerStream {
                 }
 
                 for (auto& t : workers) t.join();
-
-                rqh.release_threads();
             }
 
             fp.close();
@@ -992,7 +1272,11 @@ class KmerStream {
             while (fp.read(seq, file_id)){
 
                 std::transform(seq.begin(), seq.end(), seq.begin(), ::toupper);
-                rsh.update(seq.c_str(), seq.length());
+
+                const pair<size_t, size_t> F1 = rsh.update(seq.c_str(), seq.length());
+
+                min_F1 += F1.first;
+                km_F1 += F1.second; 
             }
 
             fp.close();
@@ -1003,9 +1287,6 @@ class KmerStream {
             size_t pos_read = 0;
             size_t len_read = 0;
 
-            //const size_t max_len_seq = 1024;
-            //const size_t thread_seq_buf_sz = chunksize * max_len_seq;
-            const size_t max_len_seq = rndup(static_cast<size_t>(1024 + k - 1));
             const size_t thread_seq_buf_sz = BUFFER_SIZE;
 
             FileParser fp(files_no_quality);
@@ -1069,8 +1350,6 @@ class KmerStream {
 
                 bool stop = false;
 
-                rsh.init_threads();
-
                 for (size_t t = 0; t != nb_threads; ++t){
 
                     workers.emplace_back(
@@ -1080,6 +1359,8 @@ class KmerStream {
                             char* buffer_seq = new char[thread_seq_buf_sz];
 
                             size_t buffer_seq_sz = 0;
+                            size_t l_min_F1 = 0;
+                            size_t l_km_F1 = 0;
 
                             while (true) {
 
@@ -1088,7 +1369,11 @@ class KmerStream {
 
                                     if (stop) {
 
+                                        min_F1 += l_min_F1;
+                                        km_F1 += l_km_F1;
+
                                         delete[] buffer_seq;
+
                                         return;
                                     }
 
@@ -1097,7 +1382,10 @@ class KmerStream {
 
                                 for (char* s = buffer_seq; s != (buffer_seq + thread_seq_buf_sz); ++s) *s &= 0xDF;
 
-                                rsh.update_p(buffer_seq, buffer_seq_sz);
+                                const pair<size_t, size_t> F1 = rsh.update_p(buffer_seq, buffer_seq_sz);
+
+                                l_min_F1 += F1.first;
+                                l_km_F1 += F1.second;
                             }
 
                             delete[] buffer_seq;
@@ -1106,8 +1394,6 @@ class KmerStream {
                 }
 
                 for (auto& t : workers) t.join();
-
-                rsh.release_threads();
             }
 
             fp.close();
@@ -1117,6 +1403,9 @@ class KmerStream {
         size_t g;
         size_t q;
         size_t q_base;
+
+        size_t km_F1;
+        size_t min_F1;
 
         double e;
 

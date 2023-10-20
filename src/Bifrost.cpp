@@ -10,6 +10,8 @@ void PrintVersion() {
 
 void PrintUsage() {
 
+    const CCDBG_Build_opt opt;
+
     cout << "Bifrost " << BFG_VERSION << endl << endl;
 
     cout << "Highly parallel construction, indexing and querying of colored and compacted de Bruijn graphs" << endl << endl;
@@ -19,87 +21,99 @@ void PrintUsage() {
     cout << "[COMMAND]:" << endl << endl;
 
     cout << "   build                   Build a compacted de Bruijn graph, with or without colors" << endl;
-    cout << "   update                  Update a compacted (possible colored) de Bruijn graph with new sequences" << endl;
-    cout << "   query                   Query a compacted (possible colored) de Bruijn graph" << endl << endl;
+    cout << "   update                  Update a compacted (colored) de Bruijn graph with new sequences" << endl;
+    cout << "   query                   Query a compacted (colored) de Bruijn graph" << endl << endl;
 
     cout << "[PARAMETERS]: build" << endl << endl;
 
     cout << "   > Mandatory with required argument:" << endl << endl;
 
-    cout << "   -s, --input-seq-file     Input sequence file (FASTA/FASTQ possibly gzipped)" << endl;
-    cout << "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl;
+    cout << "   -s, --input-seq-file     Input sequence file in fasta/fastq(.gz) format" << endl;
+    cout << "                            Multiple files can be provided as a list in a text file (one file per line)" << endl;
     cout << "                            K-mers with exactly 1 occurrence in the input sequence files will be discarded" << endl;
-    cout << "   -r, --input-ref-file     Input reference file (FASTA/FASTQ possibly gzipped and GFA)" << endl;
-    cout << "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl;
+    cout << "   -r, --input-ref-file     Input reference file in fasta/fastq(.gz) or gfa(.gz) format" << endl;
+    cout << "                            Multiple files can be provided as a list in a text file (one file per line)" << endl;
     cout << "                            All k-mers of the input reference files are used" << endl;
     cout << "   -o, --output-file        Prefix for output file(s)" << endl << endl;
 
     cout << "   > Optional with required argument:" << endl << endl;
 
-    cout << "   -t, --threads            Number of threads (default is 1)" << endl;
-    cout << "   -k, --kmer-length        Length of k-mers (default is 31)" << endl;
-    cout << "   -m, --min-length         Length of minimizers (default is automatically chosen)" << endl;
-    cout << "   -b, --bloom-bits         Number of Bloom filter bits per k-mer with 1+ occurrences in the input files (default is 14)" << endl;
-    cout << "   -B, --bloom-bits2        Number of Bloom filter bits per k-mer with 2+ occurrences in the input files (default is 14)" << endl;
-    cout << "   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default is no input)" << endl;
-    cout << "   -w, --write-mbbf         Output Blocked Bloom Filter file (default is no output)" << endl;
+    cout << "   -t, --threads            Number of threads (default: " << opt.nb_threads << ")" << endl;
+    cout << "   -k, --kmer-length        Length of k-mers (default: " << opt.k << ")" << endl;
+    cout << "   -m, --min-length         Length of minimizers (default: " << ((opt.g == -1) ? string("auto") : to_string(opt.g)) << ")" << endl;
+    cout << "   -B, --bloom-bits         Number of Bloom filter bits per k-mer (default: " << opt.nb_bits_kmers_bf << ")" << endl;
+    cout << "   -T, --tmp-dir            Path for tmp directory (default: creates tmp directory in output directory)" << endl;
+    cout << "   -l, --load-mbbf          Input Blocked Bloom Filter file, skips filtering step (default: no input)" << endl;
+    cout << "   -w, --write-mbbf         Output Blocked Bloom Filter file (default: no output)" << endl << endl;
 
     cout << "   > Optional with no argument:" << endl << endl;
 
-    cout << "   -c, --colors             Color the compacted de Bruijn graph (default is no coloring)" << endl;
-    cout << "   -y, --keep-mercy         Keep low coverage k-mers connecting tips" << endl;
+    cout << "   -c, --colors             Color the compacted de Bruijn graph" << endl;
     cout << "   -i, --clip-tips          Clip tips shorter than k k-mers in length" << endl;
     cout << "   -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl;
-    cout << "   -a, --fasta              Output file is in FASTA format (only sequences) instead of GFA" << endl;
+    cout << "   -f, --fasta-out          Output file in fasta format (only sequences) instead of gfa (unless graph is colored)" << endl;
+    cout << "   -b, --bfg-out            Output file in bfg/bfi format (Bifrost graph/index) instead of gfa (unless graph is colored)" << endl;
+    cout << "   -n, --no-compress-out    Output files must be uncompressed" << endl;
+    cout << "   -N, --no-index-out       Do not make index file" << endl;
     cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
 
     cout << "[PARAMETERS]: update" << endl << endl;
 
     cout << "  > Mandatory with required argument:" << endl << endl;
 
-    cout << "   -g, --input-graph-file   Input graph file to update (GFA format)" << endl;
-    cout << "   -s, --input-seq-file     Input sequence file (FASTA/FASTQ possibly gzipped)" << endl;
-    cout << "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl;
+    cout << "   -g, --input-graph-file   Input graph file to update in gfa(.gz) or bfg format" << endl;
+    cout << "   -s, --input-seq-file     Input sequence file in fasta/fastq(.gz) format" << endl;
+    cout << "                            Multiple files can be provided as a list in a text file (one file per line)" << endl;
     cout << "                            K-mers with exactly 1 occurrence in the input sequence files will be discarded" << endl;
-    cout << "   -r, --input-ref-file     Input reference file (FASTA/FASTQ possibly gzipped and GFA)" << endl;
-    cout << "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl;
+    cout << "   -r, --input-ref-file     Input reference file in fasta/fastq(.gz) or gfa(.gz) format" << endl;
+    cout << "                            Multiple files can be provided as a list in a text file (one file per line)" << endl;
     cout << "                            All k-mers of the input reference files are used" << endl;
     cout << "   -o, --output-file        Prefix for output file(s)" << endl << endl;
 
     cout << "   > Optional with required argument:" << endl << endl;
 
-    cout << "   -f, --input-color-file   Input color file associated with the input graph file to update" << endl;
-    cout << "   -t, --threads            Number of threads (default is 1)" << endl;
-    cout << "   -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)" << endl;
-    cout << "   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or automatically chosen)" << endl << endl;
+    cout << "   -I, --input-index-file   Input index file associated with graph to update in bfi format" << endl;
+    cout << "   -C, --input-color-file   Input color file associated with graph to update in color.bfg format" << endl;
+    cout << "   -t, --threads            Number of threads (default: " << opt.nb_threads << ")" << endl;
+    cout << "   -k, --kmer-length        Length of k-mers (default: read from input graph file if built with Bifrost or " << opt.k << ")" << endl;
+    cout << "   -m, --min-length         Length of minimizers (default: read from input graph if built with Bifrost, auto otherwise)" << endl;
+    cout << "   -T, --tmp-dir            Path for tmp directory (default: creates tmp directory in output directory)" << endl << endl;
 
     cout << "   > Optional with no argument:" << endl << endl;
 
     cout << "   -i, --clip-tips          Clip tips shorter than k k-mers in length" << endl;
     cout << "   -d, --del-isolated       Delete isolated contigs shorter than k k-mers in length" << endl;
+    cout << "   -f, --fasta-out          Output file in fasta format (only sequences) instead of gfa (unless colors are output)" << endl;
+    cout << "   -b, --bfg-out            Output file in bfg/bfi format (Bifrost graph/index) instead of gfa (unless graph is colored)" << endl;
+    cout << "   -n, --no-compress-out    Output files must be uncompressed" << endl;
+    cout << "   -N, --no-index-out       Do not make index file" << endl;
     cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
 
     cout << "[PARAMETERS]: query" << endl << endl;
 
     cout << "  > Mandatory with required argument:" << endl << endl;
 
-    cout << "   -g, --input-graph-file   Input graph file to query (GFA format)" << endl;
-    cout << "   -q, --input-query-file   Input query file (FASTA/FASTQ possibly gzipped)" << endl;
-    cout << "                            Multiple files can be provided as a list in a TXT file (one file per line)" << endl;
+    cout << "   -g, --input-graph-file   Input graph file to query in gfa(.gz) or bfg" << endl;
+    cout << "   -q, --input-query-file   Input query file in fasta/fastq(.gz)" << endl;
+    cout << "                            Multiple files can be provided as a list in a text file (one file per line)" << endl;
     cout << "   -o, --output-file        Prefix for output file" << endl;
-    cout << "   -e, --ratio-kmers        Ratio of k-mers from queries that must occur in the graph (default is 0.8)" << endl << endl;
+    cout << "   -e, --ratio-kmers        Ratio of k-mers from queries that must occur in the graph (default: " << opt.ratio_kmers << ")" << endl << endl;
 
     cout << "   > Optional with required argument:" << endl << endl;
 
-    cout << "   -f, --input-color-file   Input color file associated with the input graph file to query" << endl;
+    cout << "   -I, --input-index-file   Input index file associated with graph to query in bfi format" << endl;
+    cout << "   -C, --input-color-file   Input color file associated with the graph to query in color.bfg format" << endl;
     cout << "                            Presence/absence of queries will be output for each color" << endl;
-    cout << "   -t, --threads            Number of threads (default is 1)" << endl;
-    cout << "   -k, --kmer-length        Length of k-mers (default is read from input graph file if built with Bifrost or 31)" << endl;
-    cout << "   -m, --min-length         Length of minimizers (default is read from input graph file if built with Bifrost or or automatically chosen)" << endl << endl;
+    cout << "   -t, --threads            Number of threads (default: " << opt.nb_threads << ")" << endl;
+    cout << "   -k, --kmer-length        Length of k-mers (default: read from input graph if built with Bifrost or " << opt.k << ")" << endl;
+    cout << "   -m, --min-length         Length of minimizers (default: read from input graph if built with Bifrost, auto otherwise)" << endl;
+    cout << "   -T, --tmp-dir            Path for tmp directory (default: creates tmp directory in output directory)" << endl << endl;
 
     cout << "   > Optional with no argument:" << endl << endl;
 
-    cout << "   -n, --inexact            Graph is searched with exact and inexact k-mers (1 substitution or indel) from queries" << endl;
+    cout << "   -p, --nb-found-km        Output the number of found k-mers for each query (disable parameter -e)" << endl;
+    cout << "   -P, --ratio-found-km     Output the ratio of found k-mers for each query (disable parameter -e)" << endl;
+    cout << "   -a, --approximate        Graph is searched using exact and inexact k-mers (1 substitution or indel allowed per k-mer)" << endl;
     cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
 }
 
@@ -107,7 +121,7 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
 
     int option_index = 0, c;
 
-    const char* opt_string = "s:r:q:g:f:o:t:k:m:e:b:B:l:w:nidvcya";
+    const char* opt_string = "s:r:q:g:I:C:T:o:t:k:m:e:B:l:w:aidvcyfbnNpP";
 
     static struct option long_options[] = {
 
@@ -115,23 +129,28 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
         {"input-ref-file",      required_argument,  0, 'r'},
         {"input-query-file",    required_argument,  0, 'q'},
         {"input-graph-file",    required_argument,  0, 'g'},
-        {"input-color-file",    required_argument,  0, 'f'},
+        {"input-index-file",    required_argument,  0, 'I'},
+        {"input-color-file",    required_argument,  0, 'C'},
+        {"tmp-dir",             required_argument,  0, 'T'},        
         {"output-file",         required_argument,  0, 'o'},
         {"threads",             required_argument,  0, 't'},
         {"kmer-length",         required_argument,  0, 'k'},
         {"min-length",          required_argument,  0, 'm'},
         {"ratio-kmers",         required_argument,  0, 'e'},
-        {"bloom-bits",          required_argument,  0, 'b'},
-        {"bloom-bits2",         required_argument,  0, 'B'},
+        {"bloom-bits",          required_argument,  0, 'B'},
         {"load-mbbf",           required_argument,  0, 'l'},
         {"write-mbbf",          required_argument,  0, 'w'},
-        {"inexact_search",      no_argument,        0, 'n'},
+        {"approximate",         no_argument,        0, 'a'},
         {"clip-tips",           no_argument,        0, 'i'},
         {"del-isolated",        no_argument,        0, 'd'},
         {"verbose",             no_argument,        0, 'v'},
         {"colors",              no_argument,        0, 'c'},
-        {"keep-mercy",          no_argument,        0, 'y'},
-        {"fasta",               no_argument,        0, 'a'},
+        {"fasta-out",           no_argument,        0, 'f'},
+        {"bfg-out",             no_argument,        0, 'b'},
+        {"no-compress-out",     no_argument,        0, 'n'},
+        {"no-index-out",        no_argument,        0, 'N'},
+        {"nb-found-km",         no_argument,        0, 'p'},
+        {"ratio-found-km",      no_argument,        0, 'P'},
         {0,                     0,                  0,  0 }
     };
 
@@ -160,8 +179,14 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                 case 'g':
                     opt.filename_graph_in = optarg;
                     break;
-                case 'f':
+                case 'I':
+                    opt.filename_index_in = optarg;
+                    break;
+                case 'C':
                     opt.filename_colors_in = optarg;
+                    break;
+                case 'T':
+                    opt.prefixTmp = optarg;
                     break;
                 case 'o':
                     opt.prefixFilenameOut = optarg;
@@ -178,11 +203,8 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                 case 'e':
                     opt.ratio_kmers = atof(optarg);
                     break;
-                case 'b':
-                    opt.nb_bits_unique_kmers_bf = atoi(optarg);
-                    break;
                 case 'B':
-                    opt.nb_bits_non_unique_kmers_bf = atoi(optarg);
+                    opt.nb_bits_kmers_bf = atoi(optarg);
                     break;
                 case 'w':
                     opt.outFilenameBBF = optarg;
@@ -190,7 +212,7 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                 case 'l':
                     opt.inFilenameBBF = optarg;
                     break;
-                case 'n':
+                case 'a':
                     opt.inexact_search = true;
                     break;
                 case 'i':
@@ -205,11 +227,25 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                 case 'c':
                     opt.outputColors = true;
                     break;
-                case 'y':
-                    opt.useMercyKmers = true;
-                    break;
-                case 'a':
+                case 'f':
                     opt.outputGFA = false;
+                    opt.outputFASTA = true;
+                    break;
+                case 'b':
+                    opt.outputGFA = false;
+                    opt.outputBFG = true;
+                    break;
+                case 'n':
+                    opt.compressOutput = false;
+                    break;
+                case 'N':
+                    opt.writeIndexFile = false;
+                    break;
+                case 'p':
+                    opt.get_nb_found_km = true;
+                    break;
+                case 'P':
+                    opt.get_ratio_found_km = true;
                     break;
                 default: break;
             }
@@ -242,7 +278,7 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
 
                 const int format = FileParser::getFileFormat(file.c_str());
 
-                if (format >= 0) files_tmp.push_back(file); // File is FASTA/FASTQ/GFA
+                if (format >= 0) files_tmp.push_back(file); // File is FASTA/FASTQ/GFA/GRAPH.BFG
                 else {
 
                     FILE* fp = fopen(file.c_str(), "r");
@@ -467,7 +503,23 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
         }
     }
 
-    if (opt.update || opt.query){
+    if (opt.build || opt.update) {
+
+        if (opt.outputFASTA && opt.outputBFG) {
+
+            cerr << "Error: Two output format selected: FASTA and GFA. Rerun with one format selected." << endl;
+            ret = false;
+        }
+
+        if (opt.outputBFG && !opt.writeIndexFile) {
+
+            cerr << "Error: Bifrost index file output (.bfi) is required to output Bifrost graph file (.bfg). Remove the no index output argument." << endl;
+            ret = false;
+        }
+
+    }
+
+    if (opt.update || opt.query) {
 
         if (opt.filename_graph_in.length() == 0){
 
@@ -476,7 +528,7 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
         }
         else if (!check_file_exists(opt.filename_graph_in)){
 
-            cerr << "Error: The graph file does not exist." << endl;
+            cerr << "Error: The graph file does not exist or is not a valid input file format." << endl;
             ret = false;
         }
         else {
@@ -495,7 +547,7 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
 
             if (!check_file_exists(opt.filename_colors_in)){
 
-                cerr << "Error: The input color file does not exist." << endl;
+                cerr << "Error: The input color file does not exist or is not a valid input file format." << endl;
                 ret = false;
             }
             else {
@@ -510,6 +562,41 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
                 else fclose(fp);
             }
         }
+
+        if (opt.filename_index_in.length() != 0){
+
+            if (!check_file_exists(opt.filename_index_in)){
+
+                cerr << "Error: The input index file does not exist or is not a valid input file format." << endl;
+                ret = false;
+            }
+            else {
+
+                FILE* fp = fopen(opt.filename_index_in.c_str(), "rb");
+
+                if (fp == NULL) {
+
+                    cerr << "Error: Could not read index file " << opt.filename_index_in << "." << endl;
+                    ret = false;
+                }
+                else fclose(fp);
+            }
+        }
+    }
+
+    if (opt.query) {
+
+        if (opt.get_nb_found_km && opt.get_ratio_found_km) {
+
+            cerr << "Error: Argument -p is incompatible with argument -P. Only the number of found k-mer OR the ratio of found k-mers can be reported at once." << endl;
+            ret = false;
+        }
+    }
+
+    if ((opt.prefixTmp.length() != 0) && (!check_dir_writable(opt.prefixTmp) || !check_dir_readable(opt.prefixTmp))) {
+
+        cerr << "Error: Given directory " << opt.prefixTmp << " to create tmp dir does not exist or is not writable/readable." << endl;
+        ret = false;
     }
 
     return ret;
@@ -530,79 +617,100 @@ int main(int argc, char **argv){
         else if (print == 2) PrintUsage();
         else if (check_ProgramOptions(opt)) {
 
+            bool success = true; // Abort if any operation goes wrong
+            
             if (opt.build){ // Build the graph
 
                 if (opt.outputColors){
 
                     ColoredCDBG<> ccdbg(opt.k, opt.g);
 
-                    ccdbg.buildGraph(opt);
-                    ccdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                    ccdbg.buildColors(opt);
-                    ccdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.verbose);
+                    success = ccdbg.buildGraph(opt);
+
+                    if (success) success = ccdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+                    if (success) success = ccdbg.buildColors(opt);
+                    if (success) success = ccdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.writeIndexFile, opt.compressOutput, opt.verbose);
                 }
                 else {
 
                     CompactedDBG<> cdbg(opt.k, opt.g);
 
-                    cdbg.build(opt);
-                    cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-                    cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.verbose);
+                    success = cdbg.build(opt);
+
+                    if (success) success = cdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+                    if (success) success = cdbg.write(opt.prefixFilenameOut, opt.nb_threads, opt.outputGFA, opt.outputFASTA, opt.outputBFG, opt.writeIndexFile, opt.compressOutput, opt.verbose);
                 }
             }
             else if (opt.update){
 
-                CCDBG_Build_opt l_opt = opt;
+                CCDBG_Build_opt lopt = opt;
 
-                if (l_opt.filename_colors_in.size() != 0){ // If colors in or out
+                if (lopt.filename_colors_in.size() != 0){ // If colors in or out
 
-                    ColoredCDBG<> ccdbg1(l_opt.k, l_opt.g);
+                    ColoredCDBG<> ccdbg1(lopt.k, lopt.g);
 
-                    ccdbg1.read(l_opt.filename_graph_in, l_opt.filename_colors_in, l_opt.nb_threads, l_opt.verbose);
+                    if (lopt.filename_index_in.length() == 0) success = ccdbg1.read(lopt.filename_graph_in, lopt.filename_colors_in, lopt.nb_threads, lopt.verbose);
+                    else success = ccdbg1.read(lopt.filename_graph_in, lopt.filename_index_in, lopt.filename_colors_in, lopt.nb_threads, lopt.verbose);
 
-                    l_opt.k = ccdbg1.getK();
-                    l_opt.g = ccdbg1.getG();
+                    if (success) {
 
-                    ColoredCDBG<> ccdbg2(l_opt.k, l_opt.g);
+                        lopt.k = ccdbg1.getK();
+                        lopt.g = ccdbg1.getG();
 
-                    ccdbg2.buildGraph(l_opt);
-                    ccdbg2.buildColors(l_opt);
+                        ColoredCDBG<> ccdbg2(lopt.k, lopt.g);
 
-                    const size_t ccdbg1_len = ccdbg1.length();
-                    const size_t ccdbg2_len = ccdbg2.length();
+                        if (success) success = ccdbg2.buildGraph(lopt);
+                        if (success) success = ccdbg2.buildColors(lopt);
 
-                    ColoredCDBG<>& ccdbg_a = (ccdbg1_len > ccdbg2_len) ? ccdbg1 : ccdbg2;
-                    ColoredCDBG<>& ccdbg_b = (ccdbg1_len > ccdbg2_len) ? ccdbg2 : ccdbg1;
+                        if (success) {
 
-                    ccdbg_a.merge(move(ccdbg_b), l_opt.nb_threads, l_opt.verbose);
+                            const size_t ccdbg1_len = ccdbg1.length();
+                            const size_t ccdbg2_len = ccdbg2.length();
 
-                    ccdbg_a.simplify(l_opt.deleteIsolated, l_opt.clipTips, l_opt.verbose);
-                    ccdbg_a.write(l_opt.prefixFilenameOut, l_opt.nb_threads, l_opt.verbose);
+                            ColoredCDBG<>& ccdbg_a = (ccdbg1_len > ccdbg2_len) ? ccdbg1 : ccdbg2;
+                            ColoredCDBG<>& ccdbg_b = (ccdbg1_len > ccdbg2_len) ? ccdbg2 : ccdbg1;
+
+                            if (success) success = ccdbg_a.merge(move(ccdbg_b), lopt.nb_threads, lopt.verbose);
+
+                            if (success) success = ccdbg_a.simplify(lopt.deleteIsolated, lopt.clipTips, lopt.verbose);
+                            if (success) success = ccdbg_a.write(lopt.prefixFilenameOut, lopt.nb_threads, lopt.writeIndexFile, lopt.compressOutput, lopt.verbose);
+                        }
+                    }
                 }
                 else {
 
-                    CompactedDBG<> cdbg1(l_opt.k, l_opt.g);
+                    CompactedDBG<> cdbg1(lopt.k, lopt.g);
 
-                    cdbg1.read(l_opt.filename_graph_in, l_opt.nb_threads, l_opt.verbose);
+                    if (lopt.filename_index_in.length() == 0) success = cdbg1.read(lopt.filename_graph_in, lopt.nb_threads, lopt.verbose);
+                    else success = cdbg1.read(lopt.filename_graph_in, lopt.filename_index_in, lopt.nb_threads, lopt.verbose);
 
-                    l_opt.k = cdbg1.getK();
-                    l_opt.g = cdbg1.getG();
+                    if (success) {
 
-                    CompactedDBG<> cdbg2(l_opt.k, l_opt.g);
+                        lopt.k = cdbg1.getK();
+                        lopt.g = cdbg1.getG();
 
-                    cdbg2.build(l_opt);
+                        CompactedDBG<> cdbg2(lopt.k, lopt.g);
 
-                    const size_t cdbg1_len = cdbg1.length();
-                    const size_t cdbg2_len = cdbg2.length();
+                        if (success) success = cdbg2.build(lopt);
+                        if (success) {
 
-                    CompactedDBG<>& cdbg_a = (cdbg1_len > cdbg2_len) ? cdbg1 : cdbg2;
-                    CompactedDBG<>& cdbg_b = (cdbg1_len > cdbg2_len) ? cdbg2 : cdbg1;
+                            const size_t cdbg1_len = cdbg1.length();
+                            const size_t cdbg2_len = cdbg2.length();
 
-                    cdbg_a.merge(cdbg_b, l_opt.nb_threads, l_opt.verbose);
-                    cdbg_b.clear();
+                            CompactedDBG<>& cdbg_a = (cdbg1_len > cdbg2_len) ? cdbg1 : cdbg2;
+                            CompactedDBG<>& cdbg_b = (cdbg1_len > cdbg2_len) ? cdbg2 : cdbg1;
 
-                    cdbg_a.simplify(l_opt.deleteIsolated, l_opt.clipTips, l_opt.verbose);
-                    cdbg_a.write(l_opt.prefixFilenameOut, l_opt.nb_threads, l_opt.outputGFA, l_opt.verbose);
+                            if (success) {
+
+                                success = cdbg_a.merge(cdbg_b, lopt.nb_threads, lopt.verbose);
+                                cdbg_b.clear();
+                            }
+
+                            if (success) success = cdbg_a.simplify(lopt.deleteIsolated, lopt.clipTips, lopt.verbose);
+                            if (success) success = cdbg_a.write(lopt.prefixFilenameOut, lopt.nb_threads, lopt.outputGFA,
+                                                                lopt.outputFASTA, lopt.outputBFG, lopt.writeIndexFile, lopt.compressOutput, lopt.verbose);
+                        }
+                    }
                 }
             }
             else if (opt.query){
@@ -611,16 +719,28 @@ int main(int argc, char **argv){
 
                     ColoredCDBG<> ccdbg(opt.k, opt.g);
 
-                    ccdbg.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
-                    ccdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.inexact_search, opt.nb_threads, opt.verbose);
+                    if (opt.filename_index_in.length() == 0) success = ccdbg.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
+                    else success = ccdbg.read(opt.filename_graph_in, opt.filename_index_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
+
+                    if (success) success = ccdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.get_nb_found_km, opt.get_ratio_found_km,
+                                                        opt.inexact_search, opt.nb_threads, opt.verbose);
                 }
                 else {
 
                     CompactedDBG<> cdbg(opt.k, opt.g);
 
-                    cdbg.read(opt.filename_graph_in, opt.nb_threads, opt.verbose);
-                    cdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.inexact_search, opt.nb_threads, opt.verbose);
+                    if (opt.filename_index_in.length() == 0) success = cdbg.read(opt.filename_graph_in, opt.nb_threads, opt.verbose);
+                    else success = cdbg.read(opt.filename_graph_in, opt.filename_index_in, opt.nb_threads, opt.verbose);
+
+                    if (success) success = cdbg.search( opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.get_nb_found_km, opt.get_ratio_found_km,
+                                                        opt.inexact_search, opt.nb_threads, opt.verbose);
                 }
+            }
+
+            if (!success) {
+
+                cerr << "Operation aborted." << endl;
+                exit(1); 
             }
         }
     }
