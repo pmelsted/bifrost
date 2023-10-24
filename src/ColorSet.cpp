@@ -1,3 +1,7 @@
+#if defined(__APPLE__)
+#include <unistd.h>
+#endif
+
 #include "ColorSet.hpp"
 
 UnitigColors::UnitigColors() : setBits(localBitVector) {}
