@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8.12)
 
-project(Bifrost)
+project(Bifrost C CXX)
+find_package(Threads REQUIRED)
 
 # To enable a larger default k-mer size, replace MAX_KMER_SIZE with a larger multiple of 32: actual maximum k-mer size will be MAX_KMER_SIZE-1.
 SET(MAX_KMER_SIZE "32" CACHE STRING "MAX_KMER_SIZE")
@@ -14,7 +15,16 @@ SET(ENABLE_AVX2 "ON" CACHE STRING "ENABLE_AVX2")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
+set(CMAKE_MACOSX_RPATH 1)
+
 set_property(SOURCE BlockedBloomFilter.cpp APPEND_STRING PROPERTY COMPILE_FLAGS " -funroll-loops")
+
+if(APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+       message("Disabling AVX2 instructions on arm64")
+       set(ENABLE_AVX2 "OFF")
+       set(COMPILATION_ARCH "OFF")
+endif(APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+
 
 if(COMPILATION_ARCH MATCHES "OFF")
 	message("Disabling native architecture compilation (including AVX2)")
