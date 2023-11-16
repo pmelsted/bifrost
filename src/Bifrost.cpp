@@ -1,4 +1,3 @@
-#include <unistd.h>
 #include "CompactedDBG.hpp"
 #include "ColoredCDBG.hpp"
 
