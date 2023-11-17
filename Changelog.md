@@ -2,6 +2,8 @@
 
 API only.
 
+* **17-11-2023**
+	* Class `ColoredCDBG` exposes the function `readGraph()` which enables to load/read the graph in a colored de Bruijn graph without associating any colors to the unitigs. This enables to later color the graph with the input sequences of the developer choice.
 * **10-09-2023**
 	* Function `CompactedDBG()::search()` takes additional arguments:
 		* `get_nb_found_km`: boolean indicating whether to report in the output the number of found k-mers per query 
