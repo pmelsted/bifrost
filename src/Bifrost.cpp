@@ -723,7 +723,7 @@ int main(int argc, char **argv){
                     else success = ccdbg.read(opt.filename_graph_in, opt.filename_index_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
 
                     if (success) success = ccdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.get_nb_found_km, opt.get_ratio_found_km,
-                                                        opt.inexact_search, opt.nb_threads, opt.verbose);
+                                                       opt.inexact_search, opt.nb_threads, opt.verbose);
                 }
                 else {
 

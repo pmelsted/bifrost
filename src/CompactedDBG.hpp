@@ -164,7 +164,6 @@ struct CDBG_Build_opt {
     bool get_nb_found_km;
     bool get_ratio_found_km;
 
-
     bool writeIndexFile;
 
     double ratio_kmers;

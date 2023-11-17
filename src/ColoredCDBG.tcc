@@ -720,6 +720,115 @@ bool ColoredCDBG<U>::read(const string& input_graph_fn, const string& input_inde
 }
 
 template<typename U>
+bool ColoredCDBG<U>::readGraph(const string& input_graph_fn, const size_t nb_threads, const bool verbose) {
+
+    bool valid_input_files = true;
+
+    if (input_graph_fn.length() != 0){
+
+        if (check_file_exists(input_graph_fn)){
+
+            FILE* fp = fopen(input_graph_fn.c_str(), "r");
+
+            if (fp == NULL) {
+
+                cerr << "ColoredCDBG::readGraph(): Could not open input graph file " << input_graph_fn << endl;
+                valid_input_files = false;
+            }
+            else fclose(fp);
+        }
+        else {
+
+            cerr << "ColoredCDBG::readGraph(): Input graph file " << input_graph_fn << " does not exist." << endl;
+            valid_input_files = false;
+        }
+    }
+    else {
+
+        cerr << "ColoredCDBG::readGraph(): No input graph file provided." << endl;
+        valid_input_files = false;
+    }
+
+    if (valid_input_files){
+
+        if (verbose) cout << "ColoredCDBG::readGraph(): Reading graph." << endl;
+        
+        invalid = !CompactedDBG<DataAccessor<U>, DataStorage<U>>::read(input_graph_fn, nb_threads, verbose);
+
+        if (invalid) return false; // Read graph
+    }
+
+    return valid_input_files;
+}
+
+template<typename U>
+bool ColoredCDBG<U>::readGraph(const string& input_graph_fn, const string& input_index_fn, const size_t nb_threads, const bool verbose) {
+
+    bool valid_input_files = true;
+
+    if (input_graph_fn.length() != 0){
+
+        if (check_file_exists(input_graph_fn)){
+
+            FILE* fp = fopen(input_graph_fn.c_str(), "r");
+
+            if (fp == NULL) {
+
+                cerr << "ColoredCDBG::readGraph(): Could not open input graph file " << input_graph_fn << endl;
+                valid_input_files = false;
+            }
+            else fclose(fp);
+        }
+        else {
+
+            cerr << "ColoredCDBG::readGraph(): Input graph file " << input_graph_fn << " does not exist." << endl;
+            valid_input_files = false;
+        }
+    }
+    else {
+
+        cerr << "ColoredCDBG::readGraph(): No input graph file provided." << endl;
+        valid_input_files = false;
+    }
+
+    if (input_index_fn.length() != 0){
+
+        if (check_file_exists(input_index_fn)){
+
+            FILE* fp = fopen(input_index_fn.c_str(), "rb");
+
+            if (fp == NULL) {
+
+                cerr << "ColoredCDBG::readGraph(): Could not open input index file " << input_index_fn << endl;
+                valid_input_files = false;
+            }
+            else fclose(fp);
+        }
+        else {
+
+            cerr << "ColoredCDBG::readGraph(): Input index file " << input_index_fn << " does not exist." << endl;
+            valid_input_files = false;
+        }
+    }
+    else {
+
+        cerr << "ColoredCDBG::readGraph(): No input index file provided." << endl;
+        valid_input_files = false;
+    }
+
+    if (valid_input_files){
+
+        if (verbose) cout << "ColoredCDBG::readGraph(): Reading graph." << endl;
+        
+        invalid = !CompactedDBG<DataAccessor<U>, DataStorage<U>>::read(input_graph_fn, input_index_fn, nb_threads, verbose);
+
+        if (invalid) return false; // Read graph
+    }
+
+    return valid_input_files;
+}
+
+template<typename U>
 void ColoredCDBG<U>::initUnitigColors(const CCDBG_Build_opt& opt, const size_t max_nb_hash){
 
     vector<string> v_files(opt.filename_seq_in);
@@ -1421,7 +1530,7 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
     if (get_nb_found_km && get_ratio_found_km){
 
-        cerr << "ColoredCDBG::search(): Cannot output at once the number of found k-mers and the ratio of found k-mers." << endl;
+        cerr << "ColoredCDBG::search(): Cannot output number of found k-mers and ratio of found k-mers together." << endl;
         return false;
     }
 
@@ -1538,7 +1647,6 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
             else {
 
                 const Kmer head = um.getUnitigTail().twin();
-                const size_t max_pos_um = um.dist + um.len - 1;
 
                 it = s_um.find({pos_query, {head, um.dist}});
 
@@ -1569,6 +1677,8 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
                     if (inexact_search){
 
+                        const size_t max_pos_um = um.dist + um.len - 1;
+
                         for (; it_uc != it_uc_end; ++it_uc) color_occ_r[it_uc.getColorID()].add(max_pos_um - it_uc.getKmerPosition() + p.first);
                     }
                     else {
@@ -1593,31 +1703,40 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
         if (inexact_search){
 
-            size_t nb_color_pres = 0;
+            if (!get_nb_found_km && !get_ratio_found_km) {
 
-            for (size_t j = 0; j < nb_colors; ++j) nb_color_pres += (color_occ_u[j] >= nb_km_min);
+                size_t nb_color_pres = 0;
 
-            if (nb_color_pres == nb_colors) return;
+                for (size_t j = 0; j < nb_colors; ++j) nb_color_pres += (color_occ_u[j] >= nb_km_min);
+
+                if (nb_color_pres == nb_colors) return;
+            }
 
             const vector<pair<size_t, const_UnitigColorMap<U>>> v_um_d = this->searchSequence(query, false, false, true, false, false);
 
             processCounts(v_um_d, color_occ_r, color_occ_u); // Extract k-mer occurrences for each color
 
-            nb_color_pres = 0;
+            if (!get_nb_found_km && !get_ratio_found_km) {
+                
+                size_t nb_color_pres = 0;
 
-            for (size_t j = 0; j < nb_colors; ++j) nb_color_pres += (color_occ_u[j] >= nb_km_min);
+                for (size_t j = 0; j < nb_colors; ++j) nb_color_pres += (color_occ_u[j] >= nb_km_min);
 
-            if (nb_color_pres == nb_colors) return;
+                if (nb_color_pres == nb_colors) return;
+            }
 
             const vector<pair<size_t, const_UnitigColorMap<U>>> v_um_m = this->searchSequence(query, false, false, false, true, false);
 
             processCounts(v_um_m, color_occ_r, color_occ_u); // Extract k-mer occurrences for each color
 
-            nb_color_pres = 0;
+            if (!get_nb_found_km && !get_ratio_found_km) {
+                
+                size_t nb_color_pres = 0;
 
-            for (size_t j = 0; j < nb_colors; ++j) nb_color_pres += (color_occ_u[j] >= nb_km_min);
+                for (size_t j = 0; j < nb_colors; ++j) nb_color_pres += (color_occ_u[j] >= nb_km_min);
 
-            if (nb_color_pres == nb_colors) return;
+                if (nb_color_pres == nb_colors) return;
+            }
 
             const vector<pair<size_t, const_UnitigColorMap<U>>> v_um_i = this->searchSequence(query, false, true, false, false, false);
 
@@ -1735,7 +1854,9 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
         for (size_t i = 0; i < nb_colors; ++i) {
 
             color_query_out += '\t';
-            color_query_out += to_string(get_ratio_found_km ? color_occ[i] : (static_cast<double>(color_occ[i]) / static_cast<double>(nb_km_query)));
+
+            if (get_nb_found_km) color_query_out += to_string(color_occ[i]);
+            else color_query_out += to_string(static_cast<double>(color_occ[i]) / static_cast<double>(nb_km_query));
         }
 
         const size_t l_color_query_out = color_query_out.length();
@@ -1772,7 +1893,9 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
         for (size_t i = 0; i < nb_colors; ++i) {
 
             color_query_out += '\t';
-            color_query_out += to_string(get_ratio_found_km ? color_occ[i] : (static_cast<double>(color_occ[i]) / static_cast<double>(nb_km_query)));
+
+            if (get_nb_found_km) color_query_out += to_string(color_occ[i]);
+            else color_query_out += to_string(static_cast<double>(color_occ[i]) / static_cast<double>(nb_km_query));
         }
 
         const size_t l_color_query_out = color_query_out.length();
@@ -1941,7 +2064,7 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
 
                             for (auto& c : buffers_seq[i]) c &= 0xDF;
 
-                            if (get_nb_found_km){
+                            if (get_nb_found_km || get_ratio_found_km){
 
                                 searchQuery(buffers_seq[i], color_occ_r, color_occ_u, nb_km_query);
                                 writeOutQuantMutex(buffers_name[i].c_str(), buffers_name[i].length(), nb_km_query, color_occ_u, buffer_res, pos_buffer_out, mutex_file_out);

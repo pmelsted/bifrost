@@ -197,13 +197,13 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         ColoredCDBG& operator=(ColoredCDBG&& o);
 
         /** Equality operator.
-        * @return a boolean indicating if two compacted de Bruijn graphs have the same colored unitigs (does not
+        * @return a boolean indicating whether two compacted de Bruijn graphs have the same colored unitigs (does not
         * compare the data associated with the unitigs).
         */
         bool operator==(const ColoredCDBG& o) const;
 
         /** Inequality operator.
-        * @return a boolean indicating if two compacted de Bruijn graphs have different colored unitigs (does not
+        * @return a boolean indicating whether two compacted de Bruijn graphs have different colored unitigs (does not
         * compare the data associated with the unitigs).
         */
         inline bool operator!=(const ColoredCDBG& o) const;
@@ -229,14 +229,14 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         /** Build the Colored and compacted de Bruijn graph (only the unitigs).
         * A call to ColoredCDBG::mapColors is required afterwards to map colors to unitigs.
         * @param opt is a structure from which the members are parameters of this function. See CCDBG_Build_opt.
-        * @return boolean indicating if the graph has been built successfully.
+        * @return boolean indicating whether the graph has been built successfully.
         */
         bool buildGraph(const CCDBG_Build_opt& opt);
 
         /** Map the colors to the unitigs. This is done by reading the input files and querying the graph.
         * If a color filename is provided in opt.filename_colors_in, colors are loaded from that file instead.
         * @param opt is a structure from which the members are parameters of this function. See CCDBG_Build_opt.
-        * @return boolean indicating if the colors have been mapped successfully.
+        * @return boolean indicating whether the colors have been mapped successfully.
         */
         bool buildColors(const CCDBG_Build_opt& opt);
 
@@ -248,11 +248,11 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         * @param write_meta_file indicates if a graph meta file is written to disk. Graph meta files enable faster graph loading.
         * @param compressed_output indicates if the output file is compressed.
         * @param verbose is a boolean indicating if information message are printed during writing (true) or not (false).
-        * @return a boolean indicating if the graph was successfully written.
+        * @return a boolean indicating whether the graph was successfully written.
         */
         bool write(const string& prefix_output_fn, const size_t nb_threads = 1, const bool write_index_file = true, const bool compress_output = false, const bool verbose = false) const;
 
-        /** Read a colored and compacted de Bruijn graph from disk. The graph (in GFA, FASTA or BFG format) must 
+        /** Load a colored and compacted de Bruijn graph from disk. The graph (in GFA, FASTA or BFG format) must 
         * have been produced by Bifrost. By default, the function detects if an index file (BFI format) exists for the
         * input graph and will use it to load the graph. Otherwise, reading the graph will be much slower
         * than function read() with the index filename in input parameter.
@@ -260,20 +260,39 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         * @param input_colors_fn is a string which is the prefix of the color filename to read
         * @param nb_threads is the number of threads that can be used to read the graph and its colors from disk.
         * @param verbose is a boolean indicating if information messages are printed during reading (true) or not (false).
-        * @return a boolean indicating if the graph was successfully read.
+        * @return a boolean indicating whether the graph was successfully read.
         */
         bool read(const string& input_graph_fn, const string& input_colors_fn, const size_t nb_threads = 1, const bool verbose = false);
 
-        /** Read a colored and compacted de Bruijn graph from disk using an index file. The graph (in GFA, FASTA or BFG format)
-        * must have been produced by Bifrost. 
+        /** Load a colored and compacted de Bruijn graph from disk using an index file.
+        * The graph (in GFA, FASTA or BFG format) must have been produced by Bifrost. 
         * @param input_graph_fn is a string which is the prefix of the graph filename to read
         * @param input_index_fn is a string which is the prefix of the index filename to read
         * @param input_colors_fn is a string which is the prefix of the color filename to read
         * @param nb_threads is the number of threads that can be used to read the graph and its colors from disk.
         * @param verbose is a boolean indicating if information messages are printed during reading (true) or not (false).
-        * @return a boolean indicating if the graph was successfully read.
+        * @return a boolean indicating whether the graph was successfully read.
         */
         bool read(const string& input_graph_fn, const string& input_index_fn, const string& input_colors_fn, const size_t nb_threads = 1, const bool verbose = false);
+
+        /** Load a colored and compacted de Bruijn graph without its colors from disk.
+        * A call to ColoredCDBG::mapColors is required afterwards to map colors to unitigs.
+        * @param input_graph_fn is a string which is the prefix of the graph filename to read
+        * @param nb_threads is the number of threads that can be used to read the graph and its colors from disk.
+        * @param verbose is a boolean indicating if information messages are printed during reading (true) or not (false).
+        * @return a boolean indicating whether the graph was successfully read.
+        */
+        bool readGraph(const string& input_graph_fn, const size_t nb_threads = 1, const bool verbose = false);
+
+        /** Load a colored and compacted de Bruijn graph without its colors from disk using an index file.
+        * A call to ColoredCDBG::mapColors is required afterwards to map colors to unitigs.
+        * @param input_graph_fn is a string which is the prefix of the graph filename to read
+        * @param input_index_fn is a string which is the prefix of the index filename to read
+        * @param nb_threads is the number of threads that can be used to read the graph and its colors from disk.
+        * @param verbose is a boolean indicating if information messages are printed during reading (true) or not (false).
+        * @return a boolean indicating whether the graph was successfully read.
+        */
+        bool readGraph(const string& input_graph_fn, const string& input_index_fn, const size_t nb_threads = 1, const bool verbose = false);
 
         /** Merge a colored and compacted de Bruijn graph.
         * After merging, all unitigs and colors of the input graph have been added to and compacted with the current
@@ -285,7 +304,7 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         * @param o is a constant reference to the colored and compacted de Bruijn graph to merge.
         * @param nb_threads is an integer indicating how many threads can be used during the merging.
         * @param verbose is a boolean indicating if information messages must be printed during the execution of the function.
-        * @return a boolean indicating if the graph has been successfully merged.
+        * @return a boolean indicating whether the graph has been successfully merged.
         */
         bool merge(const ColoredCDBG& o, const size_t nb_threads = 1, const bool verbose = false);
 
@@ -301,7 +320,7 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         * std::move(). After merging, the graph pointed by o is cleared.
         * @param nb_threads is an integer indicating how many threads can be used during the merging.
         * @param verbose is a boolean indicating if information messages must be printed during the execution of the function.
-        * @return a boolean indicating if the graph has been successfully merged.
+        * @return a boolean indicating whether the graph has been successfully merged.
         */
         bool merge(ColoredCDBG&& o, const size_t nb_threads = 1, const bool verbose = false);
 
@@ -313,7 +332,7 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         * @param v is a constant reference to a vector of colored and compacted de Bruijn graphs to merge.
         * @param nb_threads is an integer indicating how many threads can be used during the merging.
         * @param verbose is a boolean indicating if information messages must be printed during the execution of the function.
-        * @return a boolean indicating if the graphs have been successfully merged.
+        * @return a boolean indicating whether the graphs have been successfully merged.
         */
         bool merge(const vector<ColoredCDBG>& v, const size_t nb_threads = 1, const bool verbose = false);
 
@@ -327,7 +346,7 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         * obtained using std::move(). After merging, the graphs in v are cleared.
         * @param nb_threads is an integer indicating how many threads can be used during the merging.
         * @param verbose is a boolean indicating if information messages must be printed during the execution of the function.
-        * @return a boolean indicating if the graphs have been successfully merged.
+        * @return a boolean indicating whether the graphs have been successfully merged.
         */
         bool merge(vector<ColoredCDBG>&& v, const size_t nb_threads = 1, const bool verbose = false);
 
