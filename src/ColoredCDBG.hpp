@@ -365,11 +365,59 @@ class ColoredCDBG : public CompactedDBG<DataAccessor<Unitig_data_t>, DataStorage
         /** Get the number of colors in the graph.
         * @return the number of colors in the graph.
         */
-        inline size_t getNbColors() const { return this->getData()->getNbColors(); }
+        inline size_t getNbColors() const {
 
-        bool search(const vector<string>& query_filenames, const string& out_filename_prefix,
-                    const double ratio_kmers, const bool get_nb_found_km, const bool get_ratio_found_km,
-                    const bool inexact_search, const size_t nb_threads, const bool verbose = false) const;
+            return this->getData()->getNbColors();
+        }
+
+        /**
+        * Query the graph for k-mers contained in input file(s) sequences/records and write the results to disk in TSV format.
+        * Results are output for each color.
+        * @param query_filenames is a vector of input query files. Each file can be in FASTA or FASTQ format. Each record
+        * in each file is a query by default unless parameter "files_as_queries" is true.
+        * @param out is an output stream to which results are written. It must be opened prior to this function call and
+        * it is not closed by this function.
+        * @param ratio_kmers is the ratio of k-mers (0 < ratio_kmers <= 1) in each query that must be found in the graph to be
+        * reported as present. This parameter is ignored if parameter "get_nb_found_km" or "get_ratio_found_km" are true.
+        * @param get_nb_found_km is a boolean indicating to output the number of k-mers from the query found in the graph
+        * rather than a presence/absence result. Disable parameter "ratio_kmers".
+        * @param get_ratio_found_km is a boolean indicating to output the ratio of k-mers from the query found in the graph
+        * rather than a presence/absence result. Disable parameter "ratio_kmers".
+        * @param inexact_search is a boolean indicating to count as a match k-mers from the graph that match k-mers of the
+        * query with one mismatch or indel.
+        * @param files_as_queries is a boolean indicating whether all records from each input query file constitute one query.
+        * @param nb_threads is an integer indicating how many threads can be used during the querying.
+        * @param verbose is a boolean indicating whether information messages must be printed during the execution of the function.
+        * @return Boolean indicating whether the querying completed successfully.
+        */
+        bool search(const vector<string>& query_filenames, const string& out_filename_prefix, const double ratio_kmers,
+                    const bool get_nb_found_km = false, const bool get_ratio_found_km = false,
+                    const bool inexact_search = false, const bool files_as_queries = false,
+                    const size_t nb_threads = 1, const bool verbose = false) const;
+
+        /**
+        * Query the graph for k-mers contained in input file(s) sequences/records and write the results to a stream in TSV format.
+        * Results are output for each color.
+        * @param query_filenames is a vector of input query files. Each file can be in FASTA or FASTQ format. Each record
+        * in each file is a query by default unless parameter "files_as_queries" is true.
+        * @param out_filename_prefix is the prefix of the output filename to which results are written.
+        * @param ratio_kmers is the ratio of k-mers (0 < ratio_kmers <= 1) in each query that must be found in the graph to be
+        * reported as present. This parameter is ignored if parameter "get_nb_found_km" or "get_ratio_found_km" are true.
+        * @param get_nb_found_km is a boolean indicating to output the number of k-mers from the query found in the graph
+        * rather than a presence/absence result. Disable parameter "ratio_kmers".
+        * @param get_ratio_found_km is a boolean indicating to output the ratio of k-mers from the query found in the graph
+        * rather than a presence/absence result. Disable parameter "ratio_kmers".
+        * @param inexact_search is a boolean indicating to count as a match all k-mers from the graph that match k-mers of the
+        * query with one mismatch or indel.
+        * @param files_as_queries is a boolean indicating whether all records from each input query file constitute one query.
+        * @param nb_threads is an integer indicating how many threads can be used during the querying.
+        * @param verbose is a boolean indicating whether information messages must be printed during the execution of the function.
+        * @return Boolean indicating whether the querying completed successfully.
+        */
+        bool search(const vector<string>& query_filenames, ostream& out, const double ratio_kmers,
+                    const bool get_nb_found_km = false, const bool get_ratio_found_km = false,
+                    const bool inexact_search = false, const bool files_as_queries = false,
+                    const size_t nb_threads = 1, const bool verbose = false) const;
 
     private:
 

@@ -94,7 +94,7 @@ void PrintUsage() {
     cout << "  > Mandatory with required argument:" << endl << endl;
 
     cout << "   -g, --input-graph-file   Input graph file to query in gfa(.gz) or bfg" << endl;
-    cout << "   -q, --input-query-file   Input query file in fasta/fastq(.gz)" << endl;
+    cout << "   -q, --input-query-file   Input query file in fasta/fastq(.gz). Each record is a query." << endl;
     cout << "                            Multiple files can be provided as a list in a text file (one file per line)" << endl;
     cout << "   -o, --output-file        Prefix for output file" << endl;
     cout << "   -e, --ratio-kmers        Ratio of k-mers from queries that must occur in the graph (default: " << opt.ratio_kmers << ")" << endl << endl;
@@ -111,6 +111,7 @@ void PrintUsage() {
 
     cout << "   > Optional with no argument:" << endl << endl;
 
+    cout << "   -Q, --files-as-queries   All fastq/fastq records in each input query file constitute a single query." << endl;
     cout << "   -p, --nb-found-km        Output the number of found k-mers for each query (disable parameter -e)" << endl;
     cout << "   -P, --ratio-found-km     Output the ratio of found k-mers for each query (disable parameter -e)" << endl;
     cout << "   -a, --approximate        Graph is searched using exact and inexact k-mers (1 substitution or indel allowed per k-mer)" << endl;
@@ -121,7 +122,7 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
 
     int option_index = 0, c;
 
-    const char* opt_string = "s:r:q:g:I:C:T:o:t:k:m:e:B:l:w:aidvcyfbnNpP";
+    const char* opt_string = "s:r:q:g:I:C:T:o:t:k:m:e:B:l:w:aidvcyfbnNQpP";
 
     static struct option long_options[] = {
 
@@ -149,6 +150,7 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
         {"bfg-out",             no_argument,        0, 'b'},
         {"no-compress-out",     no_argument,        0, 'n'},
         {"no-index-out",        no_argument,        0, 'N'},
+        {"files-as-queries",    no_argument,        0, 'Q'},
         {"nb-found-km",         no_argument,        0, 'p'},
         {"ratio-found-km",      no_argument,        0, 'P'},
         {0,                     0,                  0,  0 }
@@ -240,6 +242,9 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                     break;
                 case 'N':
                     opt.writeIndexFile = false;
+                    break;
+                case 'Q':
+                    opt.files_as_queries = true;
                     break;
                 case 'p':
                     opt.get_nb_found_km = true;
@@ -723,7 +728,7 @@ int main(int argc, char **argv){
                     else success = ccdbg.read(opt.filename_graph_in, opt.filename_index_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
 
                     if (success) success = ccdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.get_nb_found_km, opt.get_ratio_found_km,
-                                                       opt.inexact_search, opt.nb_threads, opt.verbose);
+                                                       opt.inexact_search, opt.files_as_queries, opt.nb_threads, opt.verbose);
                 }
                 else {
 
@@ -733,7 +738,7 @@ int main(int argc, char **argv){
                     else success = cdbg.read(opt.filename_graph_in, opt.filename_index_in, opt.nb_threads, opt.verbose);
 
                     if (success) success = cdbg.search( opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.get_nb_found_km, opt.get_ratio_found_km,
-                                                        opt.inexact_search, opt.nb_threads, opt.verbose);
+                                                        opt.inexact_search, opt.files_as_queries, opt.nb_threads, opt.verbose);
                 }
             }
 
