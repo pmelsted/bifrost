@@ -96,14 +96,14 @@ void PrintUsage() {
     cout << "   -g, --input-graph-file   Input graph file to query in gfa(.gz) or bfg" << endl;
     cout << "   -q, --input-query-file   Input query file in fasta/fastq(.gz). Each record is a query." << endl;
     cout << "                            Multiple files can be provided as a list in a text file (one file per line)" << endl;
-    cout << "   -o, --output-file        Prefix for output file" << endl;
-    cout << "   -e, --ratio-kmers        Ratio of k-mers from queries that must occur in the graph (default: " << opt.ratio_kmers << ")" << endl << endl;
+    cout << "   -o, --output-file        Prefix for output file" << endl << endl;
 
     cout << "   > Optional with required argument:" << endl << endl;
 
+    cout << "   -e, --min_ratio-kmers    Minimum ratio of k-mers from each query that must occur in the graph" << endl;
+    cout << "   -E, --min-nb-colors      Minimum number of colors from each query that must occur in the graph" << endl;
     cout << "   -I, --input-index-file   Input index file associated with graph to query in bfi format" << endl;
     cout << "   -C, --input-color-file   Input color file associated with the graph to query in color.bfg format" << endl;
-    cout << "                            Presence/absence of queries will be output for each color" << endl;
     cout << "   -t, --threads            Number of threads (default: " << opt.nb_threads << ")" << endl;
     cout << "   -k, --kmer-length        Length of k-mers (default: read from input graph if built with Bifrost or " << opt.k << ")" << endl;
     cout << "   -m, --min-length         Length of minimizers (default: read from input graph if built with Bifrost, auto otherwise)" << endl;
@@ -112,8 +112,7 @@ void PrintUsage() {
     cout << "   > Optional with no argument:" << endl << endl;
 
     cout << "   -Q, --files-as-queries   All fastq/fastq records in each input query file constitute a single query." << endl;
-    cout << "   -p, --nb-found-km        Output the number of found k-mers for each query (disable parameter -e)" << endl;
-    cout << "   -P, --ratio-found-km     Output the ratio of found k-mers for each query (disable parameter -e)" << endl;
+    cout << "   -p, --ratio-found-km     Output the ratio of found k-mers for each query (disable parameters -e and -E)" << endl;
     cout << "   -a, --approximate        Graph is searched using exact and inexact k-mers (1 substitution or indel allowed per k-mer)" << endl;
     cout << "   -v, --verbose            Print information messages during execution" << endl << endl;
 }
@@ -122,7 +121,7 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
 
     int option_index = 0, c;
 
-    const char* opt_string = "s:r:q:g:I:C:T:o:t:k:m:e:B:l:w:aidvcyfbnNQpP";
+    const char* opt_string = "s:r:q:g:I:C:T:o:t:k:m:e:E:B:l:w:aidvcyfbnNQp";
 
     static struct option long_options[] = {
 
@@ -137,7 +136,8 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
         {"threads",             required_argument,  0, 't'},
         {"kmer-length",         required_argument,  0, 'k'},
         {"min-length",          required_argument,  0, 'm'},
-        {"ratio-kmers",         required_argument,  0, 'e'},
+        {"min_ratio-kmers",     required_argument,  0, 'e'},
+        {"min-nb-colors",       required_argument,  0, 'E'},
         {"bloom-bits",          required_argument,  0, 'B'},
         {"load-mbbf",           required_argument,  0, 'l'},
         {"write-mbbf",          required_argument,  0, 'w'},
@@ -151,8 +151,7 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
         {"no-compress-out",     no_argument,        0, 'n'},
         {"no-index-out",        no_argument,        0, 'N'},
         {"files-as-queries",    no_argument,        0, 'Q'},
-        {"nb-found-km",         no_argument,        0, 'p'},
-        {"ratio-found-km",      no_argument,        0, 'P'},
+        {"ratio-found-km",      no_argument,        0, 'p'},
         {0,                     0,                  0,  0 }
     };
 
@@ -203,7 +202,10 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                     opt.g = atoi(optarg);
                     break;
                 case 'e':
-                    opt.ratio_kmers = atof(optarg);
+                    opt.min_ratio_kmers_search = atof(optarg);
+                    break;
+                case 'E':
+                    opt.min_nb_colors_search = atoi(optarg);
                     break;
                 case 'B':
                     opt.nb_bits_kmers_bf = atoi(optarg);
@@ -247,9 +249,6 @@ int parse_ProgramOptions(int argc, char **argv, CCDBG_Build_opt& opt) {
                     opt.files_as_queries = true;
                     break;
                 case 'p':
-                    opt.get_nb_found_km = true;
-                    break;
-                case 'P':
                     opt.get_ratio_found_km = true;
                     break;
                 default: break;
@@ -405,6 +404,7 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
             else {
 
                 fclose(fp);
+
                 if (remove(out.c_str()) != 0) cerr << "Error: Could not remove temporary file " << out << "." << endl;
             }
         }
@@ -416,9 +416,15 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
         }
         else check_files(opt.filename_query_in);
 
-        if ((opt.ratio_kmers < 0.0) || (opt.ratio_kmers > 1.0)) {
+        if ((opt.min_ratio_kmers_search < 0.0) || (opt.min_ratio_kmers_search > 1.0)) {
 
-            cerr << "Error: Ratio of k-mers from queries that must occur in the graph cannot be less than 0.0 or more than 1.0 (" << opt.ratio_kmers << ")." << endl;
+            cerr << "Error: Ratio of k-mers from queries that must occur in the graph cannot be less than 0.0 or more than 1.0 (" << opt.min_ratio_kmers_search << ")." << endl;
+            ret = false;
+        }
+
+        if ((opt.min_nb_colors_search != 0) && (opt.filename_colors_in.length() == 0)) {
+
+            cerr << "Error: Minimum number of colors required for queries (" << opt.min_nb_colors_search << ") but no color file provided for graph." << endl;
             ret = false;
         }
 
@@ -589,15 +595,6 @@ bool check_ProgramOptions(CCDBG_Build_opt& opt) {
         }
     }
 
-    if (opt.query) {
-
-        if (opt.get_nb_found_km && opt.get_ratio_found_km) {
-
-            cerr << "Error: Argument -p is incompatible with argument -P. Only the number of found k-mer OR the ratio of found k-mers can be reported at once." << endl;
-            ret = false;
-        }
-    }
-
     if ((opt.prefixTmp.length() != 0) && (!check_dir_writable(opt.prefixTmp) || !check_dir_readable(opt.prefixTmp))) {
 
         cerr << "Error: Given directory " << opt.prefixTmp << " to create tmp dir does not exist or is not writable/readable." << endl;
@@ -727,8 +724,25 @@ int main(int argc, char **argv){
                     if (opt.filename_index_in.length() == 0) success = ccdbg.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
                     else success = ccdbg.read(opt.filename_graph_in, opt.filename_index_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
 
-                    if (success) success = ccdbg.search(opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.get_nb_found_km, opt.get_ratio_found_km,
-                                                       opt.inexact_search, opt.files_as_queries, opt.nb_threads, opt.verbose);
+                    if (success) {
+
+                        if (opt.min_ratio_kmers_search == 0.0) {
+
+                            success = ccdbg.search( opt.filename_query_in, opt.prefixFilenameOut, opt.get_ratio_found_km,
+                                                    opt.inexact_search, opt.files_as_queries, opt.nb_threads, opt.verbose);
+                        }
+                        else if (opt.min_nb_colors_search == 0) {
+
+                            success = ccdbg.searchMinRatioKmer( opt.filename_query_in, opt.prefixFilenameOut, opt.min_ratio_kmers_search,
+                                                                opt.inexact_search, opt.files_as_queries, opt.nb_threads, opt.verbose);
+                        }
+                        else {
+
+                            success = ccdbg.searchMinRatioKmer( opt.filename_query_in, opt.prefixFilenameOut,
+                                                                opt.min_ratio_kmers_search, opt.min_nb_colors_search,
+                                                                opt.inexact_search, opt.files_as_queries, opt.nb_threads, opt.verbose);
+                        }
+                    }
                 }
                 else {
 
@@ -737,8 +751,19 @@ int main(int argc, char **argv){
                     if (opt.filename_index_in.length() == 0) success = cdbg.read(opt.filename_graph_in, opt.nb_threads, opt.verbose);
                     else success = cdbg.read(opt.filename_graph_in, opt.filename_index_in, opt.nb_threads, opt.verbose);
 
-                    if (success) success = cdbg.search( opt.filename_query_in, opt.prefixFilenameOut, opt.ratio_kmers, opt.get_nb_found_km, opt.get_ratio_found_km,
-                                                        opt.inexact_search, opt.files_as_queries, opt.nb_threads, opt.verbose);
+                    if (success) {
+
+                        if (opt.min_ratio_kmers_search == 0.0) {
+
+                            success = cdbg.search(  opt.filename_query_in, opt.prefixFilenameOut, opt.get_ratio_found_km,
+                                                    opt.inexact_search, opt.files_as_queries, opt.nb_threads, opt.verbose);
+                        }
+                        else {
+
+                            success = cdbg.searchMinRatioKmer(  opt.filename_query_in, opt.prefixFilenameOut, opt.min_ratio_kmers_search,
+                                                                opt.inexact_search, opt.files_as_queries, opt.nb_threads, opt.verbose);
+                        }
+                    }
                 }
             }
 
