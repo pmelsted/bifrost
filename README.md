@@ -247,7 +247,7 @@ The following use cases describe some simple and common usage of the Bifrost CLI
      ```
      Bifrost build -t 4 -k 31 -c -s A.fastq -s B.fastq -r C.fasta -o ABC 
      ```
-     Combining the two previous use cases, the compacted de Bruijn graph is built (`build`) using 4 threads (`-t 4`) from the filtered 31-mers (`-k 31`) of files *A.fastq* and *B.fastq* (`-s A.fastq -s B.fastq`) and the unfiltered 31-mers of file *C.fasta* (`-r C.fasta`). The graph is colored (`-c`) such that for each k-mer in the unitigs of the graph is recorded whether it occurs in *A*, *B* or *C*. The graph is written to file *ABC.gfa.gz* and a Bifrost index is written to file *ABC.bfi* (`-o ABC`).
+     Combining the two previous use cases, the compacted de Bruijn graph is built (`build`) using 4 threads (`-t 4`) from the filtered 31-mers (`-k 31`) of files *A.fastq* and *B.fastq* (`-s A.fastq -s B.fastq`) and the unfiltered 31-mers of file *C.fasta* (`-r C.fasta`). The graph is colored (`-c`) such that for each k-mer in the unitigs of the graph is recorded whether it occurs in *A*, *B* or *C*. The graph is written to file *ABC.gfa.gz*, its colors are written to file *ABC.color.bfg* and a Bifrost index is written to file *ABC.bfi* (`-o ABC`).
 
      Additional options of interest for building are:
      - `-i`: Delete all tips composed of unitigs shorter than *k* *k*-mers
