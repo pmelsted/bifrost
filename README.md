@@ -241,7 +241,7 @@ The following use cases describe some simple and common usage of the Bifrost CLI
      ```
      Bifrost build -t 4 -k 31 -r C.fasta -o C
      ```
-     Same as previous use case but by using parameter `-r`, file *C.fasta* is NOT filtered: all 31-mers occurring in *C* are used during the construction.The graph is written to file *C.gfa.gz* and a Bifrost index is written to file *C.bfi* (`-o C`).
+     Same as previous use case but by using parameter `-r`, file *C.fasta* is NOT filtered: all 31-mers occurring in *C* are used during the construction. The graph is written to file *C.gfa.gz* and a Bifrost index is written to file *C.bfi* (`-o C`).
 
   3. **Build a compacted and colored de Bruijn graph from read files and reference genome files**
      ```
