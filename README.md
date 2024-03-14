@@ -56,8 +56,6 @@ sudo apt-get install build-essential cmake zlib1g-dev
 
 ## Installation
 
-Compared to the source install, the Conda package might not have the latest Bifrost version, does not support *k>31* nor native compilation. **Always use the source installation for benchmarking.**
-
 * From source
 
   ```
@@ -83,6 +81,7 @@ Compared to the source install, the Conda package might not have the latest Bifr
 
 * From [Bioconda](https://bioconda.github.io):
 
+  Compared to the source install, the Conda package might not have the latest Bifrost version, does not support *k>31* nor native compilation. **Do not use the conda installation for benchmarking Bifrost.**
   ```
   conda install -c bioconda bifrost
   ```
