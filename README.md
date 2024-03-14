@@ -312,15 +312,12 @@ The [API tutorial](doc/tutorial/Intro.md) should help you get started with the C
 
 ### Documentation
 
-Documentation for the Bifrost library is available in the */doc/doxygen* folder (HTML version, open *html/index.html*).
-
-The following command regenerates the documentation:
+Documentation for the Bifrost library is available in the */doc/doxygen* folder. The following command generates the documentation files:
 ```
 cd <bifrost_directory>
 doxygen Doxyfile
 ```
-
-The documentation contains a description of all the functions and structures of the library.
+Then, open *html/index.html*. The documentation contains a description of all the functions and structures of the library.
 
 ### Usage
 
