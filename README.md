@@ -225,7 +225,9 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
    -v, --verbose            Print information messages during execution
 ```
 
-### Examples
+### Use cases
+
+The following use cases describe some simple and common usage of the Bifrost CLI. However, many more options are provided by the CLI to perform more specific actions (graph cleaning, approximate querying, etc.).
 
 - **Build**
 
@@ -263,27 +265,33 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
 
 - **Query**
 
-  The default querying behavior is to report the number of k-mers shared between the queries and:
+  The default querying behavior is to report the number of *k*-mers shared between the queries and:
   - the graph if input graph is **not** colored
-  - the colors if input graph is colored
+  - each color if input graph is colored
+ 
+  1. **Query a compacted de Bruijn graph for the number of k-mers shared between the queries and the graph**
+     ```
+     Bifrost query -t 4 -g A.gfa.gz -q in_queries.fasta -o out_queries_result 
+     ```
+     The compacted de Bruijn graph *A* (`-g A.gfa.gz`) is queried (`query`) with 4 threads (`-t 4`) for the number of *k*-mers shared between the sequences of file *in_queries.fasta* (`-q in_queries.fasta`) and the graph *A*. The Bifrost index *A.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. The results are stored in a matrix written to file *out_queries_result.tsv* (`-o out_queries_result`): rows are the queries, column is the graph, intersection of row/column is the number of shared *k*-mers between the query and the graph. `-p` can be used to return a ratio of shared *k*-mers (with respect to the number of *k*-mers in each query) rather than a number.
 
-  1. **Query a compacted de Bruijn graph for presence/absence of queries in the graph**
+  2. **Query a compacted de Bruijn graph for presence/absence of queries in the graph**
      ```
-     Bifrost query -t 4 -e 0.8 -g ABCEF.gfa.gz -q queries.fasta -o presence_queries 
+     Bifrost query -t 4 -e 0.8 -g A.gfa.gz -q in_queries.fasta -o out_queries_result 
      ```
-     The compacted de Bruijn graph *ABCEF* (`-g ABCEF.gfa.gz`) is queried (`query`) with 4 threads (`-t 4`) for the presence/absence of sequences from file *queries.fasta* (`-q queries.fasta`). The Bifrost index *ABCEF_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. At least 80% of each query *k*-mers must be found in the graph to have the query reported as present (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, column is presence/absence in graph, intersection of a row and a column is a binary value indicating presence/absence of the query in graph (1 is present, 0 is not present).
+     Same as previous use case but instead of returning a number of shared *k*-mers per query, it returns a binary value indicating whether the query is present in the graph or not (1 if present, 0 if absent). At least 80% of the *k*-mers in each query must be found in the graph to report the query as present (`-e 0.8`).
 
-  2. **Query a compacted de Bruijn graph for presence/absence of queries in the graph in inexact mode**
+  3. **Query a colored and compacted de Bruijn graph for the number of k-mers shared between the queries and the colors of the graph**
      ```
-     Bifrost query -t 4 -e 0.8 -n -g ABCEF.gfa.gz -q queries.fasta -o presence_queries 
+     Bifrost query -t 4 -g AB.gfa.gz -C AB.color.bfg -q in_queries.fasta -o out_queries_result 
      ```
-     The compacted de Bruijn graph *ABCEF* (`-g ABCEF.gfa.gz`) is queried (`query`) with 4 threads (`-t 4`) for the presence/absence of sequences from file *queries.fasta* (`-q queries.fasta`). The Bifrost index *ABCEF_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. At least 80% of each query *k*-mers must be found in the graph to have the query reported as present (`-e 0.8`). Queries are searched for exact and inexact *k*-mers (`-n`): *k*-mers with up to one substitution or indel. The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, column is presence/absence in graph, intersection of a row and a column is a binary value indicating presence/absence of the query in graph (1 is present, 0 is not present).
+     The compacted and colored de Bruijn graph *AB* (`-g AB.gfa.gz -C AB.color.bfg`) is queried (`query`) with 4 threads (`-t 4`) for the number of *k*-mers shared between the sequences of file (`-q in_queries.fasta`). The Bifrost index *AB.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. The results are stored in a matrix written to file *out_queries_result.tsv* (`-o out_queries_result`): rows are the queries, columns are the colors, intersection of row/column is an integer indicating the number of *k*-mers from the query occuring in the graph with the corresponding color. `-p` can be used to return a ratio of shared *k*-mers (with respect to the number of *k*-mers in each query) rather than a number.**
 
-  3. **Query a colored and compacted de Bruijn graph for presence/absence of queries in each color of the graph**
+  4. **Query a colored and compacted de Bruijn graph for presence/absence of queries in each color of the graph**
      ```
-     Bifrost query -t 4 -e 0.8 -g ABCEF.gfa.gz -C ABCEF.color.bfg -q queries.fasta -o presence_queries 
+     Bifrost query -t 4 -e 0.8 -g AB.gfa.gz -C AB.color.bfg -q in_queries.fasta -o out_queries_result 
      ```
-     The compacted and colored de Bruijn graph *ABCEF* (`-g ABCEF.gfa.gz -C ABCEF.color.bfg`) is queried (`query`) with 4 threads (`-t 4`) for the sequences of file *queries.fasta* (`-q queries.fasta`). The Bifrost index *ABCEF_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. At least 80% of each query *k*-mers must be found in a color of the graph to have the query reported as present for that color (`-e 0.8`). The results are stored in a binary matrix written to file *presence_queries.tsv* (`-o presence_queries`): rows are the queries, columns are the colors, intersection of a row and a column is a binary value indicating presence/absence of the query in the color of the graph (1 is present, 0 is not present).
+     Same as previous use case but instead of returning a number of shared *k*-mers per query and color, it returns a binary value indicating whether the query is present in the graph with the corresponding color or not (1 if present, 0 if absent). At least 80% of the *k*-mers in each query must be found in the graph with corresponding color to report the query as present for that color (`-e 0.8`).
 
 ## API
 
