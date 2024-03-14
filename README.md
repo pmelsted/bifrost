@@ -249,6 +249,10 @@ The following use cases describe some simple and common usage of the Bifrost CLI
      ```
      Combining the two previous use cases, the compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq*, *B.fastq* (`-s A.fastq -s B.fastq`) and file *C.fasta* (`-r C.fasta`). The graph is colored (`-c`) such that for each k-mer in the unitigs of the graph is recorded whether it occurs in *A*, *B* or *C*. The graph is written to file *ABC_graph.gfa.gz* and a Bifrost index is written to file *ABC_graph.bfi* (`-o ABC_graph`).
 
+     Additional options of interest for building are:
+     - `-i`: Delete all tips composed of unitigs shorter than *k* *k*-mers
+     - `-d`: Delete all connected components composed of one unitig shorter than *k* *k*-mers
+
 - **Update**
 
   1. **Update a compacted de Bruijn graph with a reference genome file**
@@ -273,7 +277,7 @@ The following use cases describe some simple and common usage of the Bifrost CLI
      ```
      Bifrost query -t 4 -g A.gfa.gz -q in_queries.fasta -o out_queries_result 
      ```
-     The compacted de Bruijn graph *A* (`-g A.gfa.gz`) is queried (`query`) with 4 threads (`-t 4`) for the number of *k*-mers shared between the sequences of file *in_queries.fasta* (`-q in_queries.fasta`) and the graph *A*. The Bifrost index *A.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. The results are stored in a matrix written to file *out_queries_result.tsv* (`-o out_queries_result`): rows are the queries, column is the graph, intersection of row/column is the number of shared *k*-mers between the query and the graph. `-p` can be used to return a ratio of shared *k*-mers (with respect to the number of *k*-mers in each query) rather than a number.
+     The compacted de Bruijn graph *A* (`-g A.gfa.gz`) is queried (`query`) with 4 threads (`-t 4`) for the number of *k*-mers shared between the sequences of file *in_queries.fasta* (`-q in_queries.fasta`) and the graph *A*. The Bifrost index *A.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. The results are stored in a matrix written to file *out_queries_result.tsv* (`-o out_queries_result`): rows are the queries, column is the graph, intersection of row/column is the number of shared *k*-mers between the query and the graph.
 
   2. **Query a compacted de Bruijn graph for presence/absence of queries in the graph**
      ```
@@ -285,7 +289,7 @@ The following use cases describe some simple and common usage of the Bifrost CLI
      ```
      Bifrost query -t 4 -g AB.gfa.gz -C AB.color.bfg -q in_queries.fasta -o out_queries_result 
      ```
-     The compacted and colored de Bruijn graph *AB* (`-g AB.gfa.gz -C AB.color.bfg`) is queried (`query`) with 4 threads (`-t 4`) for the number of *k*-mers shared between the sequences of file (`-q in_queries.fasta`). The Bifrost index *AB.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. The results are stored in a matrix written to file *out_queries_result.tsv* (`-o out_queries_result`): rows are the queries, columns are the colors, intersection of row/column is an integer indicating the number of *k*-mers from the query occuring in the graph with the corresponding color. `-p` can be used to return a ratio of shared *k*-mers (with respect to the number of *k*-mers in each query) rather than a number.**
+     The compacted and colored de Bruijn graph *AB* (`-g AB.gfa.gz -C AB.color.bfg`) is queried (`query`) with 4 threads (`-t 4`) for the number of *k*-mers shared between the sequences of file (`-q in_queries.fasta`). The Bifrost index *AB.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. The results are stored in a matrix written to file *out_queries_result.tsv* (`-o out_queries_result`): rows are the queries, columns are the colors, intersection of row/column is an integer indicating the number of *k*-mers from the query occuring in the graph with the corresponding color.
 
   4. **Query a colored and compacted de Bruijn graph for presence/absence of queries in each color of the graph**
      ```
@@ -293,6 +297,12 @@ The following use cases describe some simple and common usage of the Bifrost CLI
      ```
      Same as previous use case but instead of returning a number of shared *k*-mers per query and color, it returns a binary value indicating whether the query is present in the graph with the corresponding color or not (1 if present, 0 if absent). At least 80% of the *k*-mers in each query must be found in the graph with corresponding color to report the query as present for that color (`-e 0.8`).
 
+  Additional options of interest for querying are:
+  -  `-p`: Outputs a ratio of shared *k*-mers (w.r.t the number of *k*-mers in each query) instead of the number of *k*-mers
+  -  `-Q`: Performs the querying per file (with multiple sequences) rather than per sequence
+  -  `-a`: Enable approximate *k*-mer matches
+  -  `-E`: A *k*-mer is only reported as present if it is colored by *x* many colors
+      
 ## API
 
 Changes in the API are reported in the [Changelog](https://github.com/pmelsted/bifrost/blob/master/Changelog.md).
