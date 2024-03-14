@@ -29,7 +29,7 @@
 
 ## Requirements
 
-To install Bifrost using Bioconda, go directly to Section [Installation](#installation). To install from source, you will need:
+It is highly recommended to install Bifrost from source. However, to install Bifrost using Bioconda, go directly to Section [Installation](#installation). To install from source, you will need:
 
 * C++11 compiler:
     * [GCC](https://gcc.gnu.org/) >= 5.1.0
@@ -37,7 +37,7 @@ To install Bifrost using Bioconda, go directly to Section [Installation](#instal
 * [Cmake](https://cmake.org/) >= 2.8.12
 * [Zlib](https://zlib.net/)
 
-All are probably already installed on your computer as those are installed by default on most operating systems. They can be downloaded and installed by following the instructions on their respective websites. However, it is most likely they are all available via a package manager for your operating system: 
+Those are installed by default on most OS. In case you are missing on or more of those: 
 
 * **Ubuntu/Debian**:
 ```
@@ -48,26 +48,15 @@ sudo apt-get install build-essential cmake zlib1g-dev
 brew install --with-toolchain llvm
 brew install cmake zlib
 ```
-* **Windows 10**:
-
-1. Open the Windows Store
-2. Search and install the `Ubuntu` app (from `Canonical Group Limited`)
-3. Open the Windows main menu and open the `Ubuntu` app (it should open an Ubuntu terminal)
-4. Use the following command in the Ubuntu terminal:
+* **Windows**:
+Bifrost does not run natively on Windows but you can install the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/linux/install) and run it from there. Bifrost will not be nearly as fast on WSL as it is on a native Linux or MacOS installation. From the WSL:
 ```
 sudo apt-get install build-essential cmake zlib1g-dev
 ```
-5. Use the opened Ubuntu terminal for compiling, installing and running Bifrost (see next section). See [Troubleshooting](#troubleshooting) if you have any problem during the installation.
 
 ## Installation
 
-Compared to the source install, the Conda package might not have the latest Bifrost version, does not support *k>31* nor native compilation. Use the source installation for benchmarking.
-
-* From [Bioconda](https://bioconda.github.io):
-
-  ```
-  conda install -c bioconda bifrost
-  ```
+Compared to the source install, the Conda package might not have the latest Bifrost version, does not support *k>31* nor native compilation. **Always use the source installation for benchmarking.**
 
 * From source
 
@@ -91,6 +80,12 @@ Compared to the source install, the Conda package might not have the latest Bifr
   * Bifrost uses AVX2 instructions during graph construction which can be disabled by adding the option `-DENABLE_AVX2=OFF` to the `cmake` command.
 
   If you encounter any problem during the installation, see the [Troubleshooting](#troubleshooting) section.
+
+* From [Bioconda](https://bioconda.github.io):
+
+  ```
+  conda install -c bioconda bifrost
+  ```
 
 ### Large *k*-mers
 
@@ -363,21 +358,21 @@ Actual maximum k-mer size is *MAX_KMER_SIZE-1*, e.g maximum *k* is 63 for *MAX_K
 
 ## FAQ
 
-**Can I provide in input multiple files?**
+**Can I provide multiple files in input?**
 
 Yes, use parameter `-r` or `-s` for each file to input.
 
-**Can I provide in input a file which is a list of files?**
+**Can I provide a list of files in input?**
 
-Yes, a text file containing one input filename per line with no empty lines can be given in input.
+Yes, a text file containing one input filename per line with no empty lines can be used in input.
 
 **What are the accepted input file formats?**
 
-FASTA, FASTQ and GFA. Input FASTA and FASTQ files can be compressed with gzip (extension .gz). If you input a GFA file for the construction, you probably want to use the `-r` parameter for that file.
+FASTA, FASTQ, GFA and Bifrost binary file format. Input FASTA, FASTQ and GFA can be compressed with gzip (extension .gz). If you input a GFA file for the construction, use the `-r` parameter.
 
-**Can I mix different file formats in input?**
+**Can I use different file formats in input?**
 
-Yes, as long as they are FASTA, FASTQ and GFA.
+Yes.
 
 **If I input a GFA file for building the de Bruijn graph, does it need to contain an already compacted de Bruijn graph?**
 
@@ -387,7 +382,7 @@ No, it can contain any type of sequence graph (like an uncompacted de Bruijn gra
 
 Yes. Input your assembled genomes with parameter `-r` and your reads with parameter `-s`.
 
-**Can I use the graph file without its color file ?**
+**Can I use a graph file without its color file ?**
 
 Yes. Just do not input the color file and Bifrost will consider it is an **un**colored compacted de Bruijn graph.
 
