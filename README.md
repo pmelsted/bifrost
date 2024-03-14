@@ -393,7 +393,7 @@ All of them. The difference between the graphs resides in circular unitigs (unit
 
 **Is it possible to get the colors per *k*-mer in a parsable (non-binary) file format?**
 
-Yes, please see [this solution](https://github.com/pmelsted/bifrost/issues/50)
+Yes, please see [this solution]([https://github.com/pmelsted/bifrost/issues/50](https://github.com/pmelsted/bifrost/issues/50#issuecomment-1719799619))
 
 ## Troubleshooting
 
