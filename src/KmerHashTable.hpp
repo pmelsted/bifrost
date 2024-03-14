@@ -9,7 +9,7 @@
 #include "Kmer.hpp"
 
 #define BIFROST_KHT_MAX_OCCUPANCY 0.95
-#define BIFROST_KHT_INIT_SZ 1024
+#define BIFROST_KHT_INIT_SZ 128
 
 template<typename T>
 struct KmerHashTable {
@@ -145,7 +145,7 @@ struct KmerHashTable {
 
             const size_t sz_with_empty = static_cast<size_t>((1.0 + (1.0 - ratio_occupancy)) * sz);
 
-            init_tables(sz_with_empty);
+            init_tables(max(sz_with_empty, static_cast<size_t>(BIFROST_KHT_INIT_SZ)));
         }
     }
 
@@ -455,9 +455,9 @@ struct KmerHashTable {
         if (size_ == 0) init_tables(BIFROST_KHT_INIT_SZ);
         else if (pop >= static_cast<size_t>(size_ * max_ratio_occupancy)) {
 
-            size_t resize = 1.2 * size_;
+            size_t resize = max(1.2 * size_, static_cast<double>(1 + size_));
 
-            while (pop >= static_cast<size_t>(resize * max_ratio_occupancy)) resize *= 1.2;
+            while (pop >= static_cast<size_t>(resize * max_ratio_occupancy)) resize = max(1.2 * resize, static_cast<double>(1 + resize));
 
             reserve(resize);
         }

@@ -16,7 +16,7 @@
 #include "TinyVector.hpp"
 
 #define BIFROST_MI_MAX_OCCUPANCY 0.95
-#define BIFROST_MI_INIT_SZ 1024
+#define BIFROST_MI_INIT_SZ 128
 
 class MinimizerIndex {
 

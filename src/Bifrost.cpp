@@ -93,8 +93,8 @@ void PrintUsage() {
 
     cout << "  > Mandatory with required argument:" << endl << endl;
 
-    cout << "   -g, --input-graph-file   Input graph file to query in gfa(.gz) or bfg" << endl;
-    cout << "   -q, --input-query-file   Input query file in fasta/fastq(.gz). Each record is a query." << endl;
+    cout << "   -g, --input-graph-file   Input graph file to query in gfa(.gz) or bfg format." << endl;
+    cout << "   -q, --input-query-file   Input query file in fasta/fastq(.gz) format.. Each record is a query." << endl;
     cout << "                            Multiple files can be provided as a list in a text file (one file per line)" << endl;
     cout << "   -o, --output-file        Prefix for output file" << endl << endl;
 

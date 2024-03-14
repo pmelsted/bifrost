@@ -2869,14 +2869,14 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
     const size_t thread_seq_buf_sz = BUFFER_SIZE;
     const size_t nb_locks = opt.nb_threads * 1024;
 
-    const size_t nb_estimated_min = (reference_mode ? nb_unique_minimizers : nb_non_unique_minimizers);
-    const size_t nb_estimated_fp_tips = (reference_mode ? nb_unique_kmers : nb_non_unique_kmers) * 8 * dbbf.getFPrate();
+    const size_t nb_estimated_min = max((reference_mode ? nb_unique_minimizers : nb_non_unique_minimizers), static_cast<size_t>(1));
+    const size_t nb_estimated_fp_tips = max((reference_mode ? nb_unique_kmers : nb_non_unique_kmers) * 8 * dbbf.getFPrate(), static_cast<double>(1));
 
     const vector<string>& filename_in = (reference_mode ? opt.filename_ref_in : opt.filename_seq_in);
 
     size_t len_read = 0;
     size_t pos_read = 0;
-    size_t read_id = 0;
+    size_t read_id = 0xffffffffffffffffULL; // First sequence read with initialize read_id to read_id+1=0
 
     Roaring::const_iterator its = r.begin(), ite = r.end();
 
@@ -3289,9 +3289,11 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
         }
 
         const string tmp_graph_fn = string(tmp_dir) + string("/approx_unitigs.fasta");
+        const bool approx_unitigs_detected = (its != ite);
 
-        {
-            size_t id_unitig_out = 0;
+        size_t id_unitig_out = 0;
+
+        if (approx_unitigs_detected) {
 
             bool stop = false;
 
@@ -3417,7 +3419,8 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
             if (std::remove(tmp_bbf_fn.c_str()) != 0) cerr << "CompactedDBG::construct(): Could not remove temporary Blocked Bloom Filter file." << endl;
         }
 
-        {
+        if (id_unitig_out != 0) {
+
             const vector<string> v_tmp_file(1, tmp_graph_fn);
 
             FileParser fp_approx_unitigs(v_tmp_file);
@@ -3436,7 +3439,7 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
             h_kmers_ccov.recomputeMaxPSL(opt.nb_threads);
         }
 
-        if (std::remove(tmp_graph_fn.c_str()) != 0) cerr << "CompactedDBG::construct(): Could not remove temporary file." << endl;
+        if (approx_unitigs_detected && (std::remove(tmp_graph_fn.c_str()) != 0)) cerr << "CompactedDBG::construct(): Could not remove temporary file." << endl;
         if (rmdir(tmp_dir) != 0) cerr << "CompactedDBG::construct(): Could not remove temporary directory." << endl;
 
         if (tmp_dir != nullptr) delete[] tmp_dir;
@@ -3451,10 +3454,6 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
         vector<thread> workers; // need to keep track of threads so we can join them
 
         mutex mutex_file;
-
-        len_read = 0;
-        pos_read = 0;
-        read_id = 0;
 
         if (opt.verbose) cout << "CompactedDBG::construct(): Extract approximate unitigs (2/3)" << endl;
 
