@@ -257,7 +257,7 @@ The following use cases describe some simple and common usage of the Bifrost CLI
 
   1. **Update a compacted de Bruijn graph with a reference genome file**
      ```
-     Bifrost update -t 4 -g A_graph.gfa.gz -r A.fasta -o AB
+     Bifrost update -t 4 -g A_graph.gfa.gz -r B.fasta -o AB
      ```
      The compacted de Bruijn graph *A* (`-g A_graph.gfa.gz`) is updated (`update`) using 4 threads (`-t 4`) with the *k*-mers of file *B.fasta* (`-r B.fasta`). The Bifrost index *A_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. By using parameter `-r`, file *B.fasta* is NOT filtered: all *k*-mers occurring in *B* are used for the merging. The graph is written to file *AB.gfa.gz* and a Bifrost index is written to file *AB.bfi* (`-o AB`).
 
