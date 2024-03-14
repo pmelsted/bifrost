@@ -227,27 +227,27 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
 
 ### Use cases
 
-The following use cases describe some simple and common usage of the Bifrost CLI. However, many more options are provided by the CLI to perform more specific actions (graph cleaning, approximate querying, etc.).
+The following use cases describe some simple and common usage of the Bifrost CLI. However, many options are provided by the CLI to perform more specific actions (graph cleaning, approximate querying, etc.).
 
 - **Build**
 
   1. **Build a compacted de Bruijn graph from read files**
      ```
-     Bifrost build -t 4 -k 31 -s A.fastq -s B.fastq -o AB_graph 
+     Bifrost build -t 4 -k 31 -s A.fastq -s B.fastq -o AB
      ```
-     The compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq* and *B.fastq* (`-s A.fastq -s B.fastq`). By using parameter `-s`, files *A.fastq* and *B.fastq* are filtered: 31-mers occurring exactly once in *A* and *B* are discarded from the construction. The graph is written to file *AB_graph.gfa.gz* and a Bifrost index is written to file *AB_graph.bfi* (`-o AB_graph`).
+     The compacted de Bruijn graph is built (`build`) using 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq* and *B.fastq* (`-s A.fastq -s B.fastq`). By using parameter `-s`, files *A.fastq* and *B.fastq* are filtered: 31-mers occurring exactly once in *A* and *B* are discarded from the construction. The graph is written to file *AB.gfa.gz* and a Bifrost index is written to file *AB.bfi* (`-o AB`).
 
   2. **Build a compacted de Bruijn graph from a reference genome file**
      ```
-     Bifrost build -t 4 -k 31 -r C.fasta -o C_graph 
+     Bifrost build -t 4 -k 31 -r C.fasta -o C
      ```
-     Same as previous use case but by using parameter `-r`, file *C.fasta* is NOT filtered: all 31-mers occurring in *C* are used during the construction.The graph is written to file *C_graph.gfa.gz* and a Bifrost index is written to file *C_graph.bfi* (`-o C_graph`).
+     Same as previous use case but by using parameter `-r`, file *C.fasta* is NOT filtered: all 31-mers occurring in *C* are used during the construction.The graph is written to file *C.gfa.gz* and a Bifrost index is written to file *C.bfi* (`-o C`).
 
   3. **Build a compacted and colored de Bruijn graph from read files and reference genome files**
      ```
      Bifrost build -t 4 -k 31 -c -s A.fastq -s B.fastq -r C.fasta -o ABC 
      ```
-     Combining the two previous use cases, the compacted de Bruijn graph is built (`build`) with 4 threads (`-t 4`) from the 31-mers (`-k 31`) of files *A.fastq*, *B.fastq* (`-s A.fastq -s B.fastq`) and file *C.fasta* (`-r C.fasta`). The graph is colored (`-c`) such that for each k-mer in the unitigs of the graph is recorded whether it occurs in *A*, *B* or *C*. The graph is written to file *ABC_graph.gfa.gz* and a Bifrost index is written to file *ABC_graph.bfi* (`-o ABC_graph`).
+     Combining the two previous use cases, the compacted de Bruijn graph is built (`build`) using 4 threads (`-t 4`) from the filtered 31-mers (`-k 31`) of files *A.fastq* and *B.fastq* (`-s A.fastq -s B.fastq`) and the unfiltered 31-mers of file *C.fasta* (`-r C.fasta`). The graph is colored (`-c`) such that for each k-mer in the unitigs of the graph is recorded whether it occurs in *A*, *B* or *C*. The graph is written to file *ABC.gfa.gz* and a Bifrost index is written to file *ABC.bfi* (`-o ABC`).
 
      Additional options of interest for building are:
      - `-i`: Delete all tips composed of unitigs shorter than *k* *k*-mers
@@ -257,15 +257,19 @@ The following use cases describe some simple and common usage of the Bifrost CLI
 
   1. **Update a compacted de Bruijn graph with a reference genome file**
      ```
-     Bifrost update -t 4 -r D.fasta -g C_graph.gfa.gz -o CD_graph 
+     Bifrost update -t 4 -r A.fasta -g B_graph.gfa.gz -o AB
      ```
-     The compacted de Bruijn graph *C* (`-g C_graph.gfa.gz`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of file *D.fasta* (`-r D.fasta`). The Bifrost index *C_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. By using parameter `-r`, file *D.fasta* is NOT filtered: all *k*-mers occurring in *D* are used during the merging.  The graph is written to file *CD_graph.gfa.gz* and a Bifrost index is written to file *CD_graph.bfi* (`-o CD_graph`).
+     The compacted de Bruijn graph *B* (`-g B_graph.gfa.gz`) is updated (`update`) using 4 threads (`-t 4`) with the *k*-mers of file *A.fasta* (`-r A.fasta`). The Bifrost index *B_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. By using parameter `-r`, file *A.fasta* is NOT filtered: all *k*-mers occurring in *A* are used for the merging. The graph is written to file *AB.gfa.gz* and a Bifrost index is written to file *AB.bfi* (`-o AB`).
 
-  2. **Update a compacted and colored de Bruijn graph with read files and clean the graph**
+  2. **Update a compacted and colored de Bruijn graph with read files**
      ```
-     Bifrost update -t 4 -i -d -s E.fastq -s F.fastq -g ABC.gfa.gz -f ABC.bfg_colors -o ABCEF 
+     Bifrost update -t 4 -s A.fastq -s B.fastq -g C.gfa.gz -f C.color.bfg -o ABC
      ```
-     The compacted and colored de Bruijn graph *ABC* (`-g ABC.gfa.gz -f ABC.bfg_colors`) is updated (`update`) with 4 threads (`-t 4`) from the *k*-mers of files *E.fastq* and *F.fastq* (`-s E.fastq -s F.fastq`). The Bifrost index *ABC_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. Graph simplification steps are performed after merging (`-i -d`). The graph is written to file *ABCEF.gfa.gz*, the colors are written to file *ABCEF.bfg_colors* and a Bifrost index is written to file *ABCEF_graph.bfi* (`-o ABCEF`).
+     The compacted and colored de Bruijn graph *C* (`-g C.gfa.gz -f C.color.bfg`) is updated (`update`) using 4 threads (`-t 4`) with the filtered *k*-mers of files *A.fastq* and *B.fastq* (`-s A.fastq -s B.fastq`). The Bifrost index *C.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. The merged graph is written to file *ABC.gfa.gz*, its colors are written to file *ABC.color.bfg* and a Bifrost index is written to file *ABC.bfi* (`-o ABC`).
+
+        Additional options of interest for merging are:
+     - `-i`: Delete all tips composed of unitigs shorter than *k* *k*-mers
+     - `-d`: Delete all connected components composed of one unitig shorter than *k* *k*-mers
 
 - **Query**
 
@@ -277,7 +281,7 @@ The following use cases describe some simple and common usage of the Bifrost CLI
      ```
      Bifrost query -t 4 -g A.gfa.gz -q in_queries.fasta -o out_queries_result 
      ```
-     The compacted de Bruijn graph *A* (`-g A.gfa.gz`) is queried (`query`) with 4 threads (`-t 4`) for the number of *k*-mers shared between the sequences of file *in_queries.fasta* (`-q in_queries.fasta`) and the graph *A*. The Bifrost index *A.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. The results are stored in a matrix written to file *out_queries_result.tsv* (`-o out_queries_result`): rows are the queries, column is the graph, intersection of row/column is the number of shared *k*-mers between the query and the graph.
+     The compacted de Bruijn graph *A* (`-g A.gfa.gz`) is queried (`query`) using 4 threads (`-t 4`) for the number of *k*-mers shared between the sequences of file *in_queries.fasta* (`-q in_queries.fasta`) and the graph *A*. The Bifrost index *A.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. The results are stored in a matrix written to file *out_queries_result.tsv* (`-o out_queries_result`): rows are the queries, column is the graph, intersection of row/column is the number of shared *k*-mers between the query and the graph.
 
   2. **Query a compacted de Bruijn graph for presence/absence of queries in the graph**
      ```
@@ -289,7 +293,7 @@ The following use cases describe some simple and common usage of the Bifrost CLI
      ```
      Bifrost query -t 4 -g AB.gfa.gz -C AB.color.bfg -q in_queries.fasta -o out_queries_result 
      ```
-     The compacted and colored de Bruijn graph *AB* (`-g AB.gfa.gz -C AB.color.bfg`) is queried (`query`) with 4 threads (`-t 4`) for the number of *k*-mers shared between the sequences of file (`-q in_queries.fasta`). The Bifrost index *AB.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. The results are stored in a matrix written to file *out_queries_result.tsv* (`-o out_queries_result`): rows are the queries, columns are the colors, intersection of row/column is an integer indicating the number of *k*-mers from the query occuring in the graph with the corresponding color.
+     The compacted and colored de Bruijn graph *AB* (`-g AB.gfa.gz -C AB.color.bfg`) is queried (`query`) using 4 threads (`-t 4`) for the number of *k*-mers shared between the sequences of file (`-q in_queries.fasta`). The Bifrost index *AB.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. The results are stored in a matrix written to file *out_queries_result.tsv* (`-o out_queries_result`): rows are the queries, columns are the colors, intersection of row/column is an integer indicating the number of *k*-mers from the query occuring in the graph with the corresponding color.
 
   4. **Query a colored and compacted de Bruijn graph for presence/absence of queries in each color of the graph**
      ```
