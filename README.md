@@ -202,16 +202,16 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
   > Mandatory with required argument:
 
    -g, --input-graph-file   Input graph file to query in gfa(.gz) or bfg
-   -q, --input-query-file   Input query file in fasta/fastq(.gz)
+   -q, --input-query-file   Input query file in fasta/fastq(.gz). Each record is a query.
                             Multiple files can be provided as a list in a text file (one file per line)
    -o, --output-file        Prefix for output file
-   -e, --ratio-kmers        Ratio of k-mers from queries that must occur in the graph (default: 0.8)
 
    > Optional with required argument:
 
+   -e, --min_ratio-kmers    Minimum ratio of k-mers from each query that must occur in the graph
+   -E, --min-nb-colors      Minimum number of colors from each query that must occur in the graph
    -I, --input-index-file   Input index file associated with graph to query in bfi format
    -C, --input-color-file   Input color file associated with the graph to query in color.bfg format
-                            Presence/absence of queries will be output for each color
    -t, --threads            Number of threads (default: 1)
    -k, --kmer-length        Length of k-mers (default: read from input graph if built with Bifrost or 31)
    -m, --min-length         Length of minimizers (default: read from input graph if built with Bifrost, auto otherwise)
@@ -219,8 +219,8 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
 
    > Optional with no argument:
 
-   -p, --nb-found-km        Output the number of found k-mers for each query (disable parameter -e)
-   -P, --ratio-found-km     Output the ratio of found k-mers for each query (disable parameter -e)
+   -Q, --files-as-queries   All fastq/fastq records in each input query file constitute a single query.
+   -p, --ratio-found-km     Output the ratio of found k-mers for each query (disable parameters -e and -E)
    -a, --approximate        Graph is searched using exact and inexact k-mers (1 substitution or indel allowed per k-mer)
    -v, --verbose            Print information messages during execution
 ```
