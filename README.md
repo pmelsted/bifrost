@@ -257,15 +257,15 @@ The following use cases describe some simple and common usage of the Bifrost CLI
 
   1. **Update a compacted de Bruijn graph with a reference genome file**
      ```
-     Bifrost update -t 4 -r A.fasta -g B_graph.gfa.gz -o AB
+     Bifrost update -t 4 -g A_graph.gfa.gz -r A.fasta -o AB
      ```
-     The compacted de Bruijn graph *B* (`-g B_graph.gfa.gz`) is updated (`update`) using 4 threads (`-t 4`) with the *k*-mers of file *A.fasta* (`-r A.fasta`). The Bifrost index *B_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. By using parameter `-r`, file *A.fasta* is NOT filtered: all *k*-mers occurring in *A* are used for the merging. The graph is written to file *AB.gfa.gz* and a Bifrost index is written to file *AB.bfi* (`-o AB`).
+     The compacted de Bruijn graph *A* (`-g A_graph.gfa.gz`) is updated (`update`) using 4 threads (`-t 4`) with the *k*-mers of file *B.fasta* (`-r B.fasta`). The Bifrost index *A_graph.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. By using parameter `-r`, file *B.fasta* is NOT filtered: all *k*-mers occurring in *B* are used for the merging. The graph is written to file *AB.gfa.gz* and a Bifrost index is written to file *AB.bfi* (`-o AB`).
 
   2. **Update a compacted and colored de Bruijn graph with read files**
      ```
-     Bifrost update -t 4 -s A.fastq -s B.fastq -g C.gfa.gz -f C.color.bfg -o ABC
+     Bifrost update -t 4 -g A.gfa.gz -f A.color.bfg -s B.fastq -s C.fastq -o ABC
      ```
-     The compacted and colored de Bruijn graph *C* (`-g C.gfa.gz -f C.color.bfg`) is updated (`update`) using 4 threads (`-t 4`) with the filtered *k*-mers of files *A.fastq* and *B.fastq* (`-s A.fastq -s B.fastq`). The Bifrost index *C.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. The merged graph is written to file *ABC.gfa.gz*, its colors are written to file *ABC.color.bfg* and a Bifrost index is written to file *ABC.bfi* (`-o ABC`).
+     The compacted and colored de Bruijn graph *A* (`-g A.gfa.gz -f A.color.bfg`) is updated (`update`) using 4 threads (`-t 4`) with the filtered *k*-mers of files *B.fastq* and *C.fastq* (`-s B.fastq -s C.fastq`). The Bifrost index *A.bfi* is automatically loaded if available in the same path as the graph but can also be loaded with `-I`. The merged graph is written to file *ABC.gfa.gz*, its colors are written to file *ABC.color.bfg* and a Bifrost index is written to file *ABC.bfi* (`-o ABC`).
 
         Additional options of interest for merging are:
      - `-i`: Delete all tips composed of unitigs shorter than *k* *k*-mers
