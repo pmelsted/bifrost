@@ -399,9 +399,24 @@ Yes, please see [this solution](https://github.com/pmelsted/bifrost/issues/50#is
 
 ## Benchmarking
 
-Here are a few considerations if you want to benchmark Bifrost in order to compare its performance to other tool(s):
-- Bifrost input data are sequences (genomes and reads) and its output is a graph. The *k*-mers and their multiplicites of the input are computed within Bifrost. If you compare time/memory between Bifrost and tool X, X must also include *k*-mer extraction and counting. If *k*-mer extraction and counting is done with tool Y a pre-processing step of tool X, report time/memory for X+y, otherwise you are comparing apple and oranges.
+Here are a few guidelines to benchmark Bifrost in order to compare its performance to tool X:
 
+* **Do not used the conda installation for benchmarking**
+
+  Compared to the source install, the Conda package might not have the latest Bifrost version, does not support *k>31* nor native compilation.
+
+* **Compare the same type of input data**
+  
+  Bifrost input data are sequences (genomes or reads): the *k*-mers and their multiplicites are computed internaly by Bifrost. If *k*-mer extraction and counting is done with tool Y as a pre-processing step of tool X, report time/memory for X+Y (not just X).
+
+* **Compare the same type of output graphs**
+
+  Bifrost outputs the vertices and edges of the compacted de Bruijn graph in [GFA](https://gfa-spec.github.io/GFA-spec/GFA1.html) format, a plain-text file format for graphs used by the community. Comparing X's output to Bifrost's GFA output is not acceptable if the output of X is not plain-text (e.g binary file) nor if it does not contain vertices and edges for the graph. If needed, Bifrost can output only the vertices of the graph in FASTA format with `-f`.
+
+* **Compare uncompressed output**
+
+  Bifrost output graphs are compressed by default (which takes computation time). When comparing to X's uncompressed output, Bifrost compression must be deactivated with option '-n'.
+  
 ## Troubleshooting
 
 * compilation (`make`) fails because some header files (*.h*) are not found
