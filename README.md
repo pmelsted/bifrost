@@ -14,6 +14,8 @@
     * Associate **your data with vertices**
     * **Add** or **remove** (sub-)sequences / *k*-mers / colors
     * **Find unitigs** containing **queried k-mers**
+ 
+Other tools integrating or using Bifrost: [Kallisto](https://github.com/pachterlab/kallisto), [Ratatosk](https://github.com/DecodeGenetics/Ratatosk), [ggCaller](https://github.com/bacpop/ggCaller), [popIns2](https://github.com/kehrlab/PopIns2), [PLAST](https://gitlab.ub.uni-bielefeld.de/gi/plast) and more.
 
 ## Table of Contents
 
@@ -29,7 +31,7 @@
 
 ## Requirements
 
-It is highly recommended to install Bifrost from source. However, to install Bifrost using Bioconda, go directly to Section [Installation](#installation). To install from source, you will need:
+It is highly recommended to install Bifrost from source. However, a Conda installation is possible (see Section [Installation](#installation)). Bifrost requirements are pre-installed by default on most OS:
 
 * C++11 compiler:
     * [GCC](https://gcc.gnu.org/) >= 5.1.0
@@ -37,7 +39,7 @@ It is highly recommended to install Bifrost from source. However, to install Bif
 * [Cmake](https://cmake.org/) >= 2.8.12
 * [Zlib](https://zlib.net/)
 
-Those are installed by default on most OS. In case you are missing on or more of those: 
+In case you are missing on or more of those: 
 
 * **Ubuntu/Debian**:
 ```
@@ -49,7 +51,7 @@ brew install --with-toolchain llvm
 brew install cmake zlib
 ```
 * **Windows**:
-Bifrost does not run natively on Windows but you can install the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/linux/install) and run it from there. Bifrost will not be nearly as fast on WSL as it is on a native Linux or MacOS installation. From the WSL:
+Bifrost does not run natively on Windows but you can install the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/linux/install) and run it from there. Bifrost will be slower on WSL compare to a native Linux installation. From the WSL:
 ```
 sudo apt-get install build-essential cmake zlib1g-dev
 ```
@@ -65,15 +67,15 @@ sudo apt-get install build-essential cmake zlib1g-dev
   make
   make install
   ```
-
-  `make install` might require `sudo` (`sudo make install`) to proceed. To install Bifrost in the non-default path `/some/path/`, add the option `-DCMAKE_INSTALL_PREFIX=/some/path/` to the `cmake` command.
-
+  
   By default, the installation creates:
   * a binary (*Bifrost*)
   * a dynamic library (*libbifrost.so* for Unix or *libbifrost.dylib* for MacOS)
   * a static library (*libbifrost.a*)
 
-  **Advanced options**
+  **Advanced**
+  * `make install` might require `sudo` (`sudo make install`) to proceed.
+  * To install in a non-default path `/some/path/`, add the option `-DCMAKE_INSTALL_PREFIX=/some/path/` to the `cmake` command.
   * Bifrost compiles by default with `-march=native`: the compiler targets architecture instructions specific to the machine Bifrost is compiled on. Hence, the binary and library produced might not work on a different machine. Native compilation can be disabled by adding the option `-DCOMPILATION_ARCH=OFF` to the `cmake` command (disables all AVX2 optimizations too). Alternatively, you can use this option to specify the architecture you want to target: `x86-64`, `knl`, etc. Default is `-DCOMPILATION_ARCH=native`.
   * Bifrost uses AVX2 instructions during graph construction which can be disabled by adding the option `-DENABLE_AVX2=OFF` to the `cmake` command.
 
@@ -81,7 +83,7 @@ sudo apt-get install build-essential cmake zlib1g-dev
 
 * From [Bioconda](https://bioconda.github.io):
 
-  Compared to the source install, the Conda package might not have the latest Bifrost version, does not support *k>31* nor native compilation. **Do not use the conda installation for benchmarking Bifrost.**
+  Compared to the source install, the Conda package might not have the latest Bifrost version, does not support *k>31* nor native compilation. **Do not use the Conda installation for benchmarking Bifrost.**
   ```
   conda install -c bioconda bifrost
   ```
@@ -221,7 +223,7 @@ Usage: Bifrost [COMMAND] [PARAMETERS]
 
 ### Use cases
 
-The following use cases describe some simple and common usage of the Bifrost CLI. However, many options are provided by the CLI to perform more specific actions (graph cleaning, approximate querying, etc.).
+The following use cases describe some simple and common usage of the Bifrost CLI. However, many more options are provided by the CLI to perform more specific operations (graph cleaning, approximate querying, etc.).
 
 - **Build**
 
