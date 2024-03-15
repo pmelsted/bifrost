@@ -24,6 +24,7 @@ Other tools integrating or using Bifrost: [Kallisto](https://github.com/pachterl
 * [Binary usage](#binary-usage)
 * [API](#api)
 * [FAQ](#faq)
+* [Benchmarking](#benchmarking)
 * [Troubleshooting](#troubleshooting)
 * [Citation](#citation)
 * [Contact](#contact)
@@ -395,6 +396,11 @@ All of them. The difference between the graphs resides in circular unitigs (unit
 **Is it possible to get the colors per *k*-mer in a parsable (non-binary) file format?**
 
 Yes, please see [this solution](https://github.com/pmelsted/bifrost/issues/50#issuecomment-1719799619)
+
+## Benchmarking
+
+Here are a few considerations if you want to benchmark Bifrost in order to compare its performance to other tool(s):
+- Bifrost input data are sequences (genomes and reads) and its output is a graph. The *k*-mers and their multiplicites of the input are computed within Bifrost. If you compare time/memory between Bifrost and tool X, X must also include *k*-mer extraction and counting. If *k*-mer extraction and counting is done with tool Y a pre-processing step of tool X, report time/memory for X+y, otherwise you are comparing apple and oranges.
 
 ## Troubleshooting
 
