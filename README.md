@@ -3,7 +3,6 @@
 ### Parallel construction, indexing and querying of colored and compacted de Bruijn graphs
 
 * **Build**, **index**, **color** and **query** the compacted de Bruijn graph
-* **No need to build the uncompacted** de Bruijn graph
 * **Reads** or **assembled genomes** as input
 * Output **graph in GFA** (can be visualized with [Bandage](https://github.com/rrwick/Bandage)), **FASTA** or **binary**
 * **Graph cleaning**: short tip clipping, etc.
