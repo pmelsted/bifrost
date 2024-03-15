@@ -407,7 +407,7 @@ Here are a few guidelines to benchmark Bifrost in order to compare its performan
 
 * **Compare the same type of input data**
   
-  Bifrost input data are sequences (genomes or reads): the *k*-mers and their multiplicites are computed internaly by Bifrost. If *k*-mer extraction and counting is done with tool Y as a pre-processing step of tool X, report time/memory for X+Y (not just X).
+  Bifrost input data are sequences (genomes or reads): the *k*-mers and their multiplicites are computed internally by Bifrost. If *k*-mer extraction and counting is done with tool Y as a pre-processing step of tool X, report time/memory for X+Y (not just X).
 
 * **Compare the same type of output graphs**
 
