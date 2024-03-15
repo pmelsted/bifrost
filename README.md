@@ -442,13 +442,13 @@ export PATH=$PATH:/usr/local/lib/
 ## Citation
 
 ```
-@article {holley2019bifrost,
-  author = {Holley, Guillaume and Melsted, P{\'a}ll},
-  title = "{Bifrost - Highly parallel construction and indexing of colored and compacted de Bruijn graphs}",
-  elocation-id = {695338},
-  doi = {10.1101/695338},
-  journal = {bioRxiv},
-  year = {2019}
+@article{holley2020bifrost,
+   title="{Bifrost: highly parallel construction and indexing of colored and compacted de Bruijn graphs}",
+   author={Holley, Guillaume and Melsted, P{\'a}ll},
+   journal={Genome Biology},
+   volume={21},
+   article={249},
+   year={2020}
 }
 ```
 
