@@ -411,7 +411,7 @@ Here are a few guidelines to benchmark Bifrost in order to compare its performan
 
 * **Compare the same type of output graphs**
 
-  Bifrost outputs the vertices and edges of the compacted de Bruijn graph in [GFA](https://gfa-spec.github.io/GFA-spec/GFA1.html) format, a plain-text file format for graphs used by the community. Comparing X's output to Bifrost's GFA output is not acceptable if the output of X is not plain-text (e.g binary file) nor if it does not contain vertices and edges for the graph. If needed, Bifrost can output only the vertices of the graph in FASTA format with `-f`.
+  Bifrost outputs the vertices and edges of the compacted de Bruijn graph in [GFA](https://gfa-spec.github.io/GFA-spec/GFA1.html) format, a plain-text file format for graphs used by the community. Comparing X's output to Bifrost's GFA output is not acceptable if the output of X is not plain-text (e.g binary file) nor if it does not contain vertices and edges for the graph. If needed, Bifrost can output the vertices without the edges in FASTA format with `-f`.
 
 * **Compare uncompressed output**
 
