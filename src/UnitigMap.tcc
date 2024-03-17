@@ -381,9 +381,9 @@ bool UnitigMap<U, G, is_const>::isCoverageFull() const {
 
     if (isEmpty) return false; // nothing maps, move on
 
-    if (isShort) cdbg->km_unitigs.isFull(pos_unitig);
-    else if (isAbundant) cdbg->h_kmers_ccov.find(pos_unitig)->ccov.isFull();
-    else cdbg->v_unitigs[pos_unitig]->getCov().isFull();
+    if (isShort) return cdbg->km_unitigs.isFull(pos_unitig);
+    else if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig)->ccov.isFull();
+    else return cdbg->v_unitigs[pos_unitig]->getCov().isFull();
 }
 
 template<typename U, typename G, bool is_const>
@@ -391,9 +391,9 @@ size_t UnitigMap<U, G, is_const>::getCoverage(const size_t pos) const {
 
     if (isEmpty || (pos > size - cdbg->getK())) return 0; // nothing maps, move on
 
-    if (isShort) cdbg->km_unitigs.covAt(pos_unitig);
-    else if (isAbundant) cdbg->h_kmers_ccov.find(pos_unitig)->ccov.covAt(0);
-    else cdbg->v_unitigs[pos_unitig]->getCov().covAt(pos);
+    if (isShort) return cdbg->km_unitigs.covAt(pos_unitig);
+    else if (isAbundant) return cdbg->h_kmers_ccov.find(pos_unitig)->ccov.covAt(0);
+    else return cdbg->v_unitigs[pos_unitig]->getCov().covAt(pos);
 }
 
 
