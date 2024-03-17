@@ -15,6 +15,7 @@ template<typename U, typename G> class CompactedDBG;
 template<typename U, typename G, bool is_const> class BackwardCDBG;
 template<typename U, typename G, bool is_const> class ForwardCDBG;
 template<typename U, typename G, bool is_const> class neighborIterator;
+template<typename U, typename G, bool is_const> struct UnitigMapHash;
 
 /** @class UnitigMapBase
 * @brief Structure containing the basic information of a unitig mapping. This structure is independent
@@ -99,6 +100,7 @@ class UnitigMap : public UnitigMapBase {
     template<typename U, typename G, bool C> friend class ForwardCDBG;
     template<typename U, typename G, bool C> friend class unitigIterator;
     template<typename U, typename G, bool C> friend class UnitigMap;
+    template<typename U, typename G, bool C> friend class UnitigMapHash;
 
     typedef typename std::conditional<is_const, const CompactedDBG<U, G>*, CompactedDBG<U, G>*>::type CompactedDBG_ptr_t;
     typedef typename std::conditional<is_const, const U*, U*>::type Unitig_data_ptr_t;
@@ -107,6 +109,9 @@ class UnitigMap : public UnitigMapBase {
 
         typedef BackwardCDBG<U, G, is_const> UnitigMap_BW;
         typedef ForwardCDBG<U, G, is_const> UnitigMap_FW;
+
+        using hasher = UnitigMapHash<U, G, is_const>;
+        using neighbor_iterator = neighborIterator<U, G, is_const>;
 
         /** UnitigMap constructor.
         * @param length is the length of the mapping in k-mers (default is 1 k-mer).
@@ -151,6 +156,14 @@ class UnitigMap : public UnitigMapBase {
         * an empty string if there is no mapping (UnitigMap::isEmpty = true).
         */
         string referenceUnitigToString() const;
+
+        /**
+         * By default, cdbg->find returns a mapping of a single k-mer on a unitig. This function makes a copy of this
+         * object, but where the mapping represents the full unitig.
+         */
+        UnitigMap<U, G, is_const> mappingToFullUnitig() const;
+
+        bool isFullMapping() const;
 
         /** Compute the length of the longest common prefix between a given sequence and
         * the reference unitig used in the mapping.
@@ -262,11 +275,11 @@ class UnitigMap : public UnitigMapBase {
 
         UnitigMap(size_t p_unitig, size_t i, size_t l, size_t sz, bool short_, bool abundance, bool strd, CompactedDBG_ptr_t cdbg_);
 
-        neighborIterator<U, G, is_const> bw_begin() const;
-        neighborIterator<U, G, is_const> bw_end() const;
+        neighbor_iterator bw_begin() const;
+        neighbor_iterator bw_end() const;
 
-        neighborIterator<U, G, is_const> fw_begin() const;
-        neighborIterator<U, G, is_const> fw_end() const;
+        neighbor_iterator fw_begin() const;
+        neighbor_iterator fw_end() const;
 
         template<bool is_void> typename std::enable_if<!is_void, Unitig<U>>::type splitData_(const bool last_split) const;
         template<bool is_void> typename std::enable_if<is_void, Unitig<U>>::type splitData_(const bool last_split) const;
