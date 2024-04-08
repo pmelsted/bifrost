@@ -398,23 +398,23 @@ Yes, please see [this solution](https://github.com/pmelsted/bifrost/issues/50#is
 
 ## Benchmarking
 
-Here are a few guidelines to benchmark Bifrost in order to compare its performance to tool X:
+Here are a few guidelines to benchmark Bifrost:
 
 * **Do not used the conda installation for benchmarking**
 
   Compared to the source install, the Conda package might not have the latest Bifrost version, does not support *k>31* nor native compilation.
 
-* **Compare the same type of input data**
-  
-  Bifrost input data are sequences (genomes or reads): the *k*-mers and their multiplicites are computed internally by Bifrost. If *k*-mer extraction and counting is done with tool Y as a pre-processing step of tool X, report time/memory for X+Y (not just X).
+* **Compare time/memory for the same workflow**
 
-* **Compare the same type of output graphs**
+  Bifrost is an end-to-end workflow: the input data are sequences and the output data is a (colored) compacted de Bruijn graph. When comparing Bifrost to tool X which delegate preprocessing (such as computing *k*-mers and their multiplicites) to tool Y, time/memory for X+Y must be reported (not just X).
 
-  Bifrost outputs the vertices and edges of the compacted de Bruijn graph in [GFA](https://gfa-spec.github.io/GFA-spec/GFA1.html) format, a plain-text file format for graphs used by the community. Comparing X's output to Bifrost's GFA output is not acceptable if the output of X is not plain-text (e.g binary file) nor if it does not contain vertices and edges for the graph. If needed, Bifrost can output the vertices without the edges in FASTA format with `-f`.
+* **Compare the same type of output data**
+
+  Bifrost outputs the compacted de Bruijn graph in [GFA](https://gfa-spec.github.io/GFA-spec/GFA1.html) format, a plain-text file format for graphs adopted by the community. A valid comparison of the output of tool X to Bifrost's GFA output is if the output of X is plain-text (not a binary file) and it contains vertices and edges. If needed, Bifrost can output the vertices without the edges in FASTA format with `-f`.
 
 * **Compare uncompressed output**
 
-  Bifrost output graphs are compressed by default (which takes computation time). When comparing to X's uncompressed output, Bifrost compression must be deactivated with option '-n'.
+  Bifrost output graphs are compressed by default but the compression requires additional time. When comparing the run time of tool X with uncompressed output to Bifrost, Bifrost compression must be deactivated with option '-n'.
   
 ## Troubleshooting
 
