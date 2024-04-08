@@ -444,7 +444,7 @@ class UnitigColors {
 
         // asBits and asPointer represent:
         // Flag 0 - A TinyBitmap which can contain up to 65488 uint
-        // Flag 1 - A bit vector of 62 bits storing presence/absence of up to 62 integers
+        // Flag 1 - A bit vector of 61 bits storing presence/absence of up to 61 integers
         // Flag 2 - A single integer
         // Flag 3 - A pointer to a CRoaring compressed bitmap which can contain up to 2^32 uint
         // Flag 4 - A pointer to an array of 2 UnitigColors:

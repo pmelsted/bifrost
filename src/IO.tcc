@@ -125,15 +125,15 @@ bool CompactedDBG<U, G>::read(const string& input_graph_fn, const size_t nb_thre
 
     if (verbose) cout << endl << "CompactedDBG::read(): Reading graph from disk" << endl;
 
-    const int format = FileParser::getFileFormat(input_graph_fn.c_str());
+    const int format_graph = FileParser::getFileFormat(input_graph_fn.c_str());
 
-    if (format == -1){
+    if (format_graph == -1){
 
         cerr << "CompactedDBG::read(): Input graph file " << input_graph_fn << " does not exist, is ill-formed or is not a valid graph file format." << endl;
 
         return false;
     }
-    else if ((format != 0) && (format != 2) && (format != 3)){
+    else if ((format_graph != 0) && (format_graph != 2) && (format_graph != 3)){
 
         cerr << "CompactedDBG::read(): Input graph file must be in FASTA, GFA or BFG format." << endl;
 
@@ -168,7 +168,7 @@ bool CompactedDBG<U, G>::read(const string& input_graph_fn, const size_t nb_thre
     }
     else {
 
-	    if (format == 0) { // FASTA input
+	    if (format_graph == 0) { // FASTA input
 
 	        const int k = k_;
 	        const int g = g_;
@@ -196,7 +196,7 @@ bool CompactedDBG<U, G>::read(const string& input_graph_fn, const size_t nb_thre
 	        setKmerGmerLength(k, g);
 	        makeGraphFromFASTA(input_graph_fn, nb_threads);
 	    }
-	    else if (format == 2){ // GFA format
+	    else if (format_graph == 2){ // GFA format
 
 	    	string header;
 
@@ -275,9 +275,15 @@ bool CompactedDBG<U, G>::read(const string& input_graph_fn, const size_t nb_thre
 	    setFullCoverage(1);
 
 	    // Set coverages
-	    if (!invalid) for (auto& unitig : *this) unitig.setFullCoverage();
+	    if (!invalid) {
 
-	    if (verbose) cout << endl << "CompactedDBG::read(): Finished reading graph from disk" << endl;
+            for (auto& unitig : *this) unitig.setFullCoverage();
+
+            // Prep MinimizerIndex: Compute PSL maximum values and more importantly, standard deviation
+            hmap_min_unitigs.recomputeMaxStdPSL(nb_threads);
+
+            if (verbose) cout << endl << "CompactedDBG::read(): Finished reading graph from disk" << endl;
+        }
 
     	return !invalid;
 	}
@@ -1181,6 +1187,8 @@ bool CompactedDBG<U, G>::readBinaryIndex(istream& in, const uint64_t checksum) {
         }
     }
 
+    if (read_success) hmap_min_unitigs.recomputeMaxStdPSL(1); // Prep MinimizerIndex: Compute PSL maximum values and more importantly, standard deviation
+
     return read_success;
 }
 
@@ -1835,6 +1843,8 @@ void CompactedDBG<U, G>::makeGraphFromGFA(const string& fn, const size_t nb_thre
 
             r = graph.read(graph_file_id, new_file_opened, true);
         }
+
+        h_kmers_ccov.recomputeMaxStdPSL(nb_threads);
     }
     /*else {
 
@@ -1910,6 +1920,8 @@ void CompactedDBG<U, G>::makeGraphFromFASTA(const string& fn, const size_t nb_th
     /*if (nb_threads == 1)*/{
 
         while (ff.read_next(seq, graph_file_id) != -1) addUnitig(seq, (seq.length() == k_) ? km_unitigs.size() : v_unitigs.size());
+
+        h_kmers_ccov.recomputeMaxStdPSL(nb_threads);
     }
     /*else {
 
@@ -2064,6 +2076,8 @@ pair<uint64_t, bool> CompactedDBG<U, G>::readGraphFromIndexFASTA(const string& g
 	        ++i;
         }
 
+        h_kmers_ccov.recomputeMaxStdPSL(1);
+
         read_success = (read_success && (i == h_kmers_ccov_sz));
     }
 
@@ -2187,6 +2201,8 @@ pair<uint64_t, bool> CompactedDBG<U, G>::readGraphFromIndexGFA(const string& gra
 
 	    	r = graph.read(graph_file_id, new_file_opened, true);
         }
+
+        h_kmers_ccov.recomputeMaxStdPSL(1);
 
         read_success = (read_success && (i == h_kmers_ccov_sz));
     }

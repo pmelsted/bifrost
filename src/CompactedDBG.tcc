@@ -3435,8 +3435,8 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
 
             fp_approx_unitigs.close();
 
-            hmap_min_unitigs.recomputeMaxPSL(opt.nb_threads);
-            h_kmers_ccov.recomputeMaxPSL(opt.nb_threads);
+            hmap_min_unitigs.recomputeMaxStdPSL(opt.nb_threads);
+            h_kmers_ccov.recomputeMaxStdPSL(opt.nb_threads);
         }
 
         if (approx_unitigs_detected && (std::remove(tmp_graph_fn.c_str()) != 0)) cerr << "CompactedDBG::construct(): Could not remove temporary file." << endl;
@@ -3595,8 +3595,8 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
             dbg_extra.v_unitigs.clear();
         }
 
-        hmap_min_unitigs.recomputeMaxPSL(opt.nb_threads);
-        h_kmers_ccov.recomputeMaxPSL(opt.nb_threads);
+        hmap_min_unitigs.recomputeMaxStdPSL(opt.nb_threads);
+        h_kmers_ccov.recomputeMaxStdPSL(opt.nb_threads);
 
         dbg_extra.clear();
     }
@@ -3617,8 +3617,8 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
 
     bf_fp_tips.clear();
 
-    hmap_min_unitigs.recomputeMaxPSL(opt.nb_threads);
-    h_kmers_ccov.recomputeMaxPSL(opt.nb_threads);
+    hmap_min_unitigs.recomputeMaxStdPSL(opt.nb_threads);
+    h_kmers_ccov.recomputeMaxStdPSL(opt.nb_threads);
 
     const int unitigsAfter2 = size();
 
@@ -3637,8 +3637,8 @@ bool CompactedDBG<U, G>::construct(const CDBG_Build_opt& opt, DualBlockedBloomFi
 
     const int unitigsAfter3 = size();
 
-    hmap_min_unitigs.recomputeMaxPSL(opt.nb_threads);
-    h_kmers_ccov.recomputeMaxPSL(opt.nb_threads);
+    hmap_min_unitigs.recomputeMaxStdPSL(opt.nb_threads);
+    h_kmers_ccov.recomputeMaxStdPSL(opt.nb_threads);
 
     if (opt.verbose) {
 

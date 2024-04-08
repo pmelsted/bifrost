@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <iterator>
 #include <mutex>
 #include <thread>
@@ -197,10 +198,16 @@ class MinimizerIndex {
         const_iterator end() const;
 
         void recomputeMaxPSL(const size_t nb_threads = 1);
+        void recomputeMaxStdPSL(const size_t nb_threads = 1);
 
         BFG_INLINE size_t get_mean_psl() const {
 
-            return sum_psl / (pop + 1); // Slightly biased computation but avoids to check for (psl == 0). Fine since we just need an approximate result.
+            return ceil(static_cast<double>(sum_psl) / static_cast<double>(pop + 1)); // Slightly biased computation but avoids to check for (psl == 0). Fine since we just need an approximate result.
+        }
+
+        BFG_INLINE size_t get_std_psl() const {
+
+            return std_psl;
         }
 
         BFG_INLINE size_t get_max_psl() const {
@@ -219,157 +226,15 @@ class MinimizerIndex {
 
         __uint128_t M_u64;
 
-        size_t size_, pop, max_psl, sum_psl;
+        size_t size_, pop;
+        size_t max_psl, sum_psl, std_psl;
 
         Minimizer* table_keys;
+
         packed_tiny_vector* table_tinyv;
         uint8_t* table_tinyv_sz;
+
+        uint64_t* table_outliers_psl;
 };
-
-/*class CompactedMinimizerIndex {
-
-    template<bool is_const = true>
-    class iterator_ : public std::iterator<std::forward_iterator_tag, packed_tiny_vector> {
-
-        public:
-
-            typedef typename std::conditional<is_const, const CompactedMinimizerIndex*, CompactedMinimizerIndex*>::type CMI_ptr_t;
-            typedef typename std::conditional<is_const, const packed_tiny_vector&, packed_tiny_vector&>::type CMI_tinyv_ref_t;
-            typedef typename std::conditional<is_const, const packed_tiny_vector*, packed_tiny_vector*>::type CMI_tinyv_ptr_t;
-            typedef typename std::conditional<is_const, const uint8_t&, uint8_t&>::type CMI_tinyv_sz_ref_t;
-            typedef typename std::conditional<is_const, const uint8_t*, uint8_t*>::type CMI_tinyv_sz_ptr_t;
-
-            iterator_() : cmi(nullptr), pos(0xffffffffffffffffULL) {}
-            iterator_(CMI_ptr_t cmi_) : cmi(cmi_), pos(cmi_->size_), mi_it(cmi_->mi_overflow.end()) {}
-            iterator_(CMI_ptr_t cmi_, size_t pos_) :  cmi(cmi_), pos(pos_), mi_it(cmi_->mi_overflow.begin()) {}
-            iterator_(CMI_ptr_t cmi_, size_t pos_, MinimizerIndex::iterator_<is_const> mi_it_) :  cmi(cmi_), pos(pos_), mi_it(mi_it_) {}
-            iterator_(const iterator_<false>& o) : cmi(o.cmi), pos(o.pos), mi_it(o.mi_it) {}
-
-            iterator_& operator=(const iterator_& o) {
-
-                if (this != &o) {
-
-                    cmi = o.cmi;
-                    pos = o.pos;
-                    mi_it = o.mi_it;
-                }
-
-                return *this;
-            }
-
-            BFG_INLINE Minimizer getKey() const {
-
-                if (pos < cmi->size) return cmi->table_keys[pos];
-                
-                return mi_it->getKey();
-            }
-
-            BFG_INLINE CMI_tinyv_sz_ref_t getVectorSize() const {
-
-                if (pos < cmi->size) return cmi->table_tinyv_sz[pos];
-
-                return mi_it->getVectorSize();
-            }
-
-            BFG_INLINE CMI_tinyv_ref_t getVector() const {
-
-                if (pos < cmi->size) return cmi->table_tinyv[pos];
-
-                return mi_it->getVector();
-            }
-
-            CMI_tinyv_ref_t operator*() const {
-
-                if (pos < cmi->size) return cmi->table_tinyv[pos];
-
-                return mi_it.operator*();
-            }
-
-            CMI_tinyv_ptr_t operator->() const {
-
-                if (pos < cmi->size) return &(cmi->table_tinyv[pos]);
-
-                return mi_it.operator->();
-            }
-
-            iterator_ operator++(int) {
-
-                const iterator_ tmp(*this);
-                operator++();
-                return tmp;
-            }
-
-            iterator_& operator++() {
-
-                if (pos == cmi->size) {
-
-                    if (mi_it != cmi->mi_overflow.end()) mi_it.operator++();
-                }
-                else {
-
-                    for (++pos; pos < cmi->size; ++pos) {
-
-                        if (!cmi->table_keys[pos].isEmpty() && !cmi->table_keys[pos].isDeleted()) break;
-                    }
-
-                    // At this point, if (pos == cmi->size), mi_it should already be initialized to mi_overflow.begin() by the constructor
-                }
-
-                return *this;
-            }
-
-            BFG_INLINE bool operator==(const iterator_ &o) const {
-
-                return (cmi == o.cmi) && (pos == o.pos) && (mi_it == o.mi_it);
-            }
-
-            BFG_INLINE bool operator!=(const iterator_ &o) const {
-
-                return (cmi != o.cmi) || (pos != o.pos) || (mi_it != o.mi_it);
-            }
-
-            friend class iterator_<true>;
-
-        //private:
-
-            MinimizerIndex::iterator_<is_const> mi_it;
-            CMI_ptr_t cmi;
-            size_t pos;
-    };
-
-    public:
-
-        CompactedMinimizerIndex();
-        CompactedMinimizerIndex(const MinimizerIndex& mi, const size_t nb_hashes, const size_t nb_threads = 1);
-        CompactedMinimizerIndex(MinimizerIndex&& mi, const size_t nb_hashes, const size_t nb_threads = 1);
-
-        CompactedMinimizerIndex& operator=(const CompactedMinimizerIndex& cmi);
-        CompactedMinimizerIndex& operator=(CompactedMinimizerIndex&& cmi);
-
-        void clear();
-
-        iterator begin();
-        const_iterator begin() const;
-
-        iterator end();
-        const_iterator end() const;
-
-        iterator find(const Minimizer& key);
-        const_iterator find(const Minimizer& key) const;
-
-        iterator find(const size_t h);
-        const_iterator find(const size_t h) const;
-
-    private:
-
-        size_t size, nb_h, hbits_per_minz;
-
-        Minimizer* table_keys;
-        packed_tiny_vector* table_tinyv;
-        uint8_t* table_tinyv_sz;
-        uint64_t* table_hash_bits;
-
-        MinimizerIndex mi_overflow;
-};*/
 
 #endif

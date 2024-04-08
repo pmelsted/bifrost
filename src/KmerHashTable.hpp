@@ -1,10 +1,11 @@
 #ifndef BIFROST_KMER_HASHTABLE_HPP
 #define BIFROST_KMER_HASHTABLE_HPP
 
-#include <utility>
-#include <string>
-#include <iterator>
 #include <algorithm>
+#include <cmath>
+#include <iterator>
+#include <string>
+#include <utility>
 
 #include "Kmer.hpp"
 
@@ -18,10 +19,12 @@ struct KmerHashTable {
 
     __uint128_t M_u64;
 
-    size_t size_, pop, max_psl, sum_psl;
+    size_t size_, pop;
+    size_t max_psl, sum_psl, std_psl;
 
     Kmer* table_keys;
     T* table_values;
+    uint64_t* table_outliers_psl;
 
     template<bool is_const = true>
     class iterator_ : public std::iterator<std::forward_iterator_tag, T> {
@@ -130,12 +133,14 @@ struct KmerHashTable {
     typedef iterator_<true> const_iterator;
     typedef iterator_<false> iterator;
 
-    KmerHashTable() :   table_keys(nullptr), table_values(nullptr) {
+    KmerHashTable() :   table_keys(nullptr), table_values(nullptr), table_outliers_psl(nullptr) {
 
         clear();
     }
 
-    KmerHashTable(const size_t sz, const double ratio_occupancy = BIFROST_KHT_MAX_OCCUPANCY) : table_keys(nullptr), table_values(nullptr) {
+    KmerHashTable(const size_t sz, const double ratio_occupancy = BIFROST_KHT_MAX_OCCUPANCY) :  table_keys(nullptr),
+                                                                                                table_values(nullptr),
+                                                                                                table_outliers_psl(nullptr) {
 
         clear();
 
@@ -149,25 +154,34 @@ struct KmerHashTable {
         }
     }
 
-    KmerHashTable(const KmerHashTable& o) : table_keys(nullptr), table_values(nullptr), max_ratio_occupancy(o.max_ratio_occupancy),
-                                            size_(o.size_), pop(o.pop), sum_psl(o.sum_psl), max_psl(o.max_psl), M_u64(o.M_u64) {
+    KmerHashTable(const KmerHashTable& o) : table_keys(nullptr), table_values(nullptr), table_outliers_psl(nullptr),
+                                            size_(o.size_), pop(o.pop), M_u64(o.M_u64), sum_psl(o.sum_psl), max_psl(o.max_psl),
+                                            std_psl(o.std_psl), max_ratio_occupancy(o.max_ratio_occupancy) {
 
         if (size_ != 0) {
 
             table_keys = new Kmer[size_];
             table_values = new T[size_];
 
+            if (o.table_outliers_psl != nullptr) {
+
+                table_outliers_psl = new uint64_t[(size_ + 63) / 64];
+
+                std::copy(o.table_outliers_psl, o.table_outliers_psl + size_, table_outliers_psl);
+            }
+
             std::copy(o.table_keys, o.table_keys + size_, table_keys);
             std::copy(o.table_values, o.table_values + size_, table_values);
         }
     }
 
-    KmerHashTable(KmerHashTable&& o) :  table_keys(o.table_keys), table_values(o.table_values),
-                                        size_(o.size_), pop(o.pop), sum_psl(o.sum_psl), max_psl(o.max_psl),
-                                        M_u64(o.M_u64), max_ratio_occupancy(o.max_ratio_occupancy) {
+    KmerHashTable(KmerHashTable&& o) :  table_keys(o.table_keys), table_values(o.table_values), table_outliers_psl(o.table_outliers_psl),
+                                        size_(o.size_), pop(o.pop), M_u64(o.M_u64), sum_psl(o.sum_psl), max_psl(o.max_psl),
+                                        std_psl(o.std_psl), max_ratio_occupancy(o.max_ratio_occupancy) {
 
         o.table_keys = nullptr;
         o.table_values = nullptr;
+        o.table_outliers_psl = nullptr;
 
         o.clear();
     }
@@ -181,6 +195,7 @@ struct KmerHashTable {
             size_ = o.size_;
             pop = o.pop;
             sum_psl = o.sum_psl;
+            std_psl = o.std_psl;
             max_psl = o.max_psl;
             max_ratio_occupancy = o.max_ratio_occupancy;
             M_u64 = o.M_u64;
@@ -189,6 +204,13 @@ struct KmerHashTable {
 
                 table_keys = new Kmer[size_];
                 table_values = new T[size_];
+
+                if (o.table_outliers_psl != nullptr) {
+
+                    table_outliers_psl = new uint64_t[(size_ + 63) / 64];
+
+                    std::copy(o.table_outliers_psl, o.table_outliers_psl + size_, table_outliers_psl);
+                }
 
                 std::copy(o.table_keys, o.table_keys + size_, table_keys);
                 std::copy(o.table_values, o.table_values + size_, table_values);
@@ -207,15 +229,18 @@ struct KmerHashTable {
             size_ = o.size_;
             pop = o.pop;
             sum_psl = o.sum_psl;
+            std_psl = o.std_psl;
             max_psl = o.max_psl;
             max_ratio_occupancy = o.max_ratio_occupancy;
             M_u64 = o.M_u64;
 
             table_keys = o.table_keys;
             table_values = o.table_values;
+            table_outliers_psl = o.table_outliers_psl;
 
             o.table_keys = nullptr;
             o.table_values = nullptr;
+            o.table_outliers_psl = nullptr;
 
             o.clear();
         }
@@ -242,11 +267,20 @@ struct KmerHashTable {
             table_values = nullptr;
         }
 
+        if (table_outliers_psl != nullptr) {
+
+            delete[] table_outliers_psl;
+            table_outliers_psl = nullptr;
+        }
+
+
         size_ = 0;
         pop  = 0;
         sum_psl = 0;
-        max_psl = 1;
+        std_psl = 0;
+        max_psl = 0;
         M_u64 = 0;
+
         max_ratio_occupancy = BIFROST_KHT_MAX_OCCUPANCY;
     }
 
@@ -257,58 +291,67 @@ struct KmerHashTable {
             const size_t end_table = size_-1;
             const size_t mean_psl = get_mean_psl();
 
-            size_t psl = 0;
             size_t h = fastmod::fastmod_u64(key.hash(), M_u64, size_);
+            size_t l_max_psl = max_psl;
+            size_t l_mean_psl = mean_psl;
+
+            // If std psl was computed, is not 0 and position in table is not annotated as outlier
+            if ((table_outliers_psl != nullptr) && ((table_outliers_psl[h >> 6] & (0x1ULL << (h & 0x3fULL))) == 0)) {
+
+                l_max_psl = mean_psl + std_psl;
+                l_mean_psl = std_psl;
+            }
 
             if (mean_psl <= 2) {
 
-                while ((psl != max_psl) && !table_keys[h].isEmpty() && (table_keys[h] != key)) {
+                size_t psl = 0;
 
-                    h = (h+1) & (static_cast<size_t>(h == end_table) - 1);
+                while ((psl <= l_max_psl) && !table_keys[h].isEmpty() && (table_keys[h] != key)) {
+
+                    h = (h + 1) & (static_cast<size_t>(h == end_table) - 1);
                     ++psl;
                 }
 
-                if ((psl != max_psl) && (table_keys[h] == key)) return iterator(this, h, psl);
+                if (table_keys[h] == key) return iterator(this, h, psl);
             }
             else {
 
-                size_t h_mean = fastmod::fastmod_u64(h + mean_psl, M_u64, size_);
-                size_t h_inc = h_mean, h_dec = h_mean;
+                const size_t h_mean = fastmod::fastmod_u64(h + mean_psl, M_u64, size_);
+
+                size_t h_inc = h_mean;
+                size_t h_dec = h_mean;
+                size_t i = 0;
 
                 bool has_empty_key = false;
 
-                size_t i = 0;
-
-                // Check all elements located at positions mean + i and mean -i. Stop if empty key encountered. Stop if minimum key is encountered.
-                for (; !has_empty_key && (i <= mean_psl); ++i) {
+                // Check all elements located at positions mean+i and mean-i. Stop if empty key encountered. Stop if minimum key is encountered.
+                for (; !has_empty_key && (i <= l_mean_psl); ++i) {
 
                     if (table_keys[h_dec] == key) return iterator(this, h_dec, mean_psl - i);
+                    if (table_keys[h_inc] == key) return iterator(this, h_inc, mean_psl + i);
 
                     has_empty_key = table_keys[h_dec].isEmpty() || table_keys[h_inc].isEmpty();
-
-                    if (!has_empty_key && (table_keys[h_inc] == key)) return iterator(this, h_inc, mean_psl + i);
 
                     h_dec = (h_dec - 1) + ((static_cast<size_t>(h_dec != 0) - 1) & size_);
                     h_inc = (h_inc + 1) & (static_cast<size_t>(h_inc == end_table) - 1);
                 }
 
-                // Only check remaining acending positions if neither the empty key nor the minimum key were encountered
-                for (; !has_empty_key && (mean_psl + i <= max_psl); ++i) {
+                if (!has_empty_key) {
 
-                    if (table_keys[h_inc] == key) return iterator(this, h_inc, mean_psl + i);
+                    // Only check remaining acending positions if neither the empty key nor the minimum key were encountered
+                    for (size_t j = i; (mean_psl + j <= l_max_psl) && !table_keys[h_inc].isEmpty(); ++j) {
 
-                    has_empty_key = table_keys[h_inc].isEmpty();
-                    h_inc = (h_inc + 1) & (static_cast<size_t>(h_inc == end_table) - 1);
+                        if (table_keys[h_inc] == key) return iterator(this, h_inc, mean_psl + j);
+
+                        h_inc = (h_inc + 1) & (static_cast<size_t>(h_inc == end_table) - 1);
+                    }
                 }
 
-                if (has_empty_key) { // Only check remaining descending positions if empty key was previously encountered but minimum key was not encountered
+                for (; i <= mean_psl; ++i) {
 
-                    for (; (i <= mean_psl); ++i) {
+                    if (table_keys[h_dec] == key) return iterator(this, h_dec, mean_psl - i);
 
-                        if (table_keys[h_dec] == key) return iterator(this, h_dec, mean_psl - i);
-
-                        h_dec = (h_dec - 1) + ((static_cast<size_t>(h_dec != 0) - 1) & size_);
-                    }
+                    h_dec = (h_dec - 1) + ((static_cast<size_t>(h_dec != 0) - 1) & size_);
                 }
             }
         }
@@ -318,65 +361,72 @@ struct KmerHashTable {
 
     KmerHashTable::const_iterator find(const Kmer& key) const {
 
-         if ((pop != 0) && (size_ != 0)) {
+        if ((pop != 0) && (size_ != 0)) {
 
             const size_t end_table = size_-1;
             const size_t mean_psl = get_mean_psl();
 
             size_t h = fastmod::fastmod_u64(key.hash(), M_u64, size_);
+            size_t l_max_psl = max_psl;
+            size_t l_mean_psl = mean_psl;
+
+            // If std psl was computed, is not 0 and position in table is not annotated as outlier
+            if ((table_outliers_psl != nullptr) && ((table_outliers_psl[h >> 6] & (0x1ULL << (h & 0x3fULL))) == 0)) {
+
+                l_max_psl = mean_psl + std_psl;
+                l_mean_psl = std_psl;
+            }
 
             if (mean_psl <= 2) {
 
                 size_t psl = 0;
 
-                while ((psl != max_psl) && !table_keys[h].isEmpty() && (table_keys[h] != key)) {
+                while ((psl <= l_max_psl) && !table_keys[h].isEmpty() && (table_keys[h] != key)) {
 
-                    h = (h+1) & (static_cast<size_t>(h==end_table)-1);
+                    h = (h + 1) & (static_cast<size_t>(h == end_table) - 1);
                     ++psl;
                 }
 
-                if ((psl != max_psl) && (table_keys[h] == key)) return const_iterator(this, h, psl);
+                if (table_keys[h] == key) return const_iterator(this, h, psl);
             }
             else {
 
-                size_t h_mean = fastmod::fastmod_u64(h + mean_psl, M_u64, size_);
-                size_t h_inc = h_mean, h_dec = h_mean;
+                const size_t h_mean = fastmod::fastmod_u64(h + mean_psl, M_u64, size_);
+
+                size_t h_inc = h_mean;
+                size_t h_dec = h_mean;
+                size_t i = 0;
 
                 bool has_empty_key = false;
 
-                size_t i = 0;
-
-                // Check all elements located at positions mean + i and mean -i. Stop if empty key encountered. Stop if minimum key is encountered.
-                for (; !has_empty_key && (i <= mean_psl); ++i) {
+                // Check all elements located at positions mean+i and mean-i. Stop if empty key encountered. Stop if minimum key is encountered.
+                for (; !has_empty_key && (i <= l_mean_psl); ++i) {
 
                     if (table_keys[h_dec] == key) return const_iterator(this, h_dec, mean_psl - i);
+                    if (table_keys[h_inc] == key) return const_iterator(this, h_inc, mean_psl + i);
 
                     has_empty_key = table_keys[h_dec].isEmpty() || table_keys[h_inc].isEmpty();
-
-                    if (!has_empty_key && (table_keys[h_inc] == key)) return const_iterator(this, h_inc, mean_psl + i);
 
                     h_dec = (h_dec - 1) + ((static_cast<size_t>(h_dec != 0) - 1) & size_);
                     h_inc = (h_inc + 1) & (static_cast<size_t>(h_inc == end_table) - 1);
                 }
 
-                // Only check remaining acending positions if neither the empty key nor the minimum key were encountered
-                for (; !has_empty_key && (mean_psl + i <= max_psl); ++i) {
+                if (!has_empty_key) {
 
-                    if (table_keys[h_inc] == key) return const_iterator(this, h_inc, mean_psl + i);
+                    // Only check remaining acending positions if neither the empty key nor the minimum key were encountered
+                    for (size_t j = i; (mean_psl + j <= l_max_psl) && !table_keys[h_inc].isEmpty(); ++j) {
 
-                    has_empty_key = table_keys[h_inc].isEmpty();
-                    h_inc = (h_inc + 1) & (static_cast<size_t>(h_inc == end_table) - 1);
+                        if (table_keys[h_inc] == key) return const_iterator(this, h_inc, mean_psl + j);
+
+                        h_inc = (h_inc + 1) & (static_cast<size_t>(h_inc == end_table) - 1);
+                    }
                 }
 
-                // Only check remaining descending positions if empty key was previously encountered but minimum key was not encountered
-                if (has_empty_key) {
+                for (; i <= mean_psl; ++i) {
 
-                    for (; (i <= mean_psl); ++i) {
+                    if (table_keys[h_dec] == key) return const_iterator(this, h_dec, mean_psl - i);
 
-                        if (table_keys[h_dec] == key) return const_iterator(this, h_dec, mean_psl - i);
-
-                        h_dec = (h_dec - 1) + ((static_cast<size_t>(h_dec != 0) - 1) & size_);
-                    }
+                    h_dec = (h_dec - 1) + ((static_cast<size_t>(h_dec != 0) - 1) & size_);
                 }
             }
         }
@@ -419,6 +469,16 @@ struct KmerHashTable {
             table_values[it.h] = T();
 
             --pop;
+        }
+
+        // Computed psl standard deviation is only valid if no insertion/deletion has happened since it was computed
+        // Current deletion invalidate the psl standard deviation
+        if (table_outliers_psl != nullptr) {
+
+            std_psl = 0;
+            
+            delete[] table_outliers_psl;
+            table_outliers_psl = nullptr;
         }
 
         // Robin-hood hash: push the tombstone further away if subsequent keys can be closer to where they are supposed to be
@@ -479,7 +539,7 @@ struct KmerHashTable {
 
         while (true) {
 
-            if (table_keys[h].isEmpty() || (has_rich_psl && (cascade_ins || (psl_ins_key >= max_psl)))) {
+            if (table_keys[h].isEmpty() || (has_rich_psl && (cascade_ins || (psl_ins_key > max_psl)))) {
 
                 if (has_rich_psl) {
 
@@ -503,7 +563,7 @@ struct KmerHashTable {
 
                     if (!cascade_ins) it_ret = {iterator(this, h, psl_rich_key), true};
 
-                    max_psl = max(max_psl, psl_rich_key + 1);
+                    max_psl = max(max_psl, psl_rich_key);
                     sum_psl -= psl_curr_key;
                     sum_psl += psl_rich_key;
 
@@ -516,10 +576,18 @@ struct KmerHashTable {
                     table_keys[h] = std::move(l_key);
                     table_values[h] = std::move(l_val);
 
-                    max_psl = max(max_psl, psl_ins_key + 1);
+                    max_psl = max(max_psl, psl_ins_key);
                     sum_psl += psl_ins_key;
 
                     if (!cascade_ins) it_ret = {iterator(this, h, psl_ins_key), true};
+
+                    if (table_outliers_psl != nullptr) {
+
+                        std_psl = 0;
+                        
+                        delete[] table_outliers_psl;
+                        table_outliers_psl = nullptr;
+                    }
 
                     return it_ret;
                 }
@@ -555,9 +623,9 @@ struct KmerHashTable {
         if (size_ == 0) init_tables(BIFROST_KHT_INIT_SZ);
         else if (pop >= static_cast<size_t>(size_ * max_ratio_occupancy)) {
 
-            size_t resize = 1.2 * size_;
+            size_t resize = max(1.2 * size_, static_cast<double>(1 + size_));
 
-            while (pop >= static_cast<size_t>(resize * max_ratio_occupancy)) resize *= 1.2;
+            while (pop >= static_cast<size_t>(resize * max_ratio_occupancy)) resize = max(1.2 * resize, static_cast<double>(1 + resize));
 
             reserve(resize);
         }
@@ -579,7 +647,7 @@ struct KmerHashTable {
 
         while (true) {
 
-            if (table_keys[h].isEmpty() || (has_rich_psl && (cascade_ins || (psl_ins_key >= max_psl)))) {
+            if (table_keys[h].isEmpty() || (has_rich_psl && (cascade_ins || (psl_ins_key > max_psl)))) {
 
                 if (has_rich_psl) {
 
@@ -603,7 +671,7 @@ struct KmerHashTable {
 
                     if (!cascade_ins) it_ret = {iterator(this, h, psl_rich_key), true};
 
-                    max_psl = max(max_psl, psl_rich_key + 1);
+                    max_psl = max(max_psl, psl_rich_key);
                     sum_psl -= psl_curr_key;
                     sum_psl += psl_rich_key;
 
@@ -616,10 +684,18 @@ struct KmerHashTable {
                     table_keys[h] = std::move(l_key);
                     table_values[h] = std::move(l_val);
 
-                    max_psl = max(max_psl, psl_ins_key + 1);
+                    max_psl = max(max_psl, psl_ins_key);
                     sum_psl += psl_ins_key;
 
                     if (!cascade_ins) it_ret = {iterator(this, h, psl_ins_key), true};
+
+                    if (table_outliers_psl != nullptr) {
+
+                        std_psl = 0;
+                        
+                        delete[] table_outliers_psl;
+                        table_outliers_psl = nullptr;
+                    }
 
                     return it_ret;
                 }
@@ -651,7 +727,7 @@ struct KmerHashTable {
 
     void recomputeMaxPSL(const size_t nb_threads = 1) {
 
-        max_psl = 1;
+        max_psl = 0;
 
         if ((pop != 0) && (size_ != 0)) {
 
@@ -664,7 +740,7 @@ struct KmerHashTable {
                         const size_t h = fastmod::fastmod_u64(table_keys[i].hash(), M_u64, size_);
                         const size_t psl = ((size_ - h + i) & (static_cast<size_t>(i >= h) - 1)) + ((i - h) & (static_cast<size_t>(i < h) - 1));
 
-                        max_psl = max(max_psl, psl + 1);
+                        max_psl = max(max_psl, psl);
                     }
                 }
             }
@@ -685,7 +761,7 @@ struct KmerHashTable {
                             const size_t chunk_start = t * chunk_per_thread;
                             const size_t chunk_end = min(((t+1) * chunk_per_thread), size_);
 
-                            size_t l_max_psl = 1;
+                            size_t l_max_psl = 0;
 
                             for (size_t i = chunk_start; i < chunk_end; ++i) {
 
@@ -694,7 +770,7 @@ struct KmerHashTable {
                                     const size_t h = fastmod::fastmod_u64(table_keys[i].hash(), M_u64, size_);
                                     const size_t psl = ((size_ - h + i) & (static_cast<size_t>(i >= h) - 1)) + ((i - h) & (static_cast<size_t>(i < h) - 1));
 
-                                    l_max_psl = max(l_max_psl, psl + 1);
+                                    l_max_psl = max(l_max_psl, psl);
                                 }
                             }
 
@@ -708,6 +784,136 @@ struct KmerHashTable {
                 }
 
                 for (auto& t : workers) t.join();
+            }
+        }
+    }
+
+    void recomputeMaxStdPSL(const size_t nb_threads = 1) {
+
+        std_psl = 0;
+        max_psl = 0;
+
+        if (table_outliers_psl != nullptr) {
+            
+            delete[] table_outliers_psl;
+            table_outliers_psl = nullptr;
+        }
+
+        if (pop != 0) {
+
+            const size_t mean_psl = get_mean_psl();
+
+            if (nb_threads <= 1) {
+
+                for (size_t i = 0; i != size_; ++i) {
+
+                    if (!table_keys[i].isEmpty()) {
+
+                        const size_t h = fastmod::fastmod_u64(table_keys[i].hash(), M_u64, size_);
+                        const size_t psl = ((size_ - h + i) & (static_cast<size_t>(i >= h) - 1)) + ((i - h) & (static_cast<size_t>(i < h) - 1));
+
+                        max_psl = max(max_psl, psl);
+                        std_psl += pow(abs(static_cast<int64_t>(psl) - static_cast<int64_t>(mean_psl)), 2);
+                    }
+                }
+            }
+            else {
+
+                const size_t chunk_per_thread = (size_ + nb_threads - 1) / nb_threads;
+
+                vector<thread> workers; // need to keep track of threads so we can join them
+
+                mutex mtx_max_psl;
+
+                for (size_t t = 0; t < nb_threads; ++t){
+
+                    workers.emplace_back(
+
+                        [&, t]{
+
+                            const size_t chunk_start = t * chunk_per_thread;
+                            const size_t chunk_end = min(((t+1) * chunk_per_thread), size_);
+
+                            size_t l_max_psl = 0;
+                            size_t l_std_psl = 0;
+
+                            for (size_t i = chunk_start; i < chunk_end; ++i) {
+
+                                if (!table_keys[i].isEmpty()) {
+
+                                    const size_t h = fastmod::fastmod_u64(table_keys[i].hash(), M_u64, size_);
+                                    const size_t psl = ((size_ - h + i) & (static_cast<size_t>(i >= h) - 1)) + ((i - h) & (static_cast<size_t>(i < h) - 1));
+
+                                    l_max_psl = max(l_max_psl, psl);
+                                    l_std_psl += pow(abs(static_cast<int64_t>(psl) - static_cast<int64_t>(mean_psl)), 2);
+                                }
+                            }
+
+                            {
+                                unique_lock<mutex> lock(mtx_max_psl);
+
+                                max_psl = max(max_psl, l_max_psl);
+                                std_psl += l_std_psl;
+                            }
+                        }
+                    );
+                }
+
+                for (auto& t : workers) t.join();
+            }
+
+            // Finish computing psl standard deviation
+            std_psl = static_cast<size_t>(ceil(sqrt(static_cast<double>(std_psl)/static_cast<double>(pop))));
+
+            // Update outlier psl list
+            if (std_psl != 0) {
+
+                table_outliers_psl = new uint64_t[(size_ + 63) / 64]();
+
+                if (nb_threads <= 1) {
+
+                    for (size_t i = 0; i != size_; ++i) {
+
+                        if (!table_keys[i].isEmpty()) {
+
+                            const size_t h = fastmod::fastmod_u64(table_keys[i].hash(), M_u64, size_);
+                            const size_t psl = ((size_ - h + i) & (static_cast<size_t>(i >= h) - 1)) + ((i - h) & (static_cast<size_t>(i < h) - 1));
+
+                            if (psl > mean_psl + std_psl) table_outliers_psl[h >> 6] |= 0x1ULL << (h & 0x3fULL);
+                        }
+                    }
+                }
+                else {
+
+                    const size_t chunk_per_thread = (size_ + nb_threads - 1) / nb_threads;
+
+                    vector<thread> workers; // need to keep track of threads so we can join them
+
+                    for (size_t t = 0; t < nb_threads; ++t){
+
+                        workers.emplace_back(
+
+                            [&, t]{
+
+                                const size_t chunk_start = t * chunk_per_thread;
+                                const size_t chunk_end = min(((t+1) * chunk_per_thread), size_);
+
+                                for (size_t i = chunk_start; i < chunk_end; ++i) {
+
+                                    if (!table_keys[i].isEmpty()) {
+
+                                        const size_t h = fastmod::fastmod_u64(table_keys[i].hash(), M_u64, size_);
+                                        const size_t psl = ((size_ - h + i) & (static_cast<size_t>(i >= h) - 1)) + ((i - h) & (static_cast<size_t>(i < h) - 1));
+
+                                        if (psl > mean_psl + std_psl) table_outliers_psl[h >> 6] |= 0x1ULL << (h & 0x3fULL);
+                                    }
+                                }
+                            }
+                        );
+                    }
+
+                    for (auto& t : workers) t.join();
+                }
             }
         }
     }
@@ -757,12 +963,17 @@ struct KmerHashTable {
 
     BFG_INLINE size_t get_mean_psl() const {
 
-        return sum_psl / (pop + 1); // Slightly biased computation but avoids to check for (psl == 0). Fine since we just need an approximate result.
+        return ceil(static_cast<double>(sum_psl) / static_cast<double>(pop + 1)); // Slightly biased computation but avoids to check for (psl == 0). Fine since we just need an approximate result.
     }
 
     BFG_INLINE size_t get_max_psl() const {
 
         return max_psl;
+    }
+
+    BFG_INLINE size_t get_std_psl() const {
+
+        return std_psl;
     }
 
     void init_tables(const size_t sz) {
@@ -800,8 +1011,17 @@ struct KmerHashTable {
             size_ = sz;
             pop = 0;
             sum_psl = 0;
-            max_psl = 1;
+            std_psl = 0;
+            max_psl = 0;
+            
             M_u64 = fastmod::computeM_u64(size_);
+
+             if (table_outliers_psl != nullptr){
+
+                delete[] table_outliers_psl;
+
+                table_outliers_psl = nullptr;
+             }
 
             table_keys = new Kmer[size_];
             table_values = new T[size_];
@@ -839,409 +1059,5 @@ struct KmerHashTable {
         }
     }
 };
-
-/*template<typename T>
-struct KmerHashTable {
-
-    size_t size_, pop, num_empty;
-
-    Kmer* table_keys;
-    T* table_values;
-
-    template<bool is_const = true>
-    class iterator_ : public std::iterator<std::forward_iterator_tag, T> {
-
-        public:
-
-            typedef typename std::conditional<is_const, const KmerHashTable *, KmerHashTable *>::type MHT_ptr_t;
-            typedef typename std::conditional<is_const, const T&, T&>::type MHT_val_ref_t;
-            typedef typename std::conditional<is_const, const T*, T*>::type MHT_val_ptr_t;
-
-            MHT_ptr_t ht;
-            size_t h;
-
-            iterator_() : ht(nullptr), h(0) {}
-            iterator_(MHT_ptr_t ht_) : ht(ht_), h(ht_->size_) {}
-            iterator_(MHT_ptr_t ht_, size_t h_) :  ht(ht_), h(h_) {}
-            iterator_(const iterator_<false>& o) : ht(o.ht), h(o.h) {}
-            iterator_& operator=(const iterator_& o) { ht=o.ht; h=o.h; return *this; }
-
-            MHT_val_ref_t operator*() const { return ht->table_values[h]; }
-            MHT_val_ptr_t operator->() const { return &(ht->table_values[h]); }
-
-            const Kmer& getKey() const { return ht->table_keys[h]; }
-
-            size_t getHash() const { return h; }
-
-            void find_first() {
-
-                h = 0;
-
-                if ((ht != nullptr) && (ht->size_ > 0) && (ht->table_keys[h].isEmpty() || ht->table_keys[h].isDeleted())) operator++();
-            }
-
-            iterator_ operator++(int) {
-
-                const iterator_ tmp(*this);
-                operator++();
-                return tmp;
-            }
-
-            iterator_& operator++() {
-
-                if (h == ht->size_) return *this;
-
-                ++h;
-
-                for (; h < ht->size_; ++h) {
-
-                    if (!ht->table_keys[h].isEmpty() && !ht->table_keys[h].isDeleted()) break;
-                }
-
-                return *this;
-            }
-
-            bool operator==(const iterator_ &o) const { return (ht == o.ht) && (h == o.h); }
-            bool operator!=(const iterator_ &o) const { return (ht != o.ht) || (h != o.h); }
-
-            friend class iterator_<true>;
-        };
-
-    typedef iterator_<true> const_iterator;
-    typedef iterator_<false> iterator;
-
-    // --- hash table
-    KmerHashTable() : table_keys(nullptr), table_values(nullptr), size_(0), pop(0), num_empty(0) {
-
-        init_tables(1024);
-    }
-
-    KmerHashTable(const size_t sz) : table_keys(nullptr), table_values(nullptr), size_(0), pop(0), num_empty(0) {
-
-        if (sz < 2) init_tables(2);
-        else {
-
-            const size_t sz_with_empty = static_cast<size_t>(1.2 * sz);
-
-            size_t rdnup_sz = rndup(sz);
-
-            while (rdnup_sz < sz_with_empty) rdnup_sz <<= 1;
-
-            init_tables(max(rdnup_sz, static_cast<size_t>(2)));
-        }
-    }
-
-    KmerHashTable(const KmerHashTable& o) : size_(o.size_), pop(o.pop), num_empty(o.num_empty) {
-
-        table_keys = new Kmer[size_];
-        table_values = new T[size_];
-
-        std::copy(o.table_keys, o.table_keys + size_, table_keys);
-        std::copy(o.table_values, o.table_values + size_, table_values);
-    }
-
-    KmerHashTable(KmerHashTable&& o){
-
-        size_ = o.size_;
-        pop = o.pop;
-        num_empty = o.num_empty;
-
-        table_keys = o.table_keys;
-        table_values = o.table_values;
-
-        o.table_keys = nullptr;
-        o.table_values = nullptr;
-
-        o.clear_tables();
-    }
-
-    KmerHashTable& operator=(const KmerHashTable& o) {
-
-        clear_tables();
-
-        size_ = o.size_;
-        pop = o.pop;
-        num_empty = o.num_empty;
-
-        table_keys = new Kmer[size_];
-        table_values = new T[size_];
-
-        std::copy(o.table_keys, o.table_keys + size_, table_keys);
-        std::copy(o.table_values, o.table_values + size_, table_values);
-
-        return *this;
-    }
-
-    KmerHashTable& operator=(KmerHashTable&& o){
-
-        if (this != &o) {
-
-            clear_tables();
-
-            size_ = o.size_;
-            pop = o.pop;
-            num_empty = o.num_empty;
-
-            table_keys = o.table_keys;
-            table_values = o.table_values;
-
-            o.table_keys = nullptr;
-            o.table_values = nullptr;
-
-            o.clear_tables();
-        }
-
-        return *this;
-    }
-
-    ~KmerHashTable() {
-
-        clear_tables();
-    }
-
-    // DUMMY TO DELETE
-    void recomputeMaxPSL(const size_t nb_threads = 1) {
-    }
-
-    inline size_t size() const {
-
-        return pop;
-    }
-
-    inline bool empty() const {
-
-        return pop == 0;
-    }
-
-    void clear() {
-
-        Kmer empty_key;
-
-        empty_key.set_empty();
-
-        std::fill(table_keys, table_keys + size_, empty_key);
-
-        pop = 0;
-        num_empty = size_;
-    }
-
-    void clear_tables() {
-
-        if (table_keys != nullptr) {
-
-            delete[] table_keys;
-            table_keys = nullptr;
-        }
-
-        if (table_values != nullptr) {
-
-            delete[] table_values;
-            table_values = nullptr;
-        }
-
-        size_ = 0;
-        pop  = 0;
-        num_empty = 0;
-    }
-
-    void init_tables(const size_t sz) {
-
-        clear_tables();
-
-        size_ = rndup(sz);
-
-        table_keys = new Kmer[size_];
-        table_values = new T[size_];
-
-        clear();
-    }
-
-    void reserve(const size_t sz) {
-
-        if (sz <= size_) return;
-
-        const size_t old_size_ = size_;
-
-        Kmer empty_key;
-
-        Kmer* old_table_keys = table_keys;
-        T* old_table_values = table_values;
-
-        size_ = rndup(sz);
-        pop = 0;
-        num_empty = size_;
-
-        table_keys = new Kmer[size_];
-        table_values = new T[size_];
-
-        empty_key.set_empty();
-
-        std::fill(table_keys, table_keys + size_, empty_key);
-
-        for (size_t i = 0; i < old_size_; ++i) {
-
-            if (!old_table_keys[i].isEmpty() && !old_table_keys[i].isDeleted()){
-
-                insert(std::move(old_table_keys[i]), std::move(old_table_values[i]));
-            }
-        }
-
-        delete[] old_table_keys;
-        delete[] old_table_values;
-    }
-
-    iterator find(const Kmer& key) {
-
-        const size_t end_table = size_-1;
-
-        size_t h = key.hash() & end_table;
-
-        const size_t end_h = (h-1) & end_table;
-
-        for (; h != end_h; h = (h+1) & end_table) {
-
-            if (table_keys[h].isEmpty() || (table_keys[h] == key)) break;
-        }
-
-        if ((h != end_h) && (table_keys[h] == key)) return iterator(this, h);
-
-        return iterator(this);
-    }
-
-    const_iterator find(const Kmer& key) const {
-
-        const size_t end_table = size_-1;
-
-        size_t h = key.hash() & end_table;
-
-        const size_t end_h = (h-1) & end_table;
-
-        for (; h != end_h; h = (h+1) & end_table) {
-
-            if (table_keys[h].isEmpty() || (table_keys[h] == key)) break;
-        }
-
-        if ((h != end_h) && (table_keys[h] == key)) return const_iterator(this, h);
-
-        return const_iterator(this);
-    }
-
-    iterator find(const size_t h) {
-
-        if ((h < size_) && !table_keys[h].isEmpty() && !table_keys[h].isDeleted()) return iterator(this, h);
-        return iterator(this);
-    }
-
-    const_iterator find(const size_t h) const {
-
-        if ((h < size_) && !table_keys[h].isEmpty() && !table_keys[h].isDeleted()) return const_iterator(this, h);
-        return const_iterator(this);
-    }
-
-    iterator erase(const_iterator pos) {
-
-        if (pos == end()) return end();
-
-        table_keys[pos.h].set_deleted();
-        --pop;
-
-        return ++iterator(this, pos.h); // return pointer to next element
-    }
-
-    size_t erase(const Kmer& minz) {
-
-        const_iterator pos = find(minz);
-
-        size_t oldpop = pop;
-
-        if (pos != end()) erase(pos);
-
-        return oldpop - pop;
-    }
-
-    std::pair<iterator, bool> insert(const Kmer& key, const T& value) {
-
-        if ((5 * num_empty) < size_) reserve(2 * size_); // if more than 80% full, resize
-
-        bool is_deleted = false;
-
-        const size_t end_table = size_-1;
-
-        for (size_t h = key.hash() & end_table, h_tmp;; h = (h+1) & end_table) {
-
-            if (table_keys[h].isEmpty()) {
-
-                is_deleted ? h = h_tmp : --num_empty;
-
-                table_keys[h] = key;
-                table_values[h] = value;
-
-                ++pop;
-
-                return {iterator(this, h), true};
-            }
-            else if (table_keys[h] == key) return {iterator(this, h), false};
-            else if (!is_deleted && table_keys[h].isDeleted()) {
-
-                is_deleted = true;
-                h_tmp = h;
-            }
-        }
-    }
-
-    std::pair<iterator, bool> insert(Kmer&& key, T&& value) {
-
-        if ((5 * num_empty) < size_) reserve(2 * size_); // if more than 80% full, resize
-
-        bool is_deleted = false;
-
-        const size_t end_table = size_-1;
-
-        for (size_t h = key.hash() & end_table, h_tmp;; h = (h+1) & end_table) {
-
-            if (table_keys[h].isEmpty()) {
-
-                is_deleted ? h = h_tmp : --num_empty;
-
-                table_keys[h] = key;
-                table_values[h] = value;
-
-                ++pop;
-
-                return {iterator(this, h), true};
-            }
-            else if (table_keys[h] == key) return {iterator(this, h), false};
-            else if (!is_deleted && table_keys[h].isDeleted()) {
-
-                is_deleted = true;
-                h_tmp = h;
-            }
-        }
-    }
-
-    iterator begin() {
-
-        iterator it(this);
-        it.find_first();
-        return it;
-    }
-
-    const_iterator begin() const {
-
-        const_iterator it(this);
-        it.find_first();
-        return it;
-    }
-
-    iterator end() {
-
-        return iterator(this);
-    }
-
-    const_iterator end() const {
-
-        return const_iterator(this);
-    }
-};*/
 
 #endif

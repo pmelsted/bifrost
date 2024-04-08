@@ -41,7 +41,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
         return (p1.first < p2.first);
     };
 
-    auto worker_func = [&](const bool subst, const bool ins, const bool del, const size_t shift){
+    auto worker_inexact = [&](const bool subst, const bool ins, const bool del, const size_t shift){
 
         const size_t ins_mask = static_cast<size_t>(!ins) - 1;
         const size_t del_mask = static_cast<size_t>(!del) - 1;
@@ -163,7 +163,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
     if (exact){
 
-        for (KmerIterator ki_s(s.c_str()), ki_e; ki_s != ki_e; ++ki_s) {
+        /*for (KmerIterator ki_s(s.c_str()), ki_e; ki_s != ki_e; ++ki_s) {
 
             const size_t pos_s = ki_s->second;
             const UnitigMap<U, G> um = findUnitig(s.c_str(), pos_s, s.length());
@@ -180,6 +180,70 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
                 }
 
                 ki_s += um.len - 1;
+            }
+        }*/
+
+        {
+            const size_t s_len = s.length();
+            const char* s_str = s.c_str();
+
+            KmerIterator ki_s(s_str), ki_e;
+            minHashIterator<RepHash> mhi = minHashIterator<RepHash>(s_str, s_len, k_, g_, RepHash(), true);
+
+            minHashResultIterator<RepHash> it_min, it_min_end;
+            minHashResult mhr;
+
+            Minimizer minz;
+
+            pair<size_t, bool> minz_pres = {0xffffffffffffffffULL, true};
+
+            while (ki_s != ki_e) {
+
+                const size_t pos_s = ki_s->second;
+
+                mhi += (pos_s - mhi.getKmerPosition()); //If one or more k-mer were jumped because contained non-ACGT char.
+
+                it_min = *mhi;
+                mhr = *it_min;
+
+                // If minimizers of new kmer are different from minimizers of previous kmer
+                // or if minimizers are the same but they were present, search them again
+                if (minz_pres.second || (mhr.pos != minz_pres.first)){
+
+                    if (mhr.pos != minz_pres.first){
+
+                        minz = Minimizer(s_str + mhr.pos).rep();
+                        minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
+
+                        for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
+
+                            mhr = *it_min;
+                            minz = Minimizer(s_str + mhr.pos).rep();
+                            minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
+                        }
+                    }
+
+                    if (minz_pres.second) { // If the k-mer has already been searched in the past, discard
+
+                        const UnitigMap<U, G> um = findUnitig(s_str, pos_s, s_len, mhi);
+
+                        if (!um.isEmpty) { // Read maps to a Unitig
+
+                            if (um.strand){
+
+                                for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({pos_s + j - um.dist, um.getKmerMapping(j)});
+                            }
+                            else {
+
+                                for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({pos_s + um.dist + um.len - j - 1, um.getKmerMapping(j)});
+                            }
+
+                            ki_s += um.len - 1;
+                        }
+                    }
+                }
+
+                ++ki_s;
             }
         }
 
@@ -199,7 +263,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
             s_inexact = s;
 
-            worker_func(true, false, false, i);
+            worker_inexact(true, false, false, i);
         }
     }
 
@@ -220,7 +284,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
             s_inexact = ss.str();
 
-            worker_func(false, true, false, i);
+            worker_inexact(false, true, false, i);
         }
     }
 
@@ -239,7 +303,7 @@ vector<pair<size_t, UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence(   cons
 
             s_inexact = ss.str();
 
-            worker_func(false, false, true, i);
+            worker_inexact(false, false, true, i);
         }
     }
 
@@ -562,7 +626,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
         return (p1.first < p2.first);
     };
 
-    auto worker_func = [&](const bool subst, const bool ins, const bool del, const size_t shift){
+    auto worker_inexact = [&](const bool subst, const bool ins, const bool del, const size_t shift){
 
         const size_t ins_mask = static_cast<size_t>(!ins) - 1;
         const size_t del_mask = static_cast<size_t>(!del) - 1;
@@ -684,7 +748,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
     if (exact){
 
-        for (KmerIterator ki_s(s.c_str()), ki_e; ki_s != ki_e; ++ki_s) {
+        /*for (KmerIterator ki_s(s.c_str()), ki_e; ki_s != ki_e; ++ki_s) {
 
             const size_t pos_s = ki_s->second;
             const const_UnitigMap<U, G> um = findUnitig(s.c_str(), pos_s, s.length());
@@ -701,6 +765,70 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
                 }
 
                 ki_s += um.len - 1;
+            }
+        }*/
+
+        {
+            const size_t s_len = s.length();
+            const char* s_str = s.c_str();
+
+            KmerIterator ki_s(s_str), ki_e;
+            minHashIterator<RepHash> mhi = minHashIterator<RepHash>(s_str, s_len, k_, g_, RepHash(), true);
+
+            minHashResultIterator<RepHash> it_min, it_min_end;
+            minHashResult mhr;
+
+            Minimizer minz;
+
+            pair<size_t, bool> minz_pres = {0xffffffffffffffffULL, true};
+
+            while (ki_s != ki_e) {
+
+                const size_t pos_s = ki_s->second;
+
+                mhi += (pos_s - mhi.getKmerPosition()); //If one or more k-mer were jumped because contained non-ACGT char.
+
+                it_min = *mhi;
+                mhr = *it_min;
+
+                // If minimizers of new kmer are different from minimizers of previous kmer
+                // or if minimizers are the same but they were present, search them again
+                if (minz_pres.second || (mhr.pos != minz_pres.first)){
+
+                    if (mhr.pos != minz_pres.first){
+
+                        minz = Minimizer(s_str + mhr.pos).rep();
+                        minz_pres = {mhr.pos, hmap_min_unitigs.find(minz) != hmap_min_unitigs.end()};
+
+                        for (++it_min; !minz_pres.second && (it_min != it_min_end); ++it_min){
+
+                            mhr = *it_min;
+                            minz = Minimizer(s_str + mhr.pos).rep();
+                            minz_pres.second = (hmap_min_unitigs.find(minz) != hmap_min_unitigs.end());
+                        }
+                    }
+
+                    if (minz_pres.second) { // If the k-mer has already been searched in the past, discard
+
+                        const const_UnitigMap<U, G> um = findUnitig(s_str, pos_s, s_len, mhi);
+
+                        if (!um.isEmpty) { // Read maps to a Unitig
+
+                            if (um.strand){
+
+                                for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({pos_s + j - um.dist, um.getKmerMapping(j)});
+                            }
+                            else {
+
+                                for (size_t j = um.dist; j < um.dist + um.len; ++j) v_um.push_back({pos_s + um.dist + um.len - j - 1, um.getKmerMapping(j)});
+                            }
+
+                            ki_s += um.len - 1;
+                        }
+                    }
+                }
+
+                ++ki_s;
             }
         }
 
@@ -720,7 +848,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
             s_inexact = s;
 
-            worker_func(true, false, false, i);
+            worker_inexact(true, false, false, i);
         }
     }
 
@@ -741,7 +869,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
             s_inexact = ss.str();
 
-            worker_func(false, true, false, i);
+            worker_inexact(false, true, false, i);
         }
     }
 
@@ -760,7 +888,7 @@ vector<pair<size_t, const_UnitigMap<U, G>>> CompactedDBG<U, G>::searchSequence( 
 
             s_inexact = ss.str();
 
-            worker_func(false, false, true, i);
+            worker_inexact(false, false, true, i);
         }
     }
 
