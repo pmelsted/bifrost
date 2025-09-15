@@ -81,13 +81,6 @@ sudo apt-get install build-essential cmake zlib1g-dev
 
   If you encounter any problem during the installation, see the [Troubleshooting](#troubleshooting) section.
 
-* From [Bioconda](https://bioconda.github.io):
-
-  Compared to the source install, the Conda package might not have the latest Bifrost version, does not support *k>31* nor native compilation. **Do not use the Conda installation for benchmarking Bifrost.**
-  ```
-  conda install -c bioconda bifrost
-  ```
-
 ### Large *k*-mers
 
 The default maximum *k*-mer size supported is 31. To work with larger *k* in the binary, you must install Bifrost from source and replace *MAX_KMER_SIZE* with a larger multiple of 32. This can be done in two ways:
@@ -400,10 +393,6 @@ Yes, please see [this solution](https://github.com/pmelsted/bifrost/issues/50#is
 
 Here are a few guidelines to benchmark Bifrost:
 
-* **Do not used the conda installation for benchmarking**
-
-  Compared to the source install, the Conda package might not have the latest Bifrost version, does not support *k>31* nor native compilation.
-
 * **Compare time/memory for the same workflow**
 
   Bifrost is an end-to-end workflow: the input data are sequences and the output data is a (colored) compacted de Bruijn graph. When comparing Bifrost to tool X which delegate preprocessing (such as computing *k*-mers and their multiplicites) to tool Y, time/memory for X+Y must be reported (not just X).
@@ -415,6 +404,10 @@ Here are a few guidelines to benchmark Bifrost:
 * **Compare uncompressed output**
 
   Bifrost output graphs are compressed by default but the compression requires additional time. When comparing the run time of tool X with uncompressed output to Bifrost, Bifrost compression must be deactivated with option '-n'.
+
+* **Do not used the conda installation for benchmarking**
+
+  The Conda package is not being maintained anymore and as a result, its Bifrost version is severely outdated in addition to not supporting *k>31* nor native compilation.
   
 ## Troubleshooting
 
