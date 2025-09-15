@@ -7568,18 +7568,25 @@ typename std::enable_if<!is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_
 
                         deleteUnitig_<false>(true, false, v_kmers_size);
                     }
-                    else if (cmTail.isAbundant) deleteUnitig_<false>(false, true, cmTail.pos_unitig);
+                    else if (cmTail.isAbundant) {
+
+                        // If the head was abundant, its deletion from the k-mer hash table might have displaced the position of the tail
+                        // because of the robin-hash. In that case, tail must be queried again.
+                        deleteUnitig_<false>(false, true, cmTail.isAbundant ? h_kmers_ccov.find(cmTail_head).getHash() : cmTail.pos_unitig);
+                    }
                 }
 
                 if (len_k_head && len_k_tail){
 
                     addUnitig(joinSeq, v_unitigs_size);
+
                     unitig = v_unitigs[v_unitigs_size];
                     ++v_unitigs_size;
                 }
                 else if (len_k_head){
 
                     deleteUnitig_<false>(false, false, cmTail.pos_unitig);
+
                     addUnitig(joinSeq, cmTail.pos_unitig);
                     unitig = v_unitigs[cmTail.pos_unitig];
                 }
@@ -7601,6 +7608,7 @@ typename std::enable_if<!is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_
 
                     deleteUnitig_<false>(false, false, cmHead.pos_unitig);
                     addUnitig(joinSeq, cmHead.pos_unitig);
+
                     unitig = v_unitigs[cmHead.pos_unitig];
                 }
 
@@ -7726,12 +7734,18 @@ typename std::enable_if<is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_(
 
                         deleteUnitig_<true>(true, false, v_kmers_size);
                     }
-                    else if (cmTail.isAbundant) deleteUnitig_<true>(false, true, cmTail.pos_unitig);
+                    else if (cmTail.isAbundant) {
+
+                        // If the head was abundant, its deletion from the k-mer hash table might have displaced the position of the tail
+                        // because of the robin-hash. In that case, tail must be queried again.
+                        deleteUnitig_<true>(false, true, cmTail.isAbundant ? h_kmers_ccov.find(cmTail_head).getHash() : cmTail.pos_unitig);
+                    }
                 }
 
                 if (len_k_head && len_k_tail){
 
                     addUnitig(joinSeq, v_unitigs_size);
+
                     unitig = v_unitigs[v_unitigs_size];
                     ++v_unitigs_size;
                 }
@@ -7739,6 +7753,7 @@ typename std::enable_if<is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_(
 
                     deleteUnitig_<true>(false, false, cmTail.pos_unitig);
                     addUnitig(joinSeq, cmTail.pos_unitig);
+
                     unitig = v_unitigs[cmTail.pos_unitig];
                 }
                 else {
@@ -7759,6 +7774,7 @@ typename std::enable_if<is_void, size_t>::type CompactedDBG<U, G>::joinUnitigs_(
 
                     deleteUnitig_<true>(false, false, cmHead.pos_unitig);
                     addUnitig(joinSeq, cmHead.pos_unitig);
+                    
                     unitig = v_unitigs[cmHead.pos_unitig];
                 }
 
