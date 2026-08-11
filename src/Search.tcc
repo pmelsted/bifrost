@@ -1199,7 +1199,9 @@ bool CompactedDBG<U, G>::searchMinRatioKmer(const std::vector<std::string>& quer
 
         if (nb_threads == 1){
 
-            const char* query_name = nullptr;
+            const char* query_name_cstr = nullptr;
+
+            std::string query_name;
 
             char* buffer_res = new char[thread_seq_buf_sz];
 
@@ -1214,7 +1216,7 @@ bool CompactedDBG<U, G>::searchMinRatioKmer(const std::vector<std::string>& quer
             auto writeBinaryOutput = [&]() {
 
                 const size_t nb_km_min = std::max(static_cast<size_t>(1), static_cast<size_t>(round(static_cast<double>(nb_km_query) * min_ratio_kmers)));
-                const size_t len_query_name = strlen(query_name);
+                const size_t len_query_name = strlen(query_name_cstr);
 
                 const bool is_found = (nb_km_found >= nb_km_min);
 
@@ -1227,7 +1229,7 @@ bool CompactedDBG<U, G>::searchMinRatioKmer(const std::vector<std::string>& quer
                 }
 
                 // Copy new result to buffer
-                std::memcpy(buffer_res + pos_buffer_out, query_name, len_query_name * sizeof(char));
+                std::memcpy(buffer_res + pos_buffer_out, query_name_cstr, len_query_name * sizeof(char));
 
                 if (is_found){
 
@@ -1253,7 +1255,7 @@ bool CompactedDBG<U, G>::searchMinRatioKmer(const std::vector<std::string>& quer
                             ++nb_queries_processed;
                         }
 
-                        query_name = query_filenames[file_id].c_str(); // Query name is the filename
+                        query_name_cstr = query_filenames[file_id].c_str(); // Query name is the filename
 
                         nb_km_found = 0;
                         nb_km_query = 0;
@@ -1271,7 +1273,8 @@ bool CompactedDBG<U, G>::searchMinRatioKmer(const std::vector<std::string>& quer
                         ++nb_queries_processed;
                     }
 
-                    query_name = fp.getNameString(); // Query name is the record name
+                    query_name = std::string(fp.getNameString());// Query name is the record name
+                    query_name_cstr = query_name.c_str();
 
                     nb_km_query = s.length() - k_ + 1;
                     nb_km_found = 0;
